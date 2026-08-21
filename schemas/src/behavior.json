@@ -1,0 +1,854 @@
+{
+  "properties": {
+    "processes": {
+      "description": "State machines over an entity's role:'status' field: the named states records move through and the legal transitions between them (each optionally invoking a command). The runtime derives the status field's options from the states, enforces legal moves, and renders a process stepper on the record detail.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/process"
+      }
+    },
+    "commands": {
+      "description": "Domain actions users invoke on a record (Approve, Assign, Escalate, Mark Paid) — beyond the built-in edit/delete. Each names its entity, where it appears, an optional guard, optional input fields, an optional confirmation, and the effects it runs. Commands are the manual path into the effect engine and the verbs that make an app feel purpose-built.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/command"
+      }
+    },
+    "workflows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/workflow"
+      }
+    }
+  },
+  "$defs": {
+    "workflow": {
+      "type": "object",
+      "required": [
+        "key",
+        "name",
+        "trigger",
+        "effects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "trigger": {
+          "type": "object",
+          "required": [
+            "event"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "event": {
+              "type": "string",
+              "enum": [
+                "record.created",
+                "record.updated",
+                "record.deleted",
+                "field.changed",
+                "schedule"
+              ]
+            },
+            "entity": {
+              "$ref": "#/$defs/identifier"
+            },
+            "field": {
+              "$ref": "#/$defs/identifier"
+            },
+            "cron": {
+              "type": "string"
+            }
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "event": {
+                    "const": "field.changed"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "entity",
+                  "field"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "event": {
+                    "const": "schedule"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "cron",
+                  "entity"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "event": {
+                    "enum": [
+                      "record.created",
+                      "record.updated",
+                      "record.deleted"
+                    ]
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "entity"
+                ]
+              }
+            }
+          ]
+        },
+        "when": {
+          "description": "Optional guard evaluated against the triggering record — the workflow's effects run only when it holds.",
+          "$ref": "#/$defs/condition"
+        },
+        "effects": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        }
+      }
+    },
+    "condition": {
+      "description": "A boolean guard, used by command.when, process transition.when and workflow.when. Exactly one of: an 'all' array (every child true), an 'any' array (at least one true), or a leaf comparison { field, operator, value }. Values may be literals or context tokens '{{currentUser.id}}' / '{{today}}' / '{{now}}'. A leaf addresses its value with either 'field' (the record's own) or 'path' (one hop through a reference).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "any": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/condition"
+          }
+        },
+        "field": {
+          "$ref": "#/$defs/identifier"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "contains",
+            "in",
+            "notIn",
+            "isEmpty",
+            "isNotEmpty",
+            "between",
+            "overlaps"
+          ]
+        },
+        "value": {
+          "description": "A literal. Ranges: 'between' takes the inclusive pair [lo, hi]; 'overlaps' the window [from, to]; 'in'/'notIn' a list. Clock tokens work in any of those slots: '{{today}}', '{{now}}', '{{today+7}}', '{{today-2w}}', '{{now-4h}}' (units d/w/h; no month unit)."
+        },
+        "endField": {
+          "description": "For 'overlaps' only: the field holding the END of this row's range. The row's range is [field, endField]; the value is the window [from, to].",
+          "$ref": "#/$defs/identifier"
+        },
+        "path": {
+          "description": "Guard on a field one relation away — 'room.requires_approval' tests the ROOM this booking points at. One hop, same-app references only.",
+          "$ref": "#/$defs/fieldPath"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "all"
+          ]
+        },
+        {
+          "required": [
+            "any"
+          ]
+        },
+        {
+          "required": [
+            "field",
+            "operator"
+          ]
+        },
+        {
+          "required": [
+            "path",
+            "operator"
+          ]
+        }
+      ]
+    },
+    "effect": {
+      "description": "One typed side effect, shared by command.effects and workflow.effects. 'updateRecord' writes fields on the triggering record (target 'self') or a referenced record; 'createRecord' inserts into an entity; 'notify' sends an in-app notification; 'email' sends mail; 'webhook' POSTs to an allow-listed URL. String values may contain template tokens: {{record.<field>}}, {{actor.id}}, {{actor.name}}, {{app.name}}, {{today}}, {{now}}.\n\nDISCRIMINATED BY `type`: each type is its own closed shape, so a property belonging to another type (a `url` on a notify, an `entity` on an updateRecord) is an error rather than an ignored extra.",
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "updateRecord",
+            "createRecord",
+            "createForEach",
+            "notify",
+            "email",
+            "webhook",
+            "enrich"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "updateRecord"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_updateRecord"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "createRecord"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_createRecord"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "createForEach"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_createForEach"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "notify"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_notify"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "email"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_email"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "webhook"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_webhook"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "enrich"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_enrich"
+          }
+        }
+      ]
+    },
+    "effect_updateRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "set"
+      ],
+      "properties": {
+        "type": {
+          "const": "updateRecord"
+        },
+        "target": {
+          "description": "Which record to write. Defaults to 'self' (the record the command or workflow fired on); give { \"field\": \"<a local reference field>\" } to write the referenced record instead.",
+          "oneOf": [
+            {
+              "type": "string",
+              "const": "self"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field"
+              ],
+              "properties": {
+                "field": {
+                  "$ref": "#/$defs/identifier"
+                }
+              }
+            }
+          ],
+          "default": "self"
+        },
+        "set": {
+          "description": "Field key -> a literal, a template string, or a pick block { \"pick\": { \"entity\": \"...\", \"filters\": [...], \"sort\": [{ \"field\": \"...\", \"direction\": \"asc\" }], \"field\": \"id\" } } which writes the first matching record (blanks sort first ascending, so somebody who has never had a turn comes up first). A pick that matches nothing leaves the field alone.",
+          "type": "object"
+        },
+        "setIfEmpty": {
+          "description": "When true, only write the `set` fields that are currently BLANK on the target — a fill-once stamp. Use to record the FIRST time something happens (e.g. a ticket_message workflow that stamps the ticket's first_reply_at on the first reply, leaving it untouched on later replies).",
+          "type": "boolean"
+        }
+      }
+    },
+    "effect_createRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "entity",
+        "set"
+      ],
+      "properties": {
+        "type": {
+          "const": "createRecord"
+        },
+        "entity": {
+          "description": "The entity to insert into.",
+          "$ref": "#/$defs/identifier"
+        },
+        "set": {
+          "description": "Field key -> a literal, a template string, or a pick block { \"pick\": { \"entity\": \"...\", \"filters\": [...], \"sort\": [{ \"field\": \"...\", \"direction\": \"asc\" }], \"field\": \"id\" } } which writes the first matching record (blanks sort first ascending, so somebody who has never had a turn comes up first). A pick that matches nothing leaves the field alone.",
+          "type": "object"
+        }
+      }
+    },
+    "effect_createForEach": {
+      "description": "One new record per row of a source set — a payslip per active employee, a checklist item per template line, a period per month of a plan. The generic 'prepare the rows' action, run from a command button or from a record.created workflow. It COPIES values rather than tracking them: a payslip must not change when that employee's salary changes next year, which is the opposite of what a rollup or a computed field does. Give it a 'key' and it is safe to run twice.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "entity",
+        "source"
+      ],
+      "properties": {
+        "type": {
+          "const": "createForEach"
+        },
+        "entity": {
+          "description": "The entity to insert into — one record per source row.",
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "description": "What to iterate: rows of another entity, or a generated date range. Exactly one of 'entity' or 'range'.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "entity": {
+              "description": "Iterate the rows of this entity. Read once, before anything is written.",
+              "$ref": "#/$defs/identifier"
+            },
+            "filters": {
+              "description": "Optional leaf filters on the source rows — only active employees, only the previous run's lines. Values may use {{record.*}} to refer to the triggering record.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "items": {
+                "$ref": "#/$defs/filter"
+              }
+            },
+            "range": {
+              "description": "Iterate a generated date range instead of records: {{source.index}} counts from 1 and {{source.date}} steps through the dates. This is how a plan gets its periods without anybody creating them.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "from",
+                "count"
+              ],
+              "properties": {
+                "from": {
+                  "description": "First date. A literal or a template such as {{record.plan_start}}.",
+                  "type": "string",
+                  "minLength": 1
+                },
+                "count": {
+                  "description": "How many rows. A literal number or a template such as {{record.plan_months}}. Arithmetic is not available here — put the number on the parent as a field.",
+                  "type": [
+                    "string",
+                    "integer"
+                  ]
+                },
+                "step": {
+                  "description": "Interval between rows. Defaults to month.",
+                  "type": "string",
+                  "enum": [
+                    "day",
+                    "week",
+                    "month",
+                    "year"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "key": {
+          "description": "The fields that IDENTIFY a produced row, making the effect safe to run twice: a row whose key already exists is updated instead of duplicated. ['payrun','employee'] means one payslip per employee per run however many times the button is pressed. Omit only when duplicates are genuinely wanted.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "set": {
+          "description": "Field key -> a literal, a template, or a pick block. {{record.*}} is the triggering record, {{source.*}} is the row being iterated (or index/date for a range). A pick block { \"pick\": { \"entity\": \"...\", \"sort\": [{ \"field\": \"...\", \"direction\": \"asc\" }] } } writes the first matching record of another entity.",
+          "type": "object"
+        }
+      }
+    },
+    "effect_webhook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "url"
+      ],
+      "properties": {
+        "type": {
+          "const": "webhook"
+        },
+        "url": {
+          "description": "The https endpoint to call. The host must also be allow-listed at runtime; a non-https URL is refused there, so it is refused here.",
+          "type": "string",
+          "format": "uri",
+          "pattern": "^https://"
+        },
+        "method": {
+          "description": "Webhook HTTP method.",
+          "type": "string",
+          "enum": [
+            "POST",
+            "PUT",
+            "PATCH"
+          ]
+        },
+        "payload": {
+          "description": "JSON body (template strings resolved).",
+          "type": "object"
+        }
+      }
+    },
+    "effect_enrich": {
+      "description": "Queue a background research run for this record: look it up on the public web and file what is found ALONGSIDE what a person typed, never over it. The effect returns as soon as the job is queued — enrichment takes minutes and involves paid third-party calls, so it can never run inside the request that triggered it. Progress shows on the record itself (enr_state) and in its run history.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "enrich"
+        },
+        "target": {
+          "description": "Which record to research. Only `self` today: enrichment is defined per record type, and pointing it at a referenced record would research the wrong subject.",
+          "type": "string",
+          "enum": [
+            "self"
+          ]
+        },
+        "kind": {
+          "description": "How much to do. `full` is the ordinary run and is refused inside the freshness window; `refresh` is the deliberate way past that window, for a record somebody has reason to believe has changed. There is no identity search in either - the domain is supplied, never matched.",
+          "type": "string",
+          "enum": [
+            "full",
+            "refresh"
+          ]
+        }
+      }
+    },
+    "command": {
+      "description": "A domain action a user invokes on a record. Runs its effects (and, if bound to a process transition, moves the record's state) after an optional guard, optional input, and optional confirmation.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label",
+        "entity",
+        "effects"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "entity": {
+          "description": "The entity whose records this command acts on.",
+          "$ref": "#/$defs/identifier"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "placements": {
+          "description": "Where the command button appears. Defaults to the record header.",
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "recordHeader",
+              "tableRow",
+              "bulkToolbar",
+              "kanbanCard"
+            ]
+          }
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "default",
+            "danger"
+          ]
+        },
+        "when": {
+          "description": "Optional guard — the command is enabled only when it holds of the record.",
+          "$ref": "#/$defs/condition"
+        },
+        "busy": {
+          "description": "Makes this a button with STATE. While `when` holds of the record, the button stays visible but is disabled and reads `label` — for a command that starts background work and takes longer than a page load. Without it a user presses a research button, sees the page unchanged, and presses it four more times; `command.when` is the wrong tool because it HIDES the button, and a control that vanishes on click is worse than one that does nothing. The condition reads the record, so it stays true across a reload until the work finishes.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["when", "label"],
+          "properties": {
+            "when": {
+              "$ref": "#/$defs/condition"
+            },
+            "label": {
+              "description": "What the button reads while it is busy, e.g. 'Researching…'.",
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        },
+        "input": {
+          "description": "Optional fields collected in a dialog before running; their values are written to the record.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/identifier"
+              }
+            },
+            "required": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          }
+        },
+        "confirm": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "title"
+          ],
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "tone": {
+              "type": "string",
+              "enum": [
+                "default",
+                "danger"
+              ]
+            },
+            "confirmLabel": {
+              "type": "string",
+              "maxLength": 40
+            }
+          }
+        },
+        "effects": {
+          "description": "The side effects to run. May be empty ONLY when this command is bound to a process transition (the state change is the effect).",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        },
+        "successMessage": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "emits": {
+          "description": "Domain event names this command announces, e.g. ['deal.approved']. Every write already emits '<entity>.created|updated|deleted', and a command that moves a process state also emits '<entity>.<newState>' — so only declare this when the domain word differs from the state key. Other apps subscribe to these names.",
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+            "maxLength": 80
+          }
+        }
+      }
+    },
+    "process": {
+      "description": "A state machine over an entity's role:'status' field.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "entity",
+        "stateField",
+        "initialState",
+        "states",
+        "transitions"
+      ],
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "#/$defs/identifier"
+        },
+        "stateField": {
+          "description": "The role:'status' select field on the entity this process governs. Its options are derived from the states.",
+          "$ref": "#/$defs/identifier"
+        },
+        "initialState": {
+          "description": "The state a new record ENTERS the process in. Either a state key, or conditional entry: { rules:[{when, state}], fallback } evaluated top-to-bottom at insert, first match wins. A rule's guard may hop ONE relation via `path` ('room.tier'), so entry can depend on a REFERENCED record — e.g. a booking starts 'approved' when its room's tier is 'standard' and 'pending' otherwise, so standard rooms skip approval. This is the ONLY way to make a governed field's starting value conditional; `field.initial` is not allowed on it.",
+          "oneOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "Every new record starts here."
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "rules",
+                "fallback"
+              ],
+              "properties": {
+                "rules": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "when",
+                      "state"
+                    ],
+                    "properties": {
+                      "when": {
+                        "description": "A leaf guard on the new record: { field | path, operator, value }.",
+                        "$ref": "#/$defs/filter"
+                      },
+                      "state": {
+                        "description": "The state to enter when this guard holds.",
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                },
+                "fallback": {
+                  "description": "The state to enter when no rule matches.",
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          ]
+        },
+        "states": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "label"
+            ],
+            "properties": {
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 63
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 60
+              },
+              "color": {
+                "$ref": "#/$defs/hexColor"
+              },
+              "terminal": {
+                "description": "A final state with no outgoing transitions.",
+                "type": "boolean"
+              },
+              "phase": {
+                "description": "Lifecycle meaning of this state, independent of its key: 'not_started' (work has not begun — a past start date renders as late), 'active' (in flight), 'done' (successfully complete — rows get the done affordance and due dates stop warning; distinct from 'terminal', a done state may still allow reopen), 'cancelled' (closed without completion). Drives generic renderer semantics; omit when none applies.",
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "active",
+                  "done",
+                  "cancelled"
+                ]
+              }
+            }
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "key",
+              "from",
+              "to"
+            ],
+            "properties": {
+              "key": {
+                "$ref": "#/$defs/identifier"
+              },
+              "label": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "from": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string"
+                }
+              },
+              "to": {
+                "type": "string",
+                "minLength": 1
+              },
+              "command": {
+                "description": "Command that performs this transition. Omit to let the compiler synthesize one.",
+                "$ref": "#/$defs/identifier"
+              },
+              "when": {
+                "$ref": "#/$defs/condition"
+              },
+              "requiredFields": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/identifier"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

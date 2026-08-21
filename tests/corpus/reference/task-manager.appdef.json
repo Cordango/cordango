@@ -1,0 +1,1226 @@
+{
+  "schemaVersion": "2.0",
+  "key": "task_manager",
+  "name": "Projects",
+  "version": "1.5.0",
+  "presentation": {
+    "icon": "clipboard-check",
+    "color": "#0ea5e9",
+    "category": "Delivery",
+    "tagline": "Projects, tasks, delivery"
+  },
+  "archetype": {
+    "kind": "planning",
+    "coreJob": "Plan and track work across projects — tasks, owners, dates and status"
+  },
+  "entities": [
+    {
+      "key": "project",
+      "label": "Project",
+      "labelPlural": "Projects",
+      "displayField": "name",
+      "icon": "folder-outline",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "options": [
+            {
+              "value": "planning",
+              "label": "Planning",
+              "color": "#a855f7",
+              "phase": "not_started"
+            },
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#3b82f6",
+              "phase": "active"
+            },
+            {
+              "value": "on_hold",
+              "label": "On hold",
+              "color": "#f59e0b",
+              "phase": "active"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#16a34a",
+              "phase": "done"
+            }
+          ]
+        },
+        {
+          "key": "lead",
+          "label": "Project owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "start_date",
+          "label": "Start",
+          "type": "date",
+          "role": "start"
+        },
+        {
+          "key": "due_date",
+          "label": "Due",
+          "type": "date",
+          "role": "due"
+        },
+        {
+          "key": "description",
+          "label": "About",
+          "type": "longtext"
+        },
+        {
+          "key": "total_tasks",
+          "label": "Tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "project",
+              "op": "count"
+            }
+          }
+        },
+        {
+          "key": "open_tasks",
+          "label": "Open tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "project",
+              "op": "count",
+              "filters": [
+                {
+                  "field": "status",
+                  "operator": "neq",
+                  "value": "done"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "done_tasks",
+          "label": "Done tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "project",
+              "op": "count",
+              "filters": [
+                {
+                  "field": "status",
+                  "operator": "eq",
+                  "value": "done"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "progress",
+          "label": "Progress %",
+          "type": "integer",
+          "computed": {
+            "expr": "done_tasks * 100 / total_tasks"
+          }
+        },
+        {
+          "key": "total_effort",
+          "label": "Total effort",
+          "type": "decimal",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "project",
+              "op": "sum",
+              "field": "effort"
+            }
+          }
+        },
+        {
+          "key": "total_cost",
+          "label": "Total cost",
+          "type": "money",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "project",
+              "op": "sum",
+              "field": "cost"
+            }
+          }
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "status": "status",
+            "facts": [
+              "lead",
+              "start_date",
+              "due_date"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "key": "overview",
+                "label": "Overview",
+                "blocks": [
+                  {
+                    "kind": "tiles",
+                    "tiles": [
+                      {
+                        "label": "Progress",
+                        "field": "progress",
+                        "format": "percent",
+                        "icon": "chart-donut"
+                      },
+                      {
+                        "label": "Open tasks",
+                        "field": "open_tasks",
+                        "format": "number",
+                        "icon": "checkbox-blank-circle-outline"
+                      },
+                      {
+                        "label": "Done tasks",
+                        "field": "done_tasks",
+                        "format": "number",
+                        "icon": "checkbox-marked-circle-outline"
+                      },
+                      {
+                        "label": "Total effort (h)",
+                        "field": "total_effort",
+                        "format": "number",
+                        "icon": "clock-outline"
+                      },
+                      {
+                        "label": "Total cost",
+                        "field": "total_cost",
+                        "format": "money",
+                        "icon": "cash-multiple"
+                      }
+                    ]
+                  },
+                  {
+                    "kind": "child",
+                    "entity": "milestone",
+                    "via": "project",
+                    "childType": "table",
+                    "subordinate": false,
+                    "fields": [
+                      "name",
+                      "due_date",
+                      "status",
+                      "progress",
+                      "open_tasks",
+                      "total_effort",
+                      "total_cost"
+                    ]
+                  }
+                ]
+              },
+              {
+                "key": "tasks",
+                "label": "Tasks",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "task",
+                    "via": "project",
+                    "childType": "table",
+                    "subordinate": false,
+                    "inlineCreate": true,
+                    "fields": [
+                      "title",
+                      "assignee",
+                      "status",
+                      "priority",
+                      "start_date",
+                      "due_date",
+                      "effort",
+                      "cost"
+                    ],
+                    "filterBar": {
+                      "search": [
+                        "title"
+                      ],
+                      "facets": [
+                        "assignee",
+                        "status",
+                        "priority"
+                      ]
+                    },
+                    "groupBy": {
+                      "field": "section",
+                      "orderBy": "order"
+                    },
+                    "orderField": "order",
+                    "inlineEdit": true
+                  }
+                ]
+              },
+              {
+                "key": "milestones",
+                "label": "Milestones",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "milestone",
+                    "via": "project",
+                    "childType": "table",
+                    "subordinate": false,
+                    "inlineCreate": true,
+                    "fields": [
+                      "name",
+                      "due_date",
+                      "status",
+                      "progress",
+                      "total_tasks",
+                      "open_tasks",
+                      "done_tasks",
+                      "total_effort",
+                      "total_cost"
+                    ]
+                  }
+                ]
+              },
+              {
+                "key": "board",
+                "label": "Board",
+                "blocks": [
+                  {
+                    "kind": "board",
+                    "source": {
+                      "entity": "task",
+                      "via": "project"
+                    },
+                    "groupField": "status",
+                    "cardFields": [
+                      "assignee",
+                      "priority",
+                      "due_date"
+                    ],
+                    "openDetail": true
+                  }
+                ]
+              },
+              {
+                "key": "gantt",
+                "label": "Gantt",
+                "blocks": [
+                  {
+                    "kind": "gantt",
+                    "source": {
+                      "entity": "task",
+                      "via": "project"
+                    },
+                    "startField": "start_date",
+                    "endField": "due_date",
+                    "labelField": "title",
+                    "colorField": "status",
+                    "milestones": {
+                      "source": {
+                        "entity": "milestone",
+                        "via": "project"
+                      },
+                      "dateField": "due_date",
+                      "labelField": "name"
+                    },
+                    "openDetail": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "task",
+      "label": "Task",
+      "labelPlural": "Tasks",
+      "displayField": "title",
+      "icon": "checkbox-marked-circle-outline",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Task",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "parent",
+          "label": "Parent task",
+          "type": "reference",
+          "targetEntity": "task",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "section",
+          "label": "Section",
+          "type": "reference",
+          "targetEntity": "task_section",
+          "onDelete": "setNull",
+          "help": "The project section this task lives under — sections group the task list the way Asana does."
+        },
+        {
+          "key": "order",
+          "label": "Position",
+          "type": "decimal",
+          "help": "Manual position in the project task list — maintained by the list itself (adds, moves, drags). Lower comes first."
+        },
+        {
+          "key": "assignee",
+          "label": "Assignee",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "start_date",
+          "label": "Start",
+          "type": "date",
+          "role": "start",
+          "group": "When"
+        },
+        {
+          "key": "due_date",
+          "label": "Due",
+          "type": "date",
+          "role": "due",
+          "indexed": true,
+          "group": "When"
+        },
+        {
+          "key": "milestone",
+          "label": "Milestone",
+          "type": "reference",
+          "targetEntity": "milestone",
+          "onDelete": "setNull",
+          "group": "When",
+          "help": "The milestone this task contributes to — its effort and cost roll up there."
+        },
+        {
+          "key": "effort",
+          "label": "Estimated hours",
+          "type": "decimal",
+          "treeAggregate": "sum",
+          "group": "When",
+          "help": "This task's OWN estimated hours — a parent's number never includes its subtasks (the list shows the subtree total in brackets)."
+        },
+        {
+          "key": "cost",
+          "label": "Cost",
+          "type": "money",
+          "treeAggregate": "sum",
+          "group": "When",
+          "help": "This task's OWN cost — a parent's number never includes its subtasks."
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "title",
+            "status": "status",
+            "facts": [
+              "assignee",
+              "project",
+              "due_date",
+              "priority"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process"
+          },
+          {
+            "kind": "section",
+            "label": "Details",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "start_date",
+                  "milestone",
+                  "effort",
+                  "cost",
+                  "description"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "child",
+            "entity": "task",
+            "via": "parent",
+            "childType": "table",
+            "subordinate": false,
+            "inlineCreate": true,
+            "label": "Subtasks",
+            "fields": [
+              "title",
+              "assignee",
+              "status",
+              "due_date",
+              "effort"
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Comments",
+            "blocks": [
+              {
+                "kind": "child",
+                "entity": "task_comment",
+                "via": "task",
+                "childType": "feed",
+                "subordinate": true,
+                "inlineCreate": true,
+                "label": "Comments"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "task_section",
+      "label": "Section",
+      "labelPlural": "Sections",
+      "displayField": "name",
+      "icon": "format-list-group",
+      "ownedBy": {
+        "parent": "project",
+        "via": "project",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "name",
+          "label": "Section",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "order",
+          "label": "Order",
+          "type": "integer",
+          "help": "Sections sort by this number in the task list and on the gantt."
+        }
+      ]
+    },
+    {
+      "key": "milestone",
+      "label": "Milestone",
+      "labelPlural": "Milestones",
+      "displayField": "name",
+      "icon": "flag-checkered",
+      "ownedBy": {
+        "parent": "project",
+        "via": "project",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "name",
+          "label": "Milestone",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "due_date",
+          "label": "Due",
+          "type": "date",
+          "role": "due"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "upcoming",
+          "options": [
+            {
+              "value": "upcoming",
+              "label": "Upcoming",
+              "color": "#94a3b8",
+              "phase": "not_started"
+            },
+            {
+              "value": "at_risk",
+              "label": "At risk",
+              "color": "#f59e0b",
+              "phase": "active"
+            },
+            {
+              "value": "reached",
+              "label": "Reached",
+              "color": "#16a34a",
+              "phase": "done"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "About",
+          "type": "longtext"
+        },
+        {
+          "key": "total_tasks",
+          "label": "Tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "milestone",
+              "op": "count"
+            }
+          }
+        },
+        {
+          "key": "open_tasks",
+          "label": "Open tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "milestone",
+              "op": "count",
+              "filters": [
+                {
+                  "field": "status",
+                  "operator": "neq",
+                  "value": "done"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "done_tasks",
+          "label": "Done tasks",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "milestone",
+              "op": "count",
+              "filters": [
+                {
+                  "field": "status",
+                  "operator": "eq",
+                  "value": "done"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "key": "total_effort",
+          "label": "Total effort",
+          "type": "decimal",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "milestone",
+              "op": "sum",
+              "field": "effort"
+            }
+          }
+        },
+        {
+          "key": "total_cost",
+          "label": "Total cost",
+          "type": "money",
+          "computed": {
+            "rollup": {
+              "entity": "task",
+              "via": "milestone",
+              "op": "sum",
+              "field": "cost"
+            }
+          }
+        },
+        {
+          "key": "progress",
+          "label": "Progress %",
+          "type": "integer",
+          "computed": {
+            "expr": "done_tasks * 100 / total_tasks"
+          }
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "status": "status",
+            "facts": [
+              "project",
+              "due_date"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Progress",
+                "field": "progress",
+                "format": "percent",
+                "icon": "chart-donut"
+              },
+              {
+                "label": "Open tasks",
+                "field": "open_tasks",
+                "format": "number",
+                "icon": "checkbox-marked-circle-outline"
+              },
+              {
+                "label": "Total effort (h)",
+                "field": "total_effort",
+                "format": "number",
+                "icon": "clock-outline"
+              },
+              {
+                "label": "Total cost",
+                "field": "total_cost",
+                "format": "money",
+                "icon": "cash-multiple"
+              }
+            ]
+          },
+          {
+            "kind": "child",
+            "entity": "task",
+            "via": "milestone",
+            "childType": "table",
+            "subordinate": false,
+            "fields": [
+              "title",
+              "assignee",
+              "status",
+              "due_date",
+              "effort",
+              "cost"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "task_comment",
+      "label": "Comment",
+      "labelPlural": "Comments",
+      "displayField": "body",
+      "icon": "comment-outline",
+      "ownedBy": {
+        "parent": "task",
+        "via": "task",
+        "as": "feed"
+      },
+      "fields": [
+        {
+          "key": "task",
+          "label": "Task",
+          "type": "reference",
+          "targetEntity": "task",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "body",
+          "label": "Comment",
+          "type": "longtext",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "projects_table",
+      "label": "Projects",
+      "type": "table",
+      "entity": "project",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "status",
+          "lead",
+          "due_date",
+          "open_tasks",
+          "done_tasks",
+          "progress"
+        ],
+        "filterBar": {
+          "search": [
+            "name"
+          ],
+          "facets": [
+            "status",
+            "lead"
+          ]
+        }
+      }
+    },
+    {
+      "key": "my_tasks_table",
+      "label": "My tasks",
+      "type": "table",
+      "entity": "task",
+      "filters": [
+        {
+          "field": "assignee",
+          "operator": "eq",
+          "value": "{{actor.id}}"
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "project",
+          "status",
+          "due_date",
+          "priority"
+        ],
+        "filterBar": {
+          "search": [
+            "title"
+          ],
+          "facets": [
+            "project",
+            "status",
+            "priority"
+          ]
+        },
+        "inlineEdit": true
+      }
+    },
+    {
+      "key": "all_tasks_table",
+      "label": "All tasks",
+      "type": "table",
+      "entity": "task",
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "project",
+          "assignee",
+          "status",
+          "due_date",
+          "priority"
+        ],
+        "filterBar": {
+          "search": [
+            "title"
+          ],
+          "facets": [
+            "project",
+            "assignee",
+            "status",
+            "priority"
+          ]
+        },
+        "inlineEdit": true
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "projects",
+      "label": "Projects",
+      "icon": "folder-multiple-outline",
+      "entity": "project",
+      "navSource": {
+        "labelField": "name",
+        "sort": "name",
+        "max": 30
+      },
+      "blocks": [
+        {
+          "kind": "tabs",
+          "tabs": [
+            {
+              "key": "overview",
+              "label": "Overview",
+              "blocks": [
+                {
+                  "kind": "repeat",
+                  "as": "proj",
+                  "wrap": true,
+                  "cols": 3,
+                  "gap": "md",
+                  "emptyText": "No projects yet.",
+                  "source": {
+                    "entity": "project",
+                    "sort": [
+                      {
+                        "field": "name",
+                        "direction": "asc"
+                      }
+                    ]
+                  },
+                  "filterBar": {
+                    "search": [
+                      "name"
+                    ],
+                    "facets": [
+                      "status",
+                      "lead"
+                    ]
+                  },
+                  "blocks": [
+                    {
+                      "kind": "card",
+                      "padding": "md",
+                      "bordered": true,
+                      "blocks": [
+                        {
+                          "kind": "row",
+                          "align": "center",
+                          "gap": "sm",
+                          "blocks": [
+                            {
+                              "kind": "field",
+                              "field": "name",
+                              "size": "lg",
+                              "weight": "bold",
+                              "grow": true
+                            },
+                            {
+                              "kind": "chip",
+                              "field": "status"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "row",
+                          "align": "center",
+                          "gap": "sm",
+                          "blocks": [
+                            {
+                              "kind": "avatar",
+                              "field": "lead",
+                              "size": "sm"
+                            },
+                            {
+                              "kind": "field",
+                              "field": "lead",
+                              "avatar": false,
+                              "grow": true
+                            },
+                            {
+                              "kind": "field",
+                              "field": "due_date",
+                              "format": "date",
+                              "size": "sm",
+                              "icon": "calendar-outline"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "progress",
+                          "label": "Tasks done",
+                          "field": "done_tasks",
+                          "max": "total_tasks"
+                        },
+                        {
+                          "kind": "row",
+                          "gap": "lg",
+                          "blocks": [
+                            {
+                              "kind": "stat",
+                              "label": "Open",
+                              "field": "open_tasks",
+                              "format": "number"
+                            },
+                            {
+                              "kind": "stat",
+                              "label": "Done",
+                              "field": "done_tasks",
+                              "format": "number"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "key": "list",
+              "label": "List",
+              "blocks": [
+                {
+                  "kind": "view",
+                  "view": "projects_table"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "my_tasks",
+      "label": "My tasks",
+      "icon": "account-check-outline",
+      "entity": "task",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "my_tasks_table"
+        }
+      ]
+    },
+    {
+      "key": "all_tasks",
+      "label": "All tasks",
+      "icon": "format-list-checks",
+      "entity": "task",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "all_tasks_table"
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "task_flow",
+      "entity": "task",
+      "stateField": "status",
+      "initialState": "todo",
+      "states": [
+        {
+          "key": "todo",
+          "label": "To do",
+          "color": "#94a3b8",
+          "phase": "not_started"
+        },
+        {
+          "key": "in_progress",
+          "label": "In progress",
+          "color": "#3b82f6",
+          "phase": "active"
+        },
+        {
+          "key": "done",
+          "label": "Done",
+          "color": "#16a34a",
+          "phase": "done"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "start",
+          "label": "Start",
+          "from": [
+            "todo"
+          ],
+          "to": "in_progress"
+        },
+        {
+          "key": "complete",
+          "label": "Complete",
+          "from": [
+            "todo",
+            "in_progress"
+          ],
+          "to": "done"
+        },
+        {
+          "key": "reopen",
+          "label": "Reopen",
+          "from": [
+            "done"
+          ],
+          "to": "todo"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "member",
+      "name": "Member",
+      "description": "Creates and works tasks.",
+      "grants": [
+        {
+          "entity": "task",
+          "create": true,
+          "read": true,
+          "update": true,
+          "commands": [
+            "*"
+          ]
+        },
+        {
+          "entity": "task_comment",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "task_section",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "milestone",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "project",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Manages projects and everything in them.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#6366f1",
+    "secondaryColor": "#0ea5e9",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

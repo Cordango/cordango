@@ -1,0 +1,68 @@
+{
+  "schemaVersion": "1.0",
+  "key": "platform",
+  "name": "Platform Directory",
+  "version": "1.0.0",
+  "description": "The canonical, tenant-level data model owned by the PLATFORM (not by any app): people/org, hierarchy, departments, and access groups. Every app references these instead of defining its own 'employee'. Apps reference them via a reference field with targetApp='platform'. Person is separate from the login User (control-plane identity) and optionally links to it. TEAMS are the org structure: 'group' is every team, 'department' is the top-level teams, and a person's department is their primary team. HR attributes (job title, employment data, salary) deliberately do NOT live here — they belong to an HR app, which models them far better than a login identity can.",
+  "entities": [
+    {
+      "key": "person",
+      "label": "Person",
+      "labelPlural": "People",
+      "description": "Workforce/org record. May exist without a login; links to a control-plane User when the person can sign in.",
+      "icon": "person",
+      "displayField": "full_name",
+      "fields": [
+        { "key": "full_name", "label": "Full Name", "type": "text", "required": true, "indexed": true },
+        { "key": "email", "label": "Email", "type": "email", "unique": true },
+        { "key": "department", "label": "Department", "type": "reference", "targetEntity": "department", "onDelete": "setNull", "help": "The person's primary team." },
+        { "key": "manager", "label": "Manager", "type": "reference", "targetEntity": "person", "onDelete": "setNull", "help": "The org hierarchy — used for approvals, delegation, escalation." },
+        { "key": "location", "label": "Location", "type": "text" },
+        { "key": "hire_date", "label": "Hire Date", "type": "date" },
+        { "key": "employment_status", "label": "Employment Status", "type": "select", "default": "active", "options": [
+          { "value": "active", "label": "Active", "color": "#22c55e" },
+          { "value": "on_leave", "label": "On Leave", "color": "#f59e0b" },
+          { "value": "inactive", "label": "Inactive", "color": "#94a3b8" }
+        ] },
+        { "key": "has_login", "label": "Has Login", "type": "boolean", "default": false, "help": "True when this person is linked to a control-plane User (managed by the platform)." }
+      ]
+    },
+    {
+      "key": "department",
+      "label": "Department",
+      "labelPlural": "Departments",
+      "description": "A top-level team. Departments and groups are two views over the one org structure: every department IS a team, and teams nest.",
+      "icon": "group",
+      "displayField": "name",
+      "fields": [
+        { "key": "name", "label": "Name", "type": "text", "required": true, "unique": true },
+        { "key": "handle", "label": "Handle", "type": "text", "help": "Short stable slug, e.g. frontend-devops." },
+        { "key": "parent", "label": "Parent Department", "type": "reference", "targetEntity": "department", "onDelete": "setNull", "help": "Departments form their own tree." },
+        { "key": "lead", "label": "Department Lead", "type": "reference", "targetEntity": "person", "onDelete": "setNull" }
+      ]
+    },
+    {
+      "key": "group",
+      "label": "Group",
+      "labelPlural": "Groups",
+      "description": "A team — the access/sharing unit. Teams NEST, and access granted to a team reaches every sub-team below it. The same teams drive SSO group→app mapping and permissions.",
+      "icon": "shield",
+      "displayField": "name",
+      "fields": [
+        { "key": "name", "label": "Name", "type": "text", "required": true, "unique": true },
+        { "key": "handle", "label": "Handle", "type": "text", "help": "Short stable slug, e.g. frontend-devops." },
+        { "key": "parent", "label": "Parent Team", "type": "reference", "targetEntity": "group", "onDelete": "setNull" },
+        { "key": "description", "label": "Description", "type": "longtext" },
+        { "key": "group_type", "label": "Type", "type": "select", "default": "security", "options": [
+          { "value": "security", "label": "Security" },
+          { "value": "distribution", "label": "Distribution" }
+        ] }
+      ]
+    }
+  ],
+  "relations": [
+    { "key": "manager_reports", "label": "Direct Reports", "type": "oneToMany", "fromEntity": "person", "toEntity": "person", "inverseField": "manager" },
+    { "key": "department_members", "label": "Members", "type": "oneToMany", "fromEntity": "department", "toEntity": "person", "inverseField": "department" },
+    { "key": "person_group_membership", "label": "Group Membership", "type": "manyToMany", "fromEntity": "person", "toEntity": "group" }
+  ]
+}

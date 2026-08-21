@@ -1,0 +1,1252 @@
+{
+  "schemaVersion": "1.0",
+  "key": "vacation_requests",
+  "name": "Vacation Request Tool",
+  "version": "1.0.1",
+  "description": "Employees submit time-off requests specifying dates, leave type, and partial-day periods. Managers approve or deny with required reasons. The system tracks leave balances (accrual, carryover, remaining, manual adjustments), supports escalation to the manager's manager when the direct manager is on vacation, enforces department concurrency limits and blackout dates, syncs approved leave to Google/Outlook calendars, and provides HR and team-lead dashboards.",
+  "entities": [
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "description": "Employee profile synced from the employee system; leave-specific fields are HR-editable.",
+      "icon": "person",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "manager",
+          "label": "Direct Manager",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "hire_date",
+          "label": "Hire Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment Type",
+          "type": "select",
+          "default": "full_time",
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-Time",
+              "color": "#4CAF50"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-Time",
+              "color": "#FF9800"
+            }
+          ]
+        },
+        {
+          "key": "calendar_type",
+          "label": "Calendar Integration",
+          "type": "select",
+          "help": "Which calendar system to sync approved leave to.",
+          "options": [
+            {
+              "value": "google",
+              "label": "Google Workspace"
+            },
+            {
+              "value": "outlook",
+              "label": "Microsoft 365 / Outlook"
+            }
+          ]
+        },
+        {
+          "key": "annual_allowance",
+          "label": "Annual Allowance (days)",
+          "type": "integer",
+          "required": true,
+          "default": 30,
+          "help": "Total leave days per year. First year accrues 2 days per full month worked."
+        },
+        {
+          "key": "role",
+          "label": "Role",
+          "type": "select",
+          "required": true,
+          "default": "employee",
+          "options": [
+            {
+              "value": "employee",
+              "label": "Employee"
+            },
+            {
+              "value": "manager",
+              "label": "Manager"
+            },
+            {
+              "value": "hr",
+              "label": "HR Admin"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "leave_type",
+      "label": "Leave Type",
+      "labelPlural": "Leave Types",
+      "description": "Configurable leave policies. Sick, unpaid, and parental count days but do not subtract from allowance and have no limits.",
+      "icon": "tag",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "accrual_rate",
+          "label": "Accrual Rate (days/year)",
+          "type": "integer",
+          "required": true,
+          "default": 0,
+          "help": "Fixed annual accrual. Set to 0 for non-accruing types like sick or unpaid."
+        },
+        {
+          "key": "carryover_limit",
+          "label": "Carryover Limit (days)",
+          "type": "integer",
+          "default": 0,
+          "help": "Max days carried into the next year. 0 for types with no carryover."
+        },
+        {
+          "key": "requires_documentation",
+          "label": "Requires Documentation",
+          "type": "boolean",
+          "default": false,
+          "help": "If true, an attachment (e.g. sick note) is required on the request."
+        },
+        {
+          "key": "counts_against_allowance",
+          "label": "Counts Against Allowance",
+          "type": "boolean",
+          "default": true,
+          "help": "If false (sick, unpaid, parental), days are tracked but do not reduce remaining balance."
+        },
+        {
+          "key": "has_limits",
+          "label": "Has Limits",
+          "type": "boolean",
+          "default": true,
+          "help": "If false, no balance enforcement on requests."
+        },
+        {
+          "key": "advance_allowed",
+          "label": "Advance Allowed",
+          "type": "boolean",
+          "default": false,
+          "help": "Can the employee take leave before it has accrued?"
+        },
+        {
+          "key": "color",
+          "label": "Calendar Color",
+          "type": "text",
+          "default": "#2196F3",
+          "help": "Hex color for calendar display."
+        }
+      ]
+    },
+    {
+      "key": "time_off_request",
+      "label": "Time-Off Request",
+      "labelPlural": "Time-Off Requests",
+      "description": "An employee's request for time off, with partial-day support, optional sick note, and approval workflow.",
+      "icon": "event",
+      "displayField": "reason",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "leave_type",
+          "label": "Leave Type",
+          "type": "reference",
+          "targetEntity": "leave_type",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "start_date",
+          "label": "Start Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "end_date",
+          "label": "End Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "start_period",
+          "label": "Start Period",
+          "type": "select",
+          "required": true,
+          "default": "full",
+          "options": [
+            {
+              "value": "full",
+              "label": "Full Day",
+              "color": "#607D8B"
+            },
+            {
+              "value": "morning",
+              "label": "Morning",
+              "color": "#FFC107"
+            },
+            {
+              "value": "afternoon",
+              "label": "Afternoon",
+              "color": "#FF9800"
+            }
+          ],
+          "help": "Use morning/afternoon for half-day requests."
+        },
+        {
+          "key": "end_period",
+          "label": "End Period",
+          "type": "select",
+          "required": true,
+          "default": "full",
+          "options": [
+            {
+              "value": "full",
+              "label": "Full Day",
+              "color": "#607D8B"
+            },
+            {
+              "value": "morning",
+              "label": "Morning",
+              "color": "#FFC107"
+            },
+            {
+              "value": "afternoon",
+              "label": "Afternoon",
+              "color": "#FF9800"
+            }
+          ]
+        },
+        {
+          "key": "total_days",
+          "label": "Total Days",
+          "type": "decimal",
+          "precision": 4,
+          "scale": 1,
+          "help": "Calculated total including half-days (e.g. 3.5)."
+        },
+        {
+          "key": "reason",
+          "label": "Reason / Comments",
+          "type": "longtext",
+          "help": "Brief description of the leave reason."
+        },
+        {
+          "key": "request_status",
+          "label": "Request Status",
+          "type": "select",
+          "required": true,
+          "default": "pending",
+          "indexed": true,
+          "options": [
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#FFC107"
+            },
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#4CAF50"
+            },
+            {
+              "value": "denied",
+              "label": "Denied",
+              "color": "#F44336"
+            },
+            {
+              "value": "resubmitted",
+              "label": "Resubmitted",
+              "color": "#2196F3"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#9E9E9E"
+            }
+          ]
+        },
+        {
+          "key": "approver",
+          "label": "Approver",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull",
+          "help": "Manager who approved or is pending approval. May auto-route to manager's manager if direct manager is on approved leave."
+        },
+        {
+          "key": "denial_reason",
+          "label": "Denial Reason",
+          "type": "longtext",
+          "help": "Required when the request is denied. Employee must update the request before resubmitting."
+        },
+        {
+          "key": "submitted_at",
+          "label": "Submitted At",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "approved_at",
+          "label": "Approved At",
+          "type": "datetime"
+        },
+        {
+          "key": "escalated",
+          "label": "Escalated",
+          "type": "boolean",
+          "default": false,
+          "help": "Set true after escalation reminder fires."
+        },
+        {
+          "key": "sick_note",
+          "label": "Sick Note / Attachment",
+          "type": "attachment",
+          "help": "Required for sick leave. Upload the doctor's note or supporting document."
+        },
+        {
+          "key": "blackout_warning",
+          "label": "Blackout / Concurrency Warning",
+          "type": "boolean",
+          "default": false,
+          "help": "Soft flag when the request overlaps a blackout date or exceeds department concurrent-off limit."
+        }
+      ]
+    },
+    {
+      "key": "leave_balance",
+      "label": "Leave Balance",
+      "labelPlural": "Leave Balances",
+      "description": "Per-employee, per-leave-type, per-year balance tracking accrual, carryover, used, adjustments, and remaining.",
+      "icon": "account_balance",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "leave_type",
+          "label": "Leave Type",
+          "type": "reference",
+          "targetEntity": "leave_type",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "year",
+          "label": "Year",
+          "type": "integer",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "accrued",
+          "label": "Accrued (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "default": 0
+        },
+        {
+          "key": "carryover",
+          "label": "Carryover (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "default": 0
+        },
+        {
+          "key": "used",
+          "label": "Used (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "default": 0
+        },
+        {
+          "key": "adjustments",
+          "label": "Adjustments (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "default": 0,
+          "help": "Net manual adjustments by HR (positive = add, negative = deduct)."
+        },
+        {
+          "key": "remaining",
+          "label": "Remaining (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "default": 0,
+          "help": "accrued + carryover + adjustments - used"
+        }
+      ]
+    },
+    {
+      "key": "balance_adjustment",
+      "label": "Balance Adjustment",
+      "labelPlural": "Balance Adjustments",
+      "description": "HR-only manual adjustments to leave balances with required reason.",
+      "icon": "tune",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "leave_type",
+          "label": "Leave Type",
+          "type": "reference",
+          "targetEntity": "leave_type",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "amount",
+          "label": "Amount (days)",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 1,
+          "required": true,
+          "help": "Positive to add, negative to deduct."
+        },
+        {
+          "key": "reason",
+          "label": "Reason",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "adjusted_by",
+          "label": "Adjusted By",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "adjustment_date",
+          "label": "Adjustment Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "year",
+          "label": "Balance Year",
+          "type": "integer",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "blackout_date",
+      "label": "Blackout Date",
+      "labelPlural": "Blackout Dates",
+      "description": "HR-configured dates where leave is restricted. Violations produce a soft warning on requests.",
+      "icon": "block",
+      "displayField": "description",
+      "fields": [
+        {
+          "key": "date",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "configured_by",
+          "label": "Configured By",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull"
+        }
+      ]
+    },
+    {
+      "key": "department",
+      "label": "Department",
+      "labelPlural": "Departments",
+      "description": "Organizational unit for team calendar, concurrency rules, and team-lead dashboards.",
+      "icon": "group",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "team_lead",
+          "label": "Team Lead",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "max_concurrent_off",
+          "label": "Max Concurrent Off",
+          "type": "integer",
+          "default": 2,
+          "help": "Maximum employees who can be on leave simultaneously. HR-configured."
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "department_employees",
+      "label": "Department Employees",
+      "type": "oneToMany",
+      "fromEntity": "department",
+      "toEntity": "employee",
+      "inverseField": "department"
+    },
+    {
+      "key": "employee_requests",
+      "label": "Employee Requests",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "time_off_request",
+      "inverseField": "employee"
+    },
+    {
+      "key": "leave_type_requests",
+      "label": "Leave Type Requests",
+      "type": "oneToMany",
+      "fromEntity": "leave_type",
+      "toEntity": "time_off_request",
+      "inverseField": "leave_type"
+    },
+    {
+      "key": "employee_balances",
+      "label": "Employee Balances",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "leave_balance",
+      "inverseField": "employee"
+    },
+    {
+      "key": "leave_type_balances",
+      "label": "Leave Type Balances",
+      "type": "oneToMany",
+      "fromEntity": "leave_type",
+      "toEntity": "leave_balance",
+      "inverseField": "leave_type"
+    },
+    {
+      "key": "employee_adjustments",
+      "label": "Employee Adjustments",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "balance_adjustment",
+      "inverseField": "employee"
+    },
+    {
+      "key": "leave_type_adjustments",
+      "label": "Leave Type Adjustments",
+      "type": "oneToMany",
+      "fromEntity": "leave_type",
+      "toEntity": "balance_adjustment",
+      "inverseField": "leave_type"
+    },
+    {
+      "key": "employee_managed_departments",
+      "label": "Managed Departments",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "department",
+      "inverseField": "team_lead"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_requests",
+      "label": "All Requests",
+      "type": "table",
+      "entity": "time_off_request",
+      "filters": [],
+      "sort": [
+        {
+          "field": "submitted_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "total_days",
+          "request_status",
+          "approver",
+          "submitted_at"
+        ]
+      }
+    },
+    {
+      "key": "pending_requests",
+      "label": "Pending Approvals",
+      "type": "table",
+      "entity": "time_off_request",
+      "filters": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "sort": [
+        {
+          "field": "submitted_at",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "total_days",
+          "reason",
+          "submitted_at",
+          "blackout_warning"
+        ]
+      }
+    },
+    {
+      "key": "approved_requests",
+      "label": "Approved Leave",
+      "type": "table",
+      "entity": "time_off_request",
+      "filters": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "total_days",
+          "approver",
+          "approved_at"
+        ]
+      }
+    },
+    {
+      "key": "request_kanban",
+      "label": "Request Board",
+      "type": "kanban",
+      "entity": "time_off_request",
+      "config": {
+        "groupByField": "request_status",
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "total_days"
+        ]
+      }
+    },
+    {
+      "key": "leave_calendar",
+      "label": "Team Calendar",
+      "type": "calendar",
+      "entity": "time_off_request",
+      "filters": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "config": {
+        "dateField": "start_date",
+        "endDateField": "end_date",
+        "titleTemplate": "{{employee}} - {{leave_type}}"
+      }
+    },
+    {
+      "key": "employee_list",
+      "label": "Employees",
+      "type": "table",
+      "entity": "employee",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "manager",
+          "department",
+          "hire_date",
+          "employment_type",
+          "annual_allowance",
+          "calendar_type",
+          "role"
+        ]
+      }
+    },
+    {
+      "key": "employee_detail",
+      "label": "Employee Detail",
+      "type": "detail",
+      "entity": "employee"
+    },
+    {
+      "key": "leave_type_list",
+      "label": "Leave Types",
+      "type": "table",
+      "entity": "leave_type",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "accrual_rate",
+          "carryover_limit",
+          "requires_documentation",
+          "counts_against_allowance",
+          "has_limits",
+          "advance_allowed"
+        ]
+      }
+    },
+    {
+      "key": "leave_balance_list",
+      "label": "Leave Balances",
+      "type": "table",
+      "entity": "leave_balance",
+      "filters": [],
+      "sort": [
+        {
+          "field": "year",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "year",
+          "accrued",
+          "carryover",
+          "used",
+          "adjustments",
+          "remaining"
+        ]
+      }
+    },
+    {
+      "key": "balance_adjustment_list",
+      "label": "Balance Adjustments",
+      "type": "table",
+      "entity": "balance_adjustment",
+      "sort": [
+        {
+          "field": "adjustment_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "amount",
+          "reason",
+          "adjusted_by",
+          "adjustment_date",
+          "year"
+        ]
+      }
+    },
+    {
+      "key": "blackout_date_list",
+      "label": "Blackout Dates",
+      "type": "table",
+      "entity": "blackout_date",
+      "sort": [
+        {
+          "field": "date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "date",
+          "description",
+          "configured_by"
+        ]
+      }
+    },
+    {
+      "key": "department_list",
+      "label": "Departments",
+      "type": "table",
+      "entity": "department",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "team_lead",
+          "max_concurrent_off"
+        ]
+      }
+    },
+    {
+      "key": "hr_dashboard",
+      "label": "HR Dashboard",
+      "type": "dashboard",
+      "entity": "time_off_request",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Pending Requests",
+            "filter": {
+              "field": "request_status",
+              "operator": "eq",
+              "value": "pending"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Approved This Year",
+            "filter": {
+              "field": "request_status",
+              "operator": "eq",
+              "value": "approved"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Denied This Year",
+            "filter": {
+              "field": "request_status",
+              "operator": "eq",
+              "value": "denied"
+            }
+          },
+          {
+            "type": "chart",
+            "label": "Requests by Leave Type",
+            "groupBy": "leave_type"
+          },
+          {
+            "type": "chart",
+            "label": "Requests by Status",
+            "groupBy": "request_status"
+          }
+        ]
+      }
+    },
+    {
+      "key": "request_detail",
+      "label": "Request Detail",
+      "type": "detail",
+      "entity": "time_off_request"
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_on_submit",
+      "name": "Notify Approver on Submit",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "time_off_request"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_approve",
+      "name": "Notify Employee on Approval",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "time_off_request",
+        "field": "request_status"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_deny",
+      "name": "Notify Employee on Denial",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "time_off_request",
+        "field": "request_status"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "denied"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "escalation_reminder",
+      "name": "Escalation Reminder After 3 Days",
+      "enabled": true,
+      "trigger": {
+        "event": "schedule",
+        "entity": "time_off_request",
+        "cron": "0 9 * * *"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "pending"
+        },
+        {
+          "field": "escalated",
+          "operator": "eq",
+          "value": false
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        },
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "auto_route_to_managers_manager",
+      "name": "Auto-Route When Manager on Vacation",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "time_off_request"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "balance_update_on_approve",
+      "name": "Update Balance on Approval",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "time_off_request",
+        "field": "request_status"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_resubmit",
+      "name": "Notify Approver on Resubmit",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "time_off_request",
+        "field": "request_status"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "resubmitted"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "hr_admin",
+      "name": "HR Admin",
+      "description": "Full access to all entities. Can configure leave types, blackout dates, departments, and make manual balance adjustments.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Can view and approve/deny requests assigned to them. Can view employees in their department and team calendars.",
+      "grants": [
+        {
+          "entity": "time_off_request",
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "employee",
+          "read": true
+        },
+        {
+          "entity": "leave_balance",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "leave_type",
+          "read": true
+        },
+        {
+          "entity": "blackout_date",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Can create and manage their own time-off requests and view their own balances and the team calendar.",
+      "grants": [
+        {
+          "entity": "time_off_request",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "leave_balance",
+          "read": true
+        },
+        {
+          "entity": "leave_type",
+          "read": true
+        },
+        {
+          "entity": "blackout_date",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "employee",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to approved leave and team calendars.",
+      "grants": [
+        {
+          "entity": "time_off_request",
+          "read": true
+        },
+        {
+          "entity": "leave_type",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "blackout_date",
+          "read": true
+        },
+        {
+          "entity": "employee",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2196F3",
+    "secondaryColor": "#FF9800",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  },
+  "plugins": [
+    {
+      "id": "google-calendar-sync",
+      "version": "1.0",
+      "config": {
+        "eventVisibility": "busy",
+        "syncOnStatus": "approved"
+      }
+    },
+    {
+      "id": "outlook-calendar-sync",
+      "version": "1.0",
+      "config": {
+        "eventVisibility": "busy",
+        "syncOnStatus": "approved"
+      }
+    }
+  ]
+}

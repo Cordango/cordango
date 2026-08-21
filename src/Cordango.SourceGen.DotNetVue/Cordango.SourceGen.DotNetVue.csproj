@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.SourceGen.DotNetVue</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    The first-party target: ASP.NET Core + EF Core + PostgreSQL on the back, Vue 3 + Vuetify on the
+    front. It consumes the SDK exactly as a third-party generator would — no privileged access, no
+    shortcut into the CLI — because the moment the first-party one needs something the protocol does
+    not offer, every other generator is second class.
+
+    It references the compiler for the definition vocabulary, not to compile anything: by the time a
+    generator runs, compilation has already happened and it is handed the result.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
+  </ItemGroup>
+
+  <!--
+    THE SCAFFOLD, EMBEDDED — and note what is NOT here: a ProjectReference to Cordango.Standalone.
+
+    A generated application's runtime is emitted as SOURCE, so what this project needs from
+    Cordango.Standalone is its files, not its types. Referencing the project would compile fine and
+    drag Microsoft.AspNetCore.App and EF Core into the CLI, which is a console application that
+    never serves a request. So the files are embedded by path instead, the same way the compiler
+    embeds the schemas it validates against.
+
+    Two sets, and the distinction matters for licensing as well as for paths:
+
+      Runtime/   Cordango.Standalone's own .cs files. OUR code, Apache-2.0, headers intact, landing
+                 under api/Cordango/ in the generated project. Compiled and tested in this
+                 repository, so the code an application runs is code with tests behind it.
+      Template/  what an application looks like before any entity exists. The USER's code: no
+                 Cordango headers, and the project file carries a .template suffix so that a stray
+                 `dotnet build` in this repository never tries to compile a file full of {{...}}.
+
+    RecursiveDir bakes in the host's path separator, so Scaffold normalises to '/' on read — without
+    that, the same definition would generate different file paths on Windows and Linux and the
+    determinism tests would be measuring the build machine.
+
+    WithCulture="false" is NOT decoration. The SDK reads a dotted segment in an embedded resource's
+    name as a culture, so Resources/messages.de.json and messages.en.json were quietly compiled into
+    de/ and en/ SATELLITE assemblies instead of into this one. Nothing failed: the build was clean,
+    the resource names simply were not there, and every generated application would have shipped
+    with no translated messages at all. Found by ScaffoldTests, which is the argument for asserting
+    the file list rather than trusting the glob.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\Cordango.Standalone\**\*.cs"
+                      Exclude="..\Cordango.Standalone\Templates\**;..\Cordango.Standalone\bin\**;..\Cordango.Standalone\obj\**"
+                      LogicalName="Runtime/%(RecursiveDir)%(Filename)%(Extension)"
+                      WithCulture="false" />
+    <EmbeddedResource Include="..\Cordango.Standalone\Templates\**\*"
+                      LogicalName="Template/%(RecursiveDir)%(Filename)%(Extension)"
+                      WithCulture="false" />
+  </ItemGroup>
+
+  <!-- Outside the project tree, so `dotnet watch` would not notice an edit, and an embedded
+       resource cannot be hot-reloaded regardless. Watch items make a save rebuild instead of
+       silently serving the previous scaffold. -->
+  <ItemGroup>
+    <Watch Include="..\Cordango.Standalone\**\*.cs" Exclude="..\Cordango.Standalone\bin\**;..\Cordango.Standalone\obj\**" />
+    <Watch Include="..\Cordango.Standalone\Templates\**\*" />
+  </ItemGroup>
+
+</Project>

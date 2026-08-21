@@ -1,0 +1,611 @@
+import { defineEntity } from "@cord/sdk";
+
+export default defineEntity({
+  key: "period",
+  icon: "calendar-month",
+  kind: "collection",
+  label: "Period",
+  description: "One modelled period of a scenario (month in year 1, then year): users, revenue, costs and cash.",
+  series: {
+    partition: "scenario",
+    order: "sequence",
+  },
+  plural: "Periods",
+  display: "label",
+  fields: {
+    label: {
+      help: "e.g. 2025-01 or FY2027.",
+      type: "text",
+      label: "Period",
+      required: true,
+    },
+    scenario: {
+      type: "reference",
+      label: "Scenario",
+      indexed: true,
+      onDelete: "cascade",
+      required: true,
+      targetEntity: "scenario",
+    },
+    period_type: {
+      type: "select",
+      label: "Granularity",
+      default: "month",
+      options: [
+        {
+          color: "#38bdf8",
+          label: "Month",
+          value: "month",
+        },
+        {
+          color: "#6366f1",
+          label: "Year",
+          value: "year",
+        },
+      ],
+      required: true,
+    },
+    start_date: {
+      role: "start",
+      type: "date",
+      label: "Period Start",
+      indexed: true,
+      required: true,
+    },
+    end_date: {
+      role: "due",
+      type: "date",
+      label: "Period End",
+    },
+    sequence: {
+      type: "integer",
+      label: "Order",
+      required: true,
+    },
+    tax_provision: {
+      label: "Tax provision",
+      type: "money",
+      help: "Tax provision — a judgement, not a derivation",
+      group: "Plan inputs",
+    },
+    actual_revenue: {
+      label: "Actual revenue",
+      type: "money",
+      help: "What actually came in, once the month has closed",
+      group: "Plan inputs",
+    },
+    actual_costs: {
+      label: "Actual costs",
+      type: "money",
+      help: "What actually went out, once the month has closed",
+      group: "Plan inputs",
+    },
+    actual_customers: {
+      label: "Actual customers",
+      type: "integer",
+      help: "Actual active users at month end",
+      group: "Plan inputs",
+    },
+    payroll_cost: {
+      label: "People cost (loaded)",
+      type: "money",
+      help: "Sum of the hiring lines covering this month, each already carrying its own employer cost rate. Nobody types this, and nothing adds a second burden on top.",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "hiring_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "monthly_cost",
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    opex_total: {
+      label: "Total operating expenses",
+      type: "money",
+      help: "Sum of the cost lines whose months cover this period — marketing, tooling, insurance, contingency, statutory fees. Nobody types this.",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "cost_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "monthly_amount",
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    headcount: {
+      label: "Headcount",
+      type: "integer",
+      help: "Heads on the payroll this period.",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "hiring_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "headcount",
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    active_exact: {
+      label: "Active customers (exact)",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      help: "Carried to four places so churn stays visible on a small base. The whole-customer figure beside it is what people read.",
+      calculate: {
+        aggregate: {
+          entity: "cohort_month",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "surviving_customers",
+          window: {
+            at: "lands_in",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    active_customers: {
+      label: "Active customers",
+      type: "integer",
+      group: "Calculated",
+      help: "Whole companies. The fraction is carried in the exact figure beside this one and rounded once, here.",
+      calculate: {
+        expression: "active_exact",
+      },
+    },
+    gross_profit: {
+      label: "Gross profit",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "revenue - ai_cost - revenue_fees",
+      },
+    },
+    operating_result: {
+      label: "Operating result",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "revenue - total_cost",
+      },
+    },
+    result_before_tax: {
+      label: "Result before tax",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "operating_result",
+      },
+    },
+    one_off_dated: {
+      label: "One-off costs (dated)",
+      type: "money",
+      help: "One-off payments dated inside this period — formation, equipment, statutory fees.",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "cost_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "one_off_amount",
+          window: {
+            at: "one_off_date",
+            within: {
+              from: "start_date",
+              to: "end_date",
+            },
+          },
+        },
+      },
+    },
+    funding_in: {
+      label: "Funding received",
+      type: "money",
+      help: "Rounds closing inside this period. Money in, so it lifts the cash line.",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "funding_round",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "amount",
+          window: {
+            at: "expected_close",
+            within: {
+              from: "start_date",
+              to: "end_date",
+            },
+          },
+        },
+      },
+    },
+    other_costs: {
+      label: "Operating & one-off costs",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "opex_total + one_off_total + ai_cost + revenue_fees + payroll_fees + hiring_one_off",
+      },
+    },
+    total_cost: {
+      label: "Total monthly cost",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "payroll_cost + other_costs",
+      },
+    },
+    churned_customers: {
+      label: "Churned customers",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      help: "What the cohort decay took: last month's base plus this month's wins, less what is actually still here.",
+      calculate: {
+        expression: "prev(active_exact, 0) + new_customers - active_exact",
+      },
+    },
+    revenue_fee_rate: {
+      label: "Revenue-share rate",
+      type: "decimal",
+      group: "Calculated",
+      help: "Fees charged as a share of revenue, for the lines running this month.",
+      calculate: {
+        aggregate: {
+          entity: "cost_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "percent_amount",
+          filters: [
+            {
+              field: "percent_basis",
+              operator: "eq",
+              value: "revenue",
+            },
+          ],
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    new_customers: {
+      label: "New customers",
+      type: "integer",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "acquisition",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "new_customers",
+          window: {
+            at: "month",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    revenue_fees: {
+      label: "Revenue-share fees",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "revenue * revenue_fee_rate / 100",
+      },
+    },
+    hiring_one_off: {
+      label: "Hiring one-off costs",
+      type: "money",
+      group: "Calculated",
+      help: "Equipment and onboarding for the roles STARTING this month.",
+      calculate: {
+        aggregate: {
+          entity: "hiring_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "setup_cost_total",
+          window: {
+            at: "start_month",
+            within: {
+              from: "start_date",
+              to: "end_date",
+            },
+          },
+        },
+      },
+    },
+    payroll_fee_rate: {
+      label: "Payroll-share rate",
+      type: "decimal",
+      group: "Calculated",
+      help: "Fees charged as a share of gross payroll — Berufsgenossenschaft and the like.",
+      calculate: {
+        aggregate: {
+          entity: "cost_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "percent_amount",
+          filters: [
+            {
+              field: "percent_basis",
+              operator: "eq",
+              value: "payroll",
+            },
+          ],
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    one_off_scheduled: {
+      label: "One-off costs (by plan month)",
+      type: "money",
+      group: "Calculated",
+      help: "One-offs placed by plan month rather than by calendar date.",
+      calculate: {
+        aggregate: {
+          entity: "cost_line",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "one_off_amount",
+          window: {
+            at: "one_off_month",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    one_off_total: {
+      label: "One-off costs",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "one_off_dated + one_off_scheduled",
+      },
+    },
+    payroll_fees: {
+      label: "Payroll-share fees",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "payroll_cost * payroll_fee_rate / 100",
+      },
+    },
+    ai_cost: {
+      label: "AI paid to the provider",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "ai_charge * (1 - scenario.ai_provider_discount / 100)",
+      },
+    },
+    other_recurring: {
+      label: "Services (recurring)",
+      type: "money",
+      group: "Calculated",
+      currency: "EUR",
+      calculate: {
+        aggregate: {
+          entity: "revenue_stream",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "net_monthly_amount",
+          window: {
+            from: "start_month",
+            to: "end_month",
+            against: "start_date",
+          },
+        },
+      },
+    },
+    other_one_off_dated: {
+      label: "Services (dated one-offs)",
+      type: "money",
+      group: "Calculated",
+      currency: "EUR",
+      calculate: {
+        aggregate: {
+          entity: "revenue_stream",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "net_one_off_amount",
+          window: {
+            at: "one_off_date",
+            within: {
+              from: "start_date",
+              to: "end_date",
+            },
+          },
+        },
+      },
+    },
+    other_one_off_scheduled: {
+      label: "Services (by plan month)",
+      type: "money",
+      group: "Calculated",
+      currency: "EUR",
+      calculate: {
+        aggregate: {
+          entity: "revenue_stream",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "net_one_off_amount",
+          window: {
+            at: "one_off_month",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    other_revenue: {
+      label: "Services & other revenue",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "other_recurring + other_one_off_dated + other_one_off_scheduled",
+      },
+    },
+    revenue: {
+      label: "Total revenue",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "recurring_mrr + services_revenue + enterprise_mrr + ai_charge + other_revenue",
+      },
+    },
+    arr_run_rate: {
+      label: "ARR run-rate",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "revenue * 12",
+      },
+    },
+    net_cash_movement: {
+      label: "Net cash movement",
+      type: "money",
+      currency: "EUR",
+      group: "Cash",
+      help: "Cash equals revenue in this version — the workbook's own simplification. Annual prepayment is a later slice.",
+      calculate: {
+        expression: "result_before_tax - tax_provision + funding_in",
+      },
+    },
+    cash_end: {
+      label: "Cash at end",
+      type: "money",
+      group: "Calculated",
+      calculate: {
+        expression: "prev(cash_end, scenario.starting_cash) + net_cash_movement",
+      },
+    },
+    recurring_mrr: {
+      label: "Recurring MRR",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      help: "Every live cohort at its own age. The number no single expression can reach, which is what the cohort grid is for.",
+      calculate: {
+        aggregate: {
+          entity: "cohort_month",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "recurring_revenue",
+          window: {
+            at: "lands_in",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    services_revenue: {
+      label: "Setup & services",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        aggregate: {
+          entity: "acquisition",
+          via: "scenario",
+          match: "scenario",
+          op: "sum",
+          field: "services_revenue",
+          window: {
+            at: "month",
+            within: {
+              from: "sequence",
+              to: "sequence",
+            },
+          },
+        },
+      },
+    },
+    enterprise_mrr: {
+      label: "Enterprise MRR (manual)",
+      type: "money",
+      currency: "EUR",
+      group: "Plan inputs",
+      default: 0,
+      help: "Negotiated deal by deal, so there is no per-customer price to derive it from. Typed, like the workbook's own column.",
+    },
+    ai_charge: {
+      label: "AI billed to customers",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "recurring_mrr * scenario.ai_charge_rate / 100",
+      },
+    },
+    ai_margin: {
+      label: "AI margin",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "ai_charge - ai_cost",
+      },
+    },
+  },
+} as const);

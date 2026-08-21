@@ -1,0 +1,187 @@
+app: budget_planner
+name: Budget Planner
+version: 16.3.0
+schemaVersion: "2.0"
+description: "Build and maintain an investor-ready financial budget plan: named scenarios, a usage-based price list (base fee plus active user x app, capped), customer growth and churn, monthly and yearly projections with recognized revenue and cash collected side by side, hiring by team, cost lines, services revenue, funding rounds, cash balance and runway."
+theme:
+  radius: small
+  density: compact
+  primaryColor: "#0f766e"
+  secondaryColor: "#f59e0b"
+plugins: []
+archetype:
+  kind: planning
+  coreJob: Build a multi-year budget plan per scenario — period by period revenue, headcount, costs, funding and runway — and compare scenarios for investors.
+presentation:
+  icon: chart-timeline-variant
+  color: "#0f766e"
+  tagline: Model revenue, hiring, costs, cash and runway for investors
+  category: Finance
+relations:
+  scenario_periods:
+    type: oneToMany
+    label: Periods
+    toEntity: period
+    fromEntity: scenario
+    inverseField: scenario
+  scenario_plans:
+    type: oneToMany
+    label: Pricing Plans
+    toEntity: revenue_plan
+    fromEntity: scenario
+    inverseField: scenario
+  scenario_hiring:
+    type: oneToMany
+    label: Hiring Plan
+    toEntity: hiring_line
+    fromEntity: scenario
+    inverseField: scenario
+  scenario_costs:
+    type: oneToMany
+    label: Cost Lines
+    toEntity: cost_line
+    fromEntity: scenario
+    inverseField: scenario
+  scenario_streams:
+    type: oneToMany
+    label: Revenue Streams
+    fromEntity: scenario
+    toEntity: revenue_stream
+    inverseField: scenario
+  scenario_funding:
+    type: oneToMany
+    label: Funding Rounds
+    toEntity: funding_round
+    fromEntity: scenario
+    inverseField: scenario
+  scenario_assumptions:
+    type: oneToMany
+    label: Assumptions
+    toEntity: assumption
+    fromEntity: scenario
+    inverseField: scenario
+  team_hiring:
+    type: oneToMany
+    label: Hiring Lines
+    toEntity: hiring_line
+    fromEntity: team
+    inverseField: team
+  category_cost_lines:
+    type: oneToMany
+    label: Cost Lines
+    toEntity: cost_line
+    fromEntity: cost_category
+    inverseField: cost_category
+  scenario_adoption:
+    type: oneToMany
+    label: Adoption Curve
+    fromEntity: scenario
+    toEntity: adoption_point
+    inverseField: scenario
+  scenario_segments:
+    type: oneToMany
+    label: Segments
+    fromEntity: scenario
+    toEntity: segment
+    inverseField: scenario
+  segment_steps:
+    type: oneToMany
+    label: Lifecycle
+    fromEntity: segment
+    toEntity: lifecycle_step
+    inverseField: segment
+  scenario_acquisition:
+    type: oneToMany
+    label: Acquisition
+    fromEntity: scenario
+    toEntity: acquisition
+    inverseField: scenario
+  acquisition_cohorts:
+    type: oneToMany
+    label: Cohort Grid
+    fromEntity: acquisition
+    toEntity: cohort_month
+    inverseField: acquisition
+order:
+  entities:
+    - scenario
+    - revenue_plan
+    - adoption_point
+    - segment
+    - lifecycle_step
+    - acquisition
+    - cohort_month
+    - period
+    - team
+    - hiring_line
+    - cost_line
+    - revenue_stream
+    - cost_category
+    - funding_round
+    - assumption
+    - budget_settings
+  pages:
+    - home
+    - scenarios
+    - projection
+    - pricing
+    - hiring
+    - costs
+    - funding
+    - teams_config
+    - categories_config
+    - settings
+  views:
+    - scenarios_table
+    - scenarios_board
+    - periods_table
+    - hiring_table
+    - hiring_timeline
+    - hiring_board
+    - cost_lines_table
+    - revenue_streams_table
+    - funding_table
+    - funding_board
+    - teams_table
+    - categories_table
+    - pricing_table
+    - acquisition_table
+    - segments_table
+    - adoption_table
+    - lifecycle_table
+  roles:
+    - admin
+    - planner
+    - viewer
+  processes:
+    - scenario_lifecycle
+    - hiring_lifecycle
+    - funding_lifecycle
+  commands:
+    - start_modelling
+    - submit_for_review
+    - request_changes
+    - mark_investor_ready
+    - reopen_scenario
+    - archive_scenario
+    - clone_scenario
+    - copy_actuals
+    - approve_hire
+    - open_recruiting
+    - mark_filled
+    - hold_hire
+    - drop_hire
+    - shift_hire_start
+    - start_raise
+    - record_term_sheet
+    - close_round
+    - abandon_round
+  workflows:
+    - generate_periods
+    - seed_plan_inputs
+    - stamp_scenario_owner
+    - warn_low_runway
+    - funding_period_cash
+    - monthly_plan_review
+    - build_segment_grid
+    - build_cohort_grid

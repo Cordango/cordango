@@ -1,0 +1,31 @@
+import { defineAutomation } from "@cord/sdk";
+
+export default defineAutomation({
+  key: "build_cohort_grid",
+  name: "Age one cohort across the plan",
+  trigger: "record.created",
+  entity: "acquisition",
+  effects: [
+    {
+      type: "createForEach",
+      entity: "cohort_month",
+      source: {
+        entity: "lifecycle_step",
+        filters: [
+          {
+            field: "segment",
+            operator: "eq",
+            value: "{{record.segment}}",
+          },
+        ],
+      },
+      key: ["acquisition", "step"],
+      set: {
+        scenario: "{{record.scenario}}",
+        acquisition: "{{record.id}}",
+        step: "{{source.id}}",
+        label: "{{record.label}} +{{source.label}}",
+      },
+    },
+  ],
+} as const);

@@ -1,0 +1,31 @@
+import { defineAutomation } from "@cord/sdk";
+
+export default defineAutomation({
+  key: "warn_plan_mix",
+  name: "Warn when the plan mix does not add up",
+  trigger: "field.changed",
+  field: "plan_mix_total",
+  entity: "scenario",
+  when: {
+    all: [
+      {
+        field: "plan_mix_total",
+        operator: "neq",
+        value: 100,
+      },
+      {
+        field: "plan_mix_total",
+        operator: "isNotEmpty",
+      },
+    ],
+  },
+  effects: [
+    {
+      type: "notify",
+      to: "{{record.owner}}",
+      link: "auto",
+      title: "Plan mix on {{record.name}} adds up to {{record.plan_mix_total}}%",
+      message: "The share-of-customers column across the plans has to come to 100. At {{record.plan_mix_total}}% every revenue figure in {{record.name}} is scaled by that much.",
+    },
+  ],
+} as const);

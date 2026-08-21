@@ -1,0 +1,4004 @@
+{
+  "properties": {
+    "presentation": {
+      "description": "How the app appears in the platform launcher/home tile (control-plane surfaces read this).",
+      "$ref": "#/$defs/presentation"
+    },
+    "views": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/view"
+      }
+    },
+    "pages": {
+      "description": "Optional layout: named pages composing views into tabs (drives navigation + grouping). Omit to let the runtime synthesize a sensible default from the views.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/page"
+      }
+    },
+    "theme": {
+      "$ref": "#/$defs/theme"
+    }
+  },
+  "$defs": {
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "icon": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Launcher tile icon name."
+        },
+        "color": {
+          "$ref": "#/$defs/hexColor",
+          "description": "Launcher tile accent color."
+        },
+        "category": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Grouping for the launcher (e.g. Sales, HR)."
+        },
+        "tagline": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "One-line description shown on the tile."
+        }
+      }
+    },
+    "formBlock": {
+      "description": "A form-layout node: 'section' (labeled group) or 'fields' (editable field keys, optionally in 2 columns). The runtime always drops system/readOnly/auto fields and hideOnCreate fields on create, regardless of the authored layout.",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "section",
+            "fields"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/formBlock"
+          }
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "columns": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "section"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "blocks"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "fields"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "fields"
+            ]
+          }
+        }
+      ]
+    },
+    "sort": {
+      "type": "object",
+      "required": [
+        "field",
+        "direction"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/identifier"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      }
+    },
+    "blockSource": {
+      "description": "Where a block's rows come from. Give EXACTLY ONE origin. 'entity' iterates records — the usual case. The other three iterate things that are NOT records, which is what makes a second axis possible: a grid needs its columns to be days or statuses, and those have no table. Without a non-record axis every surface collapses to a list of one collection.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "description": "ORIGIN: this entity's records.",
+          "$ref": "#/$defs/identifier"
+        },
+        "dates": {
+          "description": "ORIGIN: a date range — the week/month axis of a planner or roster. Yields one item per step with { id, date (ISO), label, weekday, isWeekend, isToday }; read them as '{{<name>.date}}' etc. Bound it with 'to' or 'count'. Exactly one of 'to'/'count' — unbounded renders 366 columns.",
+          "type": "object",
+          "required": [
+            "from"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "description": "ISO date, or the token '{{today}}'.",
+              "type": "string"
+            },
+            "to": {
+              "description": "ISO date, or a scope token. Omit when using 'count'.",
+              "type": "string"
+            },
+            "step": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "default": "day"
+            },
+            "count": {
+              "description": "How many steps (7 = a week of day columns).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
+            }
+          },
+          "oneOf": [
+            {
+              "required": [
+                "to"
+              ]
+            },
+            {
+              "required": [
+                "count"
+              ]
+            }
+          ]
+        },
+        "options": {
+          "description": "ORIGIN: the declared choices of a select field — the lanes of a funnel or pipeline, without needing a table of stages. Yields { id, value, label, color }.",
+          "type": "object",
+          "required": [
+            "entity",
+            "field"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "entity": {
+              "$ref": "#/$defs/identifier"
+            },
+            "field": {
+              "description": "A 'select' field on that entity.",
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        "platform": {
+          "description": "ORIGIN: the tenant directory, which lives outside any app's entities — the pool of real people to staff a board with.",
+          "type": "string",
+          "enum": [
+            "person",
+            "department",
+            "group"
+          ]
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sort"
+          }
+        },
+        "limit": {
+          "description": "Max rows (a leaderboard's top 10).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "via": {
+          "description": "Shorthand for filtering to the bound record's children: the reference field on the source entity pointing at the enclosing record/row.",
+          "$ref": "#/$defs/identifier"
+        },
+        "aggregate": {
+          "description": "For 'stat'/'chart' only — reduce the rows to a number, or group them for a chart.",
+          "type": "object",
+          "required": [
+            "op"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "count",
+                "sum",
+                "avg",
+                "min",
+                "max"
+              ]
+            },
+            "field": {
+              "description": "Required for sum/avg/min/max; must be numeric for sum/avg.",
+              "$ref": "#/$defs/identifier"
+            },
+            "groupBy": {
+              "description": "For 'chart': the select/reference/date field to group by, or 'month_of:<dateField>' for calendar-month buckets.",
+              "type": "string",
+              "pattern": "^(month_of:)?[a-z][a-z0-9_]*$",
+              "minLength": 1,
+              "maxLength": 73
+            }
+          }
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "entity"
+          ]
+        },
+        {
+          "required": [
+            "dates"
+          ]
+        },
+        {
+          "required": [
+            "options"
+          ]
+        },
+        {
+          "required": [
+            "platform"
+          ]
+        }
+      ]
+    },
+    "filterBar": {
+      "description": "A search + filter bar above a collection of rows that narrows them CLIENT-SIDE — a list you can actually find something in. `search` lists fields the free-text box matches (a reference field matches its RESOLVED name, so searching a person reference matches the person's name); `facets` lists select/reference fields rendered as filter dropdowns (Assignee, Status). One shared shape for every surface that takes a filter bar (repeat grids, tables, child tables).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "search": {
+          "description": "Fields the free-text box matches (resolved names for references). Omit for no search box.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "facets": {
+          "description": "Select/reference fields rendered as filter dropdowns (Assignee, Status, Priority).",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        }
+      }
+    },
+    "blockSearch": {
+      "description": "Wires a board/table to a PAGE-LEVEL search box (a `filterbar` block) instead of the surface's own toolbar: `state` names the page `state` var the filterbar's search writes, so ONE query filters this surface live. `fields` names the field keys the query matches (a reference matches its resolved label); omit to match any value. One shared shape for the board and the list on a merged page.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "description": "The page `state` var key holding the query string (the filterbar's search writes it).",
+          "$ref": "#/$defs/identifier"
+        },
+        "fields": {
+          "description": "Field keys the query matches against (references match by resolved label); omit to match any value on the row.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        }
+      }
+    },
+    "groupBy": {
+      "description": "Group a table's rows into labeled sections by a discrete field — the Asana-style sections of a task list. `field` is a 'select' (groups = its options, in option order) or a LOCAL 'reference' (groups = the referenced records, e.g. per-project task sections). In a TREE table only top-level rows are grouped; subtrees stay nested under their parent. One shared shape for every surface that groups rows.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field"
+      ],
+      "properties": {
+        "field": {
+          "description": "The select or local reference field on the rows' entity whose values become the groups.",
+          "$ref": "#/$defs/identifier"
+        },
+        "orderBy": {
+          "description": "For a reference `field`: the field on the REFERENCED entity that orders the groups (a section's 'order' integer). Invalid for a select — its options are already ordered.",
+          "$ref": "#/$defs/identifier"
+        },
+        "ungroupedLabel": {
+          "description": "Heading for rows whose group value is empty. Default \"(No section)\".",
+          "type": "string",
+          "maxLength": 60
+        },
+        "showEmpty": {
+          "description": "Also render groups that currently have no rows (structure over brevity). Default false.",
+          "type": "boolean"
+        }
+      }
+    },
+    "view": {
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "type",
+        "entity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "table",
+            "detail",
+            "kanban",
+            "calendar",
+            "timeline",
+            "dashboard"
+          ]
+        },
+        "entity": {
+          "$ref": "#/$defs/identifier"
+        },
+        "filters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        },
+        "sort": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/sort"
+          }
+        },
+        "config": {
+          "description": "View-type-specific configuration (e.g. table.columns, kanban.groupByField, calendar.dateField, dashboard.widgets).",
+          "type": "object"
+        }
+      }
+    },
+    "page": {
+      "description": "A named page that composes views into a layout. Becomes a navigation entry.",
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "blocks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "entity": {
+          "description": "Primary entity this page is about (used for context, e.g. the 'New' action).",
+          "$ref": "#/$defs/identifier"
+        },
+        "detailFull": {
+          "description": "Open this page's records in the FULL-SCREEN detail (a workspace/profile) rather than the side quick-look panel. Use when the record's detail is a rich page in its own right (an employee profile, a project workspace).",
+          "type": "boolean"
+        },
+        "group": {
+          "description": "Nav grouping. 'config' collapses this page into the shell's single 'Configuration' section instead of a top-level entry. The compiler stamps this for kind:'config'/'settings' entities — you do not need to author it.",
+          "type": "string",
+          "enum": [
+            "config"
+          ]
+        },
+        "state": {
+          "description": "Typed LOCAL screen state — working UI state that is NOT database data (a selected week, a view mode, a capacity filter). Each var is read as '{{state.<key>}}' in filters, date axes, `visibleWhen` and control blocks, and written by `control` blocks. Non-persistent, page-scoped. This is what lets a screen offer interactive criteria (pick a week, toggle day/week) instead of a fixed query.",
+          "$ref": "#/$defs/screenState"
+        },
+        "navSource": {
+          "description": "Turn this page into DATA-DRIVEN navigation: the shell lists each record of `entity` as its own sidebar sub-entry (a workspace of things — projects, boards, teams, spaces — instead of one static page). Clicking a record opens ITS detail (author that detail as the record's workspace: a hub plus its scoped child surfaces). The page's own `entity` must match, and `labelField` names the record. Use for the small handful of top-level containers a user navigates BETWEEN, not for long transactional lists.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "labelField"
+          ],
+          "properties": {
+            "labelField": {
+              "description": "The field whose value labels each record in the nav.",
+              "$ref": "#/$defs/identifier"
+            },
+            "sort": {
+              "description": "Optional field to order the nav entries by.",
+              "$ref": "#/$defs/identifier"
+            },
+            "max": {
+              "description": "Cap the number of records shown in the nav (default 20).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "screenState": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "key",
+          "type"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "$ref": "#/$defs/identifier"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "number",
+              "date",
+              "enum"
+            ]
+          },
+          "default": {
+            "description": "Initial value: a literal, or the token '{{today}}' for a date."
+          },
+          "options": {
+            "description": "For type 'enum': the allowed values a segmented control toggles between.",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "value",
+                "label"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "block": {
+      "description": "A layout node, DISCRIMINATED BY `kind`: each kind is its own closed shape (see the block_* definitions), so a property belonging to a different kind is rejected instead of silently ignored.",
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "view",
+            "tabs",
+            "section",
+            "columns",
+            "widgets",
+            "fields",
+            "child",
+            "settings",
+            "hub",
+            "tiles",
+            "process",
+            "stack",
+            "row",
+            "grid",
+            "card",
+            "repeat",
+            "cell",
+            "stat",
+            "field",
+            "text",
+            "chip",
+            "avatar",
+            "progress",
+            "chart",
+            "action",
+            "create",
+            "control",
+            "filterbar",
+            "timeline",
+            "table",
+            "calendar",
+            "form",
+            "split",
+            "orgchart",
+            "board",
+            "gantt",
+            "history",
+            "answers",
+            "intake",
+            "externalEmbed",
+            "relatedApps"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "view"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_view"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "tabs"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_tabs"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "section"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_section"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "columns"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_columns"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "widgets"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_widgets"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "fields"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_fields"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "child"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_child"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "settings"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_settings"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "hub"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_hub"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "tiles"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_tiles"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "process"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_process"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "stack"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_stack"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "row"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_row"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "grid"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_grid"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "card"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_card"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "repeat"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_repeat"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "cell"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_cell"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "stat"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_stat"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "field"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_field"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "text"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_text"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "chip"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_chip"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "avatar"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_avatar"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "progress"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_progress"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "chart"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_chart"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "action"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_action"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "create"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_create"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "control"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_control"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "filterbar"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_filterbar"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "timeline"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_timeline"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "table"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_table"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "calendar"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_calendar"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "form"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_form"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "split"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_split"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "orgchart"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_orgchart"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "board"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_board"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "gantt"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_gantt"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "history"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_history"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "answers"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_answers"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "intake"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_intake"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "externalEmbed"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_externalEmbed"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "relatedApps"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_relatedApps"
+          }
+        }
+      ]
+    },
+    "deepLink": {
+      "description": "Click-through: the KPI/stat/chart opens 'page' pre-filtered by these {field, operator, value} leaves on that page's entity; a chart segment adds its own group filter automatically. Give every countable KPI a link — a dashboard number should be a door, not a label.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "page"
+      ],
+      "properties": {
+        "page": {
+          "$ref": "#/$defs/identifier"
+        },
+        "filters": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        }
+      }
+    },
+    "tile": {
+      "description": "One KPI tile. Value = a field of the bound record (record or repeat-item binding) OR an aggregate source OR two-to-three `sources` folded by `combine` (the collection-level ratio a single aggregate can't say). 'max' turns the tile into a progress meter (a sibling field key, a number, or a second source); 'attention' shows a warning chip when the comparison against the computed value is true.",
+      "type": "object",
+      "required": [
+        "label"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "multiple",
+            "share",
+            "date",
+            "tenure",
+            "text"
+          ]
+        },
+        "field": {
+          "description": "Record binding: read the value from this field of the bound record.",
+          "$ref": "#/$defs/identifier"
+        },
+        "source": {
+          "description": "Aggregate source: { entity, via? (child ref field pointing at the bound record), aggregate: { op, field?, groupBy? }, filters? }.",
+          "type": "object"
+        },
+        "sources": {
+          "description": "Two or three aggregate sources folded into ONE number by `combine` — a collection-level ratio (sum(value) / sum(cost)), which is a different number from the average of the per-row ratios. Use instead of `source`, never alongside it.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "object"
+          }
+        },
+        "combine": {
+          "$ref": "#/$defs/combine"
+        },
+        "max": {
+          "description": "Progress denominator: a sibling field key, a literal number, or { source } for an aggregate. Pair with format 'share' to print the percentage rather than 'value / max'.",
+          "$ref": "#/$defs/statMax"
+        },
+        "attention": {
+          "description": "Warning chip rule: { op: eq|neq|gt|gte|lt|lte, value } compared against the computed value.",
+          "type": "object"
+        },
+        "link": {
+          "$ref": "#/$defs/deepLink"
+        }
+      }
+    },
+    "tab": {
+      "type": "object",
+      "required": [
+        "label",
+        "blocks"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "theme": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logo": {
+          "type": "string"
+        },
+        "primaryColor": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "secondaryColor": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "font": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "radius": {
+          "type": "string",
+          "enum": [
+            "none",
+            "small",
+            "medium",
+            "large"
+          ]
+        },
+        "density": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "comfortable"
+          ]
+        },
+        "darkMode": {
+          "type": "boolean"
+        }
+      }
+    },
+    "combine": {
+      "description": "How `sources` fold into one number. 'ratio' takes exactly two (A / B) and is UNITLESS — it never carries a currency, because a multiple is not money. Same modes as the Home widget combine, ported down to in-app blocks.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "mode"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "sum",
+            "difference",
+            "ratio"
+          ]
+        }
+      }
+    },
+    "statMax": {
+      "description": "A progress/share denominator: a literal number, a sibling field key on the bound record, or { source } naming an aggregate over a whole collection.",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "$ref": "#/$defs/identifier"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/blockSource"
+            }
+          }
+        }
+      ]
+    },
+    "timeAxis": {
+      "description": "The hours a time-of-day surface draws, and how finely. Its own $def rather than inline properties, so the timeline can adopt exactly this shape later instead of growing a second spelling of the same idea.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startHour": {
+          "description": "First hour shown, 0-23. Default 7.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 23,
+          "default": 7
+        },
+        "endHour": {
+          "description": "Last hour shown, 1-24 (24 = midnight at the end of the day). Must be greater than startHour. Default 21.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 24,
+          "default": 21
+        },
+        "slotMinutes": {
+          "description": "The ruling of the grid, in minutes. Cosmetic — it does not constrain what a record may span.",
+          "type": "integer",
+          "enum": [
+            15,
+            30,
+            60
+          ],
+          "default": 30
+        }
+      }
+    },
+    "block_view": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "view"
+      ],
+      "properties": {
+        "kind": {
+          "const": "view"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "view": {
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "block_tabs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tabs"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tabs"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "tabs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/tab"
+          }
+        }
+      }
+    },
+    "block_section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "section"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "icon": {
+          "description": "Optional Material Symbols icon name shown beside the section label — lets a flat section keep the affordance a titled card had (info, link, flag, …).",
+          "type": "string",
+          "maxLength": 40
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "edit": {
+          "description": "Field keys this section can edit: an Edit button in the section header opens the record's edit form limited to EXACTLY these fields, saving back to the same record. Use on a detail section that owns one slice of a record (Personal, Contact, Compensation) so each slice is editable on its own instead of one giant form. Record binding only; the keys must be editable fields of the detail's entity.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 40,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "block_columns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "columns"
+      ],
+      "properties": {
+        "kind": {
+          "const": "columns"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "columns": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/block"
+            }
+          }
+        },
+        "weights": {
+          "description": "Relative column widths — one positive number per column (e.g. [1, 2] makes the second column twice as wide as the first, so a narrow fields column sits beside a roomier tab control). Its length must match `columns`; omit for equal widths.",
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        }
+      }
+    },
+    "block_widgets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "widgets"
+      ],
+      "properties": {
+        "kind": {
+          "const": "widgets"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "widgets": {
+          "description": "Widget bodies per the component catalog contract ({type, source, viz}).",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "block_fields": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "fields"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "fields": {
+          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "hideEmpty": {
+          "description": "Hide fields whose resolved value is empty. Useful for optional or researched profile sections where a wall of em dashes is less informative than showing only what is known.",
+          "type": "boolean"
+        },
+        "emptyText": {
+          "description": "Shown when hideEmpty removes every field in the block.",
+          "type": "string",
+          "maxLength": 200
+        }
+      }
+    },
+    "block_child": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity",
+        "via"
+      ],
+      "properties": {
+        "kind": {
+          "const": "child"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The child entity key. For kind 'settings': the kind:'settings' singleton entity this page edits. For kind 'cell': the entity whose record the cell reads and writes (usually the join entity a grid renders). For kind 'form': the entity whose create/edit form renders inline here (its authored `entity.form` layout is reused).",
+          "$ref": "#/$defs/identifier"
+        },
+        "via": {
+          "description": "The reference field on the child entity that points to the bound record's entity.",
+          "$ref": "#/$defs/identifier"
+        },
+        "childType": {
+          "description": "How the child renders. Omit to let the runtime choose by field shape. 'thread' = a conversation (chronological messages vs internal notes with a two-mode composer) for a ticket/case discussion. 'cards' = dated items PUBLISHED ELSEWHERE — a title, a source, a date, an excerpt and a link out — where the point is to read the item rather than to edit the row; 'feed' is the opposite (own comments, with a composer). 'chips' = PEOPLE ATTACHED TO THIS RECORD, one row each, drawn as a closable chip with a single box to add another: the guests on a meeting, the recipients of a notice, the reviewers of a document. It exists because there is no multi-reference field type and a 'multiselect' can only hold a closed option list, so 'many people on one record' HAS to be a child entity — and a child entity rendered as a table asks somebody to fill in a form to name a colleague. Roles come from FIELD SHAPE, never from field names this one entity happens to use: the required 'email' field is the value, a reference to platform.person is the identity (so a colleague draws with their face), a plain text field is the display name.",
+          "type": "string",
+          "enum": [
+            "feed",
+            "thread",
+            "checklist",
+            "lineItems",
+            "cards",
+            "table",
+            "chips"
+          ]
+        },
+        "kindField": {
+          "description": "thread only: the select field that marks an entry a public message vs an internal note. Default 'kind'.",
+          "$ref": "#/$defs/identifier"
+        },
+        "messageValue": {
+          "description": "thread only: the kindField value for a public MESSAGE (a reply the requester sees). Default 'message'.",
+          "type": "string",
+          "maxLength": 60
+        },
+        "commentValue": {
+          "description": "thread only: the kindField value for an internal NOTE (agents only). Default 'comment'.",
+          "type": "string",
+          "maxLength": 60
+        },
+        "authorNameField": {
+          "description": "thread only: a text field holding an EXTERNAL author's name, used when the entry has no platform-person author (inbound email / external requester).",
+          "$ref": "#/$defs/identifier"
+        },
+        "authorEmailField": {
+          "description": "thread only: an email field holding an EXTERNAL author's address, shown when there is no name.",
+          "$ref": "#/$defs/identifier"
+        },
+        "subordinate": {
+          "type": "boolean"
+        },
+        "limit": {
+          "description": "Show at most this many rows, newest first where the child has a date. For a summary surface that wants the LATEST few rather than all of them — a quick-look panel with room for three posts, not forty. The full list stays reachable on the record's own page.",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "inlineCreate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render inline add rows: an \"Add …\" row per container (per section when grouped, per expanded parent in a tree, else at the bottom) that creates the record in place — the Asana task-list pattern. Defaults ON; set false for a read-only list."
+        },
+        "allowDelete": {
+          "description": "Show the per-row delete action on this table's rows. Default false — set true only where discarding rows is part of the surface's job (line items, drafts, queues).",
+          "type": "boolean"
+        },
+        "hideWhenEmpty": {
+          "description": "Render nothing at all — header, count chip and Add row included — while this child has no rows. For a relation most records simply do not have (the companies under a holding company): an empty table with a 0 next to it claims the surface is broken rather than that the relation is absent. Default false, because a list someone is expected to fill has to stay visible to be fillable.",
+          "type": "boolean"
+        },
+        "fields": {
+          "description": "Curated columns for a 'table' child, in order. Omit to show every declared field (minus the parent link and long text). Use when the default column set is too wide for the surface — a Subtasks table inside a task's panel wants 4-5 columns, not 10.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 12,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "filterBar": {
+          "description": "Always-visible search + facet dropdowns above a 'table' child — for lists long enough that finding a row matters (a project's tasks).",
+          "$ref": "#/$defs/filterBar"
+        },
+        "groupBy": {
+          "description": "Group a 'table' child's rows into labeled sections (a project's tasks grouped by its task sections).",
+          "$ref": "#/$defs/groupBy"
+        },
+        "orderField": {
+          "description": "The integer/decimal field on the child entity that carries the rows' MANUAL order (an Asana-style task list the user arranges). Rows sort by it (empty last, then load order); inline adds append after the last sibling; drag/move writes it. Omit for automatic ordering.",
+          "$ref": "#/$defs/identifier"
+        },
+        "inlineEdit": {
+          "description": "Edit cells in place on a 'table' child: selects/dates/numbers/people change on click (a process-governed status offers its LEGAL transitions and runs the real command); the first column still opens the record. Use where the list IS the working surface (a project's task list).",
+          "type": "boolean"
+        }
+      }
+    },
+    "block_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "properties": {
+        "kind": {
+          "const": "settings"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The child entity key. For kind 'settings': the kind:'settings' singleton entity this page edits. For kind 'cell': the entity whose record the cell reads and writes (usually the join entity a grid renders). For kind 'form': the entity whose create/edit form renders inline here (its authored `entity.form` layout is reused).",
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "block_hub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "hub"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "title": {
+          "description": "The field shown as the record's headline. Defaults to the entity's displayField.",
+          "$ref": "#/$defs/identifier"
+        },
+        "status": {
+          "description": "The select field rendered as the header status chip. Defaults to the entity's role:'status' field.",
+          "$ref": "#/$defs/identifier"
+        },
+        "subtitle": {
+          "description": "Field keys rendered as the secondary line under the title.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "facts": {
+          "description": "Field keys rendered as the compact key-facts row.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "avatar": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "field": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        "actions": {
+          "description": "Record actions rendered in the header — the built-ins 'edit' and 'delete', and/or command keys defined on the bound entity.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        }
+      }
+    },
+    "block_tiles": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "tiles"
+      ],
+      "properties": {
+        "kind": {
+          "const": "tiles"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "tiles": {
+          "description": "The KPI tiles.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/tile"
+          }
+        }
+      }
+    },
+    "block_process": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "process"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        }
+      }
+    },
+    "block_stack": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "stack"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "padding": {
+          "description": "Inner spacing for a layout box. A grid cell needs its own padding — without it the composed surface has one texture everywhere and reads as a wall of text.",
+          "type": "string",
+          "enum": [
+            "none",
+            "xs",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "tone": {
+          "description": "Background wash for a layout box — separates a header strip or a rail from the body, or flags a cell that needs attention.",
+          "type": "string",
+          "enum": [
+            "muted",
+            "accent",
+            "warn",
+            "danger"
+          ]
+        },
+        "bordered": {
+          "description": "Outline a layout box — the gridlines of a composed grid.",
+          "type": "boolean"
+        },
+        "tint": {
+          "description": "For a layout box (stack/row/grid/card): a SUBTLE background wash derived from DATA — the option color of this select field on the bound row/record. A room lane tinted by its `tier`, a cell tinted by its `status`. Accepts one relation hop like other field bindings. Unlike `tone` (a fixed 4-value enum) this tracks the record's value.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "minHeight": {
+          "description": "Minimum height for a layout box (a pixel number or a CSS length). An EMPTY grid cell still has to occupy its slot, or the rows collapse and the grid stops being a grid."
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ]
+        },
+        "wrap": {
+          "type": "boolean"
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "block_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "row"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "padding": {
+          "description": "Inner spacing for a layout box. A grid cell needs its own padding — without it the composed surface has one texture everywhere and reads as a wall of text.",
+          "type": "string",
+          "enum": [
+            "none",
+            "xs",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "tone": {
+          "description": "Background wash for a layout box — separates a header strip or a rail from the body, or flags a cell that needs attention.",
+          "type": "string",
+          "enum": [
+            "muted",
+            "accent",
+            "warn",
+            "danger"
+          ]
+        },
+        "bordered": {
+          "description": "Outline a layout box — the gridlines of a composed grid.",
+          "type": "boolean"
+        },
+        "tint": {
+          "description": "For a layout box (stack/row/grid/card): a SUBTLE background wash derived from DATA — the option color of this select field on the bound row/record. A room lane tinted by its `tier`, a cell tinted by its `status`. Accepts one relation hop like other field bindings. Unlike `tone` (a fixed 4-value enum) this tracks the record's value.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "minHeight": {
+          "description": "Minimum height for a layout box (a pixel number or a CSS length). An EMPTY grid cell still has to occupy its slot, or the rows collapse and the grid stops being a grid."
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ]
+        },
+        "wrap": {
+          "type": "boolean"
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "block_grid": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "grid"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "padding": {
+          "description": "Inner spacing for a layout box. A grid cell needs its own padding — without it the composed surface has one texture everywhere and reads as a wall of text.",
+          "type": "string",
+          "enum": [
+            "none",
+            "xs",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "tone": {
+          "description": "Background wash for a layout box — separates a header strip or a rail from the body, or flags a cell that needs attention.",
+          "type": "string",
+          "enum": [
+            "muted",
+            "accent",
+            "warn",
+            "danger"
+          ]
+        },
+        "bordered": {
+          "description": "Outline a layout box — the gridlines of a composed grid.",
+          "type": "boolean"
+        },
+        "tint": {
+          "description": "For a layout box (stack/row/grid/card): a SUBTLE background wash derived from DATA — the option color of this select field on the bound row/record. A room lane tinted by its `tier`, a cell tinted by its `status`. Accepts one relation hop like other field bindings. Unlike `tone` (a fixed 4-value enum) this tracks the record's value.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "minHeight": {
+          "description": "Minimum height for a layout box (a pixel number or a CSS length). An EMPTY grid cell still has to occupy its slot, or the rows collapse and the grid stops being a grid."
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ]
+        },
+        "wrap": {
+          "type": "boolean"
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        }
+      }
+    },
+    "block_card": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "card"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "padding": {
+          "description": "Inner spacing for a layout box. A grid cell needs its own padding — without it the composed surface has one texture everywhere and reads as a wall of text.",
+          "type": "string",
+          "enum": [
+            "none",
+            "xs",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "tone": {
+          "description": "Background wash for a layout box — separates a header strip or a rail from the body, or flags a cell that needs attention.",
+          "type": "string",
+          "enum": [
+            "muted",
+            "accent",
+            "warn",
+            "danger"
+          ]
+        },
+        "bordered": {
+          "description": "Outline a layout box — the gridlines of a composed grid.",
+          "type": "boolean"
+        },
+        "tint": {
+          "description": "For a layout box (stack/row/grid/card): a SUBTLE background wash derived from DATA — the option color of this select field on the bound row/record. A room lane tinted by its `tier`, a cell tinted by its `status`. Accepts one relation hop like other field bindings. Unlike `tone` (a fixed 4-value enum) this tracks the record's value.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "minHeight": {
+          "description": "Minimum height for a layout box (a pixel number or a CSS length). An EMPTY grid cell still has to occupy its slot, or the rows collapse and the grid stops being a grid."
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "align": {
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "baseline"
+          ]
+        },
+        "wrap": {
+          "type": "boolean"
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 6
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        }
+      }
+    },
+    "block_repeat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "repeat"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "as": {
+          "description": "Publish the current item under this NAME for every descendant, however deeply nested — '{{staff.id}}', '{{day.date}}'. Without a name a block can only see its immediate parent row, so a cell can never know which COLUMN it is in, and a grid is impossible. Name both axes of a 2-D surface (e.g. `as: 'row'` on the outer repeat, `as: 'col'` on the inner) and the innermost repeat filters on both at once.",
+          "$ref": "#/$defs/identifier"
+        },
+        "direction": {
+          "description": "Lay the repeated items out left-to-right ('row' — the columns of a board) or top-to-bottom ('column', the default).",
+          "type": "string",
+          "enum": [
+            "row",
+            "column"
+          ]
+        },
+        "wrap": {
+          "description": "Render the items as a responsive CARD GRID (wrapping columns, auto-fill ~240px) instead of a single flex row/column. Use for a directory of people/records shown as cards.",
+          "type": "boolean"
+        },
+        "cols": {
+          "description": "For a `wrap` card grid: fix the number of columns per row (2–6) instead of auto-filling by width — a tidy directory, '4 in a row'.",
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 6
+        },
+        "filterBar": {
+          "description": "Search + facet dropdowns above the items (entity source only). Use on a `wrap` card grid over a people/records directory.",
+          "$ref": "#/$defs/filterBar"
+        },
+        "gap": {
+          "type": "string",
+          "enum": [
+            "none",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "emptyText": {
+          "description": "What to show when there are no rows. An empty grid cell should say nothing at all (\"\").",
+          "type": "string",
+          "maxLength": 100
+        },
+        "openDetail": {
+          "description": "Open a clicked item in the in-context quick-look panel instead of the full page.",
+          "type": "boolean"
+        }
+      }
+    },
+    "block_cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity",
+        "keys",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "const": "cell"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The child entity key. For kind 'settings': the kind:'settings' singleton entity this page edits. For kind 'cell': the entity whose record the cell reads and writes (usually the join entity a grid renders). For kind 'form': the entity whose create/edit form renders inline here (its authored `entity.form` layout is reused).",
+          "$ref": "#/$defs/identifier"
+        },
+        "keys": {
+          "description": "The field values that IDENTIFY the one record this cell is about, normally scope tokens naming the grid's axes — { \"person\": \"{{row.id}}\", \"competency\": \"{{col.id}}\" }. Every key must be a field of the cell's `entity`. If no record matches, the cell is EMPTY BUT REAL: editing it creates the record with exactly these keys set. That is what lets someone fill in a matrix or rate a whole list in one pass, instead of opening a 'New' form and re-picking the two things the grid already knows.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "editable": {
+          "description": "Let the value be changed in place, writing straight through to the record (creating it first if it does not exist). Use it whenever the grid IS the work — rating every competency for a person, setting a level, marking cover. Without it a matrix can only be read, and the actual job still means opening one record at a time. Refused on fields the user may not write (system/readOnly/auto, or a field a process governs).",
+          "type": "boolean"
+        },
+        "placeholder": {
+          "description": "What an empty cell shows. Keep it quiet — a grid of loud placeholders is unreadable.",
+          "type": "string",
+          "maxLength": 40
+        },
+        "openDetail": {
+          "description": "Clicking a cell that HAS a record opens that record's detail in a panel overlay (its hub/process/tabs), with a link through to the full detail page — the way a calendar entry opens without leaving the grid. An empty cell still creates on edit; combine with `editable` (edit the one field inline) or use alone (read the value, click to open).",
+          "type": "boolean"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime",
+            "tenure",
+            "text"
+          ]
+        }
+      }
+    },
+    "block_stat": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "stat"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "multiple",
+            "share",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "sources": {
+          "description": "Two or three aggregate sources folded into ONE number by `combine`. This is the only way to say a collection-level RATIO: a portfolio's multiple is sum(value) / sum(cost), which is a different number from the average of the per-row multiples. Use instead of `source`, never alongside it.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/blockSource"
+          }
+        },
+        "combine": {
+          "$ref": "#/$defs/combine"
+        },
+        "max": {
+          "description": "The denominator, which turns the stat into a share: a sibling field key, a literal number, or { source } for an aggregate over a whole collection (a row's percentage OF the portfolio). Pair with format 'share' to print the percentage and a meter.",
+          "$ref": "#/$defs/statMax"
+        },
+        "link": {
+          "$ref": "#/$defs/deepLink"
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "field"
+          ]
+        },
+        {
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "required": [
+            "sources"
+          ]
+        }
+      ]
+    },
+    "block_field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "const": "field"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "avatar": {
+          "description": "For a person reference: set false to render the NAME only (no avatar circle) — use when a big `avatar` block already sits beside it, e.g. a people card with the photo on the left and name/role/tags stacked on the right.",
+          "type": "boolean"
+        },
+        "role": {
+          "description": "For a person reference: also show the person's job title under their name.",
+          "type": "boolean"
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        }
+      }
+    },
+    "block_text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "text"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "text": {
+          "description": "Alias of 'value'.",
+          "type": "string"
+        },
+        "value": {
+          "description": "A literal string. 'text' interpolates {fieldKey} and #{index} against the current row."
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "text"
+          ]
+        },
+        {
+          "required": [
+            "value"
+          ]
+        }
+      ]
+    },
+    "block_chip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "chip"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "value": {
+          "description": "A literal string. 'text' interpolates {fieldKey} and #{index} against the current row."
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "field"
+          ]
+        },
+        {
+          "required": [
+            "value"
+          ]
+        }
+      ]
+    },
+    "block_avatar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field"
+      ],
+      "properties": {
+        "kind": {
+          "const": "avatar"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        }
+      }
+    },
+    "block_progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "field",
+        "max"
+      ],
+      "properties": {
+        "kind": {
+          "const": "progress"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "size": {
+          "type": "string",
+          "enum": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl"
+          ]
+        },
+        "weight": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "medium",
+            "bold"
+          ]
+        },
+        "color": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "number",
+            "money",
+            "percent",
+            "date",
+            "datetime"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "field": {
+          "description": "The value of the current row/record to read. Accepts one relation hop ('shift.start_time') — a cell that selected the right records but can only print their raw ids is useless.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "max": {
+          "description": "The denominator — a sibling field key or a literal number."
+        }
+      }
+    },
+    "block_chart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "chartType"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "source"
+          ]
+        },
+        {
+          "required": [
+            "sources"
+          ]
+        }
+      ],
+      "properties": {
+        "kind": {
+          "const": "chart"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "sources": {
+          "description": "Two or three sources drawn as SEPARATE SERIES on one shared axis — cost against market value, plan against actual. Every source must group by the same thing or the two axes silently disagree and the comparison lies. Not available on pie/donut, which have no second dimension to hold a series. Use instead of `source`, never alongside it.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "source"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/$defs/blockSource"
+              },
+              "label": {
+                "description": "Legend label for this series. Defaults to the aggregated field's label.",
+                "type": "string",
+                "maxLength": 60
+              },
+              "color": {
+                "$ref": "#/$defs/hexColor"
+              }
+            }
+          }
+        },
+        "chartType": {
+          "type": "string",
+          "enum": [
+            "bar",
+            "line",
+            "pie",
+            "donut",
+            "area"
+          ]
+        },
+        "link": {
+          "$ref": "#/$defs/deepLink"
+        }
+      }
+    },
+    "block_action": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "command"
+      ],
+      "properties": {
+        "kind": {
+          "const": "action"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "command": {
+          "description": "A command key defined on the bound entity.",
+          "$ref": "#/$defs/identifier"
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "default",
+            "danger"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        }
+      }
+    },
+    "block_create": {
+      "description": "A 'New <record>' button. Opens the entity's create form, exactly like the New button a table or board draws — this is the same affordance for a surface that is not a table or board (a composed grid, a calendar, a card wall, or a page toolbar). Use it whenever people create records on a page whose primary surface cannot draw its own New button; a styled text block is not a button and creates nothing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "properties": {
+        "kind": {
+          "const": "create"
+        },
+        "entity": {
+          "description": "The entity a click creates. Must be a collection entity with an authored form.",
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "description": "Button text. Defaults to 'New <entity label>'.",
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "style": {
+          "type": "string",
+          "enum": [
+            "primary",
+            "default"
+          ]
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        }
+      }
+    },
+    "block_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "control",
+        "stateKey"
+      ],
+      "properties": {
+        "kind": {
+          "const": "control"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "control": {
+          "description": "The control type. 'segmented' = a value toggle bound to an enum state var (its `options` become the segments). 'stepper' = a prev/next pair that shifts a `date` state var by `step`. Controls WRITE screen state; they run no command and touch no data.",
+          "type": "string",
+          "enum": [
+            "segmented",
+            "stepper"
+          ]
+        },
+        "stateKey": {
+          "description": "The page `state` var key this control reads and writes.",
+          "$ref": "#/$defs/identifier"
+        },
+        "step": {
+          "description": "For a 'stepper' control: how far each prev/next click moves the bound date state.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "unit": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ]
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "control": {
+                "const": "stepper"
+              }
+            },
+            "required": [
+              "control"
+            ]
+          },
+          "then": {
+            "required": [
+              "step"
+            ]
+          }
+        }
+      ]
+    },
+    "block_filterbar": {
+      "description": "A page-level search + facet bar (Pipedrive-style) that WRITES page screen state — it touches no data and runs no command. A board and a list on the same page read that state (via their `search.state` and `optional` {{state.<key>}} filters), so ONE bar drives both views.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "properties": {
+        "kind": {
+          "const": "filterbar"
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "entity": {
+          "description": "The entity whose fields the facets read for their options/labels — the same entity the page's board and list show.",
+          "$ref": "#/$defs/identifier"
+        },
+        "search": {
+          "description": "The free-text search box. Writes the query into a page `state` key that the board/list read via their `search.state`.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state"
+          ],
+          "properties": {
+            "state": {
+              "description": "Page `state` var key the query string is written to.",
+              "$ref": "#/$defs/identifier"
+            },
+            "placeholder": {
+              "type": "string",
+              "maxLength": 60
+            }
+          }
+        },
+        "facets": {
+          "description": "Dropdown facets. Each writes a page `state` key that the board/list filter on via an `optional` filter leaf whose value is '{{state.<key>}}'. Options come from the field: a select's options, a process's states (a role:status field), or the people directory (a person reference).",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 6,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "field"
+            ],
+            "properties": {
+              "state": {
+                "description": "Page `state` var key this facet writes.",
+                "$ref": "#/$defs/identifier"
+              },
+              "field": {
+                "description": "The select / reference / role:status field on `entity` whose values are the facet options.",
+                "$ref": "#/$defs/identifier"
+              },
+              "label": {
+                "description": "Override the dropdown label (defaults to the field's label).",
+                "type": "string",
+                "maxLength": 60
+              }
+            }
+          }
+        }
+      }
+    },
+    "block_timeline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity",
+        "rowBy",
+        "startField",
+        "axis"
+      ],
+      "properties": {
+        "kind": {
+          "const": "timeline"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The child entity key. For kind 'settings': the kind:'settings' singleton entity this page edits. For kind 'cell': the entity whose record the cell reads and writes (usually the join entity a grid renders). For kind 'form': the entity whose create/edit form renders inline here (its authored `entity.form` layout is reused).",
+          "$ref": "#/$defs/identifier"
+        },
+        "rowBy": {
+          "description": "The reference field records are grouped into LANES by — one horizontal lane per distinct value ('requested_by' → one lane per person; 'project' → one lane per project). Each lane is labelled by the referenced record. This is the scheduling/gantt surface: multi-day records render as BARS spanning the date columns, not one cell per day.",
+          "$ref": "#/$defs/identifier"
+        },
+        "startField": {
+          "description": "The date field a record's bar STARTS at. For kind 'calendar': the date field that places a record on the month grid.",
+          "$ref": "#/$defs/identifier"
+        },
+        "endField": {
+          "description": "The date field a record's bar ENDS at (inclusive). Omit for single-day events.",
+          "$ref": "#/$defs/identifier"
+        },
+        "axis": {
+          "description": "The date window the surface OPENS at, and where its anchor day comes from. 'from' is an ISO date or a scope token ('{{state.cursor}}' — the reader's own prev/next writes back to that state, so an authored stepper on the same page stays in step). 'range' picks the zoom: 'week' | 'month' | 'year'. The reader can always switch zoom themselves, so this is the starting point, not a restriction. ('count'/'step' are the older fixed-window spelling; they now only seed which range to open at.)",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "range": {
+              "description": "The zoom this timeline opens at. The reader toggles week/month/year regardless.",
+              "type": "string",
+              "enum": [
+                "week",
+                "month",
+                "year"
+              ],
+              "default": "month"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 366
+            },
+            "step": {
+              "type": "string",
+              "enum": [
+                "day",
+                "week",
+                "month"
+              ],
+              "default": "day"
+            }
+          }
+        },
+        "colorField": {
+          "description": "A select field whose OPTION COLOR fills each record's bar/entry (a 'type' field → vacation/sick/personal colours).",
+          "$ref": "#/$defs/identifier"
+        },
+        "labelField": {
+          "description": "The field whose value labels each bar/entry.",
+          "$ref": "#/$defs/identifier"
+        },
+        "openDetail": {
+          "description": "Clicking a cell that HAS a record opens that record's detail in a panel overlay (its hub/process/tabs), with a link through to the full detail page — the way a calendar entry opens without leaving the grid. An empty cell still creates on edit; combine with `editable` (edit the one field inline) or use alone (read the value, click to open).",
+          "type": "boolean"
+        }
+      }
+    },
+    "block_table": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source"
+      ],
+      "properties": {
+        "kind": {
+          "const": "table"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "fields": {
+          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "openDetail": {
+          "description": "Clicking a cell that HAS a record opens that record's detail in a panel overlay (its hub/process/tabs), with a link through to the full detail page — the way a calendar entry opens without leaving the grid. An empty cell still creates on edit; combine with `editable` (edit the one field inline) or use alone (read the value, click to open).",
+          "type": "boolean"
+        },
+        "allowDelete": {
+          "description": "Show the per-row delete action on this table's rows. Default false — set true only where discarding rows is part of the surface's job (line items, drafts, queues).",
+          "type": "boolean"
+        },
+        "newButton": {
+          "description": "Show a 'New <entity>' button above the list that opens the create form — for a page-level list that owns creating records. Default false.",
+          "type": "boolean"
+        },
+        "filterBar": {
+          "description": "Always-visible search + facet dropdowns above the table — for lists long enough that finding a row matters.",
+          "$ref": "#/$defs/filterBar"
+        },
+        "search": {
+          "description": "Bind this list to a PAGE-LEVEL search box (a `filterbar` block) so one query drives both a board and this list on a merged page. Distinct from `filterBar`, which is this table's own toolbar.",
+          "$ref": "#/$defs/blockSearch"
+        },
+        "groupBy": {
+          "description": "Group the table's rows into labeled sections by a discrete field.",
+          "$ref": "#/$defs/groupBy"
+        },
+        "orderField": {
+          "description": "The integer/decimal field on the source entity that carries the rows' MANUAL order. Rows sort by it (empty last, then load order). Omit for automatic ordering.",
+          "$ref": "#/$defs/identifier"
+        },
+        "inlineEdit": {
+          "description": "Edit cells in place: selects/dates/numbers/people change on click (a process-governed status offers its LEGAL transitions and runs the real command); the first column still opens the record.",
+          "type": "boolean"
+        },
+        "inlineCreate": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render an \"Add …\" row at the bottom that creates a record in place. A page-level table has no parent record, so the new row gets only what you type plus the group and order it landed in — anything the table FILTERS on is not set, so a row added under a filtered tab may not stay visible."
+        },
+        "newDefaults": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Field values a row typed into the inline add row starts with. Equality filters on this table's source are applied AUTOMATICALLY — a list filtered to `my_day eq true` gives a new row `my_day: true` without being told, the way a child gets its parent from `via`. State here only what a filter cannot imply: a comparison such as `due_on lte {{today}}` says which rows to SHOW, not what a new one should BE, so a Today list wants `{ \"due_on\": \"{{today}}\" }`. Relative tokens resolve. If a new row still would not match this table's own filters, the add row is hidden rather than creating something that disappears on the next load."
+        }
+      }
+    },
+    "block_calendar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "startField"
+      ],
+      "properties": {
+        "kind": {
+          "const": "calendar"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "startField": {
+          "description": "The date field a record's bar STARTS at. For kind 'calendar': the date field that places a record on the month grid.",
+          "$ref": "#/$defs/identifier"
+        },
+        "endField": {
+          "description": "The date field a record ENDS at, inclusive. Without it a record occupies only its start day, which is right for a deadline and wrong for a meeting: a two-hour appointment collapses to a dot and a three-day trip disappears after day one. Set it whenever the records have a duration. Required for `range: 'day'` to draw anything with height.",
+          "$ref": "#/$defs/identifier"
+        },
+        "range": {
+          "description": "The zoom this calendar opens at: 'day' (one column with an hour axis — a schedule), 'week' (one tall row), 'month' (the grid, the default) or 'year' (twelve mini-months). The reader toggles between them regardless. 'day' needs `startField` to be a 'datetime': a date alone has no time of day, so an hour axis would show one empty column.",
+          "type": "string",
+          "enum": [
+            "day",
+            "week",
+            "month",
+            "year"
+          ],
+          "default": "month"
+        },
+        "timeAxis": {
+          "description": "The hours the day view shows, and how finely it rules them. Only read by `range: 'day'`. Defaults cover an ordinary working day rather than all 24 hours, because a schedule you have to scroll to reach 9am is a worse answer than one that clips the night.",
+          "$ref": "#/$defs/timeAxis"
+        },
+        "allowCreate": {
+          "description": "Clicking empty space creates a record THERE — the day in a month grid, the half-hour in a day view — with the date fields already filled in. What everyone expects of a calendar, and off by default because a read-only calendar over records somebody else owns (an imported feed, a team's absences) should not offer to add to it.",
+          "type": "boolean"
+        },
+        "quickAdd": {
+          "description": "What the quick-add dialog asks for beyond a title, when `allowCreate` is on. The title and the date/time row are always there and need no declaring — they come from the entity's displayField and this block's own `startField`/`endField`/`timeAxis`. Everything else is optional and hidden behind an 'Add …' row, so the dialog opens small and grows only where somebody asks it to. Without this the dialog collects a title and nothing else, which is not enough to schedule anything: the time cannot be corrected and nobody can be invited.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "description": "Extra fields of the calendar's own entity to offer — a location, a meeting link, a description. Rendered with the same controls the full form uses. Keep it to the few that decide whether the entry is usable at a glance; the rest is what 'More options' is for.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {
+                "$ref": "#/$defs/identifier"
+              }
+            },
+            "children": {
+              "description": "Child records collected alongside the new record — guests on a meeting. Written AFTER the record itself, because a child needs its parent's id: the record is the transaction boundary, and a child that fails to save never un-books the entry somebody already watched save.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "entity",
+                  "via"
+                ],
+                "properties": {
+                  "entity": {
+                    "description": "The child entity key.",
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "via": {
+                    "description": "The reference field on the child that points back at the new record.",
+                    "$ref": "#/$defs/identifier"
+                  },
+                  "childType": {
+                    "description": "How it is collected. Only 'chips' is compact enough for a quick dialog; the same value renders the same editor on the record's own panel, so guests are added the one way in both places.",
+                    "type": "string",
+                    "enum": [
+                      "chips"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "labelField": {
+          "description": "The field whose value labels each bar/entry.",
+          "$ref": "#/$defs/identifier"
+        },
+        "colorField": {
+          "description": "A select field whose OPTION COLOR fills each record's bar/entry (a 'type' field → vacation/sick/personal colours).",
+          "$ref": "#/$defs/identifier"
+        },
+        "openDetail": {
+          "description": "Clicking a cell that HAS a record opens that record's detail in a panel overlay (its hub/process/tabs), with a link through to the full detail page — the way a calendar entry opens without leaving the grid. An empty cell still creates on edit; combine with `editable` (edit the one field inline) or use alone (read the value, click to open).",
+          "type": "boolean"
+        }
+      }
+    },
+    "block_form": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "properties": {
+        "kind": {
+          "const": "form"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The child entity key. For kind 'settings': the kind:'settings' singleton entity this page edits. For kind 'cell': the entity whose record the cell reads and writes (usually the join entity a grid renders). For kind 'form': the entity whose create/edit form renders inline here (its authored `entity.form` layout is reused).",
+          "$ref": "#/$defs/identifier"
+        },
+        "via": {
+          "description": "The reference field on the child entity that points to the bound record's entity.",
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "block_split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "blocks"
+      ],
+      "properties": {
+        "kind": {
+          "const": "split"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the rows come from.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "blocks": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "fields": {
+          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "as": {
+          "description": "Publish the current item under this NAME for every descendant, however deeply nested — '{{staff.id}}', '{{day.date}}'. Without a name a block can only see its immediate parent row, so a cell can never know which COLUMN it is in, and a grid is impossible. Name both axes of a 2-D surface (e.g. `as: 'row'` on the outer repeat, `as: 'col'` on the inner) and the innermost repeat filters on both at once.",
+          "$ref": "#/$defs/identifier"
+        },
+        "emptyText": {
+          "description": "What to show when there are no rows. An empty grid cell should say nothing at all (\"\").",
+          "type": "string",
+          "maxLength": 100
+        }
+      }
+    },
+    "block_orgchart": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "entity",
+        "manager"
+      ],
+      "properties": {
+        "kind": {
+          "const": "orgchart"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "entity": {
+          "description": "The entity whose records form the reporting tree (an employee/staff file).",
+          "$ref": "#/$defs/identifier"
+        },
+        "manager": {
+          "description": "The reference field holding each record's PARENT link ('reports to'). A record's parent is the record whose `identity` equals this field's value — an employee's manager is a person id, matched to the manager-employee whose identity (person) equals it. A self-referential manager field is matched by record id instead. Records whose manager is empty (or points outside the set) are roots.",
+          "$ref": "#/$defs/identifier"
+        },
+        "identity": {
+          "description": "The field whose value `manager` points at; defaults to the entity's displayField. For an employee file whose identity is a person reference, name that person field here.",
+          "$ref": "#/$defs/identifier"
+        },
+        "subtitle": {
+          "description": "A field shown as the card's secondary line (a job title).",
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    },
+    "block_board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "groupField"
+      ],
+      "properties": {
+        "kind": {
+          "const": "board"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the cards come from — usually scoped to the bound record via `via` (a board of THIS project's tasks).",
+          "$ref": "#/$defs/blockSource"
+        },
+        "groupField": {
+          "description": "The select or reference field whose distinct values become the board COLUMNS. A status field makes a process board — dragging a card between columns runs the matching transition command (confirm/input show). A reference field (station/owner) makes an assignment board — dragging reassigns it.",
+          "$ref": "#/$defs/identifier"
+        },
+        "cardFields": {
+          "description": "The fields shown on each card beneath its title. Omit to show the first couple of plain fields. A money field renders as the card's emphasized value, a person reference as an avatar, a date quietly in the footer, and a select as a chip — so keep the list short.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "sumField": {
+          "description": "A money/number field summed per column and shown in the column header as 'Σ · count' (the pipeline funnel, Pipedrive-style). Computed from the currently visible cards, so it honors the board's filters + search.",
+          "$ref": "#/$defs/identifier"
+        },
+        "search": {
+          "description": "Bind the board to a PAGE-LEVEL search box (a `filterbar` block) so one query filters both the board and a sibling list on a merged page.",
+          "$ref": "#/$defs/blockSearch"
+        },
+        "newButton": {
+          "description": "Show a 'New <entity>' button above the board that opens the create form — for a page-level board that owns creating records. Default false.",
+          "type": "boolean"
+        },
+        "openDetail": {
+          "description": "Clicking a card opens its detail in a panel overlay (its hub/tabs) with a link through to the full page, instead of navigating away.",
+          "type": "boolean"
+        },
+        "interaction": {
+          "description": "'interactive' (default) allows drag-to-move between columns; 'visualization' is read-only.",
+          "type": "string",
+          "enum": [
+            "interactive",
+            "visualization"
+          ]
+        }
+      }
+    },
+    "block_gantt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "startField"
+      ],
+      "properties": {
+        "kind": {
+          "const": "gantt"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        },
+        "source": {
+          "description": "Where the bars come from — one row per record, usually scoped to the bound record via `via` (this project's tasks). The visible date window is DERIVED from the data (earliest start to latest end).",
+          "$ref": "#/$defs/blockSource"
+        },
+        "startField": {
+          "description": "The date field a record's bar STARTS at.",
+          "$ref": "#/$defs/identifier"
+        },
+        "endField": {
+          "description": "The date field a record's bar ENDS at (inclusive). Omit (or leave a record's value empty) for a single-day marker.",
+          "$ref": "#/$defs/identifier"
+        },
+        "labelField": {
+          "description": "The field whose value labels each bar and its row in the left rail. Defaults to the entity's displayField.",
+          "$ref": "#/$defs/identifier"
+        },
+        "colorField": {
+          "description": "A select field whose OPTION COLOR fills each bar (a status field → the phase colour).",
+          "$ref": "#/$defs/identifier"
+        },
+        "milestones": {
+          "description": "Optional diamond markers laid over the timeline — a second source (usually the project's milestones) placed by a date field.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "dateField"
+          ],
+          "properties": {
+            "source": {
+              "$ref": "#/$defs/blockSource"
+            },
+            "dateField": {
+              "$ref": "#/$defs/identifier"
+            },
+            "labelField": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        "openDetail": {
+          "description": "Clicking a bar opens its detail in a panel overlay instead of navigating to the full detail page.",
+          "type": "boolean"
+        },
+        "interaction": {
+          "description": "'interactive' (default) lets a writer DRAG a bar to reschedule it (move the whole bar, or drag an edge to change the start/end) — gated on update access and editable date fields; 'visualization' is read-only.",
+          "type": "string",
+          "enum": [
+            "interactive",
+            "visualization"
+          ]
+        }
+      }
+    },
+    "block_history": {
+      "description": "The record's activity feed: who changed which field, from what to what, when. Fed by the runtime automatically — no entity, no fields and no authoring beyond placing the block. Record binding only (a detail page).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "history"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "limit": {
+          "description": "How many entries to show (default 30).",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
+        }
+      }
+    },
+    "block_answers": {
+      "description": "What the requester actually said: the questions and answers of the form submission this record came from, in the form's own order. For a record FILED BY a form (a ticket from an intake form) — put it near the top of the detail, because the answers are the request. Renders nothing for a record created by hand. Record binding only.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "answers"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "via": {
+          "description": "The reference field on THIS entity pointing at the formResponse entity. Omit and the single such field is used.",
+          "$ref": "#/$defs/identifier"
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_intake": {
+      "description": "The front door: the forms someone can fill in, and the form itself once they pick one. This is how a person who may NOT create tickets still files one — submitting needs only the right to respond. Collection binding (a page). Pair it with a filter so retired forms stay off the list.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "intake"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "entity": {
+          "description": "The formTemplate entity to list. Omit and the app's single formTemplate entity is used.",
+          "$ref": "#/$defs/identifier"
+        },
+        "filters": {
+          "description": "Which templates to offer — typically the active ones.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_externalEmbed": {
+      "description": "A REVIEWED third-party widget rendered inside a sandboxed frame, about the record you are looking at - a share-price chart on a listed company. Record binding only. Deliberately its own kind rather than a data block: nothing here reaches the entity store, nothing is cached and nothing is promoted onto the record; what it carries instead is a consent decision, because a third party's script running in front of a customer is a decision somebody must make rather than a default they inherit. The server resolves the block's provider and derives the subject from the record - the browser never names what to embed - and a tenant admin must approve the provider before anything renders.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "key",
+        "provider"
+      ],
+      "properties": {
+        "kind": {
+          "const": "externalEmbed"
+        },
+        "key": {
+          "description": "Stable identity for this block, unique among the entity's record-bound blocks. The embed endpoint addresses the BLOCK by this key so a caller cannot choose a provider or a subject by editing a request - blocks are otherwise addressed by tree POSITION, and reordering a tab would silently repoint a live panel.",
+          "$ref": "#/$defs/identifier"
+        },
+        "provider": {
+          "description": "Which reviewed embed to render. A closed set: each entry is code that has been read, with its own tenant approval flag, never tenant configuration - a provider decides the URL and the parameters, an admin decides only whether it is on.",
+          "type": "string",
+          "enum": [
+            "tradingview_mini"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "height": {
+          "description": "Frame height in pixels (default 220).",
+          "type": "integer",
+          "minimum": 80,
+          "maximum": 600
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_relatedApps": {
+      "description": "What the tenant's OTHER apps hold about the record you are looking at - the deals, invoices and tickets that point AT this company from apps it knows nothing about. Record binding only. Nothing is named here and nothing is configured: the server walks every built app in the workspace for reference fields targeting this record's entity, so an app earns its place on this page by referencing the record rather than by being authored in. Each app is re-checked against the reader's own grants, so this shows what THEY may see and never becomes a way around a permission.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "relatedApps"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "empty": {
+          "description": "What to say when no other app references this record yet. Worth setting: the empty state is the common one in a new workspace, and 'nothing here' explains nothing.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    }
+  }
+}

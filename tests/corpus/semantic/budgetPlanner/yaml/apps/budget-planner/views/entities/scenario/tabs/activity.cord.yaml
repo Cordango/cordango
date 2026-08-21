@@ -1,0 +1,4 @@
+tab: activity
+label: Activity
+blocks:
+  - kind: history

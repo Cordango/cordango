@@ -1,0 +1,840 @@
+{
+  "schemaVersion": "1.0",
+  "key": "crm",
+  "name": "CRM",
+  "version": "1.0.2",
+  "description": "A customer relationship management app to track contacts, companies, deals/opportunities, and sales activities. Core entities include Contact, Company, Deal, and Activity, supporting a sales pipeline from lead to closed-won.",
+  "entities": [
+    {
+      "key": "company",
+      "label": "Company",
+      "labelPlural": "Companies",
+      "description": "Organizations you do business with.",
+      "icon": "building",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Company Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "industry",
+          "label": "Industry",
+          "type": "select",
+          "options": [
+            {
+              "value": "technology",
+              "label": "Technology",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#10B981"
+            },
+            {
+              "value": "healthcare",
+              "label": "Healthcare",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "manufacturing",
+              "label": "Manufacturing",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "retail",
+              "label": "Retail",
+              "color": "#EC4899"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "employee_count",
+          "label": "Employee Count",
+          "type": "integer"
+        },
+        {
+          "key": "annual_revenue",
+          "label": "Annual Revenue",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2
+        },
+        {
+          "key": "address",
+          "label": "Address",
+          "type": "longtext"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "company_status",
+          "label": "Company Status",
+          "type": "select",
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#10B981"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#6B7280"
+            },
+            {
+              "value": "prospect",
+              "label": "Prospect",
+              "color": "#F59E0B"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "description": "People you interact with at companies.",
+      "icon": "users",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "first_name",
+          "label": "First Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "last_name",
+          "label": "Last Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "help": "Computed display name — enter first and last name."
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "mobile",
+          "label": "Mobile",
+          "type": "phone"
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "company_ref",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "address",
+          "label": "Address",
+          "type": "longtext"
+        },
+        {
+          "key": "contact_status",
+          "label": "Contact Status",
+          "type": "select",
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#10B981"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#6B7280"
+            },
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#F59E0B"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "deal",
+      "label": "Deal",
+      "labelPlural": "Deals",
+      "description": "Sales opportunities moving through the pipeline.",
+      "icon": "handshake",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Deal Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "amount",
+          "label": "Deal Amount",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2,
+          "required": true
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "required": true,
+          "default": "lead",
+          "options": [
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#6B7280"
+            },
+            {
+              "value": "qualified",
+              "label": "Qualified",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "proposal",
+              "label": "Proposal",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "negotiation",
+              "label": "Negotiation",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "closed_won",
+              "label": "Closed Won",
+              "color": "#10B981"
+            },
+            {
+              "value": "closed_lost",
+              "label": "Closed Lost",
+              "color": "#EF4444"
+            }
+          ],
+          "indexed": true
+        },
+        {
+          "key": "probability",
+          "label": "Probability %",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 2,
+          "help": "Estimated close probability (0–100)."
+        },
+        {
+          "key": "expected_close_date",
+          "label": "Expected Close Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "company_ref",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "onDelete": "restrict",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "primary_contact_id",
+          "label": "Primary Contact",
+          "type": "reference",
+          "targetEntity": "contact",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "source",
+          "label": "Source",
+          "type": "select",
+          "options": [
+            {
+              "value": "inbound",
+              "label": "Inbound",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "outbound",
+              "label": "Outbound",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "referral",
+              "label": "Referral",
+              "color": "#10B981"
+            },
+            {
+              "value": "event",
+              "label": "Event",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "lost_reason",
+          "label": "Lost Reason",
+          "type": "longtext",
+          "help": "Required when stage is Closed Lost."
+        }
+      ]
+    },
+    {
+      "key": "activity",
+      "label": "Activity",
+      "labelPlural": "Activities",
+      "description": "Sales activities such as calls, emails, meetings, and tasks.",
+      "icon": "calendar-check",
+      "displayField": "subject",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "type": "select",
+          "required": true,
+          "default": "call",
+          "options": [
+            {
+              "value": "call",
+              "label": "Call",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "email",
+              "label": "Email",
+              "color": "#10B981"
+            },
+            {
+              "value": "meeting",
+              "label": "Meeting",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "task",
+              "label": "Task",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "note",
+              "label": "Note",
+              "color": "#6B7280"
+            }
+          ],
+          "indexed": true
+        },
+        {
+          "key": "due_date",
+          "label": "Due Date",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "completed_date",
+          "label": "Completed Date",
+          "type": "datetime"
+        },
+        {
+          "key": "activity_status",
+          "label": "Activity Status",
+          "type": "select",
+          "default": "open",
+          "options": [
+            {
+              "value": "open",
+              "label": "Open",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#10B981"
+            },
+            {
+              "value": "overdue",
+              "label": "Overdue",
+              "color": "#EF4444"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#6B7280"
+            }
+          ],
+          "indexed": true
+        },
+        {
+          "key": "deal_id",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "contact_id",
+          "label": "Contact",
+          "type": "reference",
+          "targetEntity": "contact",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "company_ref",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "company_to_deals",
+      "label": "Deals",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "deal",
+      "inverseField": "company_ref"
+    },
+    {
+      "key": "company_to_contacts",
+      "label": "Contacts",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "contact",
+      "inverseField": "company_ref"
+    },
+    {
+      "key": "deal_to_activities",
+      "label": "Activities",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "activity",
+      "inverseField": "deal_id"
+    },
+    {
+      "key": "contact_to_activities",
+      "label": "Activities",
+      "type": "oneToMany",
+      "fromEntity": "contact",
+      "toEntity": "activity",
+      "inverseField": "contact_id"
+    },
+    {
+      "key": "deal_to_contacts",
+      "label": "Deal Contacts",
+      "type": "manyToMany",
+      "fromEntity": "deal",
+      "toEntity": "contact"
+    }
+  ],
+  "views": [
+    {
+      "key": "companies_table",
+      "label": "Companies",
+      "type": "table",
+      "entity": "company",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "industry",
+          "company_status",
+          "website",
+          "phone",
+          "annual_revenue"
+        ]
+      }
+    },
+    {
+      "key": "company_detail",
+      "label": "Company Detail",
+      "type": "detail",
+      "entity": "company"
+    },
+    {
+      "key": "contacts_table",
+      "label": "Contacts",
+      "type": "table",
+      "entity": "contact",
+      "sort": [
+        {
+          "field": "last_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "first_name",
+          "last_name",
+          "email",
+          "phone",
+          "title",
+          "contact_status"
+        ]
+      }
+    },
+    {
+      "key": "contact_detail",
+      "label": "Contact Detail",
+      "type": "detail",
+      "entity": "contact"
+    },
+    {
+      "key": "deals_table",
+      "label": "Deals",
+      "type": "table",
+      "entity": "deal",
+      "sort": [
+        {
+          "field": "expected_close_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "company_ref",
+          "amount",
+          "stage",
+          "expected_close_date",
+          "probability"
+        ]
+      }
+    },
+    {
+      "key": "deals_kanban",
+      "label": "Sales Pipeline",
+      "type": "kanban",
+      "entity": "deal",
+      "config": {
+        "groupByField": "stage"
+      }
+    },
+    {
+      "key": "deal_detail",
+      "label": "Deal Detail",
+      "type": "detail",
+      "entity": "deal"
+    },
+    {
+      "key": "activities_table",
+      "label": "Activities",
+      "type": "table",
+      "entity": "activity",
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "type",
+          "due_date",
+          "activity_status",
+          "deal_id",
+          "contact_id"
+        ]
+      }
+    },
+    {
+      "key": "activities_calendar",
+      "label": "Activity Calendar",
+      "type": "calendar",
+      "entity": "activity",
+      "config": {
+        "dateField": "due_date"
+      }
+    },
+    {
+      "key": "activity_detail",
+      "label": "Activity Detail",
+      "type": "detail",
+      "entity": "activity"
+    },
+    {
+      "key": "sales_dashboard",
+      "label": "Sales Dashboard",
+      "type": "dashboard",
+      "entity": "deal",
+      "config": {
+        "widgets": [
+          {
+            "title": "Pipeline by Stage",
+            "type": "bar",
+            "entity": "deal",
+            "groupBy": "stage"
+          },
+          {
+            "title": "Open Deals Value",
+            "type": "metric",
+            "entity": "deal",
+            "aggregate": "sum",
+            "field": "amount"
+          },
+          {
+            "title": "Deals Closing Soon",
+            "type": "list",
+            "entity": "deal",
+            "sortBy": "expected_close_date",
+            "limit": 5
+          },
+          {
+            "title": "Overdue Activities",
+            "type": "list",
+            "entity": "activity",
+            "filter": {
+              "activity_status": "eq",
+              "value": "overdue"
+            },
+            "limit": 5
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_deal_stage_change",
+      "name": "Notify on Deal Stage Change",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "deal_closed_won_email",
+      "name": "Email on Closed Won",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "conditions": [
+        {
+          "field": "stage",
+          "operator": "eq",
+          "value": "closed_won"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "auto_overdue_activities",
+      "name": "Mark Overdue Activities",
+      "trigger": {
+        "event": "schedule",
+        "entity": "activity",
+        "cron": "0 8 * * *"
+      },
+      "conditions": [
+        {
+          "field": "activity_status",
+          "operator": "eq",
+          "value": "open"
+        },
+        {
+          "field": "due_date",
+          "operator": "lt",
+          "value": "now"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "create_followup_activity",
+      "name": "Create Follow-up Activity on New Deal",
+      "trigger": {
+        "event": "record.created",
+        "entity": "deal"
+      },
+      "actions": [
+        {
+          "type": "createRecord"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all CRM data and configuration.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "sales_rep",
+      "name": "Sales Rep",
+      "description": "Standard user who manages contacts, companies, deals, and activities.",
+      "grants": [
+        {
+          "entity": "company",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "contact",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "deal",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "activity",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to all CRM data.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#10B981",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

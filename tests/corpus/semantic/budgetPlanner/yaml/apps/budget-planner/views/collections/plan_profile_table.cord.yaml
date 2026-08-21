@@ -1,0 +1,25 @@
+view: plan_profile_table
+label: Customer profile
+entity: revenue_plan
+kind: table
+settings:
+  columns:
+    - name
+    - tier
+    - avg_users_per_customer
+    - avg_shared_apps_per_customer
+    - avg_active_users_per_app
+    - billable_app_users_per_customer
+    - avg_personal_apps_per_user
+    - ai_spend_per_customer
+    - ai_markup_pct
+    - byo_ai_share_pct
+    - cost_per_app_user
+    - starting_customers
+  filterBar:
+    facets:
+      - scenario
+      - tier
+    search:
+      - name
+  inlineEdit: true

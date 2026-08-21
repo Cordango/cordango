@@ -1,0 +1,1002 @@
+{
+  "schemaVersion": "1.0",
+  "key": "it_ticketing",
+  "name": "IT Request Ticketing",
+  "version": "1.0.1",
+  "description": "Internal ticketing system for IT requests with priorities, SLAs, assignments, and email notifications. Tickets flow through statuses (Open → In Progress → Resolved → Closed) with assignment, prioritization, SLA tracking, and email notifications on key events.",
+  "entities": [
+    {
+      "key": "requester",
+      "label": "Requester",
+      "labelPlural": "Requesters",
+      "description": "Employee or department member who submits IT requests.",
+      "icon": "user",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "employee_id",
+          "label": "Employee ID",
+          "type": "text",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "agent",
+      "label": "Agent",
+      "labelPlural": "Agents",
+      "description": "IT staff member who handles and resolves tickets.",
+      "icon": "headset",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "team",
+          "label": "Team",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "helpdesk",
+              "label": "Helpdesk",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "infrastructure",
+              "label": "Infrastructure",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "security",
+              "label": "Security",
+              "color": "#EF4444"
+            },
+            {
+              "value": "applications",
+              "label": "Applications",
+              "color": "#10B981"
+            }
+          ]
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true,
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "category",
+      "label": "Category",
+      "labelPlural": "Categories",
+      "description": "Classification of IT request types.",
+      "icon": "folder",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "priority",
+      "label": "Priority",
+      "labelPlural": "Priorities",
+      "description": "Priority level applied to a ticket, governing SLA targets.",
+      "icon": "flag",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "level",
+          "label": "Level",
+          "type": "integer",
+          "required": true,
+          "help": "Numeric urgency ranking (1 = highest)."
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "#EF4444",
+              "label": "Red",
+              "color": "#EF4444"
+            },
+            {
+              "value": "#F59E0B",
+              "label": "Amber",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "#3B82F6",
+              "label": "Blue",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "#6B7280",
+              "label": "Gray",
+              "color": "#6B7280"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sla_policy",
+      "label": "SLA Policy",
+      "labelPlural": "SLA Policies",
+      "description": "Service Level Agreement defining response and resolution time targets by priority.",
+      "icon": "clock",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "reference",
+          "targetEntity": "priority",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "response_time_hours",
+          "label": "Response Time (hours)",
+          "type": "integer",
+          "required": true,
+          "help": "Target time for first agent response."
+        },
+        {
+          "key": "resolution_time_hours",
+          "label": "Resolution Time (hours)",
+          "type": "integer",
+          "required": true,
+          "help": "Target time for full resolution."
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "ticket",
+      "label": "Ticket",
+      "labelPlural": "Tickets",
+      "description": "An IT request ticket tracked from creation through resolution.",
+      "icon": "ticket",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "ticket_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "default": "open",
+          "indexed": true,
+          "help": "Workflow status of the ticket.",
+          "options": [
+            {
+              "value": "open",
+              "label": "Open",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "in_progress",
+              "label": "In Progress",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "resolved",
+              "label": "Resolved",
+              "color": "#10B981"
+            },
+            {
+              "value": "closed",
+              "label": "Closed",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "requester",
+          "label": "Requester",
+          "type": "reference",
+          "targetEntity": "requester",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "assignee",
+          "label": "Assigned Agent",
+          "type": "reference",
+          "targetEntity": "agent",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "reference",
+          "targetEntity": "category",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "reference",
+          "targetEntity": "priority",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "sla_policy",
+          "label": "SLA Policy",
+          "type": "reference",
+          "targetEntity": "sla_policy",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "due_date",
+          "label": "SLA Due Date",
+          "type": "datetime",
+          "help": "Calculated SLA resolution deadline.",
+          "indexed": true
+        },
+        {
+          "key": "resolved_at",
+          "label": "Resolved At",
+          "type": "datetime"
+        },
+        {
+          "key": "closed_at",
+          "label": "Closed At",
+          "type": "datetime"
+        },
+        {
+          "key": "resolution_notes",
+          "label": "Resolution Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "notification_log",
+      "label": "Notification Log",
+      "labelPlural": "Notification Logs",
+      "description": "Record of every email notification dispatched for a ticket.",
+      "icon": "bell",
+      "displayField": "subject",
+      "fields": [
+        {
+          "key": "ticket",
+          "label": "Ticket",
+          "type": "reference",
+          "targetEntity": "ticket",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "recipient",
+          "label": "Recipient",
+          "type": "email",
+          "required": true
+        },
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "body",
+          "label": "Body",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "notification_type",
+          "label": "Notification Type",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "options": [
+            {
+              "value": "ticket_created",
+              "label": "Ticket Created",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "ticket_assigned",
+              "label": "Ticket Assigned",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "status_changed",
+              "label": "Status Changed",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "sla_breach_warning",
+              "label": "SLA Breach Warning",
+              "color": "#EF4444"
+            },
+            {
+              "value": "ticket_resolved",
+              "label": "Ticket Resolved",
+              "color": "#10B981"
+            },
+            {
+              "value": "ticket_closed",
+              "label": "Ticket Closed",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "sent_at",
+          "label": "Sent At",
+          "type": "datetime",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "ticket_comment",
+      "label": "Ticket Comment",
+      "labelPlural": "Ticket Comments",
+      "description": "Internal or public comments added to a ticket during its lifecycle.",
+      "icon": "chat",
+      "displayField": "body",
+      "fields": [
+        {
+          "key": "ticket",
+          "label": "Ticket",
+          "type": "reference",
+          "targetEntity": "ticket",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "type": "reference",
+          "targetEntity": "agent",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "body",
+          "label": "Comment",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "is_internal",
+          "label": "Internal Note",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "ticket_comments",
+      "label": "Comments",
+      "type": "oneToMany",
+      "fromEntity": "ticket",
+      "toEntity": "ticket_comment",
+      "inverseField": "ticket"
+    },
+    {
+      "key": "ticket_notifications",
+      "label": "Notifications",
+      "type": "oneToMany",
+      "fromEntity": "ticket",
+      "toEntity": "notification_log",
+      "inverseField": "ticket"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_tickets",
+      "label": "All Tickets",
+      "type": "table",
+      "entity": "ticket",
+      "filters": [],
+      "sort": [
+        {
+          "field": "created_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "ticket_status",
+          "priority",
+          "requester",
+          "assignee",
+          "category",
+          "due_date",
+          "created_at"
+        ]
+      }
+    },
+    {
+      "key": "ticket_board",
+      "label": "Ticket Board",
+      "type": "kanban",
+      "entity": "ticket",
+      "filters": [],
+      "sort": [
+        {
+          "field": "priority",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "groupByField": "ticket_status",
+        "columns": [
+          "title",
+          "priority",
+          "assignee",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "open_tickets",
+      "label": "Open Tickets",
+      "type": "table",
+      "entity": "ticket",
+      "filters": [
+        {
+          "field": "ticket_status",
+          "operator": "in",
+          "value": [
+            "open",
+            "in_progress"
+          ]
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "ticket_status",
+          "priority",
+          "requester",
+          "assignee",
+          "category",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "ticket_detail",
+      "label": "Ticket Detail",
+      "type": "detail",
+      "entity": "ticket"
+    },
+    {
+      "key": "sla_dashboard",
+      "label": "SLA Dashboard",
+      "type": "dashboard",
+      "entity": "ticket",
+      "config": {
+        "widgets": [
+          {
+            "title": "Tickets by Status",
+            "type": "bar",
+            "groupBy": "ticket_status"
+          },
+          {
+            "title": "Tickets by Priority",
+            "type": "pie",
+            "groupBy": "priority"
+          },
+          {
+            "title": "Open vs Resolved (30d)",
+            "type": "line"
+          },
+          {
+            "title": "SLA Breaches",
+            "type": "stat",
+            "filter": {
+              "field": "due_date",
+              "operator": "lt",
+              "value": "now"
+            },
+            "subFilter": {
+              "field": "ticket_status",
+              "operator": "in",
+              "value": [
+                "open",
+                "in_progress"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "key": "requesters",
+      "label": "Requesters",
+      "type": "table",
+      "entity": "requester",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "department",
+          "employee_id"
+        ]
+      }
+    },
+    {
+      "key": "agents",
+      "label": "Agents",
+      "type": "table",
+      "entity": "agent",
+      "filters": [
+        {
+          "field": "is_active",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "team",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "categories",
+      "label": "Categories",
+      "type": "table",
+      "entity": "category",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "description",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "priorities",
+      "label": "Priorities",
+      "type": "table",
+      "entity": "priority",
+      "sort": [
+        {
+          "field": "level",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "level",
+          "color"
+        ]
+      }
+    },
+    {
+      "key": "sla_policies",
+      "label": "SLA Policies",
+      "type": "table",
+      "entity": "sla_policy",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "priority",
+          "response_time_hours",
+          "resolution_time_hours",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "notification_logs",
+      "label": "Notification Logs",
+      "type": "table",
+      "entity": "notification_log",
+      "sort": [
+        {
+          "field": "sent_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "ticket",
+          "recipient",
+          "subject",
+          "notification_type",
+          "sent_at"
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_on_ticket_created",
+      "name": "Email Requester on Ticket Creation",
+      "trigger": {
+        "event": "record.created",
+        "entity": "ticket"
+      },
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "createRecord"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_assignment",
+      "name": "Email Agent on Ticket Assignment",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "ticket",
+        "field": "assignee"
+      },
+      "conditions": [
+        {
+          "field": "assignee",
+          "operator": "isNotEmpty"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "createRecord"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_status_resolved",
+      "name": "Email Requester on Resolution",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "ticket",
+        "field": "ticket_status"
+      },
+      "conditions": [
+        {
+          "field": "ticket_status",
+          "operator": "eq",
+          "value": "resolved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "updateField"
+        },
+        {
+          "type": "createRecord"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_status_closed",
+      "name": "Email Requester on Closure",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "ticket",
+        "field": "ticket_status"
+      },
+      "conditions": [
+        {
+          "field": "ticket_status",
+          "operator": "eq",
+          "value": "closed"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "updateField"
+        },
+        {
+          "type": "createRecord"
+        }
+      ]
+    },
+    {
+      "key": "sla_breach_check",
+      "name": "SLA Breach Warning",
+      "trigger": {
+        "event": "schedule",
+        "cron": "0 */1 * * *",
+        "entity": "ticket"
+      },
+      "conditions": [
+        {
+          "field": "due_date",
+          "operator": "lt",
+          "value": "now"
+        },
+        {
+          "field": "ticket_status",
+          "operator": "in",
+          "value": [
+            "open",
+            "in_progress"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full administrative access to all entities and configuration.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "agent",
+      "name": "Agent",
+      "description": "IT staff who handle tickets. Can manage tickets, comments, and notification logs; read-only on categories, priorities, SLA policies, and requesters.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "ticket_comment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "notification_log",
+          "create": true,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "requester",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "agent",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "category",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "priority",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "sla_policy",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to ticket information and related entities.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "read": true
+        },
+        {
+          "entity": "ticket_comment",
+          "read": true
+        },
+        {
+          "entity": "notification_log",
+          "read": true
+        },
+        {
+          "entity": "requester",
+          "read": true
+        },
+        {
+          "entity": "agent",
+          "read": true
+        },
+        {
+          "entity": "category",
+          "read": true
+        },
+        {
+          "entity": "priority",
+          "read": true
+        },
+        {
+          "entity": "sla_policy",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#0EA5E9",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

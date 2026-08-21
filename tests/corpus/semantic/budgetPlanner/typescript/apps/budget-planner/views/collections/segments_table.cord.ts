@@ -1,0 +1,23 @@
+import { defineCollectionView } from "@cord/sdk";
+
+export default defineCollectionView({
+  key: "segments_table",
+  label: "Segments",
+  entity: "segment",
+  kind: "table",
+  settings: {
+    columns: [
+      "name",
+      "mature_active_users",
+      "mature_shared_apps",
+      "avg_app_adoption",
+      "setup_fee",
+      "churn_pct",
+    ],
+    filterBar: {
+      facets: ["scenario"],
+      search: ["name"],
+    },
+    inlineEdit: true,
+  },
+} as const);

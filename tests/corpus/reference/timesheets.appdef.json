@@ -1,0 +1,631 @@
+{
+  "schemaVersion": "2.0",
+  "key": "timesheets",
+  "name": "Timesheets",
+  "version": "1.0.0",
+  "description": "Time logging for Cordango GmbH: log hours against projects from an editable week grid, and see where the team's hours go.",
+  "presentation": {
+    "icon": "timer-outline",
+    "color": "#0d9488",
+    "category": "Operations",
+    "tagline": "Hours, projects, utilization"
+  },
+  "entities": [
+    {
+      "key": "project",
+      "label": "Project",
+      "labelPlural": "Projects",
+      "displayField": "name",
+      "icon": "briefcase-outline",
+      "kind": "config",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "client",
+          "label": "Client",
+          "type": "text",
+          "help": "The client's name, e.g. \"Nordwind Logistik\"."
+        },
+        {
+          "key": "billable",
+          "label": "Billable",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "type": "select",
+          "default": "teal",
+          "help": "A decorative tag for the project.",
+          "options": [
+            {
+              "value": "teal",
+              "label": "Teal",
+              "color": "#0d9488"
+            },
+            {
+              "value": "blue",
+              "label": "Blue",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "violet",
+              "label": "Violet",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "amber",
+              "label": "Amber",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "rose",
+              "label": "Rose",
+              "color": "#f43f5e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "time_entry",
+      "label": "Time entry",
+      "labelPlural": "Time entries",
+      "displayField": "notes",
+      "icon": "timer-outline",
+      "fields": [
+        {
+          "key": "logged_by",
+          "label": "Logged by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who logged it. Set to the signed-in user."
+        },
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "entry_date",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "hours",
+          "label": "Hours",
+          "type": "decimal",
+          "required": true
+        },
+        {
+          "key": "billable",
+          "label": "Billable",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "my_entries_table",
+      "label": "My entries",
+      "type": "table",
+      "entity": "time_entry",
+      "filters": [
+        {
+          "field": "logged_by",
+          "operator": "eq",
+          "value": "{{actor.id}}"
+        }
+      ],
+      "sort": [
+        {
+          "field": "entry_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "entry_date",
+          "project",
+          "hours",
+          "billable",
+          "notes"
+        ]
+      }
+    },
+    {
+      "key": "all_entries_table",
+      "label": "All entries",
+      "type": "table",
+      "entity": "time_entry",
+      "sort": [
+        {
+          "field": "entry_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "logged_by",
+          "entry_date",
+          "project",
+          "hours",
+          "billable",
+          "notes"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "my_week",
+      "label": "My week",
+      "icon": "calendar-week",
+      "entity": "time_entry",
+      "state": [
+        {
+          "key": "cursor",
+          "type": "date",
+          "default": "{{today}}"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "align": "center",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "text",
+                  "value": "My week",
+                  "size": "lg",
+                  "weight": "bold",
+                  "grow": true
+                },
+                {
+                  "kind": "control",
+                  "control": "stepper",
+                  "stateKey": "cursor",
+                  "step": {
+                    "unit": "week",
+                    "amount": 1
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "stack",
+              "gap": "none",
+              "blocks": [
+                {
+                  "kind": "row",
+                  "gap": "none",
+                  "blocks": [
+                    {
+                      "kind": "card",
+                      "width": "md",
+                      "padding": "sm",
+                      "tone": "muted",
+                      "blocks": [
+                        {
+                          "kind": "text",
+                          "value": "Project"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "repeat",
+                      "as": "hcol",
+                      "direction": "row",
+                      "source": {
+                        "dates": {
+                          "from": "{{state.cursor}}",
+                          "count": 7,
+                          "step": "day"
+                        }
+                      },
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "sm",
+                          "padding": "sm",
+                          "tone": "muted",
+                          "blocks": [
+                            {
+                              "kind": "text",
+                              "value": "{{hcol.label}}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "repeat",
+                  "as": "proj",
+                  "direction": "column",
+                  "source": {
+                    "entity": "project",
+                    "filters": [
+                      {
+                        "field": "active",
+                        "operator": "eq",
+                        "value": true
+                      }
+                    ],
+                    "sort": [
+                      {
+                        "field": "name",
+                        "direction": "asc"
+                      }
+                    ]
+                  },
+                  "emptyText": "No active projects yet.",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "none",
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "md",
+                          "padding": "sm",
+                          "bordered": true,
+                          "tint": "color",
+                          "blocks": [
+                            {
+                              "kind": "field",
+                              "field": "name",
+                              "weight": "medium"
+                            },
+                            {
+                              "kind": "field",
+                              "field": "client"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "repeat",
+                          "as": "day",
+                          "direction": "row",
+                          "source": {
+                            "dates": {
+                              "from": "{{state.cursor}}",
+                              "count": 7,
+                              "step": "day"
+                            }
+                          },
+                          "blocks": [
+                            {
+                              "kind": "card",
+                              "width": "sm",
+                              "padding": "xs",
+                              "bordered": true,
+                              "blocks": [
+                                {
+                                  "kind": "cell",
+                                  "entity": "time_entry",
+                                  "field": "hours",
+                                  "editable": true,
+                                  "openDetail": true,
+                                  "placeholder": "",
+                                  "keys": {
+                                    "project": "{{proj.id}}",
+                                    "entry_date": "{{day.date}}",
+                                    "logged_by": "{{actor.id}}"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "team",
+      "label": "Team",
+      "icon": "account-group",
+      "entity": "time_entry",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Total hours",
+                  "icon": "timer-outline",
+                  "source": {
+                    "entity": "time_entry",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "hours"
+                    }
+                  },
+                  "link": {
+                    "page": "entries"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Billable hours",
+                  "icon": "cash-multiple",
+                  "source": {
+                    "entity": "time_entry",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "hours"
+                    },
+                    "filters": [
+                      {
+                        "field": "billable",
+                        "operator": "eq",
+                        "value": true
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "entries",
+                    "filters": [
+                      {
+                        "field": "billable",
+                        "operator": "eq",
+                        "value": true
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Entries",
+                  "icon": "format-list-bulleted",
+                  "source": {
+                    "entity": "time_entry",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  },
+                  "link": {
+                    "page": "entries"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Hours by project",
+                    "source": {
+                      "entity": "time_entry",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "hours",
+                        "groupBy": "project"
+                      }
+                    },
+                    "link": {
+                      "page": "entries"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Hours by person",
+                    "source": {
+                      "entity": "time_entry",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "hours",
+                        "groupBy": "logged_by"
+                      }
+                    },
+                    "link": {
+                      "page": "entries"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "insights",
+      "label": "Insights",
+      "icon": "chart-bar",
+      "entity": "time_entry",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Hours by month",
+                    "source": {
+                      "entity": "time_entry",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "hours",
+                        "groupBy": "month_of:entry_date"
+                      }
+                    },
+                    "link": {
+                      "page": "entries"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Billable hours by project",
+                    "source": {
+                      "entity": "time_entry",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "hours",
+                        "groupBy": "project"
+                      },
+                      "filters": [
+                        {
+                          "field": "billable",
+                          "operator": "eq",
+                          "value": true
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "entries"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "entries",
+      "label": "All entries",
+      "icon": "timer-outline",
+      "entity": "time_entry",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "all_entries_table"
+        }
+      ]
+    },
+    {
+      "key": "my_entries",
+      "label": "My entries",
+      "icon": "account-clock",
+      "entity": "time_entry",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "my_entries_table"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "member",
+      "name": "Member",
+      "description": "Logs their own hours and sees projects.",
+      "grants": [
+        {
+          "entity": "time_entry",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "project",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "lead",
+      "name": "Lead",
+      "description": "Manages projects and everyone's time entries.",
+      "grants": [
+        {
+          "entity": "time_entry",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "project",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0d9488",
+    "secondaryColor": "#14b8a6",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

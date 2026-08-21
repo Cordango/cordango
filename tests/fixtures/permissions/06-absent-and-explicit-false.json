@@ -1,0 +1,33 @@
+{
+  "name": "An absent flag and an explicit false mean the same thing; an absent override does not",
+  "why": "A grant that omits 'delete' has not granted it. But a fieldOverride that omits 'read' has not decided read either, and must fall through to the entity default rather than to false. The two absences look alike in JSON and mean different things.",
+  "roles": [
+    {
+      "key": "clerk",
+      "grants": [
+        {
+          "entity": "order",
+          "read": true,
+          "update": true,
+          "delete": false,
+          "fieldOverrides": [
+            { "field": "total", "update": false },
+            { "field": "internal_margin", "read": false }
+          ]
+        }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["clerk"],
+      "entity": "order",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "fields": {
+        "total": { "read": true, "update": false },
+        "internal_margin": { "read": false, "update": true },
+        "customer": { "read": true, "update": true }
+      }
+    }
+  ]
+}

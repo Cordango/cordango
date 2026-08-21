@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+
+# Node
+node_modules/
+
+# The built front end: produced by `npm run build` into the API's wwwroot.
+api/wwwroot/
+
+# Local settings and secrets. Never commit these.
+.env
+appsettings.Local.json
+appsettings.*.local.json
+
+# Uploaded files, when running outside a container.
+appdata/

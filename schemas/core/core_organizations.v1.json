@@ -1,0 +1,957 @@
+{
+  "schemaVersion": "2.0",
+  "key": "core_organizations",
+  "name": "Organizations",
+  "version": "1.0.0",
+  "presentation": {
+    "icon": "domain",
+    "color": "#0f766e",
+    "category": "Core",
+    "tagline": "Every company you deal with"
+  },
+  "entities": [
+    {
+      "key": "organization",
+      "label": "Organization",
+      "labelPlural": "Organizations",
+      "description": "A company the workspace deals with — a customer, a supplier, a partner, an investor or a holding. The canonical record: an invoice, a deal and a timesheet all point at THIS row rather than each app keeping its own spelling of the name.",
+      "icon": "domain",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "roles",
+          "label": "Relationship",
+          "type": "multiselect",
+          "help": "What this company IS to us. Deliberately multi-valued and deliberately durable: a supplier is often also a customer, a prospect is often already a supplier, and none of those facts expires. Where a company sits in a sales PROCESS is the CRM's business — that lives on the deal, not here.",
+          "options": [
+            {
+              "value": "prospect",
+              "label": "Prospect",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "customer",
+              "label": "Customer",
+              "color": "#16a34a"
+            },
+            {
+              "value": "vendor",
+              "label": "Vendor",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "investor",
+              "label": "Investor",
+              "color": "#0891b2"
+            },
+            {
+              "value": "portfolio",
+              "label": "Portfolio company",
+              "color": "#ec4899"
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "indexed": true,
+          "help": "Archived companies stay resolvable — a reference from an old invoice must still render a name — but drop out of pickers and lists by default.",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a",
+              "phase": "active"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#94a3b8",
+              "phase": "cancelled"
+            }
+          ]
+        },
+        {
+          "key": "industry",
+          "label": "Industry",
+          "type": "select",
+          "options": [
+            {
+              "value": "software",
+              "label": "Software & IT"
+            },
+            {
+              "value": "manufacturing",
+              "label": "Manufacturing"
+            },
+            {
+              "value": "construction",
+              "label": "Construction"
+            },
+            {
+              "value": "retail",
+              "label": "Retail & E-commerce"
+            },
+            {
+              "value": "logistics",
+              "label": "Transport & Logistics"
+            },
+            {
+              "value": "finance",
+              "label": "Finance & Insurance"
+            },
+            {
+              "value": "healthcare",
+              "label": "Healthcare & Pharma"
+            },
+            {
+              "value": "energy",
+              "label": "Energy & Utilities"
+            },
+            {
+              "value": "professional_services",
+              "label": "Professional Services"
+            },
+            {
+              "value": "media",
+              "label": "Media & Marketing"
+            },
+            {
+              "value": "education",
+              "label": "Education"
+            },
+            {
+              "value": "public_sector",
+              "label": "Public Sector"
+            },
+            {
+              "value": "hospitality",
+              "label": "Hospitality & Tourism"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "street",
+          "label": "Street",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "postcode",
+          "label": "Postcode",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "city",
+          "label": "City",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "country",
+          "label": "Country",
+          "type": "select",
+          "group": "Address",
+          "help": "Stored as the ISO 3166-1 alpha-2 country code.",
+          "options": [
+            {
+              "value": "AT",
+              "label": "Austria"
+            },
+            {
+              "value": "BE",
+              "label": "Belgium"
+            },
+            {
+              "value": "BG",
+              "label": "Bulgaria"
+            },
+            {
+              "value": "HR",
+              "label": "Croatia"
+            },
+            {
+              "value": "CZ",
+              "label": "Czechia"
+            },
+            {
+              "value": "DK",
+              "label": "Denmark"
+            },
+            {
+              "value": "EE",
+              "label": "Estonia"
+            },
+            {
+              "value": "FI",
+              "label": "Finland"
+            },
+            {
+              "value": "FR",
+              "label": "France"
+            },
+            {
+              "value": "DE",
+              "label": "Germany"
+            },
+            {
+              "value": "GR",
+              "label": "Greece"
+            },
+            {
+              "value": "HU",
+              "label": "Hungary"
+            },
+            {
+              "value": "IE",
+              "label": "Ireland"
+            },
+            {
+              "value": "IT",
+              "label": "Italy"
+            },
+            {
+              "value": "LV",
+              "label": "Latvia"
+            },
+            {
+              "value": "LT",
+              "label": "Lithuania"
+            },
+            {
+              "value": "LU",
+              "label": "Luxembourg"
+            },
+            {
+              "value": "NL",
+              "label": "Netherlands"
+            },
+            {
+              "value": "NO",
+              "label": "Norway"
+            },
+            {
+              "value": "PL",
+              "label": "Poland"
+            },
+            {
+              "value": "PT",
+              "label": "Portugal"
+            },
+            {
+              "value": "RO",
+              "label": "Romania"
+            },
+            {
+              "value": "SK",
+              "label": "Slovakia"
+            },
+            {
+              "value": "SI",
+              "label": "Slovenia"
+            },
+            {
+              "value": "ES",
+              "label": "Spain"
+            },
+            {
+              "value": "SE",
+              "label": "Sweden"
+            },
+            {
+              "value": "CH",
+              "label": "Switzerland"
+            },
+            {
+              "value": "TR",
+              "label": "Turkey"
+            },
+            {
+              "value": "GB",
+              "label": "United Kingdom"
+            },
+            {
+              "value": "US",
+              "label": "United States"
+            },
+            {
+              "value": "CA",
+              "label": "Canada"
+            },
+            {
+              "value": "AU",
+              "label": "Australia"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who in the company looks after this relationship."
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "subtitle": [
+              "city",
+              "country"
+            ],
+            "facts": [
+              "roles",
+              "industry",
+              "website",
+              "phone",
+              "owner"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Contacts",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "contact",
+                    "via": "organization",
+                    "childType": "table",
+                    "label": "Contacts"
+                  }
+                ]
+              },
+              {
+                "label": "Details",
+                "blocks": [
+                  {
+                    "kind": "fields"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "subtitle": [
+              "city",
+              "country"
+            ],
+            "facts": [
+              "roles",
+              "industry",
+              "phone",
+              "owner"
+            ],
+            "actions": [
+              "edit"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Company",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "name",
+                  "roles",
+                  "industry",
+                  "owner",
+                  "status"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Contact details",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "website",
+                  "email",
+                  "phone"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Address",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "street",
+                  "postcode",
+                  "city",
+                  "country"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "description": "A person at an organization we deal with. EXTERNAL people only — colleagues come from the platform people directory, and leads, candidates and applicants belong to the app that runs that process.",
+      "icon": "card-account-details",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "mobile",
+          "label": "Mobile",
+          "type": "phone"
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary contact",
+          "type": "boolean",
+          "default": false,
+          "help": "The person to approach first at this organization."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "indexed": true,
+          "help": "Archive a contact who has left; references from past records still resolve to their name.",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a",
+              "phase": "active"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#94a3b8",
+              "phase": "cancelled"
+            }
+          ]
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "full_name",
+            "subtitle": [
+              "job_title",
+              "organization"
+            ],
+            "facts": [
+              "email",
+              "phone",
+              "mobile",
+              "owner"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "fields"
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "full_name",
+            "subtitle": [
+              "job_title",
+              "organization"
+            ],
+            "facts": [
+              "email",
+              "phone"
+            ],
+            "actions": [
+              "edit"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Person",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "full_name",
+                  "organization",
+                  "job_title",
+                  "is_primary"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Contact details",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "email",
+                  "phone",
+                  "mobile"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Internal",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "owner",
+                  "status",
+                  "notes"
+                ],
+                "columns": 2
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "organizations",
+      "label": "Organizations",
+      "icon": "domain",
+      "entity": "organization",
+      "state": [
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "roles",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "industry",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "country",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "owner",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "status",
+          "type": "text",
+          "default": "active"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "filterbar",
+              "entity": "organization",
+              "search": {
+                "state": "q",
+                "placeholder": "Search companies…"
+              },
+              "facets": [
+                {
+                  "state": "roles",
+                  "field": "roles"
+                },
+                {
+                  "state": "industry",
+                  "field": "industry"
+                },
+                {
+                  "state": "country",
+                  "field": "country"
+                },
+                {
+                  "state": "owner",
+                  "field": "owner"
+                },
+                {
+                  "state": "status",
+                  "field": "status"
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "newButton": true,
+              "openDetail": true,
+              "fields": [
+                "name",
+                "roles",
+                "industry",
+                "city",
+                "country",
+                "owner",
+                "status"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "name",
+                  "city"
+                ]
+              },
+              "source": {
+                "entity": "organization",
+                "sort": [
+                  {
+                    "field": "name",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "roles",
+                    "operator": "contains",
+                    "value": "{{state.roles}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "industry",
+                    "operator": "eq",
+                    "value": "{{state.industry}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "country",
+                    "operator": "eq",
+                    "value": "{{state.country}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "contacts",
+      "label": "Contacts",
+      "icon": "card-account-details",
+      "entity": "contact",
+      "state": [
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "organization",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "owner",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "status",
+          "type": "text",
+          "default": "active"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "filterbar",
+              "entity": "contact",
+              "search": {
+                "state": "q",
+                "placeholder": "Search contacts…"
+              },
+              "facets": [
+                {
+                  "state": "organization",
+                  "field": "organization"
+                },
+                {
+                  "state": "owner",
+                  "field": "owner"
+                },
+                {
+                  "state": "status",
+                  "field": "status"
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "newButton": true,
+              "openDetail": true,
+              "fields": [
+                "full_name",
+                "job_title",
+                "organization",
+                "email",
+                "phone",
+                "owner",
+                "status"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "full_name",
+                  "job_title"
+                ]
+              },
+              "source": {
+                "entity": "contact",
+                "sort": [
+                  {
+                    "field": "full_name",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "organization",
+                    "operator": "eq",
+                    "value": "{{state.organization}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Every member of the workspace. Reads the directory so a company reference resolves to a name on their own records, and cannot change it.",
+      "grants": [
+        {
+          "entity": "organization",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "notes",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "contact",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "notes",
+              "read": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "editor",
+      "name": "Editor",
+      "description": "Maintains the directory: adds companies and contacts, corrects them, and archives the ones that are no longer current. Nobody deletes — a deleted company would strand every record pointing at it.",
+      "grants": [
+        {
+          "entity": "organization",
+          "read": true,
+          "create": true,
+          "update": true
+        },
+        {
+          "entity": "contact",
+          "read": true,
+          "create": true,
+          "update": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0f766e"
+  }
+}

@@ -1,0 +1,337 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ops"
+  ],
+  "properties": {
+    "note": {
+      "type": "string",
+      "description": "One line on what this change is for. Shown to the person waiting."
+    },
+    "ops": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Applied in order. Either they all pass validation or none are kept. Each upsert adds one thing or replaces the one that already has its key, stated in full \u2014 anything omitted is cleared \u2014 and touches nothing else. Send several in one call.",
+      "items": {
+        "oneOf": [
+          {
+            "title": "upsert_screen",
+            "description": "One screen people navigate to. A screen answers ONE QUESTION somebody has \u2014 \u0027what needs my attention\u0027, \u0027how are we doing\u0027, \u0027everything we know about this customer\u0027 \u2014 and it is made of sections, each of which may draw on a DIFFERENT entity. Every app needs at least one screen. An entity that declares an owner cannot be a screen\u0027s subject: its rows render inside the owner\u0027s detail. Name the OWNER instead. Do not describe layout \u2014 say what belongs on the screen and in what order of importance, and the arrangement is worked out for you.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "screen"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_screen"
+              },
+              "screen": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "label"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "What this screen is called in navigation."
+                  },
+                  "subject": {
+                    "type": "string",
+                    "description": "The entity this screen is ABOUT, if there is one. Context only \u2014 a screen with a subject can still show sections over other entities, and a screen that spans several kinds of record has no subject at all."
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/section"
+                    }
+                  },
+                  "tabs": {
+                    "type": "array",
+                    "description": "Perspectives on the same records that share this screen. Sections above stay visible while these swap. Separate jobs are separate screens.",
+                    "items": {
+                      "$ref": "#/$defs/tab"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "remove_screen",
+            "description": "Drop a screen.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "key"
+            ],
+            "properties": {
+              "op": {
+                "const": "remove_screen"
+              },
+              "key": {
+                "type": "string",
+                "description": "Screen key."
+              }
+            }
+          },
+          {
+            "title": "upsert_screen_tab",
+            "description": "Change ONE tab, leaving the screen\u0027s other tabs and shared sections alone. Sending the whole screen instead would restate tabs somebody already approved.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "screen",
+              "tab"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_screen_tab"
+              },
+              "screen": {
+                "type": "string",
+                "description": "Screen key."
+              },
+              "tab": {
+                "$ref": "#/$defs/tab"
+              }
+            }
+          },
+          {
+            "title": "remove_screen_tab",
+            "description": "Drop one tab from a screen.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "screen",
+              "tab"
+            ],
+            "properties": {
+              "op": {
+                "const": "remove_screen_tab"
+              },
+              "screen": {
+                "type": "string",
+                "description": "Screen key."
+              },
+              "tab": {
+                "type": "string",
+                "description": "Tab key."
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "section": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable name for this section, unique on its screen. Keep it when the label changes \u2014 what people have saved about this list is filed under it."
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "list",
+            "metric",
+            "chart",
+            "text",
+            "split"
+          ],
+          "description": "list: records to work through. metric: one number. chart: a breakdown. text: a note. split: two of those side by side, when they are read together."
+        },
+        "of": {
+          "type": "string",
+          "description": "The entity this section draws on. Sections on one screen may differ."
+        },
+        "label": {
+          "type": "string",
+          "description": "The heading. For a list, also its name in navigation."
+        },
+        "view": {
+          "type": "string",
+          "enum": [
+            "table",
+            "board",
+            "calendar",
+            "timeline"
+          ],
+          "description": "For kind=list: how the records are shown."
+        },
+        "dateField": {
+          "type": "string",
+          "description": "For view=calendar: the date field that places a record on the calendar. Required \u2014 an entity often has several dates and the wrong one gives a calendar that looks right and answers a different question."
+        },
+        "filter": {
+          "type": "array",
+          "description": "Which records this section is about. Use {{actor.id}} for the signed-in person \u2014 that is what makes \u0027my open tickets\u0027 different from \u0027all tickets\u0027, and showing somebody everything when they wanted their own is the most common way a screen is useless.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "field",
+              "operator"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "operator": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "neq",
+                  "gt",
+                  "gte",
+                  "lt",
+                  "lte",
+                  "isEmpty",
+                  "isNotEmpty"
+                ]
+              },
+              "value": {
+                "description": "What to compare against."
+              }
+            }
+          }
+        },
+        "sort": {
+          "type": "array",
+          "description": "For kind=list. Put the most urgent row first.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "field"
+            ],
+            "properties": {
+              "field": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": [
+                  "asc",
+                  "desc"
+                ]
+              }
+            }
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "For kind=list as a table or a board: which fields to show. Leave out what the filter already implies \u2014 a list of MY tickets does not need an assignee column. A calendar shows a record\u0027s own name and takes none."
+        },
+        "groupBy": {
+          "type": "string",
+          "description": "For view=board: the field the columns are. For kind=chart: what the breakdown splits by."
+        },
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "op"
+          ],
+          "description": "For kind=metric and kind=chart: what is counted or totalled.",
+          "properties": {
+            "op": {
+              "type": "string",
+              "enum": [
+                "count",
+                "sum",
+                "avg",
+                "min",
+                "max"
+              ]
+            },
+            "field": {
+              "type": "string",
+              "description": "Required for everything except count."
+            }
+          }
+        },
+        "text": {
+          "type": "string",
+          "description": "For kind=text."
+        },
+        "visual": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "bar",
+            "line",
+            "area",
+            "donut",
+            "pie"
+          ],
+          "description": "For kind=chart. Leave it out unless the shape matters: a breakdown over TIME is a line or an area, and nothing about the numbers says so."
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/section"
+          },
+          "description": "For kind=split: the two sections that sit side by side. Both must be content \u2014 a split inside a split is a grid, which this is not."
+        },
+        "ratio": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "For kind=split: relative widths, e.g. [2,1]. Omit for equal, which is usually right."
+        }
+      }
+    },
+    "tab": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key",
+        "label",
+        "sections"
+      ],
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Stable name. Keep it when the label changes."
+        },
+        "label": {
+          "type": "string",
+          "description": "What the tab is called."
+        },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        }
+      }
+    }
+  }
+}

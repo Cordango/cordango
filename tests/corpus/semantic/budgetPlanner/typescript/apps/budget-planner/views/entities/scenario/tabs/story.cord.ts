@@ -1,0 +1,32 @@
+import { defineTab } from "@cord/sdk";
+
+export default defineTab({
+  key: "story",
+  label: "Investor Story",
+  blocks: [
+    {
+      edit: ["summary", "assumptions", "shared_with_investors"],
+      kind: "section",
+      label: "Narrative",
+      blocks: [
+        {
+          cols: 1,
+          kind: "fields",
+          fields: ["summary", "assumptions", "shared_with_investors", "last_reviewed_at"],
+        },
+      ],
+    },
+    {
+      via: "scenario",
+      kind: "child",
+      label: "Assumptions",
+      entity: "assumption",
+      fields: ["statement", "driver", "value_text", "confidence"],
+      childType: "table",
+      inlineEdit: true,
+      allowDelete: true,
+      subordinate: true,
+      inlineCreate: true,
+    },
+  ],
+} as const);

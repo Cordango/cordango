@@ -1,0 +1,24 @@
+# Byte-for-byte determinism is a promise this repository makes, and a checkout that rewrites line
+# endings quietly breaks it. The generator writes LF; Git for Windows ships core.autocrlf=true in its
+# system config, so without this file a Windows clone hands those files back as CRLF and the
+# double-generation comparison fails on a difference nobody introduced. Normalize in the repository
+# AND in the working tree, on every platform, so "same inputs, same bytes" survives the clone.
+* text=auto eol=lf
+
+# Windows batch files are the one thing that genuinely needs CRLF.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Never touch these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+*.zip  binary
+*.snk  binary

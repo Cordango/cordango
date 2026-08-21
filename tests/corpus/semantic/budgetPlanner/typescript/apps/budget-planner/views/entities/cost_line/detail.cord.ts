@@ -1,0 +1,82 @@
+import { defineDetail } from "@cord/sdk";
+
+export default defineDetail({
+  key: "cost_line",
+  blocks: [
+    {
+      gap: "md",
+      kind: "row",
+      align: "center",
+      blocks: [
+        {
+          gap: "none",
+          grow: true,
+          kind: "stack",
+          blocks: [
+            {
+              kind: "field",
+              size: "lg",
+              field: "name",
+              weight: "bold",
+            },
+            {
+              kind: "field",
+              field: "scenario",
+            },
+          ],
+        },
+        {
+          kind: "chip",
+          field: "cost_behaviour",
+        },
+        {
+          kind: "chip",
+          field: "cost_category",
+        },
+      ],
+    },
+    {
+      edit: [
+        "cost_behaviour",
+        "monthly_amount",
+        "amount_per_user",
+        "percent_amount",
+        "percent_basis",
+        "one_off_amount",
+        "one_off_month",
+        "one_off_date",
+      ],
+      kind: "section",
+      label: "Amounts",
+      blocks: [
+        {
+          cols: 2,
+          kind: "fields",
+          fields: [
+            "monthly_amount",
+            "amount_per_user",
+            "percent_amount",
+            "percent_basis",
+            "one_off_amount",
+            "one_off_month",
+            "one_off_date",
+          ],
+          emptyText: "No amount entered yet.",
+          hideEmpty: true,
+        },
+      ],
+    },
+    {
+      edit: ["start_month", "end_month", "annual_increase_rate", "is_government_fee", "vendor", "notes"],
+      kind: "section",
+      label: "Timing & source",
+      blocks: [
+        {
+          cols: 2,
+          kind: "fields",
+          fields: ["start_month", "end_month", "annual_increase_rate", "is_government_fee", "vendor", "notes"],
+        },
+      ],
+    },
+  ],
+} as const);

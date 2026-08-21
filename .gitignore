@@ -55,3 +55,16 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# --- Cordango ---
+
+# Workspace build output written by `cordango build` (the CLI's own cache, never an authority).
+.cordango/
+
+# Generated standalone applications produced during local experiments.
+/out/
+/generated/
+
+# Python bytecode from the schema composer.
+__pycache__/
+*.pyc

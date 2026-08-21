@@ -1,0 +1,572 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "ops"
+  ],
+  "properties": {
+    "note": {
+      "type": "string",
+      "description": "One line on what this change is for. Shown to the person waiting."
+    },
+    "ops": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Applied in order. Either they all pass validation or none are kept. Each upsert adds one thing or replaces the one that already has its key, stated in full \u2014 anything omitted is cleared \u2014 and touches nothing else. Send several in one call.",
+      "items": {
+        "oneOf": [
+          {
+            "title": "upsert_lifecycle",
+            "description": "The states one kind of record moves through, and what happens on each move, with its states and transitions. Keyed by ENTITY \u2014 an entity has exactly one. Use it when records have a life: open then won or lost, draft then submitted then approved. A record with no meaningful states does not need one.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "lifecycle"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_lifecycle"
+              },
+              "lifecycle": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "entity",
+                  "stateField",
+                  "states"
+                ],
+                "properties": {
+                  "entity": {
+                    "type": "string",
+                    "description": "Entity key."
+                  },
+                  "key": {
+                    "type": "string",
+                    "description": "Identifier for this lifecycle. Defaults from the entity."
+                  },
+                  "stateField": {
+                    "type": "string",
+                    "description": "The field holding the state. It must be a select field on the entity, and its options are these states."
+                  },
+                  "initialState": {
+                    "type": "string",
+                    "description": "State key a new record starts in."
+                  },
+                  "states": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "key",
+                        "label"
+                      ],
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string",
+                          "description": "What people call this state."
+                        },
+                        "color": {
+                          "type": "string",
+                          "description": "Hex colour for boards and chips."
+                        },
+                        "terminal": {
+                          "type": "boolean",
+                          "description": "The record is finished here."
+                        },
+                        "phase": {
+                          "type": "string",
+                          "enum": [
+                            "not_started",
+                            "active",
+                            "done",
+                            "cancelled"
+                          ],
+                          "description": "Coarse grouping for reporting."
+                        }
+                      }
+                    }
+                  },
+                  "transitions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "key",
+                        "label",
+                        "from",
+                        "to"
+                      ],
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "label": {
+                          "type": "string",
+                          "description": "The button people press. \u0027Mark as won\u0027, not \u0027win\u0027."
+                        },
+                        "from": {
+                          "type": "array",
+                          "minItems": 1,
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "State keys this move is allowed from."
+                        },
+                        "to": {
+                          "type": "string",
+                          "description": "State key this move lands in."
+                        },
+                        "requiredFields": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Fields that must be filled before the move is allowed."
+                        },
+                        "icon": {
+                          "type": "string",
+                          "description": "Material symbol name."
+                        },
+                        "style": {
+                          "type": "string",
+                          "enum": [
+                            "primary",
+                            "secondary",
+                            "danger"
+                          ],
+                          "description": "How prominent the button is."
+                        },
+                        "placements": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "recordHeader",
+                              "rowMenu",
+                              "selection",
+                              "boardCard"
+                            ]
+                          },
+                          "description": "Where the button appears."
+                        },
+                        "successMessage": {
+                          "type": "string",
+                          "description": "Shown after it runs."
+                        },
+                        "confirm": {
+                          "$ref": "#/$defs/confirm"
+                        },
+                        "ask": {
+                          "$ref": "#/$defs/ask"
+                        },
+                        "when": {
+                          "$ref": "#/$defs/when"
+                        },
+                        "effects": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/$defs/effect"
+                          },
+                          "description": "What happens on this move, BESIDES the state changing. The state change itself is automatic \u2014 never write an effect that sets the state field. Omit entirely when the move is the whole story."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "upsert_action",
+            "description": "One thing a person can do to a record that is NOT a state change \u2014 clone it, send it, recalculate it. Anything that moves a record between states belongs in upsert_lifecycle instead.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "action"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_action"
+              },
+              "action": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "label",
+                  "entity"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "label": {
+                    "type": "string",
+                    "description": "The button people press."
+                  },
+                  "entity": {
+                    "type": "string",
+                    "description": "Entity key this acts on."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "What it does, for whoever maintains this later."
+                  },
+                  "icon": {
+                    "type": "string",
+                    "description": "Material symbol name."
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": [
+                      "primary",
+                      "secondary",
+                      "danger"
+                    ]
+                  },
+                  "placements": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "recordHeader",
+                        "rowMenu",
+                        "selection",
+                        "boardCard"
+                      ]
+                    }
+                  },
+                  "successMessage": {
+                    "type": "string",
+                    "description": "Shown after it runs."
+                  },
+                  "confirm": {
+                    "$ref": "#/$defs/confirm"
+                  },
+                  "ask": {
+                    "$ref": "#/$defs/ask"
+                  },
+                  "when": {
+                    "$ref": "#/$defs/when"
+                  },
+                  "effects": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/$defs/effect"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "upsert_automation",
+            "description": "One piece of work that happens with nobody watching, with its trigger and its effects: stamp a timestamp when a reply arrives, notify an owner when something falls due.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "automation"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_automation"
+              },
+              "automation": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "name",
+                  "on",
+                  "effects"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "What this automation is for, in a few words."
+                  },
+                  "on": {
+                    "type": "string",
+                    "enum": [
+                      "record.created",
+                      "record.updated",
+                      "record.deleted",
+                      "schedule.daily"
+                    ],
+                    "description": "What sets it off. schedule.daily needs a cron; record.updated with a \u0060field\u0060 means only when THAT field changes."
+                  },
+                  "entity": {
+                    "type": "string",
+                    "description": "The entity being watched."
+                  },
+                  "field": {
+                    "type": "string",
+                    "description": "For record.updated: only run when THIS field changed. Omit for any change."
+                  },
+                  "cron": {
+                    "type": "string",
+                    "description": "For schedule.daily: a cron expression."
+                  },
+                  "when": {
+                    "$ref": "#/$defs/when"
+                  },
+                  "effects": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/$defs/effect"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "upsert_role",
+            "description": "One role, with its grants. A role with no grant for an entity cannot see that entity at all, so list every entity this role needs.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "role"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_role"
+              },
+              "role": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "key",
+                  "name",
+                  "grants"
+                ],
+                "properties": {
+                  "key": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "What this role is called."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "What this role does and what it deliberately cannot."
+                  },
+                  "grants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "entity",
+                        "read"
+                      ],
+                      "properties": {
+                        "entity": {
+                          "type": "string"
+                        },
+                        "create": {
+                          "type": "boolean"
+                        },
+                        "read": {
+                          "type": "boolean"
+                        },
+                        "update": {
+                          "type": "boolean"
+                        },
+                        "delete": {
+                          "type": "boolean"
+                        },
+                        "commands": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          },
+                          "description": "Transition and action keys this role may run. A transition\u0027s key is what you named it in upsert_lifecycle."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "remove_behaviour",
+            "description": "Drop one lifecycle, action, automation or role.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "kind",
+              "key"
+            ],
+            "properties": {
+              "op": {
+                "const": "remove_behaviour"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "lifecycle",
+                  "action",
+                  "automation",
+                  "role"
+                ]
+              },
+              "key": {
+                "type": "string",
+                "description": "Its key \u2014 for a lifecycle, the ENTITY key."
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "effect": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "description": "One thing that happens. Values may interpolate {{record.\u003Cfield\u003E}}, {{actor.id}}, {{today}} and {{now}}.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "updateRecord",
+            "createRecord",
+            "notify"
+          ]
+        },
+        "target": {
+          "type": "string",
+          "description": "updateRecord only: omit for this record, or name a reference field to update what it points at."
+        },
+        "set": {
+          "type": "object",
+          "description": "Field key to value."
+        },
+        "setIfEmpty": {
+          "type": "boolean",
+          "description": "updateRecord only: fill only fields that are still empty \u2014 stamp the FIRST reply, not every one."
+        },
+        "entity": {
+          "type": "string",
+          "description": "createRecord only: what to create."
+        },
+        "to": {
+          "type": "string",
+          "description": "notify only: who to tell, e.g. {{record.owner}}."
+        },
+        "title": {
+          "type": "string",
+          "description": "notify only."
+        },
+        "message": {
+          "type": "string",
+          "description": "notify only."
+        },
+        "link": {
+          "type": "string",
+          "description": "notify only: \u0027auto\u0027 links to the record."
+        }
+      }
+    },
+    "when": {
+      "type": "object",
+      "description": "A guard, checked on the server before this runs. One comparison, or \u0060all\u0060 of several.",
+      "properties": {
+        "field": {
+          "type": "string",
+          "description": "Field key on the record."
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "contains",
+            "in",
+            "notIn",
+            "isEmpty",
+            "isNotEmpty"
+          ]
+        },
+        "value": {
+          "description": "A literal, or {{actor.id}} for whoever is pressing the button. Guard every approval with {field: \u003Cwho filed it\u003E, operator: neq, value: \u0027{{actor.id}}\u0027} \u2014 a role cannot do this, because one person often holds two of them."
+        },
+        "all": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/when"
+          },
+          "description": "Every one of these must hold."
+        }
+      }
+    },
+    "confirm": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Ask before running. Use it for anything destructive or hard to undo.",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "confirmLabel": {
+          "type": "string"
+        },
+        "tone": {
+          "type": "string",
+          "enum": [
+            "normal",
+            "danger"
+          ],
+          "description": "danger for anything destructive."
+        }
+      }
+    },
+    "ask": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Collect these fields from the person before running \u2014 a reason, a date.",
+      "properties": {
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

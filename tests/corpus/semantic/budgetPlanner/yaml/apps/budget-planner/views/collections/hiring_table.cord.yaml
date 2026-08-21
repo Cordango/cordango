@@ -1,0 +1,28 @@
+view: hiring_table
+label: Hiring Plan
+entity: hiring_line
+kind: table
+settings:
+  columns:
+    - role_title
+    - team
+    - hire_status
+    - headcount
+    - seniority
+    - start_month
+    - gross_salary
+    - employer_cost_rate
+    - setup_cost_per_head
+    - annual_cost
+  filterBar:
+    facets:
+      - scenario
+      - team
+      - hire_status
+      - seniority
+    search:
+      - role_title
+  inlineEdit: true
+  defaultSort:
+    - field: start_month
+      direction: asc

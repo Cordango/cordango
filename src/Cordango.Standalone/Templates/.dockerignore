@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/wwwroot/
+.git/
+.vs/
+.vscode/
+.env
+*.md

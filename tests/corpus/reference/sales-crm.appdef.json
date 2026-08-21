@@ -1,0 +1,3046 @@
+{
+  "schemaVersion": "2.0",
+  "key": "sales_crm",
+  "name": "Sales CRM",
+  "version": "1.3.0",
+  "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view, deals with activities/notes/products/files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
+  "archetype": {
+    "kind": "pipeline",
+    "coreJob": "Move deals through the pipeline stages on a board and never miss the next activity on any open deal"
+  },
+  "presentation": {
+    "icon": "handshake",
+    "color": "#16a34a",
+    "category": "Sales",
+    "tagline": "Deals, pipeline, activities"
+  },
+  "entities": [
+    {
+      "key": "deal",
+      "label": "Deal",
+      "labelPlural": "Deals",
+      "displayField": "title",
+      "icon": "handshake",
+      "description": "An opportunity moving through the pipeline. Stage (where it is in the funnel) is independent of status (open/won/lost), exactly like Pipedrive.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "type": "money",
+          "currency": "EUR"
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "organization",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "contact",
+          "label": "Contact person",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "contact",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "default": "lead_in",
+          "indexed": true,
+          "help": "Where the deal sits in the pipeline. Drag the card on the Pipeline board to change it.",
+          "options": [
+            {
+              "value": "lead_in",
+              "label": "Lead In",
+              "color": "#64748b"
+            },
+            {
+              "value": "contact_made",
+              "label": "Contact Made",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "needs_defined",
+              "label": "Needs Defined",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "proposal_made",
+              "label": "Proposal Made",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "negotiations_started",
+              "label": "Negotiations Started",
+              "color": "#f97316"
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true,
+          "help": "Open deals live on the board; Won/Lost is decided with the header buttons, independent of stage."
+        },
+        {
+          "key": "probability",
+          "label": "Probability %",
+          "type": "integer",
+          "default": 10,
+          "group": "Forecast",
+          "help": "Kept in sync with the stage by workflows; set to 100/0 on win/loss."
+        },
+        {
+          "key": "weighted_value",
+          "label": "Weighted value",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "value * probability / 100"
+          },
+          "help": "Deal value x win probability - the honest forecast number."
+        },
+        {
+          "key": "expected_close_date",
+          "label": "Expected close",
+          "type": "date",
+          "group": "Forecast",
+          "indexed": true
+        },
+        {
+          "key": "next_step",
+          "label": "Next step",
+          "type": "text",
+          "group": "Follow-up",
+          "help": "The next concrete action that moves this deal."
+        },
+        {
+          "key": "next_follow_up",
+          "label": "Follow up on",
+          "type": "date",
+          "group": "Follow-up",
+          "indexed": true,
+          "help": "When the next step is due — drives My Day."
+        },
+        {
+          "key": "source_channel",
+          "label": "Source",
+          "type": "select",
+          "group": "Details",
+          "options": [
+            {
+              "value": "inbound",
+              "label": "Inbound",
+              "color": "#16a34a"
+            },
+            {
+              "value": "outbound",
+              "label": "Outbound",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "referral",
+              "label": "Referral",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "website",
+              "label": "Website",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "event",
+              "label": "Event",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "won_date",
+          "label": "Won on",
+          "type": "date",
+          "group": "Outcome"
+        },
+        {
+          "key": "won_reason",
+          "label": "Won reason",
+          "type": "select",
+          "group": "Outcome",
+          "options": [
+            {
+              "value": "best_product",
+              "label": "Best product fit"
+            },
+            {
+              "value": "best_price",
+              "label": "Best price"
+            },
+            {
+              "value": "relationship",
+              "label": "Relationship / trust"
+            },
+            {
+              "value": "timing",
+              "label": "Right timing"
+            },
+            {
+              "value": "service",
+              "label": "Service & support"
+            },
+            {
+              "value": "reputation",
+              "label": "References / reputation"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "won_notes",
+          "label": "Won notes",
+          "type": "longtext",
+          "group": "Outcome"
+        },
+        {
+          "key": "lost_reason",
+          "label": "Lost reason",
+          "type": "select",
+          "group": "Outcome",
+          "options": [
+            {
+              "value": "too_expensive",
+              "label": "Too expensive"
+            },
+            {
+              "value": "no_budget",
+              "label": "No budget"
+            },
+            {
+              "value": "chose_competitor",
+              "label": "Chose a competitor"
+            },
+            {
+              "value": "no_response",
+              "label": "Went dark / no response"
+            },
+            {
+              "value": "no_fit",
+              "label": "Not a fit"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "lost_notes",
+          "label": "Lost notes",
+          "type": "longtext",
+          "group": "Outcome"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "title",
+            "status": "status",
+            "subtitle": [
+              "organization",
+              "contact"
+            ],
+            "facts": [
+              "value",
+              "owner",
+              "stage",
+              "expected_close_date",
+              "probability"
+            ],
+            "actions": [
+              "mark_won",
+              "mark_lost",
+              "reopen_deal",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process",
+            "label": "Deal status"
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Deal value",
+                "field": "value",
+                "format": "money",
+                "icon": "payments"
+              },
+              {
+                "label": "Products total",
+                "format": "money",
+                "icon": "inventory_2",
+                "source": {
+                  "entity": "deal_product",
+                  "via": "deal",
+                  "aggregate": {
+                    "op": "sum",
+                    "field": "amount"
+                  }
+                }
+              },
+              {
+                "label": "Activities logged",
+                "icon": "event_note",
+                "source": {
+                  "entity": "activity",
+                  "via": "deal",
+                  "aggregate": {
+                    "op": "count"
+                  }
+                },
+                "attention": {
+                  "op": "eq",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Why we lost",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "lost"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "lost_reason",
+                  "lost_notes"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Won",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "won"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "won_date",
+                  "won_reason",
+                  "won_notes"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "columns",
+            "weights": [
+              1,
+              2
+            ],
+            "columns": [
+              [
+                {
+                  "kind": "section",
+                  "label": "Details",
+                  "icon": "info",
+                  "blocks": [
+                    {
+                      "kind": "fields",
+                      "fields": [
+                        "value",
+                        "stage",
+                        "probability",
+                        "expected_close_date",
+                        "source_channel",
+                        "owner"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "section",
+                  "label": "Linked to",
+                  "icon": "link",
+                  "blocks": [
+                    {
+                      "kind": "fields",
+                      "fields": [
+                        "organization",
+                        "contact"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "kind": "tabs",
+                  "tabs": [
+                    {
+                      "label": "Activities",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "activity",
+                          "via": "deal",
+                          "childType": "table",
+                          "inlineCreate": true,
+                          "label": "Activities"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Follow-up",
+                      "blocks": [
+                        {
+                          "kind": "fields",
+                          "fields": [
+                            "next_step",
+                            "next_follow_up"
+                          ]
+                        },
+                        {
+                          "kind": "table",
+                          "label": "Latest activity",
+                          "source": {
+                            "entity": "activity",
+                            "via": "deal",
+                            "sort": [
+                              {
+                                "field": "activity_date",
+                                "direction": "desc"
+                              }
+                            ],
+                            "limit": 5
+                          },
+                          "fields": [
+                            "subject",
+                            "activity_type",
+                            "activity_date"
+                          ],
+                          "openDetail": true
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Notes",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "deal_note",
+                          "via": "deal",
+                          "childType": "feed",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Notes"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Products",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "deal_product",
+                          "via": "deal",
+                          "childType": "lineItems",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Products"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Files",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "deal_file",
+                          "via": "deal",
+                          "childType": "table",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Files"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "title",
+            "status": "status",
+            "subtitle": [
+              "organization",
+              "contact"
+            ],
+            "facts": [
+              "value",
+              "stage",
+              "owner",
+              "expected_close_date"
+            ],
+            "actions": [
+              "mark_won",
+              "mark_lost",
+              "reopen_deal",
+              "edit"
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Next step",
+            "icon": "flag",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "next_step",
+                  "next_follow_up"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "table",
+            "label": "Recent activity",
+            "source": {
+              "entity": "activity",
+              "via": "deal",
+              "sort": [
+                {
+                  "field": "activity_date",
+                  "direction": "desc"
+                }
+              ],
+              "limit": 3
+            },
+            "fields": [
+              "subject",
+              "activity_type",
+              "activity_date"
+            ],
+            "openDetail": true
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Deal",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "title",
+                  "value",
+                  "organization",
+                  "contact",
+                  "owner"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Forecast",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "stage",
+                  "expected_close_date",
+                  "source_channel"
+                ],
+                "columns": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "activity",
+      "label": "Activity",
+      "labelPlural": "Activities",
+      "displayField": "subject",
+      "icon": "event_note",
+      "description": "A call, meeting, task or email that HAPPENED — the historic log of touches on a deal, person and organization. Planning the next move lives on the deal (next step + follow up on), not here.",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "activity_type",
+          "label": "Type",
+          "type": "select",
+          "default": "task",
+          "options": [
+            {
+              "value": "call",
+              "label": "Call",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "meeting",
+              "label": "Meeting",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "task",
+              "label": "Task",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "email",
+              "label": "Email",
+              "color": "#64748b"
+            },
+            {
+              "value": "lunch",
+              "label": "Lunch",
+              "color": "#16a34a"
+            }
+          ]
+        },
+        {
+          "key": "activity_date",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "indexed": true,
+          "help": "When it happened."
+        },
+        {
+          "key": "activity_time",
+          "label": "Time",
+          "type": "text",
+          "help": "e.g. 14:30"
+        },
+        {
+          "key": "performed_by",
+          "label": "Performed by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "deal",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "onDelete": "setNull",
+          "group": "Linked to"
+        },
+        {
+          "key": "contact",
+          "label": "Person",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "contact",
+          "onDelete": "setNull",
+          "group": "Linked to"
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "group": "Linked to"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext",
+          "group": "Notes"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "subject",
+            "subtitle": [
+              "activity_type"
+            ],
+            "facts": [
+              "activity_date",
+              "activity_time",
+              "performed_by"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "fields",
+            "fields": [
+              "deal",
+              "contact",
+              "organization",
+              "notes"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Activity",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "subject",
+                  "activity_type",
+                  "activity_date",
+                  "activity_time"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Linked to",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "deal",
+                  "contact",
+                  "organization"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "lead",
+      "label": "Lead",
+      "labelPlural": "Leads",
+      "displayField": "title",
+      "icon": "person_search",
+      "description": "An unqualified inbound/outbound prospect. Qualify it in the Leads inbox and convert it into a deal.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "received_on",
+          "label": "Received",
+          "type": "date",
+          "indexed": true,
+          "help": "When this lead came in — sorts the inbox and the leads list."
+        },
+        {
+          "key": "company",
+          "label": "Company (as given)",
+          "type": "text",
+          "help": "What the enquiry called itself. Kept as typed: a lead arrives before anybody has decided it is worth a record, and the raw wording is evidence of where it came from."
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "indexed": true,
+          "help": "The company record this lead was matched to. Optional on purpose - an unqualified enquiry has no organization yet, and forcing one would mean creating a company record for every scrap of inbound interest. Fill it in and the lead shows up on that company's page."
+        },
+        {
+          "key": "contact_name",
+          "label": "Contact name",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "group": "Contact"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "group": "Contact"
+        },
+        {
+          "key": "value",
+          "label": "Estimated value",
+          "type": "money",
+          "currency": "EUR"
+        },
+        {
+          "key": "source_channel",
+          "label": "Source",
+          "type": "select",
+          "options": [
+            {
+              "value": "inbound",
+              "label": "Inbound",
+              "color": "#16a34a"
+            },
+            {
+              "value": "outbound",
+              "label": "Outbound",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "referral",
+              "label": "Referral",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "website",
+              "label": "Website",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "event",
+              "label": "Event",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext",
+          "group": "Notes"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "title",
+            "status": "status",
+            "subtitle": [
+              "company",
+              "contact_name"
+            ],
+            "facts": [
+              "value",
+              "received_on",
+              "source_channel",
+              "owner"
+            ],
+            "actions": [
+              "mark_contacted",
+              "convert_to_deal",
+              "archive_lead",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process",
+            "label": "Lead status"
+          },
+          {
+            "kind": "fields",
+            "fields": [
+              "email",
+              "phone",
+              "notes"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Lead",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "title",
+                  "received_on",
+                  "organization",
+                  "company",
+                  "contact_name",
+                  "value",
+                  "source_channel",
+                  "owner"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Contact",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "email",
+                  "phone"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "product",
+      "label": "Product",
+      "labelPlural": "Products",
+      "displayField": "name",
+      "icon": "inventory_2",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "code",
+          "label": "Code",
+          "type": "text"
+        },
+        {
+          "key": "unit_price",
+          "label": "Unit price",
+          "type": "money",
+          "currency": "EUR"
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "deal_product",
+      "label": "Product line",
+      "labelPlural": "Product lines",
+      "displayField": "product",
+      "icon": "receipt_long",
+      "ownedBy": {
+        "parent": "deal",
+        "via": "deal",
+        "as": "lineItems"
+      },
+      "fields": [
+        {
+          "key": "deal",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "product",
+          "label": "Product",
+          "type": "reference",
+          "targetEntity": "product",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "quantity",
+          "label": "Qty",
+          "type": "integer",
+          "default": 1
+        },
+        {
+          "key": "unit_price",
+          "label": "Unit price",
+          "type": "money",
+          "currency": "EUR"
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "money",
+          "currency": "EUR",
+          "help": "Line total. Enter quantity × unit price — the runtime has no computed fields yet."
+        }
+      ]
+    },
+    {
+      "key": "deal_note",
+      "label": "Note",
+      "labelPlural": "Notes",
+      "displayField": "body",
+      "icon": "sticky_note_2",
+      "ownedBy": {
+        "parent": "deal",
+        "via": "deal",
+        "as": "feed"
+      },
+      "fields": [
+        {
+          "key": "deal",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "body",
+          "label": "Note",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        }
+      ]
+    },
+    {
+      "key": "deal_file",
+      "label": "File",
+      "labelPlural": "Files",
+      "displayField": "name",
+      "icon": "attach_file",
+      "ownedBy": {
+        "parent": "deal",
+        "via": "deal",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "deal",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "file",
+          "label": "File",
+          "type": "attachment"
+        },
+        {
+          "key": "uploaded_by",
+          "label": "Uploaded by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "deal_activities",
+      "label": "Activities",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "activity",
+      "inverseField": "deal"
+    },
+    {
+      "key": "deal_notes",
+      "label": "Notes",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "deal_note",
+      "inverseField": "deal"
+    },
+    {
+      "key": "deal_files",
+      "label": "Files",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "deal_file",
+      "inverseField": "deal"
+    },
+    {
+      "key": "deal_product_lines",
+      "label": "Product lines",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "deal_product",
+      "inverseField": "deal"
+    },
+    {
+      "key": "product_lines",
+      "label": "Lines",
+      "type": "oneToMany",
+      "fromEntity": "product",
+      "toEntity": "deal_product",
+      "inverseField": "product"
+    }
+  ],
+  "views": [
+    {
+      "key": "activities_table",
+      "label": "All activities",
+      "type": "table",
+      "entity": "activity",
+      "sort": [
+        {
+          "field": "activity_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "activity_type",
+          "activity_date",
+          "deal",
+          "performed_by"
+        ]
+      }
+    },
+    {
+      "key": "activities_calendar",
+      "label": "Calendar",
+      "type": "calendar",
+      "entity": "activity",
+      "config": {
+        "dateField": "activity_date",
+        "titleField": "subject",
+        "colorByField": "activity_type"
+      }
+    },
+    {
+      "key": "products_table",
+      "label": "Products",
+      "type": "table",
+      "entity": "product",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "code",
+          "unit_price",
+          "active"
+        ]
+      }
+    },
+    {
+      "key": "leads_table",
+      "label": "All leads",
+      "type": "table",
+      "entity": "lead",
+      "sort": [
+        {
+          "field": "received_on",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "received_on",
+          "organization",
+          "contact_name",
+          "value",
+          "status",
+          "source_channel",
+          "owner"
+        ],
+        "filterBar": {
+          "search": [
+            "title",
+            "company",
+            "contact_name"
+          ],
+          "facets": [
+            "source_channel",
+            "status",
+            "owner"
+          ]
+        }
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "my_day",
+      "label": "My Day",
+      "icon": "today",
+      "entity": "deal",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "text",
+              "value": "My day",
+              "size": "lg",
+              "weight": "bold"
+            },
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "My open deals",
+                  "icon": "handshake",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      },
+                      {
+                        "field": "owner",
+                        "operator": "eq",
+                        "value": "{{actor.id}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "My pipeline value",
+                  "format": "money",
+                  "icon": "payments",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "value"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      },
+                      {
+                        "field": "owner",
+                        "operator": "eq",
+                        "value": "{{actor.id}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Overdue follow-ups",
+                  "icon": "warning",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      },
+                      {
+                        "field": "owner",
+                        "operator": "eq",
+                        "value": "{{actor.id}}"
+                      },
+                      {
+                        "field": "next_follow_up",
+                        "operator": "lt",
+                        "value": "{{today}}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "tabs",
+              "tabs": [
+                {
+                  "key": "follow_ups",
+                  "label": "Follow-ups",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "md",
+                      "blocks": [
+                        {
+                          "kind": "stat",
+                          "label": "Due today",
+                          "icon": "event_available",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "count"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "open"
+                              },
+                              {
+                                "field": "owner",
+                                "operator": "eq",
+                                "value": "{{actor.id}}"
+                              },
+                              {
+                                "field": "next_follow_up",
+                                "operator": "eq",
+                                "value": "{{today}}"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "stat",
+                          "label": "Overdue",
+                          "icon": "warning",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "count"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "open"
+                              },
+                              {
+                                "field": "owner",
+                                "operator": "eq",
+                                "value": "{{actor.id}}"
+                              },
+                              {
+                                "field": "next_follow_up",
+                                "operator": "lt",
+                                "value": "{{today}}"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "table",
+                      "source": {
+                        "entity": "deal",
+                        "filters": [
+                          {
+                            "field": "status",
+                            "operator": "eq",
+                            "value": "open"
+                          },
+                          {
+                            "field": "owner",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          },
+                          {
+                            "field": "next_follow_up",
+                            "operator": "lte",
+                            "value": "{{today}}"
+                          }
+                        ],
+                        "sort": [
+                          {
+                            "field": "next_follow_up",
+                            "direction": "asc"
+                          }
+                        ]
+                      },
+                      "fields": [
+                        "title",
+                        "value",
+                        "stage",
+                        "next_step",
+                        "next_follow_up"
+                      ],
+                      "openDetail": true
+                    }
+                  ]
+                },
+                {
+                  "key": "open",
+                  "label": "Open",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "md",
+                      "blocks": [
+                        {
+                          "kind": "stat",
+                          "label": "My open deals",
+                          "icon": "handshake",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "count"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "open"
+                              },
+                              {
+                                "field": "owner",
+                                "operator": "eq",
+                                "value": "{{actor.id}}"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "stat",
+                          "label": "Pipeline value",
+                          "format": "money",
+                          "icon": "payments",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "sum",
+                              "field": "value"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "open"
+                              },
+                              {
+                                "field": "owner",
+                                "operator": "eq",
+                                "value": "{{actor.id}}"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "table",
+                      "source": {
+                        "entity": "deal",
+                        "filters": [
+                          {
+                            "field": "status",
+                            "operator": "eq",
+                            "value": "open"
+                          },
+                          {
+                            "field": "owner",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          }
+                        ],
+                        "sort": [
+                          {
+                            "field": "value",
+                            "direction": "desc"
+                          }
+                        ]
+                      },
+                      "fields": [
+                        "title",
+                        "value",
+                        "stage",
+                        "next_follow_up",
+                        "expected_close_date"
+                      ],
+                      "openDetail": true
+                    }
+                  ]
+                },
+                {
+                  "key": "wins",
+                  "label": "Wins",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "md",
+                      "blocks": [
+                        {
+                          "kind": "stat",
+                          "label": "Deals won",
+                          "icon": "emoji_events",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "count"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "won"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "kind": "stat",
+                          "label": "Won value",
+                          "format": "money",
+                          "icon": "payments",
+                          "source": {
+                            "entity": "deal",
+                            "aggregate": {
+                              "op": "sum",
+                              "field": "value"
+                            },
+                            "filters": [
+                              {
+                                "field": "status",
+                                "operator": "eq",
+                                "value": "won"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "table",
+                      "source": {
+                        "entity": "deal",
+                        "filters": [
+                          {
+                            "field": "status",
+                            "operator": "eq",
+                            "value": "won"
+                          }
+                        ],
+                        "sort": [
+                          {
+                            "field": "won_date",
+                            "direction": "desc"
+                          }
+                        ]
+                      },
+                      "fields": [
+                        "title",
+                        "value",
+                        "owner",
+                        "won_date"
+                      ],
+                      "openDetail": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "leads",
+      "label": "Leads",
+      "icon": "person_search",
+      "entity": "lead",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "New",
+                  "icon": "fiber_new",
+                  "source": {
+                    "entity": "lead",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "new"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Contacted",
+                  "icon": "call",
+                  "source": {
+                    "entity": "lead",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "contacted"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Converted",
+                  "icon": "trending_up",
+                  "source": {
+                    "entity": "lead",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "converted"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "tabs",
+              "tabs": [
+                {
+                  "label": "Inbox",
+                  "blocks": [
+                    {
+                      "kind": "split",
+                      "label": "Leads to work",
+                      "emptyText": "No leads waiting — nice work.",
+                      "source": {
+                        "entity": "lead",
+                        "filters": [
+                          {
+                            "field": "status",
+                            "operator": "in",
+                            "value": [
+                              "new",
+                              "contacted"
+                            ]
+                          }
+                        ],
+                        "sort": [
+                          {
+                            "field": "received_on",
+                            "direction": "asc"
+                          }
+                        ]
+                      },
+                      "fields": [
+                        "company",
+                        "received_on",
+                        "source_channel",
+                        "value",
+                        "status"
+                      ],
+                      "as": "lead_sel",
+                      "blocks": [
+                        {
+                          "kind": "text",
+                          "value": "{title}",
+                          "size": "lg",
+                          "weight": "bold"
+                        },
+                        {
+                          "kind": "row",
+                          "gap": "sm",
+                          "blocks": [
+                            {
+                              "kind": "chip",
+                              "field": "status"
+                            },
+                            {
+                              "kind": "chip",
+                              "field": "source_channel"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "columns",
+                          "columns": [
+                            [
+                              {
+                                "kind": "field",
+                                "field": "company",
+                                "label": "Company"
+                              },
+                              {
+                                "kind": "field",
+                                "field": "contact_name",
+                                "label": "Contact"
+                              },
+                              {
+                                "kind": "field",
+                                "field": "email",
+                                "label": "Email"
+                              },
+                              {
+                                "kind": "field",
+                                "field": "phone",
+                                "label": "Phone"
+                              }
+                            ],
+                            [
+                              {
+                                "kind": "field",
+                                "field": "value",
+                                "label": "Estimated value",
+                                "format": "money"
+                              },
+                              {
+                                "kind": "field",
+                                "field": "received_on",
+                                "label": "Received"
+                              },
+                              {
+                                "kind": "field",
+                                "field": "owner",
+                                "label": "Owner"
+                              }
+                            ]
+                          ]
+                        },
+                        {
+                          "kind": "field",
+                          "field": "notes",
+                          "label": "Notes"
+                        },
+                        {
+                          "kind": "row",
+                          "gap": "sm",
+                          "blocks": [
+                            {
+                              "kind": "action",
+                              "command": "mark_contacted"
+                            },
+                            {
+                              "kind": "action",
+                              "command": "convert_to_deal",
+                              "style": "primary"
+                            },
+                            {
+                              "kind": "action",
+                              "command": "archive_lead",
+                              "style": "danger"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "label": "All leads",
+                  "blocks": [
+                    {
+                      "kind": "view",
+                      "view": "leads_table"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "deals",
+      "label": "Deals",
+      "icon": "handshake",
+      "entity": "deal",
+      "state": [
+        {
+          "key": "mode",
+          "type": "enum",
+          "default": "board",
+          "options": [
+            {
+              "value": "board",
+              "label": "Board"
+            },
+            {
+              "value": "list",
+              "label": "List"
+            }
+          ]
+        },
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "owner",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "stage",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "status",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "align": "center",
+              "blocks": [
+                {
+                  "kind": "control",
+                  "control": "segmented",
+                  "stateKey": "mode"
+                },
+                {
+                  "kind": "filterbar",
+                  "entity": "deal",
+                  "grow": true,
+                  "search": {
+                    "state": "q",
+                    "placeholder": "Search deals…"
+                  },
+                  "facets": [
+                    {
+                      "state": "owner",
+                      "field": "owner"
+                    },
+                    {
+                      "state": "stage",
+                      "field": "stage"
+                    },
+                    {
+                      "state": "status",
+                      "field": "status"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "board",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "board"
+              },
+              "newButton": true,
+              "groupField": "stage",
+              "sumField": "value",
+              "openDetail": true,
+              "cardFields": [
+                "organization",
+                "value",
+                "owner",
+                "expected_close_date"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "title",
+                  "organization",
+                  "contact"
+                ]
+              },
+              "source": {
+                "entity": "deal",
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "open"
+                  },
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "table",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "list"
+              },
+              "newButton": true,
+              "openDetail": true,
+              "fields": [
+                "title",
+                "value",
+                "stage",
+                "status",
+                "organization",
+                "owner",
+                "expected_close_date"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "title",
+                  "organization",
+                  "contact"
+                ]
+              },
+              "source": {
+                "entity": "deal",
+                "sort": [
+                  {
+                    "field": "expected_close_date",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "stage",
+                    "operator": "eq",
+                    "value": "{{state.stage}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "activities",
+      "label": "Activities",
+      "icon": "event_note",
+      "entity": "activity",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Logged today",
+                  "icon": "today",
+                  "source": {
+                    "entity": "activity",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "activity_date",
+                        "operator": "eq",
+                        "value": "{{today}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Logged by me",
+                  "icon": "person",
+                  "source": {
+                    "entity": "activity",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "performed_by",
+                        "operator": "eq",
+                        "value": "{{actor.id}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "All activities",
+                  "icon": "event_note",
+                  "source": {
+                    "entity": "activity",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "tabs",
+              "tabs": [
+                {
+                  "label": "Recent",
+                  "blocks": [
+                    {
+                      "kind": "table",
+                      "source": {
+                        "entity": "activity",
+                        "sort": [
+                          {
+                            "field": "activity_date",
+                            "direction": "desc"
+                          }
+                        ]
+                      },
+                      "fields": [
+                        "subject",
+                        "activity_type",
+                        "activity_date",
+                        "activity_time",
+                        "deal",
+                        "performed_by"
+                      ],
+                      "openDetail": true
+                    }
+                  ]
+                },
+                {
+                  "label": "Calendar",
+                  "blocks": [
+                    {
+                      "kind": "view",
+                      "view": "activities_calendar"
+                    }
+                  ]
+                },
+                {
+                  "label": "All",
+                  "blocks": [
+                    {
+                      "kind": "view",
+                      "view": "activities_table"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "products",
+      "label": "Products",
+      "icon": "inventory_2",
+      "entity": "product",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "products_table"
+        }
+      ]
+    },
+    {
+      "key": "insights",
+      "label": "Insights",
+      "icon": "insights",
+      "entity": "deal",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "text",
+              "value": "Insights",
+              "size": "lg",
+              "weight": "bold"
+            },
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Open pipeline",
+                  "format": "money",
+                  "icon": "payments",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "value"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Weighted forecast",
+                  "format": "money",
+                  "icon": "chart-line",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "weighted_value"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "open"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Avg won deal",
+                  "format": "money",
+                  "icon": "sell",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "avg",
+                      "field": "value"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Won value",
+                  "format": "money",
+                  "icon": "emoji_events",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "value"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Won",
+                  "icon": "thumb_up",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "won"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Lost",
+                  "icon": "thumb_down",
+                  "source": {
+                    "entity": "deal",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "lost"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "deals",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "lost"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Pipeline funnel — open value by stage",
+                    "source": {
+                      "entity": "deal",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "value",
+                        "groupBy": "stage"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "eq",
+                          "value": "open"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "deals"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Won vs lost",
+                    "source": {
+                      "entity": "deal",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "status"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "in",
+                          "value": [
+                            "won",
+                            "lost"
+                          ]
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "deals"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Open pipeline by owner",
+                    "source": {
+                      "entity": "deal",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "value",
+                        "groupBy": "owner"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "eq",
+                          "value": "open"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "deals"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "widgets",
+                    "widgets": [
+                      {
+                        "type": "chart",
+                        "source": {
+                          "entity": "deal",
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "value",
+                            "groupBy": "month_of:won_date"
+                          },
+                          "filters": [
+                            {
+                              "field": "status",
+                              "operator": "eq",
+                              "value": "won"
+                            }
+                          ]
+                        },
+                        "viz": {
+                          "chartType": "line",
+                          "title": "Won value by month"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "deal_flow",
+      "entity": "deal",
+      "stateField": "status",
+      "initialState": "open",
+      "states": [
+        {
+          "key": "open",
+          "label": "Open",
+          "color": "#2563eb"
+        },
+        {
+          "key": "won",
+          "label": "Won",
+          "color": "#16a34a"
+        },
+        {
+          "key": "lost",
+          "label": "Lost",
+          "color": "#dc2626"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "win",
+          "label": "Won",
+          "from": [
+            "open"
+          ],
+          "to": "won",
+          "command": "mark_won"
+        },
+        {
+          "key": "lose",
+          "label": "Lost",
+          "from": [
+            "open"
+          ],
+          "to": "lost",
+          "command": "mark_lost"
+        },
+        {
+          "key": "reopen",
+          "label": "Reopen",
+          "from": [
+            "won",
+            "lost"
+          ],
+          "to": "open",
+          "command": "reopen_deal"
+        }
+      ]
+    },
+    {
+      "key": "lead_flow",
+      "entity": "lead",
+      "stateField": "status",
+      "initialState": "new",
+      "states": [
+        {
+          "key": "new",
+          "label": "New",
+          "color": "#2563eb"
+        },
+        {
+          "key": "contacted",
+          "label": "Contacted",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "converted",
+          "label": "Converted",
+          "color": "#16a34a",
+          "terminal": true
+        },
+        {
+          "key": "archived",
+          "label": "Archived",
+          "color": "#64748b",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "contact",
+          "label": "Mark contacted",
+          "from": [
+            "new"
+          ],
+          "to": "contacted",
+          "command": "mark_contacted"
+        },
+        {
+          "key": "convert",
+          "label": "Convert to deal",
+          "from": [
+            "new",
+            "contacted"
+          ],
+          "to": "converted",
+          "command": "convert_to_deal"
+        },
+        {
+          "key": "archive",
+          "label": "Archive",
+          "from": [
+            "new",
+            "contacted"
+          ],
+          "to": "archived",
+          "command": "archive_lead"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "mark_won",
+      "label": "Won",
+      "entity": "deal",
+      "icon": "emoji_events",
+      "style": "primary",
+      "placements": [
+        "recordHeader"
+      ],
+      "input": {
+        "fields": [
+          "won_reason",
+          "won_notes"
+        ],
+        "required": [
+          "won_reason"
+        ]
+      },
+      "confirm": {
+        "title": "Mark this deal as won?",
+        "confirmLabel": "Won"
+      },
+      "successMessage": "Deal won 🎉",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "won_date": "{{today}}",
+            "probability": 100
+          }
+        },
+        {
+          "type": "notify",
+          "to": "{{record.owner}}",
+          "title": "Deal won",
+          "message": "{{record.title}} was marked as won.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "mark_lost",
+      "label": "Lost",
+      "entity": "deal",
+      "icon": "block",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "input": {
+        "fields": [
+          "lost_reason",
+          "lost_notes"
+        ],
+        "required": [
+          "lost_reason"
+        ]
+      },
+      "confirm": {
+        "title": "Mark this deal as lost?",
+        "tone": "danger",
+        "confirmLabel": "Mark lost"
+      },
+      "successMessage": "Deal marked as lost.",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "reopen_deal",
+      "label": "Reopen",
+      "entity": "deal",
+      "icon": "restart_alt",
+      "placements": [
+        "recordHeader"
+      ],
+      "confirm": {
+        "title": "Reopen this deal?",
+        "confirmLabel": "Reopen"
+      },
+      "successMessage": "Deal reopened.",
+      "effects": []
+    },
+    {
+      "key": "mark_contacted",
+      "label": "Mark contacted",
+      "entity": "lead",
+      "icon": "call",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "successMessage": "Lead marked as contacted.",
+      "effects": []
+    },
+    {
+      "key": "convert_to_deal",
+      "label": "Convert to deal",
+      "entity": "lead",
+      "icon": "trending_up",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "confirm": {
+        "title": "Convert this lead into a deal?",
+        "message": "A new deal is created in Lead In with this lead's title, value and owner. Link the organization and contact person on the deal afterwards.",
+        "confirmLabel": "Convert"
+      },
+      "successMessage": "Lead converted — the new deal is in the pipeline at Lead In.",
+      "effects": [
+        {
+          "type": "createRecord",
+          "entity": "deal",
+          "set": {
+            "title": "{{record.title}}",
+            "value": "{{record.value}}",
+            "owner": "{{record.owner}}",
+            "source_channel": "{{record.source_channel}}"
+          }
+        }
+      ]
+    },
+    {
+      "key": "archive_lead",
+      "label": "Archive",
+      "entity": "lead",
+      "icon": "archive",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "confirm": {
+        "title": "Archive this lead?",
+        "tone": "danger",
+        "confirmLabel": "Archive"
+      },
+      "successMessage": "Lead archived.",
+      "effects": []
+    }
+  ],
+  "workflows": [
+    {
+      "key": "probability_lead_in",
+      "name": "Stage probability: Lead In",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "eq",
+        "value": "lead_in"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 10
+          }
+        }
+      ]
+    },
+    {
+      "key": "probability_contact_made",
+      "name": "Stage probability: Contact Made",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "eq",
+        "value": "contact_made"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 25
+          }
+        }
+      ]
+    },
+    {
+      "key": "probability_needs_defined",
+      "name": "Stage probability: Needs Defined",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "eq",
+        "value": "needs_defined"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 40
+          }
+        }
+      ]
+    },
+    {
+      "key": "probability_proposal_made",
+      "name": "Stage probability: Proposal Made",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "eq",
+        "value": "proposal_made"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 60
+          }
+        }
+      ]
+    },
+    {
+      "key": "probability_negotiations",
+      "name": "Stage probability: Negotiations Started",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "eq",
+        "value": "negotiations_started"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "probability": 80
+          }
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "sales_rep",
+      "name": "Sales Rep",
+      "description": "Works leads, deals and activities. Cannot delete records or manage the product catalog.",
+      "grants": [
+        {
+          "entity": "deal",
+          "create": true,
+          "read": true,
+          "update": true,
+          "commands": [
+            "mark_won",
+            "mark_lost",
+            "reopen_deal"
+          ]
+        },
+        {
+          "entity": "lead",
+          "create": true,
+          "read": true,
+          "update": true,
+          "commands": [
+            "mark_contacted",
+            "convert_to_deal",
+            "archive_lead"
+          ]
+        },
+        {
+          "entity": "activity",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "deal_note",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "deal_file",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "deal_product",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "product",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "sales_manager",
+      "name": "Sales Manager",
+      "description": "Everything a rep can do, plus deletes and the product catalog.",
+      "grants": [
+        {
+          "entity": "deal",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "mark_won",
+            "mark_lost",
+            "reopen_deal"
+          ]
+        },
+        {
+          "entity": "lead",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "mark_contacted",
+            "convert_to_deal",
+            "archive_lead"
+          ]
+        },
+        {
+          "entity": "activity",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "deal_note",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "deal_file",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "deal_product",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "product",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to everything.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#16a34a",
+    "secondaryColor": "#2563eb",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

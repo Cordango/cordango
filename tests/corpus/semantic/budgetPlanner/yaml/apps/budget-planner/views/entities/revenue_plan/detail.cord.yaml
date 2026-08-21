@@ -1,0 +1,27 @@
+detail: revenue_plan
+blocks:
+  - kind: hub
+    subtitle:
+      - tier
+      - scenario
+    actions:
+      - edit
+      - delete
+    facts:
+      - monthly_base_fee
+      - price_per_app_user
+      - cap_multiplier
+  - kind: section
+    label: Price
+    edit:
+      - monthly_base_fee
+      - price_per_app_user
+      - cap_multiplier
+    blocks:
+      - kind: fields
+        cols: 3
+        fields:
+          - monthly_base_fee
+          - price_per_app_user
+          - cap_multiplier
+          - notes

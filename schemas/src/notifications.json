@@ -1,0 +1,60 @@
+{
+  "$defs": {
+    "effect_notify": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "message"
+      ],
+      "properties": {
+        "type": {
+          "const": "notify"
+        },
+        "to": {
+          "description": "Recipient: a template resolving to a person reference, or an email literal.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Heading.",
+          "type": "string"
+        },
+        "message": {
+          "description": "Body text.",
+          "type": "string"
+        },
+        "link": {
+          "description": "'auto' to deep-link the record, or a URL.",
+          "type": "string"
+        }
+      }
+    },
+    "effect_email": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "to",
+        "subject",
+        "body"
+      ],
+      "properties": {
+        "type": {
+          "const": "email"
+        },
+        "to": {
+          "description": "Recipient: a template resolving to a person reference, or an email literal.",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Subject line.",
+          "type": "string"
+        },
+        "body": {
+          "description": "Body.",
+          "type": "string"
+        }
+      }
+    }
+  }
+}

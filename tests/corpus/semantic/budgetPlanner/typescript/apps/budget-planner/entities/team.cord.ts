@@ -1,0 +1,71 @@
+import { defineEntity } from "@cord/sdk";
+
+export default defineEntity({
+  key: "team",
+  icon: "account-group",
+  kind: "config",
+  label: "Team",
+  description: "A functional team hiring is grouped by (Engineering, Sales, ...).",
+  plural: "Teams",
+  display: "name",
+  fields: {
+    name: {
+      type: "text",
+      label: "Team Name",
+      unique: true,
+      required: true,
+    },
+    function: {
+      type: "select",
+      label: "Function",
+      options: [
+        {
+          color: "#0f766e",
+          label: "Engineering",
+          value: "engineering",
+        },
+        {
+          color: "#6366f1",
+          label: "Product",
+          value: "product",
+        },
+        {
+          color: "#f59e0b",
+          label: "Sales",
+          value: "sales",
+        },
+        {
+          color: "#ec4899",
+          label: "Marketing",
+          value: "marketing",
+        },
+        {
+          color: "#38bdf8",
+          label: "Customer Success",
+          value: "customer_success",
+        },
+        {
+          color: "#64748b",
+          label: "Operations & Admin",
+          value: "operations",
+        },
+        {
+          color: "#a16207",
+          label: "Finance & Legal",
+          value: "finance",
+        },
+      ],
+      required: true,
+    },
+    default_salary: {
+      help: "Typical gross annual salary for a hire in this team; prefilled onto new hiring lines.",
+      type: "money",
+      label: "Default Gross Salary / Year",
+      currency: "EUR",
+    },
+    description: {
+      type: "longtext",
+      label: "Description",
+    },
+  },
+} as const);

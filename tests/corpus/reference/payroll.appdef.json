@@ -1,0 +1,352 @@
+{
+  "schemaVersion": "2.0",
+  "key": "payroll",
+  "name": "Payroll",
+  "version": "1.0.0",
+  "description": "Monthly payroll for Cordango GmbH: run payroll once a month from per-employee salary profiles, approve and pay the run, and see what it costs.",
+  "presentation": {
+    "icon": "cash-multiple",
+    "color": "#059669",
+    "category": "Finance",
+    "tagline": "Monthly runs, payslips, cost"
+  },
+  "entities": [
+    {
+      "key": "salary_profile",
+      "label": "Salary profile",
+      "labelPlural": "Salary profiles",
+      "displayField": "employee",
+      "icon": "account-cash",
+      "kind": "config",
+      "fields": [
+        { "key": "employee", "label": "Employee", "type": "reference", "targetApp": "platform", "targetEntity": "person", "required": true, "onDelete": "restrict" },
+        { "key": "monthly_salary", "label": "Monthly salary", "type": "money", "currency": "EUR", "required": true },
+        { "key": "monthly_allowance", "label": "Monthly allowance", "type": "money", "currency": "EUR" },
+        {
+          "key": "tax_class",
+          "label": "Tax class",
+          "type": "select",
+          "options": [
+            { "value": "I", "label": "I", "color": "#64748b" },
+            { "value": "II", "label": "II", "color": "#78716c" },
+            { "value": "III", "label": "III", "color": "#6b7280" },
+            { "value": "IV", "label": "IV", "color": "#71717a" },
+            { "value": "V", "label": "V", "color": "#94a3b8" }
+          ]
+        },
+        { "key": "iban", "label": "IBAN", "type": "text" }
+      ]
+    },
+    {
+      "key": "payroll_run",
+      "label": "Payroll run",
+      "labelPlural": "Payroll runs",
+      "displayField": "period",
+      "icon": "cash-multiple",
+      "fields": [
+        { "key": "period", "label": "Period", "type": "text", "required": true, "unique": true },
+        { "key": "pay_date", "label": "Pay date", "type": "date", "required": true, "indexed": true },
+        { "key": "status", "label": "Status", "type": "select", "role": "status", "indexed": true },
+        {
+          "key": "headcount",
+          "label": "Headcount",
+          "type": "integer",
+          "computed": { "rollup": { "entity": "payslip", "via": "run", "op": "count" } }
+        },
+        {
+          "key": "total_gross",
+          "label": "Total gross",
+          "type": "money",
+          "currency": "EUR",
+          "computed": { "rollup": { "entity": "payslip", "via": "run", "op": "sum", "field": "gross_pay" } }
+        },
+        {
+          "key": "total_net",
+          "label": "Total net",
+          "type": "money",
+          "currency": "EUR",
+          "computed": { "rollup": { "entity": "payslip", "via": "run", "op": "sum", "field": "net_pay" } }
+        },
+        {
+          "key": "total_deductions",
+          "label": "Total tax",
+          "type": "money",
+          "currency": "EUR",
+          "computed": { "rollup": { "entity": "payslip", "via": "run", "op": "sum", "field": "tax" } }
+        },
+        { "key": "notes", "label": "Notes", "type": "longtext", "group": "Notes" }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "period",
+            "status": "status",
+            "facts": ["pay_date", "headcount", "total_gross"],
+            "actions": ["approve_run", "mark_paid", "edit", "delete"]
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              { "label": "Headcount", "field": "headcount", "icon": "account-group" },
+              { "label": "Gross", "field": "total_gross", "format": "money" },
+              { "label": "Net", "field": "total_net", "format": "money" },
+              { "label": "Deductions", "field": "total_deductions", "format": "money" }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Payslips",
+            "blocks": [
+              { "kind": "child", "entity": "payslip", "via": "run", "childType": "table" }
+            ]
+          },
+          {
+            "kind": "process"
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "visibleWhen": { "value": "{{record.notes}}", "neq": "" },
+            "blocks": [
+              { "kind": "fields", "fields": ["notes"] }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "payslip",
+      "label": "Payslip",
+      "labelPlural": "Payslips",
+      "displayField": "employee",
+      "icon": "file-document-outline",
+      "ownedBy": { "parent": "payroll_run", "via": "run", "as": "table" },
+      "fields": [
+        { "key": "run", "label": "Payroll run", "type": "reference", "targetEntity": "payroll_run", "required": true, "onDelete": "cascade" },
+        { "key": "employee", "label": "Employee", "type": "reference", "targetApp": "platform", "targetEntity": "person", "required": true, "onDelete": "restrict" },
+        { "key": "base", "label": "Base", "type": "money", "currency": "EUR", "required": true },
+        { "key": "bonus", "label": "Bonus", "type": "money", "currency": "EUR", "default": 0 },
+        { "key": "overtime", "label": "Overtime", "type": "money", "currency": "EUR", "default": 0 },
+        { "key": "deductions", "label": "Deductions", "type": "money", "currency": "EUR", "default": 0 },
+        { "key": "tax", "label": "Tax", "type": "money", "currency": "EUR", "default": 0 },
+        {
+          "key": "gross_pay",
+          "label": "Gross pay",
+          "type": "money",
+          "currency": "EUR",
+          "computed": { "expr": "base + bonus + overtime" }
+        },
+        {
+          "key": "net_pay",
+          "label": "Net pay",
+          "type": "money",
+          "currency": "EUR",
+          "computed": { "expr": "base + bonus + overtime - deductions - tax" }
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "runs_table",
+      "label": "Payroll runs",
+      "type": "table",
+      "entity": "payroll_run",
+      "sort": [{ "field": "pay_date", "direction": "desc" }],
+      "config": {
+        "columns": ["period", "pay_date", "headcount", "total_gross", "total_net", "status"]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "payroll_run",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Total gross (all runs)",
+                  "format": "money",
+                  "icon": "cash-multiple",
+                  "source": {
+                    "entity": "payroll_run",
+                    "aggregate": { "op": "sum", "field": "total_gross" }
+                  },
+                  "link": { "page": "runs" }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Runs",
+                  "icon": "calendar-month",
+                  "source": {
+                    "entity": "payroll_run",
+                    "aggregate": { "op": "count" }
+                  },
+                  "link": { "page": "runs" }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Total net paid",
+                  "format": "money",
+                  "icon": "cash-check",
+                  "source": {
+                    "entity": "payroll_run",
+                    "aggregate": { "op": "sum", "field": "total_net" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "paid" }]
+                  },
+                  "link": {
+                    "page": "runs",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "paid" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Awaiting approval",
+                  "icon": "file-document-edit-outline",
+                  "source": {
+                    "entity": "payroll_run",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "draft" }]
+                  },
+                  "link": {
+                    "page": "runs",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "draft" }]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Payroll cost by month",
+                    "source": {
+                      "entity": "payroll_run",
+                      "aggregate": { "op": "sum", "field": "total_gross", "groupBy": "month_of:pay_date" }
+                    },
+                    "link": { "page": "runs" }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "line",
+                    "label": "Net paid by month",
+                    "source": {
+                      "entity": "payroll_run",
+                      "aggregate": { "op": "sum", "field": "total_net", "groupBy": "month_of:pay_date" },
+                      "filters": [{ "field": "status", "operator": "eq", "value": "paid" }]
+                    },
+                    "link": { "page": "runs" }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Runs",
+              "blocks": [
+                { "kind": "view", "view": "runs_table" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "runs",
+      "label": "Payroll runs",
+      "icon": "cash-multiple",
+      "entity": "payroll_run",
+      "blocks": [
+        { "kind": "view", "view": "runs_table" }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "run_flow",
+      "entity": "payroll_run",
+      "stateField": "status",
+      "initialState": "draft",
+      "states": [
+        { "key": "draft", "label": "Draft", "color": "#64748b" },
+        { "key": "approved", "label": "Approved", "color": "#0ea5e9" },
+        { "key": "paid", "label": "Paid", "color": "#16a34a", "terminal": true }
+      ],
+      "transitions": [
+        { "key": "approve", "label": "Approve", "from": ["draft"], "to": "approved", "command": "approve_run" },
+        { "key": "pay", "label": "Mark paid", "from": ["approved"], "to": "paid", "command": "mark_paid" }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "approve_run",
+      "label": "Approve",
+      "entity": "payroll_run",
+      "style": "primary",
+      "placements": ["recordHeader", "tableRow"],
+      "successMessage": "Payroll run approved.",
+      "effects": []
+    },
+    {
+      "key": "mark_paid",
+      "label": "Mark paid",
+      "entity": "payroll_run",
+      "style": "primary",
+      "placements": ["recordHeader", "tableRow"],
+      "successMessage": "Payroll run marked as paid.",
+      "effects": []
+    }
+  ],
+  "roles": [
+    {
+      "key": "payroll_admin",
+      "name": "Payroll admin",
+      "description": "Runs payroll: maintains salary profiles, creates runs and payslips, approves and pays.",
+      "grants": [
+        { "entity": "payroll_run", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] },
+        { "entity": "payslip", "create": true, "read": true, "update": true, "delete": true },
+        { "entity": "salary_profile", "create": true, "read": true, "update": true, "delete": true }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Sees payroll runs and what they cost; payslips and salary profiles stay hidden.",
+      "grants": [
+        { "entity": "payroll_run", "read": true }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        { "entity": "*", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#059669",
+    "secondaryColor": "#10b981",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

@@ -1,0 +1,390 @@
+{
+  "passed": 14,
+  "total": 20,
+  "results": [
+    {
+      "n": 1,
+      "request": "I need a CRM app for my company.",
+      "apps": [
+        {
+          "key": "crm",
+          "ok": true,
+          "attempts": 4,
+          "entities": 4,
+          "views": 11,
+          "workflows": 4,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "A CRM is a single cohesive domain covering contacts, companies, deals, and activities; there is no indication of separate team ownership or distinct domains that would justify splitting into multiple apps.",
+      "questions": [
+        "Is this primarily B2B (selling to companies with multiple contacts) or B2C (individual consumers)?",
+        "Do you need a sales pipeline/deal tracking (e.g., stages like Lead → Qualified → Proposal → Won), or is this mainly a contact/activity log?",
+        "What roles do you need — e.g., sales reps, sales managers, admins — and should reps only see their own contacts/deals?",
+        "Do you need integration with external systems such as email (Gmail/Outlook), calendar, marketing tools, or an existing ERP/accounting system?",
+        "Roughly how many users and contacts/deals are you managing — tens, hundreds, or thousands?"
+      ]
+    },
+    {
+      "n": 2,
+      "request": "We need a simple employee directory with departments, roles, locations, and emergency contacts.",
+      "apps": [
+        {
+          "key": "employee_directory",
+          "ok": true,
+          "attempts": 1,
+          "entities": 5,
+          "views": 8,
+          "workflows": 2,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive app — all requested entities (departments, roles, locations, emergency contacts) are tightly coupled to the employee record and would be owned by one team (HR/People Ops).",
+      "questions": [
+        "Who should be able to view vs. edit employee records — all employees read-only, with HR/admins able to edit?",
+        "Should emergency contacts be visible to everyone or restricted to HR/managers only?",
+        "Is there an org-chart / reporting-line hierarchy needed (i.e., employees reporting to a manager)?",
+        "Should this integrate with any existing HR system or identity provider (e.g., Azure AD, Workday) for data sync?"
+      ]
+    },
+    {
+      "n": 3,
+      "request": "Build us a vacation request tool where employees can request time off and managers approve it.",
+      "apps": [
+        {
+          "key": "vacation_requests",
+          "ok": true,
+          "attempts": 2,
+          "entities": 4,
+          "views": 10,
+          "workflows": 3,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single-domain HR workflow with one approval chain—employees and managers operate within the same tool, so one app with a few entities is the right scope.",
+      "questions": [
+        "Do you need to track PTO balances (accruals, carryover, caps), or is this purely request-and-approve without balance enforcement?",
+        "Is approval a single-manager step, or do you need multi-level / multi-approver workflows (e.g., direct manager then HR)?",
+        "Should this integrate with an external calendar or HRIS system (e.g., Outlook, Google Calendar, Workday, BambooHR)?",
+        "Do you need a team leave calendar / conflict-detection so managers can see overlapping absences before approving?",
+        "Are there external or non-employee users (e.g., contractors submitting requests) who need access?"
+      ]
+    },
+    {
+      "n": 4,
+      "request": "We need an onboarding checklist app for new hires with tasks for HR, IT, and managers.",
+      "apps": [
+        {
+          "key": "new_hire_onboarding",
+          "ok": true,
+          "attempts": 2,
+          "entities": 5,
+          "views": 10,
+          "workflows": 3,
+          "roles": 4,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single app: HR, IT, and manager tasks all belong to one onboarding workflow, not separate domains owned by different teams.",
+      "questions": [
+        "Are onboarding checklists templated per role/department and auto-assigned, or manually created per new hire?",
+        "Do new hires themselves complete any tasks (self-service portal), or is the app used only by HR/IT/managers?",
+        "Are there task dependencies (e.g., IT can't create accounts until HR submits start date), or are all tasks independent?",
+        "Do tasks require approvals or sign-offs beyond simple completion (e.g., manager confirms equipment received)?",
+        "Do you need integration with an existing HRIS or ITSM system, or is this a standalone workflow?"
+      ]
+    },
+    {
+      "n": 5,
+      "request": "We want an employee satisfaction tool that connects to Slack and asks monthly questions.",
+      "apps": [
+        {
+          "key": "employee_pulse",
+          "ok": true,
+          "attempts": 2,
+          "entities": 5,
+          "views": 9,
+          "workflows": 3,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive domain — pulse surveys via Slack — with no indication of separate team ownership or distinct sub-systems that would justify splitting into multiple apps.",
+      "questions": [
+        "Is this for a single company/Slack workspace, or a multi-tenant SaaS product serving multiple organizations?",
+        "Should responses be anonymous (with enforced anonymity guarantees in the data model), or do you need to tie responses to individual employees?",
+        "Who can create and configure questions — HR admins only, or also team managers?",
+        "Do you need a reporting/analytics dashboard (trends, heatmaps, export), or is collecting responses and showing a simple summary enough?",
+        "What question types do you need — single rating scale, multiple choice, free-text, or a mix?"
+      ]
+    },
+    {
+      "n": 6,
+      "request": "We need a customer support system that integrates with our Microsoft Exchange stack.",
+      "apps": [
+        {
+          "key": "customer_support",
+          "ok": true,
+          "attempts": 2,
+          "entities": 5,
+          "views": 11,
+          "workflows": 6,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single customer support domain; Exchange is an integration point, not a separate app, so one app with ticketing, customer, and agent entities is the right scope.",
+      "questions": [
+        "How should tickets be created from Exchange — auto-convert inbound emails from a shared support mailbox, or allow agents to manually promote emails to tickets?",
+        "Do you need SLA tracking with escalation rules (e.g., response time targets, auto-escalation on breach), or is this a lighter-weight ticketing workflow?",
+        "Should customers have a self-service portal to view and respond to their own tickets, or is this purely an internal agent-facing tool?",
+        "Are there other integrations beyond Exchange (e.g., Teams, SharePoint, Dynamics, a knowledge base, chat) that need to be in scope?",
+        "What is the team structure — do you have tiered support (Tier 1/2/3), specific agent roles, or routing rules based on product/category?"
+      ]
+    },
+    {
+      "n": 7,
+      "request": "We can’t use Asana anymore but need a task management solution where customers can access certain projects.",
+      "apps": [
+        {
+          "key": "task_manager",
+          "ok": true,
+          "attempts": 2,
+          "entities": 6,
+          "views": 7,
+          "workflows": 4,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single app: one task management domain with customer-facing access controls, not distinct domains owned by separate teams.",
+      "questions": [
+        "Can customers only view projects/tasks, or do they also need to create/edit tasks and leave comments?",
+        "Is this B2B (customers are organizations with multiple team members needing access) or B2C (individual customers)?",
+        "Should customers be restricted to seeing only projects they're explicitly invited to, or can they browse all projects marked as 'customer-visible'?",
+        "Do you need to migrate existing data from Asana, or is this a fresh start?",
+        "What internal roles are needed — e.g., admin, project manager, team member — or is everyone on the internal side an equal collaborator?"
+      ]
+    },
+    {
+      "n": 8,
+      "request": "Build a lightweight inventory app for laptops, monitors, phones, and assigned employees.",
+      "apps": [
+        {
+          "key": "it_inventory",
+          "ok": true,
+          "attempts": 2,
+          "entities": 3,
+          "views": 9,
+          "workflows": 3,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive domain (IT asset inventory) with tightly coupled entities (assets, employees, assignments); no evidence of separate team ownership or need to split into multiple apps.",
+      "questions": [
+        "Should employees be managed within this app, or will employee data be pulled from an external directory (e.g., Azure AD, Google Workspace)?",
+        "Do you need a checkout/check-in workflow with dates and history, or just a simple 'currently assigned to' field on each asset?",
+        "Are there asset types beyond laptops, monitors, and phones that should be supported, or should the type list be user-configurable?",
+        "Do you need to track additional asset details like serial number, purchase date, warranty expiry, or cost?",
+        "Who will use this app — just IT admins, or also managers requesting equipment for their team members?"
+      ]
+    },
+    {
+      "n": 9,
+      "request": "We need a vendor approval system where finance reviews new suppliers before they can be used.",
+      "apps": [
+        {
+          "key": "vendor_approval",
+          "ok": true,
+          "attempts": 2,
+          "entities": 3,
+          "views": 7,
+          "workflows": 3,
+          "roles": 4,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single app — the request centers on one workflow (submit vendor → finance review → approve/reject) with no indication of distinct domains owned by separate teams.",
+      "questions": [
+        "Who can submit a new vendor request — any employee, or only specific roles like procurement/purchasing staff?",
+        "Is finance review the only approval step, or are there additional stages (e.g., legal review, department head sign-off) for certain vendors?",
+        "Should vendors be tiered by risk or spend level, and does that tier change the approval workflow?",
+        "Do you need to track approved vendors on an ongoing basis (e.g., renewals, compliance documents, performance), or is this purely an intake-and-approve workflow?",
+        "Does this need to integrate with an existing ERP or procurement system (e.g., SAP, Oracle, Coupa) for vendor master data?"
+      ]
+    },
+    {
+      "n": 10,
+      "request": "Create a contract management app with renewal reminders, owners, tags, and uploaded PDFs.",
+      "apps": [
+        {
+          "key": "contract_management",
+          "ok": true,
+          "attempts": 2,
+          "entities": 5,
+          "views": 10,
+          "workflows": 4,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive app — all features (owners, tags, PDFs, renewal reminders) revolve around one core entity (Contract) with no distinct domain boundaries or separate team ownership that would justify splitting.",
+      "questions": [
+        "Who are the contract owners — internal employees only, or also external parties (vendors, clients)?",
+        "What reminder cadence is needed (e.g., 30/60/90 days before expiry), and should reminders go to owners only or also to a legal/finance approver?",
+        "Should contracts support approval workflows (draft → pending → approved), or is this a lightweight tracking repository?",
+        "Do you need search/filter by tags, owner, status, and date range, or is simple list view sufficient?"
+      ]
+    },
+    {
+      "n": 11,
+      "request": "We need a sales pipeline CRM for B2B deals with companies, contacts, deal stages, tasks, and follow-up reminders.",
+      "apps": [
+        {
+          "key": "sales_pipeline_crm",
+          "ok": true,
+          "attempts": 2,
+          "entities": 5,
+          "views": 11,
+          "workflows": 4,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive sales CRM domain — companies, contacts, deals, tasks, and reminders are tightly coupled and owned by one team, so one app with multiple entities is the right structure.",
+      "questions": [
+        "Who are the user roles (e.g., sales reps, managers, admins), and do reps see only their own deals or the entire pipeline?",
+        "Should deal stages be customizable per pipeline, or is a single fixed stage set sufficient?",
+        "What types of follow-up reminders are needed — in-app notifications only, or also email/calendar integration?",
+        "Do you need reporting/dashboards (e.g., forecast by stage, win rate, activity metrics), or is deal-level tracking enough?",
+        "Should this integrate with any external systems (email, calendar, marketing automation, ERP)?"
+      ]
+    },
+    {
+      "n": 12,
+      "request": "Build a recruiting pipeline where we track candidates, interviews, feedback, offers, and hiring managers.",
+      "apps": [
+        {
+          "key": "recruiting_pipeline",
+          "ok": true,
+          "attempts": 2,
+          "entities": 7,
+          "views": 14,
+          "workflows": 5,
+          "roles": 4,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "All requested entities—candidates, interviews, feedback, offers, and hiring managers—belong to the same talent-acquisition domain and lifecycle, so this is a single app rather than a suite.",
+      "questions": [
+        "Is this for internal hiring at a single company, or is this a recruiting agency managing placements for multiple client companies?",
+        "What is the offer approval workflow — who needs to approve an offer before it is sent to a candidate, and are there multiple approval levels?",
+        "Do hiring managers and interviewers need their own self-service views (e.g., to review candidate profiles and submit feedback directly), or is everything managed by recruiters?",
+        "Are external recruiting agencies or vendors involved in sourcing candidates, and if so, do they need any access to the system?",
+        "Do you need to track candidate sourcing channels (e.g., referral, job board, LinkedIn) and pipeline metrics/reporting?"
+      ]
+    },
+    {
+      "n": 13,
+      "request": "We need an internal ticketing system for IT requests with priorities, SLAs, assignments, and email notifications.",
+      "apps": [
+        {
+          "key": "it_ticketing",
+          "ok": true,
+          "attempts": 2,
+          "entities": 8,
+          "views": 11,
+          "workflows": 5,
+          "roles": 3,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive domain (IT ticketing) with no indication of separate team ownership or distinct domains requiring separate apps; all entities belong to one system.",
+      "questions": [
+        "Who are the ticket requesters — all employees (self-service), or is ticket creation restricted to a front-desk/dispatch team?",
+        "Are SLAs defined per category/priority combination, or do you also need business-hours calendars (e.g., 24/7 vs. Mon–Fri) that affect SLA timers?",
+        "Do you need a knowledge base or self-service article entity linked to tickets, or is this purely ticket management?",
+        "Should tickets be linkable to IT assets (hardware, software licenses), or is asset management out of scope for this app?",
+        "What roles do you need — e.g., end user, IT agent, team lead/supervisor with approval authority?"
+      ]
+    },
+    {
+      "n": 14,
+      "request": "Create a purchase request app where employees request items, managers approve them, and finance tracks the budget.",
+      "apps": [
+        {
+          "key": "purchase_request",
+          "ok": true,
+          "attempts": 2,
+          "entities": 6,
+          "views": 10,
+          "workflows": 4,
+          "roles": 5,
+          "errors": []
+        }
+      ],
+      "is_suite": false,
+      "reasoning": "This is a single cohesive procurement workflow with shared entities (purchase requests, items, budget) across roles — there's no clear separation into domains owned by different teams, so one app with multiple entities is the right call.",
+      "questions": [
+        "Are approvals single-step (one manager) or multi-level (e.g., threshold-based chains where higher-value requests escalate to directors or finance)?",
+        "How is budget tracked — per department, per cost category, per project, or a combination?",
+        "Should the app include vendor/supplier records and quote comparisons, or are requests purely internal until approved?",
+        "After approval, does the app need to track fulfillment (PO creation, receipt of goods, invoicing) or does the workflow end at approval?",
+        "Are there distinct employee roles (requester, manager, finance admin) that need permission-gated views, or is access flat across the organization?"
+      ]
+    },
+    {
+      "n": 15,
+      "request": "We need a compliance exception tracker where employees submit risks, legal reviews them, and everything is audit logged.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.011726 EUR, Available: 0.009635 EUR'}}"
+    },
+    {
+      "n": 16,
+      "request": "Build a customer success dashboard that tracks accounts, health scores, renewals, open issues, and responsible account managers.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.011714 EUR, Available: 0.004530 EUR'}}"
+    },
+    {
+      "n": 17,
+      "request": "We need a project portal where internal teams manage projects and external customers can only see selected tasks, files, and status updates.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.005430 EUR, Available: 0.004530 EUR'}}"
+    },
+    {
+      "n": 18,
+      "request": "Create a partner management CRM with partner tiers, contacts, activities, pipeline, signed agreements, and quarterly review reminders.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.005426 EUR, Available: 0.004530 EUR'}}"
+    },
+    {
+      "n": 19,
+      "request": "We need an internal tool for managing software access requests. Employees request access, managers approve, IT provisions it, and security gets an audit trail.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.005437 EUR, Available: 0.004530 EUR'}}"
+    },
+    {
+      "n": 20,
+      "request": "Build us a full operations app for our field service team: customers, sites, equipment, service visits, assigned technicians, photos, notes, invoices, and follow-up tasks.",
+      "apps": [],
+      "error": "Error code: 403 - {'type': 'error', 'error': {'type': 'permission_error', 'message': 'Insufficient credits for request. Required: 0.005448 EUR, Available: 0.004530 EUR'}}"
+    }
+  ]
+}

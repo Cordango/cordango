@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.SourceGen</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    The generator SDK. It knows what a generator IS; it knows nothing about any particular one.
+
+    Everything here is about the contract between the CLI and a target: what a generator is handed,
+    what it may answer, how a target says what it cannot do, and how files reach the disk safely and
+    identically every time. `Cordango.SourceGen.DotNetVue` is a consumer of this project like any
+    third-party generator would be, and if anything in here starts naming ASP.NET, Vue or EF Core,
+    the boundary has already gone.
+
+    One ProjectReference: the compiler, for the definition vocabulary a capability check has to speak
+    (block kinds, effect types, field types all come out of the schema rather than out of a list
+    somebody retypes here).
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Cordango.Compiler\Cordango.Compiler.csproj" />
+  </ItemGroup>
+
+</Project>

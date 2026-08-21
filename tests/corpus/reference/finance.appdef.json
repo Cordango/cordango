@@ -1,0 +1,317 @@
+{
+  "schemaVersion": "2.0",
+  "key": "finance",
+  "name": "Finance",
+  "version": "1.0.0",
+  "description": "A clean ledger of money in and out for the agency: every transaction booked against a category, budgets per category, and a dashboard that shows cashflow at a glance.",
+  "presentation": {
+    "icon": "finance",
+    "color": "#7c3aed",
+    "category": "Finance",
+    "tagline": "Cashflow, spend, budgets"
+  },
+  "entities": [
+    {
+      "key": "budget_category",
+      "label": "Budget category",
+      "labelPlural": "Budget categories",
+      "displayField": "name",
+      "icon": "tag",
+      "kind": "config",
+      "fields": [
+        { "key": "name", "label": "Name", "type": "text", "required": true },
+        { "key": "monthly_budget", "label": "Monthly budget", "type": "money", "currency": "EUR" },
+        { "key": "owner", "label": "Owner", "type": "reference", "targetApp": "platform", "targetEntity": "person", "onDelete": "setNull" }
+      ]
+    },
+    {
+      "key": "transaction",
+      "label": "Transaction",
+      "labelPlural": "Transactions",
+      "displayField": "counterparty",
+      "icon": "swap-horizontal",
+      "fields": [
+        { "key": "booked_on", "label": "Booked on", "type": "date", "required": true, "indexed": true },
+        {
+          "key": "direction",
+          "label": "Direction",
+          "type": "select",
+          "required": true,
+          "default": "expense",
+          "options": [
+            { "value": "income", "label": "Income", "color": "#16a34a" },
+            { "value": "expense", "label": "Expense", "color": "#dc2626" }
+          ]
+        },
+        { "key": "category", "label": "Category", "type": "reference", "targetEntity": "budget_category", "onDelete": "setNull", "indexed": true },
+        { "key": "amount", "label": "Amount", "type": "money", "currency": "EUR", "required": true },
+        { "key": "counterparty", "label": "Counterparty", "type": "text", "required": true, "help": "Who was paid, or who paid us." },
+        { "key": "reference", "label": "Reference", "type": "text", "help": "Invoice no. or booking reference." },
+        { "key": "notes", "label": "Notes", "type": "longtext", "group": "Notes" },
+        { "key": "reconciled", "label": "Reconciled", "type": "boolean", "default": false }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "counterparty",
+            "facts": ["booked_on", "direction", "category", "amount", "reconciled"],
+            "actions": ["mark_reconciled", "edit", "delete"]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "visibleWhen": { "value": "{{record.notes}}", "neq": "" },
+            "blocks": [
+              { "kind": "fields", "fields": ["notes"] }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "views": [
+    {
+      "key": "transactions_table",
+      "label": "All transactions",
+      "type": "table",
+      "entity": "transaction",
+      "sort": [{ "field": "booked_on", "direction": "desc" }],
+      "config": {
+        "columns": ["booked_on", "counterparty", "category", "direction", "amount", "reconciled"]
+      }
+    },
+    {
+      "key": "income_table",
+      "label": "Income",
+      "type": "table",
+      "entity": "transaction",
+      "filters": [
+        { "field": "direction", "operator": "eq", "value": "income" }
+      ],
+      "sort": [{ "field": "booked_on", "direction": "desc" }],
+      "config": {
+        "columns": ["booked_on", "counterparty", "category", "amount", "reconciled"]
+      }
+    },
+    {
+      "key": "expenses_table",
+      "label": "Expenses",
+      "type": "table",
+      "entity": "transaction",
+      "filters": [
+        { "field": "direction", "operator": "eq", "value": "expense" }
+      ],
+      "sort": [{ "field": "booked_on", "direction": "desc" }],
+      "config": {
+        "columns": ["booked_on", "counterparty", "category", "amount", "reconciled"]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "transaction",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Income",
+                  "format": "money",
+                  "icon": "trending-up",
+                  "source": {
+                    "entity": "transaction",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                  },
+                  "link": {
+                    "page": "transactions",
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Spend",
+                  "format": "money",
+                  "icon": "trending-down",
+                  "source": {
+                    "entity": "transaction",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "expense" }]
+                  },
+                  "link": {
+                    "page": "transactions",
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "expense" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Transactions",
+                  "icon": "swap-horizontal",
+                  "source": {
+                    "entity": "transaction",
+                    "aggregate": { "op": "count" }
+                  },
+                  "link": { "page": "transactions" }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Unreconciled",
+                  "icon": "alert-circle-outline",
+                  "source": {
+                    "entity": "transaction",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "reconciled", "operator": "eq", "value": false }]
+                  },
+                  "link": {
+                    "page": "transactions",
+                    "filters": [{ "field": "reconciled", "operator": "eq", "value": false }]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Income by month",
+                    "source": {
+                      "entity": "transaction",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "month_of:booked_on" },
+                      "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                    },
+                    "link": { "page": "transactions" }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Spend by month",
+                    "source": {
+                      "entity": "transaction",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "month_of:booked_on" },
+                      "filters": [{ "field": "direction", "operator": "eq", "value": "expense" }]
+                    },
+                    "link": { "page": "transactions" }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Spend by category",
+                    "source": {
+                      "entity": "transaction",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "category" },
+                      "filters": [{ "field": "direction", "operator": "eq", "value": "expense" }]
+                    },
+                    "link": { "page": "transactions" }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Income by category",
+                    "source": {
+                      "entity": "transaction",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "category" },
+                      "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                    },
+                    "link": { "page": "transactions" }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Latest transactions",
+              "blocks": [
+                { "kind": "view", "view": "transactions_table" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "transactions",
+      "label": "Transactions",
+      "icon": "swap-horizontal",
+      "entity": "transaction",
+      "blocks": [
+        { "kind": "view", "view": "transactions_table" }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "mark_reconciled",
+      "label": "Mark reconciled",
+      "entity": "transaction",
+      "style": "default",
+      "placements": ["tableRow", "recordHeader"],
+      "successMessage": "Marked reconciled.",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": { "reconciled": true }
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "finance",
+      "name": "Finance",
+      "description": "Books transactions, manages budget categories, reconciles the ledger.",
+      "grants": [
+        { "entity": "transaction", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] },
+        { "entity": "budget_category", "create": true, "read": true, "update": true, "delete": true }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Sees the ledger and budgets, changes nothing.",
+      "grants": [
+        { "entity": "transaction", "read": true },
+        { "entity": "budget_category", "read": true }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        { "entity": "*", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#7c3aed",
+    "secondaryColor": "#a855f7",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

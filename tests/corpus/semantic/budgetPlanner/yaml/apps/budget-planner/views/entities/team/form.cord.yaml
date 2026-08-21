@@ -1,0 +1,9 @@
+form: team
+blocks:
+  - kind: fields
+    fields:
+      - name
+      - function
+      - default_salary
+      - description
+    columns: 2

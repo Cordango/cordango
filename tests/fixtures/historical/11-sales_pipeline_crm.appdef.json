@@ -1,0 +1,863 @@
+{
+  "schemaVersion": "1.0",
+  "key": "sales_pipeline_crm",
+  "name": "Sales Pipeline CRM",
+  "version": "1.0.1",
+  "description": "A B2B sales pipeline CRM for tracking companies, contacts, and deals through customizable stages, with associated tasks and automated follow-up reminders to keep deals moving forward.",
+  "entities": [
+    {
+      "key": "company",
+      "label": "Company",
+      "labelPlural": "Companies",
+      "icon": "building",
+      "displayField": "name",
+      "description": "An organization being targeted or engaged in the sales pipeline.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Company Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "industry",
+          "label": "Industry",
+          "type": "select",
+          "options": [
+            {
+              "value": "technology",
+              "label": "Technology",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#10B981"
+            },
+            {
+              "value": "healthcare",
+              "label": "Healthcare",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "manufacturing",
+              "label": "Manufacturing",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "retail",
+              "label": "Retail",
+              "color": "#EF4444"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "employee_count",
+          "label": "Employee Count",
+          "type": "integer"
+        },
+        {
+          "key": "annual_revenue",
+          "label": "Annual Revenue",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2
+        },
+        {
+          "key": "address",
+          "label": "Address",
+          "type": "longtext"
+        },
+        {
+          "key": "description",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "icon": "users",
+      "displayField": "full_name",
+      "description": "A person associated with a company who is a point of contact in the sales process.",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary Contact",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "deal",
+      "label": "Deal",
+      "labelPlural": "Deals",
+      "icon": "handshake",
+      "displayField": "title",
+      "description": "A sales opportunity tracked through pipeline stages.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Deal Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "primary_contact_id",
+          "label": "Primary Contact",
+          "type": "reference",
+          "targetEntity": "contact",
+          "indexed": true,
+          "onDelete": "setNull"
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "prospecting",
+          "options": [
+            {
+              "value": "prospecting",
+              "label": "Prospecting",
+              "color": "#6B7280"
+            },
+            {
+              "value": "qualification",
+              "label": "Qualification",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "proposal",
+              "label": "Proposal",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "negotiation",
+              "label": "Negotiation",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "closed_won",
+              "label": "Closed Won",
+              "color": "#10B981"
+            },
+            {
+              "value": "closed_lost",
+              "label": "Closed Lost",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "amount",
+          "label": "Deal Amount",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2,
+          "required": true
+        },
+        {
+          "key": "expected_close_date",
+          "label": "Expected Close Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "probability",
+          "label": "Win Probability (%)",
+          "type": "integer",
+          "default": 0,
+          "help": "Estimated likelihood of closing (0–100)."
+        },
+        {
+          "key": "description",
+          "label": "Deal Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "task",
+      "label": "Task",
+      "labelPlural": "Tasks",
+      "icon": "check-square",
+      "displayField": "title",
+      "description": "An actionable to-do item associated with a deal or contact.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Task Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "deal_id",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "contact_id",
+          "label": "Contact",
+          "type": "reference",
+          "targetEntity": "contact",
+          "indexed": true,
+          "onDelete": "setNull"
+        },
+        {
+          "key": "type",
+          "label": "Task Type",
+          "type": "select",
+          "default": "call",
+          "options": [
+            {
+              "value": "call",
+              "label": "Call",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "email",
+              "label": "Email",
+              "color": "#10B981"
+            },
+            {
+              "value": "meeting",
+              "label": "Meeting",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "follow_up",
+              "label": "Follow-up",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "due_date",
+          "label": "Due Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#6B7280"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "task_status",
+          "label": "Task Status",
+          "type": "select",
+          "default": "open",
+          "indexed": true,
+          "options": [
+            {
+              "value": "open",
+              "label": "Open",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "in_progress",
+              "label": "In Progress",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#10B981"
+            },
+            {
+              "value": "deferred",
+              "label": "Deferred",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "follow_up_reminder",
+      "label": "Follow-up Reminder",
+      "labelPlural": "Follow-up Reminders",
+      "icon": "bell",
+      "displayField": "title",
+      "description": "Automated reminder to follow up on a deal at a scheduled date.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Reminder Title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "deal_id",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "reminder_date",
+          "label": "Reminder Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "reminder_status",
+          "label": "Reminder Status",
+          "type": "select",
+          "default": "pending",
+          "indexed": true,
+          "options": [
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "sent",
+              "label": "Sent",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "dismissed",
+              "label": "Dismissed",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "message",
+          "label": "Reminder Message",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "company_to_contacts",
+      "label": "Contacts",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "contact",
+      "inverseField": "company"
+    },
+    {
+      "key": "company_to_deals",
+      "label": "Deals",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "deal",
+      "inverseField": "company"
+    },
+    {
+      "key": "deal_to_tasks",
+      "label": "Tasks",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "task",
+      "inverseField": "deal_id"
+    },
+    {
+      "key": "deal_to_reminders",
+      "label": "Follow-up Reminders",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "follow_up_reminder",
+      "inverseField": "deal_id"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_companies",
+      "label": "Companies",
+      "type": "table",
+      "entity": "company",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "website",
+          "industry",
+          "employee_count",
+          "annual_revenue"
+        ]
+      }
+    },
+    {
+      "key": "company_detail",
+      "label": "Company Detail",
+      "type": "detail",
+      "entity": "company"
+    },
+    {
+      "key": "all_contacts",
+      "label": "Contacts",
+      "type": "table",
+      "entity": "contact",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "phone",
+          "title",
+          "company",
+          "is_primary"
+        ]
+      }
+    },
+    {
+      "key": "contact_detail",
+      "label": "Contact Detail",
+      "type": "detail",
+      "entity": "contact"
+    },
+    {
+      "key": "deal_pipeline",
+      "label": "Pipeline",
+      "type": "kanban",
+      "entity": "deal",
+      "config": {
+        "groupByField": "stage",
+        "columns": [
+          "title",
+          "company",
+          "amount",
+          "expected_close_date",
+          "probability"
+        ]
+      }
+    },
+    {
+      "key": "all_deals",
+      "label": "All Deals",
+      "type": "table",
+      "entity": "deal",
+      "sort": [
+        {
+          "field": "expected_close_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "company",
+          "stage",
+          "amount",
+          "expected_close_date",
+          "probability"
+        ]
+      }
+    },
+    {
+      "key": "deal_detail",
+      "label": "Deal Detail",
+      "type": "detail",
+      "entity": "deal"
+    },
+    {
+      "key": "open_tasks",
+      "label": "My Tasks",
+      "type": "table",
+      "entity": "task",
+      "filters": [
+        {
+          "field": "task_status",
+          "operator": "neq",
+          "value": "completed"
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "deal_id",
+          "type",
+          "due_date",
+          "priority",
+          "task_status"
+        ]
+      }
+    },
+    {
+      "key": "task_detail",
+      "label": "Task Detail",
+      "type": "detail",
+      "entity": "task"
+    },
+    {
+      "key": "pending_reminders",
+      "label": "Reminders",
+      "type": "table",
+      "entity": "follow_up_reminder",
+      "filters": [
+        {
+          "field": "reminder_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "sort": [
+        {
+          "field": "reminder_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "deal_id",
+          "reminder_date",
+          "reminder_status"
+        ]
+      }
+    },
+    {
+      "key": "sales_dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "deal",
+      "config": {
+        "widgets": [
+          {
+            "type": "summary",
+            "label": "Total Pipeline Value",
+            "aggregation": "sum",
+            "field": "amount",
+            "filters": [
+              {
+                "field": "stage",
+                "operator": "neq",
+                "value": "closed_won"
+              }
+            ]
+          },
+          {
+            "type": "summary",
+            "label": "Closed Won",
+            "aggregation": "sum",
+            "field": "amount",
+            "filters": [
+              {
+                "field": "stage",
+                "operator": "eq",
+                "value": "closed_won"
+              }
+            ]
+          },
+          {
+            "type": "breakdown",
+            "label": "Deals by Stage",
+            "groupBy": "stage"
+          },
+          {
+            "type": "list",
+            "label": "Upcoming Tasks",
+            "entity": "task",
+            "filters": [
+              {
+                "field": "task_status",
+                "operator": "neq",
+                "value": "completed"
+              }
+            ],
+            "sortBy": "due_date",
+            "limit": 5
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "auto_create_reminder_on_new_deal",
+      "name": "Auto-create follow-up reminder on new deal",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "deal"
+      },
+      "actions": [
+        {
+          "type": "createRecord"
+        }
+      ]
+    },
+    {
+      "key": "reminder_due_notification",
+      "name": "Send reminder notification on due date",
+      "enabled": true,
+      "trigger": {
+        "event": "schedule",
+        "entity": "follow_up_reminder",
+        "cron": "0 8 * * *"
+      },
+      "conditions": [
+        {
+          "field": "reminder_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "deal_stage_changed_notify",
+      "name": "Notify on deal stage change",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "auto_complete_reminder_on_deal_close",
+      "name": "Dismiss pending reminders when deal is closed",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "deal",
+        "field": "stage"
+      },
+      "conditions": [
+        {
+          "field": "stage",
+          "operator": "in",
+          "value": [
+            "closed_won",
+            "closed_lost"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all entities, fields, and configuration.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "sales_rep",
+      "name": "Sales Rep",
+      "description": "Standard user who manages companies, contacts, deals, tasks, and reminders.",
+      "grants": [
+        {
+          "entity": "company",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "contact",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "deal",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "task",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "follow_up_reminder",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to the pipeline.",
+      "grants": [
+        {
+          "entity": "company",
+          "read": true
+        },
+        {
+          "entity": "contact",
+          "read": true
+        },
+        {
+          "entity": "deal",
+          "read": true
+        },
+        {
+          "entity": "task",
+          "read": true
+        },
+        {
+          "entity": "follow_up_reminder",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#0F172A",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

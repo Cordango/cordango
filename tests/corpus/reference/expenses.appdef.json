@@ -1,0 +1,379 @@
+{
+  "schemaVersion": "2.0",
+  "key": "expenses",
+  "name": "Expenses",
+  "version": "1.0.0",
+  "description": "Expense claims for the team: submit an expense, get it approved, get reimbursed.",
+  "presentation": {
+    "icon": "credit-card-outline",
+    "color": "#ea580c",
+    "category": "Finance",
+    "tagline": "Claims, approvals, reimbursement"
+  },
+  "entities": [
+    {
+      "key": "expense_claim",
+      "label": "Expense claim",
+      "labelPlural": "Expense claims",
+      "displayField": "description",
+      "icon": "credit-card-outline",
+      "fields": [
+        {
+          "key": "submitted_by",
+          "label": "Submitted by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who claims it. Set to the signed-in user."
+        },
+        { "key": "spent_on", "label": "Spent on", "type": "date", "required": true, "indexed": true },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "required": true,
+          "default": "travel",
+          "options": [
+            { "value": "travel", "label": "Travel", "color": "#0ea5e9" },
+            { "value": "meals", "label": "Meals", "color": "#f59e0b" },
+            { "value": "equipment", "label": "Equipment", "color": "#8b5cf6" },
+            { "value": "software", "label": "Software", "color": "#06b6d4" },
+            { "value": "other", "label": "Other", "color": "#64748b" }
+          ]
+        },
+        { "key": "description", "label": "Description", "type": "text", "required": true },
+        { "key": "amount", "label": "Amount", "type": "money", "currency": "EUR", "required": true },
+        { "key": "receipt", "label": "Receipt", "type": "attachment" },
+        { "key": "status", "label": "Status", "type": "select", "role": "status", "indexed": true },
+        { "key": "decline_reason", "label": "Decline reason", "type": "longtext", "group": "Decision" },
+        { "key": "reimbursed_on", "label": "Reimbursed on", "type": "date", "group": "Decision" }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "description",
+            "status": "status",
+            "facts": ["submitted_by", "spent_on", "category", "amount"],
+            "actions": ["approve_claim", "decline_claim", "mark_reimbursed", "edit", "delete"]
+          },
+          {
+            "kind": "process",
+            "visibleWhen": { "value": "{{record.status}}", "eq": "submitted" }
+          },
+          {
+            "kind": "section",
+            "label": "Receipt",
+            "blocks": [
+              { "kind": "fields", "fields": ["receipt"] }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Why this was declined",
+            "visibleWhen": { "value": "{{record.status}}", "eq": "declined" },
+            "blocks": [
+              { "kind": "fields", "fields": ["decline_reason"] }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "views": [
+    {
+      "key": "my_claims_table",
+      "label": "My claims",
+      "type": "table",
+      "entity": "expense_claim",
+      "filters": [
+        { "field": "submitted_by", "operator": "eq", "value": "{{actor.id}}" }
+      ],
+      "sort": [{ "field": "spent_on", "direction": "desc" }],
+      "config": {
+        "columns": ["spent_on", "description", "category", "amount", "status"]
+      }
+    },
+    {
+      "key": "inbox_table",
+      "label": "Awaiting approval",
+      "type": "table",
+      "entity": "expense_claim",
+      "filters": [
+        { "field": "status", "operator": "eq", "value": "submitted" }
+      ],
+      "sort": [{ "field": "spent_on", "direction": "asc" }],
+      "config": {
+        "columns": ["submitted_by", "spent_on", "description", "category", "amount"]
+      }
+    },
+    {
+      "key": "all_claims_table",
+      "label": "All claims",
+      "type": "table",
+      "entity": "expense_claim",
+      "sort": [{ "field": "spent_on", "direction": "desc" }],
+      "config": {
+        "columns": ["submitted_by", "spent_on", "description", "category", "amount", "status"]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "expense_claim",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Awaiting approval",
+                  "icon": "clock-outline",
+                  "source": {
+                    "entity": "expense_claim",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "submitted" }]
+                  },
+                  "link": {
+                    "page": "claims",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "submitted" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "To reimburse",
+                  "format": "money",
+                  "icon": "cash-clock",
+                  "source": {
+                    "entity": "expense_claim",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
+                  },
+                  "link": {
+                    "page": "claims",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Reimbursed",
+                  "format": "money",
+                  "icon": "cash-check",
+                  "source": {
+                    "entity": "expense_claim",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "reimbursed" }]
+                  },
+                  "link": {
+                    "page": "claims",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "reimbursed" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Declined",
+                  "icon": "close-circle-outline",
+                  "source": {
+                    "entity": "expense_claim",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "declined" }]
+                  },
+                  "link": {
+                    "page": "claims",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "declined" }]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Spend by category",
+                    "source": {
+                      "entity": "expense_claim",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "category" }
+                    },
+                    "link": { "page": "claims" }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Claims by month",
+                    "source": {
+                      "entity": "expense_claim",
+                      "aggregate": { "op": "sum", "field": "amount", "groupBy": "month_of:spent_on" }
+                    },
+                    "link": { "page": "claims" }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Approval inbox",
+              "blocks": [
+                { "kind": "view", "view": "inbox_table" }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "my_expenses",
+      "label": "My expenses",
+      "icon": "account-cash",
+      "entity": "expense_claim",
+      "blocks": [
+        { "kind": "view", "view": "my_claims_table" }
+      ]
+    },
+    {
+      "key": "claims",
+      "label": "All claims",
+      "icon": "credit-card-outline",
+      "entity": "expense_claim",
+      "blocks": [
+        { "kind": "view", "view": "all_claims_table" }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "claim_flow",
+      "entity": "expense_claim",
+      "stateField": "status",
+      "initialState": "submitted",
+      "states": [
+        { "key": "submitted", "label": "Submitted", "color": "#f59e0b" },
+        { "key": "approved", "label": "Approved", "color": "#0ea5e9" },
+        { "key": "reimbursed", "label": "Reimbursed", "color": "#16a34a", "terminal": true },
+        { "key": "declined", "label": "Declined", "color": "#dc2626", "terminal": true }
+      ],
+      "transitions": [
+        { "key": "approve", "label": "Approve", "from": ["submitted"], "to": "approved", "command": "approve_claim" },
+        { "key": "decline", "label": "Decline", "from": ["submitted"], "to": "declined", "command": "decline_claim" },
+        { "key": "reimburse", "label": "Mark reimbursed", "from": ["approved"], "to": "reimbursed", "command": "mark_reimbursed" }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "approve_claim",
+      "label": "Approve",
+      "entity": "expense_claim",
+      "style": "primary",
+      "placements": ["recordHeader", "tableRow"],
+      "successMessage": "Expense approved.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.submitted_by}}",
+          "title": "Expense approved",
+          "message": "Your expense '{{record.description}}' was approved.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "decline_claim",
+      "label": "Decline",
+      "entity": "expense_claim",
+      "style": "danger",
+      "placements": ["recordHeader"],
+      "input": {
+        "fields": ["decline_reason"],
+        "required": ["decline_reason"]
+      },
+      "confirm": {
+        "title": "Decline this expense?",
+        "tone": "danger",
+        "confirmLabel": "Decline"
+      },
+      "successMessage": "Expense declined.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.submitted_by}}",
+          "title": "Expense declined",
+          "message": "Your expense '{{record.description}}' was declined.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "mark_reimbursed",
+      "label": "Mark reimbursed",
+      "entity": "expense_claim",
+      "style": "primary",
+      "placements": ["recordHeader", "tableRow"],
+      "input": {
+        "fields": ["reimbursed_on"],
+        "required": ["reimbursed_on"]
+      },
+      "successMessage": "Expense reimbursed.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.submitted_by}}",
+          "title": "Expense reimbursed",
+          "message": "Your expense '{{record.description}}' was reimbursed.",
+          "link": "auto"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Submits expense claims and tracks their own.",
+      "grants": [
+        { "entity": "expense_claim", "create": true, "read": true }
+      ]
+    },
+    {
+      "key": "approver",
+      "name": "Approver",
+      "description": "Reviews claims, approves or declines them, marks reimbursements.",
+      "grants": [
+        {
+          "entity": "expense_claim",
+          "read": true,
+          "update": true,
+          "commands": ["approve_claim", "decline_claim", "mark_reimbursed"]
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        { "entity": "*", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#ea580c",
+    "secondaryColor": "#f97316",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

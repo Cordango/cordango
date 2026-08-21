@@ -1,0 +1,774 @@
+{
+  "schemaVersion": "1.0",
+  "key": "new_hire_onboarding",
+  "name": "New Hire Onboarding Checklist",
+  "version": "1.0.1",
+  "description": "Manages onboarding workflows for new hires with department-specific task checklists for HR, IT, and managers. Key entities include New Hire, Onboarding Template, Task, Department, and Task Assignment.",
+  "entities": [
+    {
+      "key": "department",
+      "label": "Department",
+      "labelPlural": "Departments",
+      "icon": "building",
+      "displayField": "name",
+      "description": "Departments responsible for onboarding tasks (e.g. HR, IT, Manager).",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "type": "text",
+          "help": "Hex color used for visual badges."
+        }
+      ]
+    },
+    {
+      "key": "new_hire",
+      "label": "New Hire",
+      "labelPlural": "New Hires",
+      "icon": "user-plus",
+      "displayField": "full_name",
+      "description": "A person joining the organization who needs to complete onboarding tasks.",
+      "fields": [
+        {
+          "key": "first_name",
+          "label": "First Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "last_name",
+          "label": "Last Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "help": "Auto-displayed combined name. Populated by workflow or manually."
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "position",
+          "label": "Position / Title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "start_date",
+          "label": "Start Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "template",
+          "label": "Onboarding Template",
+          "type": "reference",
+          "targetEntity": "onboarding_template",
+          "onDelete": "setNull",
+          "help": "The template used to generate this new hire's task assignments."
+        },
+        {
+          "key": "onboarding_status",
+          "label": "Onboarding Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "pending",
+          "options": [
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#6b7280"
+            },
+            {
+              "value": "in_progress",
+              "label": "In Progress",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#22c55e"
+            },
+            {
+              "value": "on_hold",
+              "label": "On Hold",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "onboarding_template",
+      "label": "Onboarding Template",
+      "labelPlural": "Onboarding Templates",
+      "icon": "clipboard-list",
+      "displayField": "name",
+      "description": "A reusable checklist template containing a set of tasks for a specific department or role type.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "indexed": true,
+          "onDelete": "setNull"
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true,
+          "help": "Whether this template is available for new new hires."
+        }
+      ]
+    },
+    {
+      "key": "task",
+      "label": "Task",
+      "labelPlural": "Tasks",
+      "icon": "check-square",
+      "displayField": "title",
+      "description": "An individual onboarding task that belongs to a template and is owned by a department.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "template",
+          "label": "Template",
+          "type": "reference",
+          "targetEntity": "onboarding_template",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "department",
+          "label": "Owning Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict",
+          "help": "The department responsible for completing this task (HR, IT, or Manager)."
+        },
+        {
+          "key": "task_type",
+          "label": "Task Type",
+          "type": "select",
+          "required": true,
+          "default": "standard",
+          "options": [
+            {
+              "value": "standard",
+              "label": "Standard",
+              "color": "#6b7280"
+            },
+            {
+              "value": "it_provisioning",
+              "label": "IT Provisioning",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "hr_document",
+              "label": "HR Document",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "manager_setup",
+              "label": "Manager Setup",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "sort_order",
+          "label": "Sort Order",
+          "type": "integer",
+          "default": 1,
+          "help": "Order in which the task should appear within the template."
+        },
+        {
+          "key": "estimated_days",
+          "label": "Estimated Days to Complete",
+          "type": "integer",
+          "default": 1,
+          "help": "Number of business days the task is expected to take."
+        }
+      ]
+    },
+    {
+      "key": "task_assignment",
+      "label": "Task Assignment",
+      "labelPlural": "Task Assignments",
+      "icon": "clipboard-check",
+      "displayField": "title",
+      "description": "An instance of a task assigned to a specific new hire, tracking completion status.",
+      "fields": [
+        {
+          "key": "new_hire",
+          "label": "New Hire",
+          "type": "reference",
+          "targetEntity": "new_hire",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "task",
+          "label": "Task",
+          "type": "reference",
+          "targetEntity": "task",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "help": "Denormalized task title for quick display."
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "assignment_status",
+          "label": "Assignment Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "not_started",
+          "options": [
+            {
+              "value": "not_started",
+              "label": "Not Started",
+              "color": "#6b7280"
+            },
+            {
+              "value": "in_progress",
+              "label": "In Progress",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#22c55e"
+            },
+            {
+              "value": "blocked",
+              "label": "Blocked",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "assigned_to",
+          "label": "Assigned To",
+          "type": "text",
+          "help": "Name or email of the person responsible for this task."
+        },
+        {
+          "key": "due_date",
+          "label": "Due Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "completed_date",
+          "label": "Completed Date",
+          "type": "date"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "template_tasks",
+      "label": "Tasks",
+      "type": "oneToMany",
+      "fromEntity": "onboarding_template",
+      "toEntity": "task",
+      "inverseField": "template"
+    },
+    {
+      "key": "new_hire_assignments",
+      "label": "Task Assignments",
+      "type": "oneToMany",
+      "fromEntity": "new_hire",
+      "toEntity": "task_assignment",
+      "inverseField": "new_hire"
+    },
+    {
+      "key": "task_assignments",
+      "label": "Assignments",
+      "type": "oneToMany",
+      "fromEntity": "task",
+      "toEntity": "task_assignment",
+      "inverseField": "task"
+    }
+  ],
+  "views": [
+    {
+      "key": "new_hire_table",
+      "label": "New Hires",
+      "type": "table",
+      "entity": "new_hire",
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "first_name",
+          "last_name",
+          "email",
+          "position",
+          "department",
+          "start_date",
+          "onboarding_status"
+        ]
+      }
+    },
+    {
+      "key": "new_hire_detail",
+      "label": "New Hire Detail",
+      "type": "detail",
+      "entity": "new_hire"
+    },
+    {
+      "key": "new_hire_kanban",
+      "label": "New Hires by Status",
+      "type": "kanban",
+      "entity": "new_hire",
+      "config": {
+        "groupByField": "onboarding_status"
+      }
+    },
+    {
+      "key": "template_table",
+      "label": "Templates",
+      "type": "table",
+      "entity": "onboarding_template",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "description",
+          "department",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "template_detail",
+      "label": "Template Detail",
+      "type": "detail",
+      "entity": "onboarding_template"
+    },
+    {
+      "key": "task_table",
+      "label": "Tasks",
+      "type": "table",
+      "entity": "task",
+      "sort": [
+        {
+          "field": "sort_order",
+          "direction": "asc"
+        }
+      ],
+      "filters": [
+        {
+          "field": "template",
+          "operator": "isNotEmpty"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "template",
+          "department",
+          "task_type",
+          "sort_order",
+          "estimated_days"
+        ]
+      }
+    },
+    {
+      "key": "assignment_table",
+      "label": "Task Assignments",
+      "type": "table",
+      "entity": "task_assignment",
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "new_hire",
+          "department",
+          "assigned_to",
+          "due_date",
+          "assignment_status"
+        ]
+      }
+    },
+    {
+      "key": "assignment_kanban",
+      "label": "Assignments by Status",
+      "type": "kanban",
+      "entity": "task_assignment",
+      "config": {
+        "groupByField": "assignment_status"
+      }
+    },
+    {
+      "key": "department_table",
+      "label": "Departments",
+      "type": "table",
+      "entity": "department",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "description"
+        ]
+      }
+    },
+    {
+      "key": "onboarding_dashboard",
+      "label": "Onboarding Dashboard",
+      "type": "dashboard",
+      "entity": "new_hire",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Active New Hires",
+            "entity": "new_hire",
+            "filter": {
+              "field": "onboarding_status",
+              "operator": "in",
+              "value": [
+                "pending",
+                "in_progress"
+              ]
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Completed Onboardings",
+            "entity": "new_hire",
+            "filter": {
+              "field": "onboarding_status",
+              "operator": "eq",
+              "value": "completed"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Overdue Tasks",
+            "entity": "task_assignment",
+            "filter": {
+              "field": "assignment_status",
+              "operator": "neq",
+              "value": "completed"
+            }
+          },
+          {
+            "type": "breakdown",
+            "label": "Assignments by Department",
+            "entity": "task_assignment",
+            "groupBy": "department"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_on_new_hire_created",
+      "name": "Notify HR on New Hire Created",
+      "trigger": {
+        "event": "record.created",
+        "entity": "new_hire"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_assignment_completed",
+      "name": "Notify Manager When Task Completed",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "task_assignment",
+        "field": "assignment_status"
+      },
+      "conditions": [
+        {
+          "field": "assignment_status",
+          "operator": "eq",
+          "value": "completed"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_assignment_blocked",
+      "name": "Notify on Blocked Task",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "task_assignment",
+        "field": "assignment_status"
+      },
+      "conditions": [
+        {
+          "field": "assignment_status",
+          "operator": "eq",
+          "value": "blocked"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "hr_user",
+      "name": "HR User",
+      "description": "HR staff who manage new hires, templates, and assignments.",
+      "grants": [
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "new_hire",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "onboarding_template",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "task",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "task_assignment",
+          "create": true,
+          "read": true,
+          "update": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Managers who view their team's new hires and update assigned tasks.",
+      "grants": [
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "new_hire",
+          "read": true,
+          "update": true,
+          "fieldOverrides": [
+            {
+              "field": "notes",
+              "read": true,
+              "update": true
+            }
+          ]
+        },
+        {
+          "entity": "onboarding_template",
+          "read": true
+        },
+        {
+          "entity": "task",
+          "read": true
+        },
+        {
+          "entity": "task_assignment",
+          "read": true,
+          "update": true,
+          "fieldOverrides": [
+            {
+              "field": "assignment_status",
+              "read": true,
+              "update": true
+            },
+            {
+              "field": "assigned_to",
+              "read": true,
+              "update": true
+            },
+            {
+              "field": "completed_date",
+              "read": true,
+              "update": true
+            },
+            {
+              "field": "notes",
+              "read": true,
+              "update": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to all onboarding data.",
+      "grants": [
+        {
+          "entity": "*",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#06b6d4",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

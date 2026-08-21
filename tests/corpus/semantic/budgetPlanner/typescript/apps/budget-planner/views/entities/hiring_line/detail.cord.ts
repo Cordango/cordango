@@ -1,0 +1,107 @@
+import { defineDetail } from "@cord/sdk";
+
+export default defineDetail({
+  key: "hiring_line",
+  blocks: [
+    {
+      kind: "hub",
+      facts: ["scenario", "headcount", "start_month", "employment_type", "location_country"],
+      actions: ["approve_hire", "open_recruiting", "mark_filled", "shift_hire_start", "edit"],
+      subtitle: ["team", "seniority"],
+    },
+    {
+      kind: "process",
+    },
+    {
+      kind: "tiles",
+      tiles: [
+        {
+          field: "loaded_cost_per_head",
+          label: "Loaded cost / head / yr",
+          format: "money",
+        },
+        {
+          field: "annual_cost",
+          label: "Annual cost (all heads)",
+          format: "money",
+        },
+        {
+          field: "monthly_cost",
+          label: "Monthly cost",
+          format: "money",
+        },
+        {
+          field: "setup_cost_total",
+          label: "One-off cost",
+          format: "money",
+        },
+      ],
+    },
+    {
+      kind: "columns",
+      columns: [
+        [
+          {
+            edit: ["role_title", "team", "headcount", "seniority", "employment_type"],
+            kind: "section",
+            label: "Role",
+            blocks: [
+              {
+                cols: 2,
+                kind: "fields",
+                fields: ["role_title", "team", "headcount", "seniority", "employment_type"],
+              },
+            ],
+          },
+          {
+            edit: ["start_month", "end_month", "location_country"],
+            kind: "section",
+            label: "Timing",
+            blocks: [
+              {
+                cols: 2,
+                kind: "fields",
+                fields: ["start_month", "end_month", "location_country"],
+              },
+            ],
+          },
+        ],
+        [
+          {
+            edit: ["gross_salary", "employer_cost_rate", "other_cost_per_head", "setup_cost_per_head"],
+            kind: "section",
+            label: "Cost",
+            blocks: [
+              {
+                cols: 2,
+                kind: "fields",
+                fields: [
+                  "gross_salary",
+                  "employer_cost_rate",
+                  "other_cost_per_head",
+                  "setup_cost_per_head",
+                  "loaded_cost_per_head",
+                  "annual_cost",
+                  "monthly_cost",
+                  "setup_cost_total",
+                ],
+              },
+            ],
+          },
+          {
+            kind: "section",
+            label: "Notes",
+            blocks: [
+              {
+                cols: 1,
+                kind: "fields",
+                fields: ["notes"],
+              },
+            ],
+          },
+        ],
+      ],
+      weights: [1, 1],
+    },
+  ],
+} as const);

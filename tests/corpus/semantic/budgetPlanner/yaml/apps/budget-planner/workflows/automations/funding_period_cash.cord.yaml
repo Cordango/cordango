@@ -1,0 +1,15 @@
+automation: funding_period_cash
+name: Notify owner when a round closes
+trigger: field.changed
+field: round_stage
+entity: funding_round
+when:
+  field: round_stage
+  value: closed
+  operator: eq
+effects:
+  - to: "{{actor.id}}"
+    link: auto
+    type: notify
+    title: Recalculate plan after funding
+    message: Funding round {{record.name}} is closed — recalculate the scenario so cash and runway include {{record.amount}}.

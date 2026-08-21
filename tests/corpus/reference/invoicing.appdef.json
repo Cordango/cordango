@@ -1,0 +1,807 @@
+{
+  "schemaVersion": "2.0",
+  "key": "invoicing",
+  "name": "Invoices",
+  "version": "1.1.0",
+  "description": "Client invoicing: build invoices from line items, send them, track payments and what is still outstanding.",
+  "presentation": {
+    "icon": "receipt-text",
+    "color": "#0891b2",
+    "category": "Finance",
+    "tagline": "Invoices, payments, aging"
+  },
+  "entities": [
+    {
+      "key": "invoice",
+      "label": "Invoice",
+      "labelPlural": "Invoices",
+      "displayField": "number",
+      "icon": "receipt-text",
+      "fields": [
+        {
+          "key": "number",
+          "label": "Invoice no.",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "client",
+          "label": "Client",
+          "type": "reference",
+          "targetEntity": "organization",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true,
+          "targetApp": "core_organizations",
+          "help": "The company being invoiced - the shared Organizations record, not a copy of it."
+        },
+        {
+          "key": "issue_date",
+          "label": "Issued",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "due_date",
+          "label": "Due",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "tax_rate",
+          "label": "Tax %",
+          "type": "decimal",
+          "default": 19
+        },
+        {
+          "key": "subtotal",
+          "label": "Subtotal",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "rollup": {
+              "entity": "invoice_line",
+              "via": "invoice",
+              "op": "sum",
+              "field": "line_total"
+            }
+          }
+        },
+        {
+          "key": "tax_amount",
+          "label": "Tax",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "subtotal * tax_rate / 100"
+          }
+        },
+        {
+          "key": "total",
+          "label": "Total",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "subtotal * (1 + tax_rate / 100)"
+          }
+        },
+        {
+          "key": "paid_amount",
+          "label": "Paid",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "rollup": {
+              "entity": "payment",
+              "via": "invoice",
+              "op": "sum",
+              "field": "amount"
+            }
+          }
+        },
+        {
+          "key": "balance_due",
+          "label": "Balance due",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "subtotal * (1 + tax_rate / 100) - paid_amount"
+          }
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext",
+          "group": "Notes"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "number",
+            "status": "status",
+            "facts": [
+              "client",
+              "issue_date",
+              "due_date",
+              "total"
+            ],
+            "actions": [
+              "send_invoice",
+              "mark_paid",
+              "cancel_invoice",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Subtotal",
+                "field": "subtotal",
+                "format": "money"
+              },
+              {
+                "label": "Tax",
+                "field": "tax_amount",
+                "format": "money"
+              },
+              {
+                "label": "Total",
+                "field": "total",
+                "format": "money",
+                "icon": "cash-multiple"
+              },
+              {
+                "label": "Paid",
+                "field": "paid_amount",
+                "format": "money"
+              },
+              {
+                "label": "Balance due",
+                "field": "balance_due",
+                "format": "money",
+                "icon": "alert-circle-outline",
+                "attention": {
+                  "op": "gt",
+                  "value": 0
+                }
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Line items",
+            "blocks": [
+              {
+                "kind": "child",
+                "entity": "invoice_line",
+                "via": "invoice",
+                "childType": "lineItems"
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Payments",
+            "blocks": [
+              {
+                "kind": "child",
+                "entity": "payment",
+                "via": "invoice",
+                "childType": "table"
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "visibleWhen": {
+              "value": "{{record.notes}}",
+              "neq": ""
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "invoice_line",
+      "label": "Line item",
+      "labelPlural": "Line items",
+      "displayField": "description",
+      "ownedBy": {
+        "parent": "invoice",
+        "via": "invoice",
+        "as": "lineItems"
+      },
+      "fields": [
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "invoice",
+          "label": "Invoice",
+          "type": "reference",
+          "targetEntity": "invoice",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "quantity",
+          "label": "Qty",
+          "type": "decimal",
+          "default": 1
+        },
+        {
+          "key": "unit_price",
+          "label": "Unit price",
+          "type": "money",
+          "currency": "EUR"
+        },
+        {
+          "key": "line_total",
+          "label": "Amount",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "quantity * unit_price"
+          }
+        }
+      ]
+    },
+    {
+      "key": "payment",
+      "label": "Payment",
+      "labelPlural": "Payments",
+      "displayField": "reference",
+      "ownedBy": {
+        "parent": "invoice",
+        "via": "invoice",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "invoice",
+          "label": "Invoice",
+          "type": "reference",
+          "targetEntity": "invoice",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "money",
+          "currency": "EUR",
+          "required": true
+        },
+        {
+          "key": "paid_on",
+          "label": "Paid on",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "method",
+          "label": "Method",
+          "type": "select",
+          "default": "bank_transfer",
+          "options": [
+            {
+              "value": "bank_transfer",
+              "label": "Bank transfer",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "credit_card",
+              "label": "Credit card",
+              "color": "#a855f7"
+            },
+            {
+              "value": "paypal",
+              "label": "PayPal",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "cash",
+              "label": "Cash",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "reference",
+          "label": "Reference",
+          "type": "text"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "invoices_table",
+      "label": "All invoices",
+      "type": "table",
+      "entity": "invoice",
+      "sort": [
+        {
+          "field": "issue_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "number",
+          "client",
+          "issue_date",
+          "due_date",
+          "total",
+          "paid_amount",
+          "balance_due",
+          "status"
+        ]
+      }
+    },
+    {
+      "key": "overdue_table",
+      "label": "Overdue",
+      "type": "table",
+      "entity": "invoice",
+      "filters": [
+        {
+          "field": "status",
+          "operator": "eq",
+          "value": "sent"
+        },
+        {
+          "field": "due_date",
+          "operator": "lt",
+          "value": "{{today}}"
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "number",
+          "client",
+          "due_date",
+          "total",
+          "balance_due"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "invoice",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Outstanding",
+                  "format": "money",
+                  "icon": "cash-clock",
+                  "source": {
+                    "entity": "invoice",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "balance_due"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "invoices",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Overdue",
+                  "format": "money",
+                  "icon": "alert-circle-outline",
+                  "source": {
+                    "entity": "invoice",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "balance_due"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      },
+                      {
+                        "field": "due_date",
+                        "operator": "lt",
+                        "value": "{{today}}"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "invoices",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      },
+                      {
+                        "field": "due_date",
+                        "operator": "lt",
+                        "value": "{{today}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Open invoices",
+                  "icon": "receipt-text",
+                  "source": {
+                    "entity": "invoice",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "invoices",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Drafts",
+                  "icon": "file-document-edit-outline",
+                  "source": {
+                    "entity": "invoice",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "draft"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "invoices",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "draft"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Invoiced by month",
+                    "source": {
+                      "entity": "invoice",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "total",
+                        "groupBy": "month_of:issue_date"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "neq",
+                          "value": "cancelled"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "invoices"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Outstanding by client",
+                    "source": {
+                      "entity": "invoice",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "balance_due",
+                        "groupBy": "client"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "eq",
+                          "value": "sent"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "invoices"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Overdue invoices",
+              "blocks": [
+                {
+                  "kind": "view",
+                  "view": "overdue_table"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "invoices",
+      "label": "Invoices",
+      "icon": "receipt-text",
+      "entity": "invoice",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "invoices_table"
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "invoice_flow",
+      "entity": "invoice",
+      "stateField": "status",
+      "initialState": "draft",
+      "states": [
+        {
+          "key": "draft",
+          "label": "Draft",
+          "color": "#64748b"
+        },
+        {
+          "key": "sent",
+          "label": "Sent",
+          "color": "#0ea5e9"
+        },
+        {
+          "key": "paid",
+          "label": "Paid",
+          "color": "#16a34a",
+          "terminal": true
+        },
+        {
+          "key": "cancelled",
+          "label": "Cancelled",
+          "color": "#94a3b8",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "send",
+          "label": "Send",
+          "from": [
+            "draft"
+          ],
+          "to": "sent",
+          "command": "send_invoice"
+        },
+        {
+          "key": "settle",
+          "label": "Mark paid",
+          "from": [
+            "sent"
+          ],
+          "to": "paid",
+          "command": "mark_paid"
+        },
+        {
+          "key": "cancel",
+          "label": "Cancel",
+          "from": [
+            "draft",
+            "sent"
+          ],
+          "to": "cancelled",
+          "command": "cancel_invoice"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "send_invoice",
+      "label": "Send",
+      "entity": "invoice",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "successMessage": "Invoice sent.",
+      "effects": []
+    },
+    {
+      "key": "mark_paid",
+      "label": "Mark paid",
+      "entity": "invoice",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "successMessage": "Invoice settled.",
+      "effects": []
+    },
+    {
+      "key": "cancel_invoice",
+      "label": "Cancel",
+      "entity": "invoice",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "confirm": {
+        "title": "Cancel this invoice?",
+        "tone": "danger",
+        "confirmLabel": "Cancel invoice"
+      },
+      "successMessage": "Invoice cancelled.",
+      "effects": []
+    }
+  ],
+  "roles": [
+    {
+      "key": "billing",
+      "name": "Billing",
+      "description": "Creates and sends invoices, records payments.",
+      "grants": [
+        {
+          "entity": "invoice",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        },
+        {
+          "entity": "invoice_line",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "payment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Sees invoices and payment status.",
+      "grants": [
+        {
+          "entity": "invoice",
+          "read": true
+        },
+        {
+          "entity": "invoice_line",
+          "read": true
+        },
+        {
+          "entity": "payment",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0891b2",
+    "secondaryColor": "#0ea5e9",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

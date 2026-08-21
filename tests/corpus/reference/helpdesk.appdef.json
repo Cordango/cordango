@@ -1,0 +1,1343 @@
+{
+  "schemaVersion": "2.0",
+  "key": "helpdesk",
+  "name": "Helpdesk",
+  "version": "1.0.0",
+  "description": "Internal ticket queue: requests come in, get assigned, worked, and resolved — nothing gets lost.",
+  "presentation": {
+    "icon": "lifebuoy",
+    "color": "#dc2626",
+    "category": "Operations",
+    "tagline": "Tickets, queue, resolution"
+  },
+  "plugins": [
+    {
+      "id": "forms"
+    }
+  ],
+  "entities": [
+    {
+      "key": "ticket",
+      "label": "Ticket",
+      "labelPlural": "Tickets",
+      "displayField": "subject",
+      "icon": "lifebuoy",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "requested_by",
+          "label": "Requested by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "The internal staff member who filed it (set to the signed-in user). Empty for an external requester."
+        },
+        {
+          "key": "requester_kind",
+          "label": "Requester type",
+          "type": "select",
+          "default": "internal",
+          "group": "Requester",
+          "options": [
+            {
+              "value": "internal",
+              "label": "Internal (staff)",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "external",
+              "label": "External",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "requester_name",
+          "label": "Requester name",
+          "type": "text",
+          "group": "Requester",
+          "help": "For an external requester we only know by name + email (inbound email later)."
+        },
+        {
+          "key": "requester_email",
+          "label": "Requester email",
+          "type": "email",
+          "group": "Requester"
+        },
+        {
+          "key": "assigned_to",
+          "label": "Assigned to",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "assigned_team",
+          "label": "Team",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "group",
+          "onDelete": "setNull",
+          "indexed": true,
+          "help": "Which team owns it. An intake form routes here when it knows the team but not the person."
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "required": true,
+          "default": "it_support",
+          "options": [
+            {
+              "value": "it_support",
+              "label": "IT support",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "facilities",
+              "label": "Facilities",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#16a34a"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "required": true,
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#64748b"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "opened_on",
+          "label": "Opened",
+          "type": "date",
+          "required": true,
+          "default": "{{today}}",
+          "indexed": true,
+          "help": "When the request came in."
+        },
+        {
+          "key": "due_date",
+          "label": "Due",
+          "type": "date"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "resolution",
+          "label": "Resolution",
+          "type": "longtext",
+          "group": "Resolution"
+        },
+        {
+          "key": "first_reply_at",
+          "label": "First reply at",
+          "type": "datetime",
+          "group": "Metrics",
+          "help": "Stamped once, when the first public reply is posted (drives time-to-first-reply)."
+        },
+        {
+          "key": "resolved_at",
+          "label": "Resolved at",
+          "type": "datetime",
+          "group": "Metrics",
+          "help": "Stamped when the ticket is resolved; cleared on reopen."
+        },
+        {
+          "key": "hours_to_first_reply",
+          "label": "Hours to first reply",
+          "type": "decimal",
+          "group": "Metrics",
+          "computed": {
+            "expr": "hours_between(created_at, first_reply_at)"
+          },
+          "help": "Null until the first reply — open tickets don't count in the average."
+        },
+        {
+          "key": "days_to_close",
+          "label": "Days to close",
+          "type": "decimal",
+          "group": "Metrics",
+          "computed": {
+            "expr": "days_between(created_at, resolved_at)"
+          }
+        },
+        {
+          "key": "intake_submission",
+          "label": "Filed from",
+          "type": "reference",
+          "targetEntity": "intake_submission",
+          "onDelete": "setNull",
+          "help": "The form submission this ticket came from, when it was raised through an intake form. The platform sets it on submit."
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "subject",
+            "status": "status",
+            "facts": [
+              "requested_by",
+              "assigned_to",
+              "assigned_team",
+              "category",
+              "priority"
+            ],
+            "actions": [
+              "assign_ticket",
+              "start_ticket",
+              "resolve_ticket",
+              "reopen_ticket",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process"
+          },
+          {
+            "kind": "answers",
+            "via": "intake_submission",
+            "label": "What they told us"
+          },
+          {
+            "kind": "section",
+            "label": "Requester",
+            "icon": "account-outline",
+            "visibleWhen": {
+              "value": "{{record.requester_kind}}",
+              "eq": "external"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "requester_name",
+                  "requester_email"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Description",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "description"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Resolution",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "resolved"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "resolution"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Conversation",
+            "icon": "forum-outline",
+            "blocks": [
+              {
+                "kind": "child",
+                "entity": "ticket_message",
+                "via": "ticket",
+                "childType": "thread",
+                "subordinate": true,
+                "kindField": "kind",
+                "messageValue": "message",
+                "commentValue": "comment",
+                "authorNameField": "author_name",
+                "authorEmailField": "author_email",
+                "label": "Conversation"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "ticket_message",
+      "label": "Message",
+      "labelPlural": "Conversation",
+      "displayField": "body",
+      "icon": "message-text-outline",
+      "description": "One entry in a ticket's conversation — a public MESSAGE (reply the requester sees) or an internal COMMENT (agents only). Author is the signed-in agent (created_by) or, for inbound email later, an external name + email.",
+      "ownedBy": {
+        "parent": "ticket",
+        "via": "ticket",
+        "as": "feed"
+      },
+      "fields": [
+        {
+          "key": "ticket",
+          "label": "Ticket",
+          "type": "reference",
+          "targetEntity": "ticket",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "kind",
+          "label": "Kind",
+          "type": "select",
+          "default": "message",
+          "options": [
+            {
+              "value": "message",
+              "label": "Message",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "comment",
+              "label": "Internal note",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "body",
+          "label": "Message",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "author_name",
+          "label": "From (name)",
+          "type": "text",
+          "help": "External author's name — for an inbound-email message with no platform user."
+        },
+        {
+          "key": "author_email",
+          "label": "From (email)",
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "intake_form",
+      "label": "Intake form",
+      "labelPlural": "Intake forms",
+      "role": "formTemplate",
+      "displayField": "name",
+      "icon": "file-document-edit-outline",
+      "description": "A form people fill in instead of writing a ticket from scratch. What it CREATES and where that lands is configured on the form itself, so the desk can add a new request type without touching the app.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "intro",
+          "label": "What it's for",
+          "type": "longtext",
+          "help": "Shown under the form's name in the request list, so people pick the right one."
+        },
+        {
+          "key": "active",
+          "label": "Offered",
+          "type": "boolean",
+          "default": true,
+          "help": "Uncheck to retire a form without deleting the submissions it already collected."
+        },
+        {
+          "key": "creates",
+          "label": "Creates",
+          "type": "text",
+          "role": "targetEntity",
+          "help": "The entity a submission files. Empty = collect answers only."
+        },
+        {
+          "key": "route_to_person",
+          "label": "Route to",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "mapsTo": "assigned_to",
+          "help": "Every ticket from this form starts assigned here."
+        },
+        {
+          "key": "route_to_team",
+          "label": "Route to team",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "group",
+          "onDelete": "setNull",
+          "mapsTo": "assigned_team"
+        },
+        {
+          "key": "route_category",
+          "label": "Category",
+          "type": "select",
+          "mapsTo": "category",
+          "options": [
+            {
+              "value": "it_support",
+              "label": "IT support",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "facilities",
+              "label": "Facilities",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#16a34a"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "route_priority",
+          "label": "Priority",
+          "type": "select",
+          "mapsTo": "priority",
+          "help": "A password-reset form can start every ticket at high without asking.",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#64748b"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#dc2626"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "intake_question",
+      "label": "Question",
+      "labelPlural": "Questions",
+      "role": "formField",
+      "displayField": "text",
+      "description": "One question on an intake form. `fills` names the ticket field its answer lands in — empty means the answer is kept on the submission only, which is the right call for a question worth asking but not worth a column.",
+      "fields": [
+        {
+          "key": "form",
+          "label": "Form",
+          "type": "reference",
+          "targetEntity": "intake_form",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "text",
+          "label": "Question",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "answer_type",
+          "label": "Answer type",
+          "type": "select",
+          "role": "answerType",
+          "default": "short_text",
+          "options": [
+            {
+              "value": "short_text",
+              "label": "Short text"
+            },
+            {
+              "value": "long_text",
+              "label": "Long text"
+            },
+            {
+              "value": "single_choice",
+              "label": "Pick one"
+            },
+            {
+              "value": "multi_choice",
+              "label": "Pick any"
+            },
+            {
+              "value": "yes_no",
+              "label": "Yes / no"
+            },
+            {
+              "value": "number",
+              "label": "Number"
+            },
+            {
+              "value": "date",
+              "label": "Date"
+            }
+          ]
+        },
+        {
+          "key": "choices",
+          "label": "Choices",
+          "type": "json",
+          "help": "The options for a pick-one / pick-any question."
+        },
+        {
+          "key": "position",
+          "label": "Order",
+          "type": "integer",
+          "role": "order"
+        },
+        {
+          "key": "required",
+          "label": "Required",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "fills",
+          "label": "Fills",
+          "type": "text",
+          "role": "mapsTo",
+          "help": "Which ticket field this answer becomes — set it in the form designer."
+        }
+      ]
+    },
+    {
+      "key": "intake_submission",
+      "label": "Submission",
+      "labelPlural": "Submissions",
+      "role": "formResponse",
+      "displayField": "id",
+      "description": "One filled-in form. The ticket it filed points back here, which is what lets the ticket show the answers.",
+      "fields": [
+        {
+          "key": "form",
+          "label": "Form",
+          "type": "reference",
+          "targetEntity": "intake_form",
+          "required": true,
+          "onDelete": "cascade"
+        }
+      ]
+    },
+    {
+      "key": "intake_answer",
+      "label": "Answer",
+      "labelPlural": "Answers",
+      "role": "formAnswer",
+      "displayField": "id",
+      "fields": [
+        {
+          "key": "submission",
+          "label": "Submission",
+          "type": "reference",
+          "targetEntity": "intake_submission",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "question",
+          "label": "Question",
+          "type": "reference",
+          "targetEntity": "intake_question",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "value",
+          "label": "Answer",
+          "type": "json",
+          "role": "answerValue"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "queue_table",
+      "label": "Queue",
+      "type": "table",
+      "entity": "ticket",
+      "filters": [
+        {
+          "field": "status",
+          "operator": "neq",
+          "value": "resolved"
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "requested_by",
+          "assigned_to",
+          "category",
+          "priority",
+          "status",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "my_tickets_table",
+      "label": "My tickets",
+      "type": "table",
+      "entity": "ticket",
+      "filters": [
+        {
+          "field": "assigned_to",
+          "operator": "eq",
+          "value": "{{actor.id}}"
+        },
+        {
+          "field": "status",
+          "operator": "neq",
+          "value": "resolved"
+        }
+      ],
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "requested_by",
+          "category",
+          "priority",
+          "status",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "all_tickets_table",
+      "label": "All tickets",
+      "type": "table",
+      "entity": "ticket",
+      "sort": [
+        {
+          "field": "opened_on",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "requested_by",
+          "assigned_to",
+          "category",
+          "priority",
+          "status"
+        ]
+      }
+    },
+    {
+      "key": "board",
+      "label": "Board",
+      "type": "kanban",
+      "entity": "ticket",
+      "config": {
+        "groupByField": "status"
+      }
+    },
+    {
+      "key": "forms_table",
+      "label": "Intake forms",
+      "type": "table",
+      "entity": "intake_form",
+      "config": {
+        "columns": [
+          "name",
+          "creates",
+          "route_to_person",
+          "route_category",
+          "active"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "ticket",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "wrap": true,
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Open",
+                  "icon": "lifebuoy",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "neq",
+                        "value": "resolved"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "tickets",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "neq",
+                        "value": "resolved"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Received",
+                  "icon": "inbox-arrow-down",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  },
+                  "link": {
+                    "page": "tickets"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Resolved",
+                  "icon": "check-circle-outline",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "resolved"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "tickets",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "resolved"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Avg first reply (h)",
+                  "icon": "reply-outline",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "avg",
+                      "field": "hours_to_first_reply"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Avg to close (days)",
+                  "icon": "timer-check-outline",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "avg",
+                      "field": "days_to_close"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Unassigned",
+                  "icon": "account-question-outline",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "neq",
+                        "value": "resolved"
+                      },
+                      {
+                        "field": "assigned_to",
+                        "operator": "isEmpty"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "tickets",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "neq",
+                        "value": "resolved"
+                      },
+                      {
+                        "field": "assigned_to",
+                        "operator": "isEmpty"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Open by category",
+                    "source": {
+                      "entity": "ticket",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "category"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "neq",
+                          "value": "resolved"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "tickets"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Tickets received by month",
+                    "source": {
+                      "entity": "ticket",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "month_of:opened_on"
+                      }
+                    },
+                    "link": {
+                      "page": "tickets"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Queue",
+              "blocks": [
+                {
+                  "kind": "view",
+                  "view": "queue_table"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "triage",
+      "label": "Board",
+      "icon": "view-column",
+      "entity": "ticket",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "board"
+        }
+      ]
+    },
+    {
+      "key": "my_tickets",
+      "label": "My tickets",
+      "icon": "account-wrench",
+      "entity": "ticket",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "my_tickets_table"
+        }
+      ]
+    },
+    {
+      "key": "forms",
+      "label": "Intake forms",
+      "icon": "clipboard-list-outline",
+      "entity": "intake_form",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "forms_table"
+        }
+      ]
+    },
+    {
+      "key": "file_a_request",
+      "label": "File a request",
+      "icon": "file-document-edit-outline",
+      "entity": "intake_form",
+      "blocks": [
+        {
+          "kind": "intake",
+          "entity": "intake_form",
+          "label": "What do you need?",
+          "filters": [
+            {
+              "field": "active",
+              "operator": "eq",
+              "value": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "tickets",
+      "label": "All tickets",
+      "icon": "lifebuoy",
+      "entity": "ticket",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "all_tickets_table"
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "ticket_flow",
+      "entity": "ticket",
+      "stateField": "status",
+      "initialState": "new",
+      "states": [
+        {
+          "key": "new",
+          "label": "New",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "in_progress",
+          "label": "In progress",
+          "color": "#0ea5e9"
+        },
+        {
+          "key": "waiting",
+          "label": "Waiting",
+          "color": "#8b5cf6"
+        },
+        {
+          "key": "resolved",
+          "label": "Resolved",
+          "color": "#16a34a"
+        }
+      ],
+      "transitions": [
+        {
+          "key": "assign",
+          "label": "Assign",
+          "from": [
+            "new"
+          ],
+          "to": "in_progress",
+          "command": "assign_ticket"
+        },
+        {
+          "key": "start",
+          "label": "Resume",
+          "from": [
+            "waiting"
+          ],
+          "to": "in_progress",
+          "command": "start_ticket"
+        },
+        {
+          "key": "wait",
+          "label": "Mark waiting",
+          "from": [
+            "in_progress"
+          ],
+          "to": "waiting",
+          "command": "mark_waiting"
+        },
+        {
+          "key": "resolve",
+          "label": "Resolve",
+          "from": [
+            "in_progress"
+          ],
+          "to": "resolved",
+          "command": "resolve_ticket"
+        },
+        {
+          "key": "reopen",
+          "label": "Reopen",
+          "from": [
+            "resolved"
+          ],
+          "to": "in_progress",
+          "command": "reopen_ticket"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "assign_ticket",
+      "label": "Assign",
+      "entity": "ticket",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "input": {
+        "fields": [
+          "assigned_to"
+        ],
+        "required": [
+          "assigned_to"
+        ]
+      },
+      "successMessage": "Ticket assigned.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.assigned_to}}",
+          "title": "Ticket assigned to you",
+          "message": "{{record.subject}}",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "start_ticket",
+      "label": "Resume",
+      "entity": "ticket",
+      "placements": [
+        "recordHeader"
+      ],
+      "successMessage": "Ticket back in progress.",
+      "effects": []
+    },
+    {
+      "key": "mark_waiting",
+      "label": "Mark waiting",
+      "entity": "ticket",
+      "placements": [
+        "recordHeader"
+      ],
+      "successMessage": "Ticket marked waiting.",
+      "effects": []
+    },
+    {
+      "key": "resolve_ticket",
+      "label": "Resolve",
+      "entity": "ticket",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "input": {
+        "fields": [
+          "resolution"
+        ],
+        "required": [
+          "resolution"
+        ]
+      },
+      "successMessage": "Ticket resolved.",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "resolved_at": "{{now}}"
+          }
+        },
+        {
+          "type": "notify",
+          "to": "{{record.requested_by}}",
+          "title": "Ticket resolved",
+          "message": "{{record.subject}} — {{record.resolution}}",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "reopen_ticket",
+      "label": "Reopen",
+      "entity": "ticket",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "successMessage": "Ticket reopened.",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "resolved_at": null
+          }
+        }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "key": "stamp_first_reply",
+      "name": "Stamp first reply time",
+      "trigger": {
+        "event": "record.created",
+        "entity": "ticket_message"
+      },
+      "when": {
+        "field": "kind",
+        "operator": "eq",
+        "value": "message"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": {
+            "field": "ticket"
+          },
+          "setIfEmpty": true,
+          "set": {
+            "first_reply_at": "{{now}}"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "agent",
+      "name": "Agent",
+      "description": "Works the queue: assigns, resolves, and comments on tickets.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        },
+        {
+          "entity": "ticket_message",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_form",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_question",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_submission",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "intake_answer",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "requester",
+      "name": "Requester",
+      "description": "Raises requests through an intake form and follows their progress. Note what is NOT granted: creating a ticket directly. Submitting a form needs only the right to file a submission — the platform creates the ticket on their behalf, with the routing the form declares. That is the whole point of intake.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "read": true
+        },
+        {
+          "entity": "ticket_message",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "intake_form",
+          "read": true
+        },
+        {
+          "entity": "intake_question",
+          "read": true
+        },
+        {
+          "entity": "intake_submission",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "intake_answer",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#dc2626",
+    "secondaryColor": "#f87171",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

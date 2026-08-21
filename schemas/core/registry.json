@@ -1,0 +1,42 @@
+{
+  "description": "The core-app registry: the ONE place a platform-provided core app is declared. A core app is an ordinary App Definition that the platform provisions into every tenant, addressed by its permanent `systemKey` (never by its handle, which stays a disposable URL-facing address). Adding a core app must cost exactly one entry here plus its definition file — if it ever costs more, the core-app architecture has failed.",
+  "conventions": {
+    "definitions": "Each version listed in `versions` must exist as schema/core/<systemKey>.<version>.json. EVERY shipped version stays checked in: the compatibility validator replays each previous version against the current one, and a validator that can only see the current definition cannot tell an append from a breaking change.",
+    "current": "The LAST entry of `versions` is the one provisioned. Versions are append-only; never edit a shipped file in place.",
+    "defaultAccess": "AllMembersRead = every tenant member reaches the app with no grant row, holding `defaultRole`. AdminOnly = platform admins only; members need an explicit grant.",
+    "defaultRole": "The app-definition role key implicitly held by every tenant member under AllMembersRead. It must exist in the definition's `roles`."
+  },
+  "apps": [
+    {
+      "systemKey": "core_people",
+      "name": "People",
+      "defaultAccess": "AllMembersRead",
+      "defaultRole": "employee",
+      "versions": [
+        "v1"
+      ]
+    },
+    {
+      "systemKey": "core_organizations",
+      "name": "Organizations",
+      "defaultAccess": "AllMembersRead",
+      "defaultRole": "viewer",
+      "versions": [
+        "v1",
+        "v2",
+        "v3",
+        "v4"
+      ]
+    },
+    {
+      "systemKey": "core_calendar",
+      "name": "Calendar",
+      "defaultAccess": "AllMembersRead",
+      "defaultRole": "member",
+      "versions": [
+        "v1",
+        "v2"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+detail: period
+blocks:
+  - gap: md
+    kind: row
+    blocks:
+      - gap: none
+        grow: true
+        kind: stack
+        blocks:
+          - kind: field
+            size: lg
+            field: label
+            weight: bold
+          - kind: field
+            field: scenario
+      - kind: chip
+        field: period_type
+      - kind: stat
+        size: sm
+        field: revenue
+        label: Revenue
+        format: money
+      - kind: stat
+        size: sm
+        field: total_cost
+        label: Costs
+        format: money
+      - kind: stat
+        size: sm
+        field: cash_end
+        label: Cash end
+        format: money
+      - kind: action
+        command: copy_actuals
+  - kind: columns
+    columns:
+      -
+        - edit:
+            - active_customers
+            - churned_customers
+          kind: section
+          label: Volume
+          blocks:
+            - cols: 2
+              kind: fields
+              fields:
+                - active_customers
+                - churned_customers
+        - edit:
+            - label
+            - period_type
+            - start_date
+            - end_date
+            - sequence
+          kind: section
+          label: Timing
+          blocks:
+            - cols: 2
+              kind: fields
+              fields:
+                - start_date
+                - end_date
+                - sequence
+      -
+        - edit:
+            - revenue
+            - payroll_cost
+          kind: section
+          label: Plan P&L
+          blocks:
+            - cols: 2
+              kind: fields
+              fields:
+                - revenue
+                - payroll_cost
+                - total_cost
+        - edit:
+            - cash_end
+          kind: section
+          label: Cash
+          blocks:
+            - cols: 2
+              kind: fields
+              fields:
+                - cash_end
+    weights:
+      - 1
+      - 1
+  - edit:
+      - actual_revenue
+      - actual_costs
+      - actual_customers
+    icon: compare-horizontal
+    kind: section
+    label: Actuals vs plan
+    blocks:
+      - cols: 2
+        kind: fields
+        fields:
+          - actual_revenue
+          - actual_costs
+          - actual_customers

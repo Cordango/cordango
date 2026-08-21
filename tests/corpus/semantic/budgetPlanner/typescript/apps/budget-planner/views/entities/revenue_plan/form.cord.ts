@@ -1,0 +1,26 @@
+import { defineForm } from "@cord/sdk";
+
+export default defineForm({
+  key: "revenue_plan",
+  blocks: [
+    {
+      kind: "section",
+      label: "Plan",
+      blocks: [
+        {
+          kind: "fields",
+          columns: 2,
+          fields: [
+            "name",
+            "scenario",
+            "tier",
+            "monthly_base_fee",
+            "price_per_app_user",
+            "cap_multiplier",
+            "notes",
+          ],
+        },
+      ],
+    },
+  ],
+} as const);

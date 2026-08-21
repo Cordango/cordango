@@ -1,0 +1,25 @@
+{
+  "name": "Within one role, a grant naming the entity replaces that role's wildcard",
+  "why": "The wildcard is a fallback, not a floor. If the two merged, narrowing one entity would be impossible: the '*' grant would keep re-opening what the specific grant closed.",
+  "roles": [
+    {
+      "key": "staff",
+      "grants": [
+        { "entity": "*", "read": true, "update": true, "create": true },
+        { "entity": "payroll", "read": true }
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["staff"],
+      "entity": "ticket",
+      "expect": { "create": true, "read": true, "update": true, "delete": false }
+    },
+    {
+      "roleKeys": ["staff"],
+      "entity": "payroll",
+      "expect": { "create": false, "read": true, "update": false, "delete": false }
+    }
+  ]
+}

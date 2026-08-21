@@ -1,0 +1,168 @@
+import { defineEntity } from "@cord/sdk";
+
+export default defineEntity({
+  key: "lifecycle_step",
+  kind: "collection",
+  icon: "chart-timeline-variant",
+  label: "Lifecycle Step",
+  description: "One segment at one age: how big the customer is, what each plan would cost them, and therefore what they pay. The cheapest plan wins, so this row is where a plan stops being an assumption.",
+  plural: "Lifecycle",
+  display: "label",
+  fields: {
+    label: {
+      label: "Step",
+      type: "text",
+    },
+    scenario: {
+      label: "Scenario",
+      type: "reference",
+      targetEntity: "scenario",
+      required: true,
+      indexed: true,
+      onDelete: "cascade",
+    },
+    segment: {
+      label: "Segment",
+      type: "reference",
+      targetEntity: "segment",
+      required: true,
+      indexed: true,
+      onDelete: "cascade",
+    },
+    point: {
+      label: "Adoption point",
+      type: "reference",
+      targetEntity: "adoption_point",
+      required: true,
+      indexed: true,
+      onDelete: "cascade",
+    },
+    flex: {
+      label: "Flex plan",
+      type: "reference",
+      targetEntity: "revenue_plan",
+    },
+    starter: {
+      label: "Starter plan",
+      type: "reference",
+      targetEntity: "revenue_plan",
+    },
+    pro: {
+      label: "Pro plan",
+      type: "reference",
+      targetEntity: "revenue_plan",
+    },
+    advanced: {
+      label: "Advanced plan",
+      type: "reference",
+      targetEntity: "revenue_plan",
+    },
+    age: {
+      label: "Age (months)",
+      type: "integer",
+      group: "Calculated",
+      calculate: {
+        expression: "point.age",
+      },
+    },
+    active_users: {
+      label: "Active users (N)",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      calculate: {
+        expression: "segment.mature_active_users * point.user_adoption",
+      },
+    },
+    shared_apps: {
+      label: "Shared apps",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      help: "Never below one: a customer with no shared app is not a customer.",
+      calculate: {
+        expression: "max(1, segment.mature_shared_apps * point.apps_adoption)",
+      },
+    },
+    active_per_app: {
+      label: "Active users per app (A)",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      calculate: {
+        expression: "active_users * segment.avg_app_adoption",
+      },
+    },
+    cost_flex: {
+      label: "Flex would cost",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      help: "No base fee and no cap — every active user of every app is billed.",
+      calculate: {
+        expression: "shared_apps * active_per_app * flex.price_per_app_user",
+      },
+    },
+    cost_starter: {
+      label: "Starter would cost",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "starter.monthly_base_fee + shared_apps * min(active_per_app, starter.cap_multiplier * pow(active_users, 0.5)) * starter.price_per_app_user",
+      },
+    },
+    cost_pro: {
+      label: "Pro would cost",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "pro.monthly_base_fee + shared_apps * min(active_per_app, pro.cap_multiplier * pow(active_users, 0.5)) * pro.price_per_app_user",
+      },
+    },
+    cost_advanced: {
+      label: "Advanced would cost",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "advanced.monthly_base_fee + shared_apps * min(active_per_app, advanced.cap_multiplier * pow(active_users, 0.5)) * advanced.price_per_app_user",
+      },
+    },
+    cheapest_plan_cost: {
+      label: "MRR (cheapest plan)",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      help: "The customer is not asked to choose badly. Which plan won is readable from the four columns beside this one — naming it would need a conditional the expression language does not have.",
+      calculate: {
+        expression: "min(min(cost_flex, cost_starter), min(cost_pro, cost_advanced))",
+      },
+    },
+    survival: {
+      label: "Surviving share of the cohort",
+      type: "decimal",
+      precision: 16,
+      scale: 4,
+      group: "Calculated",
+      help: "pow(1 - churn, age - 1). Age one is a full cohort.",
+      calculate: {
+        expression: "pow(1 - segment.churn_pct / 100, age - 1)",
+      },
+    },
+    revenue_per_new_customer: {
+      label: "MRR per customer won",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      help: "What one customer won at age zero is still paying at this age, churn already taken off. The grid multiplies this by the cohort size.",
+      calculate: {
+        expression: "cheapest_plan_cost * survival",
+      },
+    },
+  },
+} as const);

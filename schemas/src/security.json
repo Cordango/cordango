@@ -1,0 +1,97 @@
+{
+  "properties": {
+    "roles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/role"
+      }
+    }
+  },
+  "$defs": {
+    "role": {
+      "type": "object",
+      "required": [
+        "key",
+        "name",
+        "grants"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "entity"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "entity": {
+                "description": "Entity key, or '*' for all entities.",
+                "type": "string",
+                "pattern": "^([a-z][a-z0-9_]*|\\*)$"
+              },
+              "create": {
+                "type": "boolean",
+                "default": false
+              },
+              "read": {
+                "type": "boolean",
+                "default": false
+              },
+              "update": {
+                "type": "boolean",
+                "default": false
+              },
+              "delete": {
+                "type": "boolean",
+                "default": false
+              },
+              "commands": {
+                "description": "Command keys (on this grant's entity) this role may invoke, or ['*'] for all of the entity's commands. Commands are deny-by-default: a role must be granted a command to run it. On the '*' (all-entities) grant, only ['*'] is allowed.",
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "pattern": "^([a-z][a-z0-9_]*|\\*)$"
+                }
+              },
+              "fieldOverrides": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "field"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "field": {
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "read": {
+                      "type": "boolean"
+                    },
+                    "update": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

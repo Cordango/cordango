@@ -1,0 +1,852 @@
+{
+  "schemaVersion": "1.0",
+  "key": "task_manager",
+  "name": "Task & Project Manager",
+  "version": "1.0.1",
+  "description": "Internal task management app where teams create projects, assign tasks, and track progress. Customers get controlled, read-mostly access to projects assigned to them. Core entities: Project, Task, Customer, Team Member, Comment, Attachment.",
+  "entities": [
+    {
+      "key": "project",
+      "label": "Project",
+      "labelPlural": "Projects",
+      "icon": "briefcase",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Project Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "planning",
+          "options": [
+            {
+              "value": "planning",
+              "label": "Planning",
+              "color": "#6b7280"
+            },
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "on_hold",
+              "label": "On Hold",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#22c55e"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#9ca3af"
+            }
+          ]
+        },
+        {
+          "key": "customer",
+          "label": "Customer",
+          "type": "reference",
+          "targetEntity": "customer",
+          "onDelete": "setNull",
+          "help": "Customer assigned to this project. Controls external access."
+        },
+        {
+          "key": "owner",
+          "label": "Project Owner",
+          "type": "reference",
+          "targetEntity": "team_member",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "start_date",
+          "label": "Start Date",
+          "type": "date"
+        },
+        {
+          "key": "due_date",
+          "label": "Due Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "is_customer_visible",
+          "label": "Customer Visible",
+          "type": "boolean",
+          "default": false,
+          "help": "When true, the assigned customer can view this project and its tasks."
+        }
+      ]
+    },
+    {
+      "key": "task",
+      "label": "Task",
+      "labelPlural": "Tasks",
+      "icon": "check-square",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "todo",
+          "options": [
+            {
+              "value": "todo",
+              "label": "To Do",
+              "color": "#6b7280"
+            },
+            {
+              "value": "in_progress",
+              "label": "In Progress",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "review",
+              "label": "In Review",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "done",
+              "label": "Done",
+              "color": "#22c55e"
+            },
+            {
+              "value": "blocked",
+              "label": "Blocked",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "default": "medium",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#9ca3af"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "assignee",
+          "label": "Assignee",
+          "type": "reference",
+          "targetEntity": "team_member",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "due_date",
+          "label": "Due Date",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "estimated_hours",
+          "label": "Estimated Hours",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 2
+        },
+        {
+          "key": "actual_hours",
+          "label": "Actual Hours",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 2
+        }
+      ]
+    },
+    {
+      "key": "customer",
+      "label": "Customer",
+      "labelPlural": "Customers",
+      "icon": "users",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Contact Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "company_name",
+          "label": "Company Name",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "type": "select",
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#22c55e"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#9ca3af"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "team_member",
+      "label": "Team Member",
+      "labelPlural": "Team Members",
+      "icon": "user",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "role",
+          "label": "Role",
+          "type": "select",
+          "default": "member",
+          "options": [
+            {
+              "value": "admin",
+              "label": "Admin",
+              "color": "#ef4444"
+            },
+            {
+              "value": "manager",
+              "label": "Manager",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "member",
+              "label": "Member",
+              "color": "#22c55e"
+            }
+          ]
+        },
+        {
+          "key": "state",
+          "label": "State",
+          "type": "select",
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#22c55e"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#9ca3af"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "comment",
+      "label": "Comment",
+      "labelPlural": "Comments",
+      "icon": "message-circle",
+      "displayField": "body",
+      "fields": [
+        {
+          "key": "body",
+          "label": "Comment",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "task",
+          "label": "Task",
+          "type": "reference",
+          "targetEntity": "task",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "type": "reference",
+          "targetEntity": "team_member",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "is_internal",
+          "label": "Internal Only",
+          "type": "boolean",
+          "default": false,
+          "help": "When true, this comment is hidden from customer viewers."
+        }
+      ]
+    },
+    {
+      "key": "attachment",
+      "label": "Attachment",
+      "labelPlural": "Attachments",
+      "icon": "paperclip",
+      "displayField": "file_name",
+      "fields": [
+        {
+          "key": "file_name",
+          "label": "File Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "file",
+          "label": "File",
+          "type": "attachment",
+          "required": true
+        },
+        {
+          "key": "task",
+          "label": "Task",
+          "type": "reference",
+          "targetEntity": "task",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "project",
+          "label": "Project",
+          "type": "reference",
+          "targetEntity": "project",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "uploaded_by",
+          "label": "Uploaded By",
+          "type": "reference",
+          "targetEntity": "team_member",
+          "onDelete": "setNull"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "project_tasks",
+      "label": "Tasks",
+      "type": "oneToMany",
+      "fromEntity": "project",
+      "toEntity": "task",
+      "inverseField": "project"
+    },
+    {
+      "key": "project_attachments",
+      "label": "Project Attachments",
+      "type": "oneToMany",
+      "fromEntity": "project",
+      "toEntity": "attachment",
+      "inverseField": "project"
+    },
+    {
+      "key": "task_comments",
+      "label": "Comments",
+      "type": "oneToMany",
+      "fromEntity": "task",
+      "toEntity": "comment",
+      "inverseField": "task"
+    },
+    {
+      "key": "task_attachments",
+      "label": "Task Attachments",
+      "type": "oneToMany",
+      "fromEntity": "task",
+      "toEntity": "attachment",
+      "inverseField": "task"
+    },
+    {
+      "key": "customer_projects",
+      "label": "Customer Projects",
+      "type": "oneToMany",
+      "fromEntity": "customer",
+      "toEntity": "project",
+      "inverseField": "customer"
+    }
+  ],
+  "views": [
+    {
+      "key": "projects_table",
+      "label": "All Projects",
+      "type": "table",
+      "entity": "project",
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "state",
+          "customer",
+          "owner",
+          "start_date",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "project_detail",
+      "label": "Project Detail",
+      "type": "detail",
+      "entity": "project",
+      "config": {}
+    },
+    {
+      "key": "tasks_table",
+      "label": "All Tasks",
+      "type": "table",
+      "entity": "task",
+      "sort": [
+        {
+          "field": "due_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "state",
+          "priority",
+          "project",
+          "assignee",
+          "due_date"
+        ]
+      }
+    },
+    {
+      "key": "tasks_kanban",
+      "label": "Task Board",
+      "type": "kanban",
+      "entity": "task",
+      "config": {
+        "groupByField": "state",
+        "columns": [
+          "todo",
+          "in_progress",
+          "review",
+          "done",
+          "blocked"
+        ]
+      }
+    },
+    {
+      "key": "customers_table",
+      "label": "Customers",
+      "type": "table",
+      "entity": "customer",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "company_name",
+          "email",
+          "phone",
+          "state"
+        ]
+      }
+    },
+    {
+      "key": "team_members_table",
+      "label": "Team Members",
+      "type": "table",
+      "entity": "team_member",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "email",
+          "role",
+          "state"
+        ]
+      }
+    },
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "project",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Total Projects",
+            "entity": "project",
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Active Projects",
+            "entity": "project",
+            "aggregation": "count",
+            "filter": {
+              "field": "state",
+              "operator": "eq",
+              "value": "active"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Open Tasks",
+            "entity": "task",
+            "aggregation": "count",
+            "filter": {
+              "field": "state",
+              "operator": "neq",
+              "value": "done"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Blocked Tasks",
+            "entity": "task",
+            "aggregation": "count",
+            "filter": {
+              "field": "state",
+              "operator": "eq",
+              "value": "blocked"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_assignee_on_task_create",
+      "name": "Notify Assignee on New Task",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "task"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "email_customer_project_completed",
+      "name": "Email Customer When Project Completed",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "project",
+        "field": "state"
+      },
+      "conditions": [
+        {
+          "field": "state",
+          "operator": "eq",
+          "value": "completed"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "notify_team_task_in_review",
+      "name": "Notify Team When Task Moves to Review",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "task",
+        "field": "state"
+      },
+      "conditions": [
+        {
+          "field": "state",
+          "operator": "eq",
+          "value": "review"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "overnight_overdue_check",
+      "name": "Daily Overdue Task Check",
+      "enabled": true,
+      "trigger": {
+        "event": "schedule",
+        "entity": "task",
+        "cron": "0 8 * * *"
+      },
+      "conditions": [
+        {
+          "field": "state",
+          "operator": "neq",
+          "value": "done"
+        },
+        {
+          "field": "due_date",
+          "operator": "lt",
+          "value": "today"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "team_member",
+      "name": "Team Member",
+      "description": "Standard internal user — can manage projects, tasks, comments, and attachments. Read-only on customers and team member directory.",
+      "grants": [
+        {
+          "entity": "project",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "task",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "comment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "attachment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "team_member",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "customer",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "customer",
+      "name": "Customer",
+      "description": "External customer — read-only access to projects and tasks visible to them; can create comments (non-internal) on tasks in visible projects.",
+      "grants": [
+        {
+          "entity": "project",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "fieldOverrides": [
+            {
+              "field": "is_customer_visible",
+              "read": false
+            },
+            {
+              "field": "owner",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "task",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "fieldOverrides": [
+            {
+              "field": "estimated_hours",
+              "read": false
+            },
+            {
+              "field": "actual_hours",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "comment",
+          "create": true,
+          "read": true,
+          "update": false,
+          "delete": false,
+          "fieldOverrides": [
+            {
+              "field": "is_internal",
+              "read": false,
+              "update": false
+            }
+          ]
+        },
+        {
+          "entity": "attachment",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "customer",
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "team_member",
+          "create": false,
+          "read": false,
+          "update": false,
+          "delete": false
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#3b82f6",
+    "secondaryColor": "#1e40af",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

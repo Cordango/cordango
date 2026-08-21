@@ -1,0 +1,51 @@
+import { defineForm } from "@cord/sdk";
+
+export default defineForm({
+  key: "hiring_line",
+  blocks: [
+    {
+      kind: "section",
+      label: "Role",
+      blocks: [
+        {
+          kind: "fields",
+          fields: ["scenario", "role_title", "team", "headcount", "seniority", "employment_type"],
+          columns: 2,
+        },
+      ],
+    },
+    {
+      kind: "section",
+      label: "When",
+      blocks: [
+        {
+          kind: "fields",
+          fields: ["start_month", "end_month", "location_country"],
+          columns: 2,
+        },
+      ],
+    },
+    {
+      kind: "section",
+      label: "Cost",
+      blocks: [
+        {
+          kind: "fields",
+          fields: ["gross_salary", "employer_cost_rate", "other_cost_per_head", "setup_cost_per_head"],
+          columns: 2,
+        },
+      ],
+    },
+    {
+      kind: "section",
+      label: "Notes",
+      blocks: [
+        {
+          kind: "fields",
+          fields: ["notes"],
+          columns: 1,
+        },
+      ],
+    },
+  ],
+} as const);

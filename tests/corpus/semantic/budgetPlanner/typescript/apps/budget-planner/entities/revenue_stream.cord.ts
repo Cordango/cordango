@@ -1,0 +1,155 @@
+import { defineEntity } from "@cord/sdk";
+
+export default defineEntity({
+  key: "revenue_stream",
+  kind: "collection",
+  icon: "handshake-outline",
+  label: "Revenue Stream",
+  description: "Revenue that is not the subscription: onboarding and migration, custom app development, consulting, white-label licensing, marketplace. Kept separate because none of it is recurring platform revenue.",
+  plural: "Revenue Streams",
+  display: "name",
+  fields: {
+    name: {
+      label: "Name",
+      type: "text",
+      required: true,
+    },
+    scenario: {
+      label: "Scenario",
+      type: "reference",
+      targetEntity: "scenario",
+      required: true,
+      indexed: true,
+      onDelete: "cascade",
+    },
+    stream_type: {
+      label: "Kind",
+      type: "select",
+      required: true,
+      options: [
+        {
+          value: "onboarding",
+          label: "Onboarding & migration",
+          color: "#38bdf8",
+        },
+        {
+          value: "custom_development",
+          label: "Custom app development",
+          color: "#0f766e",
+        },
+        {
+          value: "consulting",
+          label: "Consulting & implementation",
+          color: "#6366f1",
+        },
+        {
+          value: "white_label",
+          label: "White-label / partner",
+          color: "#a16207",
+        },
+        {
+          value: "marketplace",
+          label: "Marketplace",
+          color: "#f59e0b",
+        },
+        {
+          value: "other",
+          label: "Other",
+          color: "#94a3b8",
+        },
+      ],
+    },
+    revenue_behaviour: {
+      label: "Behaviour",
+      type: "select",
+      required: true,
+      default: "recurring_monthly",
+      options: [
+        {
+          value: "recurring_monthly",
+          label: "Recurring monthly",
+          color: "#0f766e",
+        },
+        {
+          value: "one_off",
+          label: "One-off",
+          color: "#f59e0b",
+        },
+      ],
+    },
+    monthly_amount: {
+      label: "Amount / Month",
+      type: "money",
+      currency: "EUR",
+      group: "Amounts",
+      help: "Used when behaviour is Recurring monthly.",
+    },
+    one_off_amount: {
+      label: "One-off Amount",
+      type: "money",
+      currency: "EUR",
+      group: "Amounts",
+    },
+    one_off_month: {
+      label: "One-off Month",
+      type: "integer",
+      group: "Amounts",
+      help: "Month of the plan this is invoiced, counting from month 1. Use this OR the exact date, whichever you actually know.",
+    },
+    one_off_date: {
+      label: "One-off Date",
+      type: "date",
+      group: "Amounts",
+    },
+    creator_share_pct: {
+      label: "Paid out to the creator",
+      type: "decimal",
+      unit: "%",
+      precision: 8,
+      scale: 2,
+      group: "Amounts",
+      default: 0,
+      help: "Marketplace split. The working assumption is 20% to the app creator and 80% to Cordango, but it is not settled, so it is a number rather than a rule.",
+    },
+    start_month: {
+      label: "Starts",
+      type: "date",
+      role: "start",
+      group: "Timing",
+    },
+    end_month: {
+      label: "Ends",
+      type: "date",
+      group: "Timing",
+      help: "Leave empty for open-ended.",
+    },
+    net_monthly_amount: {
+      label: "Net / Month",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "monthly_amount * (1 - creator_share_pct / 100)",
+      },
+    },
+    net_one_off_amount: {
+      label: "Net one-off",
+      type: "money",
+      currency: "EUR",
+      group: "Calculated",
+      calculate: {
+        expression: "one_off_amount * (1 - creator_share_pct / 100)",
+      },
+    },
+    customer: {
+      label: "Customer / Partner",
+      type: "text",
+      group: "Notes",
+    },
+    notes: {
+      label: "Notes",
+      type: "longtext",
+      group: "Notes",
+    },
+  },
+} as const);

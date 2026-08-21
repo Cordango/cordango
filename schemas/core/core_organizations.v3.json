@@ -1,0 +1,3335 @@
+{
+  "schemaVersion": "2.0",
+  "key": "core_organizations",
+  "name": "Organizations",
+  "version": "1.4.0",
+  "presentation": {
+    "icon": "domain",
+    "color": "#0f766e",
+    "category": "Core",
+    "tagline": "Every company you deal with"
+  },
+  "entities": [
+    {
+      "key": "organization",
+      "label": "Company",
+      "labelPlural": "Companies",
+      "description": "A company the workspace deals with — a customer, a supplier, a partner, an investor or a holding. The canonical record: an invoice, a deal and a timesheet all point at THIS row rather than each app keeping its own spelling of the name.",
+      "icon": "domain",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "roles",
+          "label": "Relationship",
+          "type": "multiselect",
+          "help": "What this company IS to us. Deliberately multi-valued and deliberately durable: a supplier is often also a customer, a prospect is often already a supplier, and none of those facts expires. Where a company sits in a sales PROCESS is the CRM's business — that lives on the deal, not here.",
+          "options": [
+            {
+              "value": "prospect",
+              "label": "Prospect",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "customer",
+              "label": "Customer",
+              "color": "#16a34a"
+            },
+            {
+              "value": "vendor",
+              "label": "Vendor",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "investor",
+              "label": "Investor",
+              "color": "#0891b2"
+            },
+            {
+              "value": "portfolio",
+              "label": "Portfolio company",
+              "color": "#ec4899"
+            }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "indexed": true,
+          "help": "Archived companies stay resolvable — a reference from an old invoice must still render a name — but drop out of pickers and lists by default.",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a",
+              "phase": "active"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#94a3b8",
+              "phase": "cancelled"
+            }
+          ]
+        },
+        {
+          "key": "industry",
+          "label": "Industry",
+          "type": "select",
+          "options": [
+            {
+              "value": "software",
+              "label": "Software & IT"
+            },
+            {
+              "value": "manufacturing",
+              "label": "Manufacturing"
+            },
+            {
+              "value": "construction",
+              "label": "Construction"
+            },
+            {
+              "value": "retail",
+              "label": "Retail & E-commerce"
+            },
+            {
+              "value": "logistics",
+              "label": "Transport & Logistics"
+            },
+            {
+              "value": "finance",
+              "label": "Finance & Insurance"
+            },
+            {
+              "value": "healthcare",
+              "label": "Healthcare & Pharma"
+            },
+            {
+              "value": "energy",
+              "label": "Energy & Utilities"
+            },
+            {
+              "value": "professional_services",
+              "label": "Professional Services"
+            },
+            {
+              "value": "media",
+              "label": "Media & Marketing"
+            },
+            {
+              "value": "education",
+              "label": "Education"
+            },
+            {
+              "value": "public_sector",
+              "label": "Public Sector"
+            },
+            {
+              "value": "hospitality",
+              "label": "Hospitality & Tourism"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "parent_organization",
+          "label": "Belongs to",
+          "type": "reference",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "indexed": true,
+          "group": "Group",
+          "help": "The company above this one in its corporate group. Every entity is its own organization record - a subsidiary is invoiced, contracted and researched in its own right - and this only records which group it belongs to. setNull, never cascade: deleting a holding company must not delete the operating companies under it."
+        },
+        {
+          "key": "group_role",
+          "label": "Role in the group",
+          "type": "select",
+          "group": "Group",
+          "help": "What this entity is within its group. Independent is the default because most companies are not part of one.",
+          "options": [
+            {
+              "value": "independent",
+              "label": "Independent"
+            },
+            {
+              "value": "holding",
+              "label": "Holding company"
+            },
+            {
+              "value": "operating",
+              "label": "Operating company"
+            },
+            {
+              "value": "subsidiary",
+              "label": "Subsidiary"
+            },
+            {
+              "value": "branch",
+              "label": "Branch or site"
+            }
+          ]
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "street",
+          "label": "Street",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "postcode",
+          "label": "Postcode",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "city",
+          "label": "City",
+          "type": "text",
+          "group": "Address"
+        },
+        {
+          "key": "country",
+          "label": "Country",
+          "type": "select",
+          "group": "Address",
+          "help": "Stored as the ISO 3166-1 alpha-2 country code.",
+          "options": [
+            {
+              "value": "AT",
+              "label": "Austria"
+            },
+            {
+              "value": "BE",
+              "label": "Belgium"
+            },
+            {
+              "value": "BG",
+              "label": "Bulgaria"
+            },
+            {
+              "value": "HR",
+              "label": "Croatia"
+            },
+            {
+              "value": "CZ",
+              "label": "Czechia"
+            },
+            {
+              "value": "DK",
+              "label": "Denmark"
+            },
+            {
+              "value": "EE",
+              "label": "Estonia"
+            },
+            {
+              "value": "FI",
+              "label": "Finland"
+            },
+            {
+              "value": "FR",
+              "label": "France"
+            },
+            {
+              "value": "DE",
+              "label": "Germany"
+            },
+            {
+              "value": "GR",
+              "label": "Greece"
+            },
+            {
+              "value": "HU",
+              "label": "Hungary"
+            },
+            {
+              "value": "IE",
+              "label": "Ireland"
+            },
+            {
+              "value": "IT",
+              "label": "Italy"
+            },
+            {
+              "value": "LV",
+              "label": "Latvia"
+            },
+            {
+              "value": "LT",
+              "label": "Lithuania"
+            },
+            {
+              "value": "LU",
+              "label": "Luxembourg"
+            },
+            {
+              "value": "NL",
+              "label": "Netherlands"
+            },
+            {
+              "value": "NO",
+              "label": "Norway"
+            },
+            {
+              "value": "PL",
+              "label": "Poland"
+            },
+            {
+              "value": "PT",
+              "label": "Portugal"
+            },
+            {
+              "value": "RO",
+              "label": "Romania"
+            },
+            {
+              "value": "SK",
+              "label": "Slovakia"
+            },
+            {
+              "value": "SI",
+              "label": "Slovenia"
+            },
+            {
+              "value": "ES",
+              "label": "Spain"
+            },
+            {
+              "value": "SE",
+              "label": "Sweden"
+            },
+            {
+              "value": "CH",
+              "label": "Switzerland"
+            },
+            {
+              "value": "TR",
+              "label": "Turkey"
+            },
+            {
+              "value": "GB",
+              "label": "United Kingdom"
+            },
+            {
+              "value": "US",
+              "label": "United States"
+            },
+            {
+              "value": "CA",
+              "label": "Canada"
+            },
+            {
+              "value": "AU",
+              "label": "Australia"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "What they do",
+          "type": "longtext",
+          "help": "Filled in by research when it is empty, and yours to correct."
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who in the company looks after this relationship."
+        },
+        {
+          "key": "billing_email",
+          "label": "Billing email",
+          "type": "email",
+          "group": "Billing",
+          "help": "Where invoices go. Often not the same address as the contact you deal with."
+        },
+        {
+          "key": "payment_terms",
+          "label": "Payment terms",
+          "type": "select",
+          "group": "Billing",
+          "default": "net_14",
+          "options": [
+            {
+              "value": "net_7",
+              "label": "Net 7",
+              "color": "#16a34a"
+            },
+            {
+              "value": "net_14",
+              "label": "Net 14",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "net_30",
+              "label": "Net 30",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        },
+        {
+          "key": "enr_unconfirmed",
+          "label": "Awaiting check",
+          "type": "json",
+          "role": "unconfirmed",
+          "group": "Research",
+          "help": "Which fields on this record research filled in and nobody has checked yet. Each one shows a warning on the record until somebody opens its section and saves it."
+        },
+        {
+          "key": "enr_differs",
+          "label": "Research disagrees",
+          "type": "json",
+          "role": "differs",
+          "group": "Research",
+          "help": "Fields you have answered where research read something else, and what it read. Nothing here has been changed on your record - research never overwrites an answer somebody gave. Saving the field dismisses the note."
+        },
+        {
+          "key": "enr_state",
+          "label": "Research",
+          "type": "select",
+          "group": "Research",
+          "indexed": true,
+          "default": "never",
+          "options": [
+            {
+              "value": "never",
+              "label": "Not researched",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "queued",
+              "label": "Queued",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "running",
+              "label": "Researching",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "complete",
+              "label": "Researched",
+              "color": "#16a34a"
+            }
+          ],
+          "help": "Where the automatic research stands. Separate from the OUTCOME because 'partial' and 'budget reached' describe how a run ended, not whether one is in flight."
+        },
+        {
+          "key": "enr_last_outcome",
+          "label": "Last result",
+          "type": "select",
+          "group": "Research",
+          "options": [
+            {
+              "value": "ok",
+              "label": "OK",
+              "color": "#16a34a"
+            },
+            {
+              "value": "partial",
+              "label": "Partial",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "needs_review",
+              "label": "Needs review",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "failed",
+              "label": "Failed",
+              "color": "#dc2626"
+            },
+            {
+              "value": "skipped",
+              "label": "Skipped",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "budget_stopped",
+              "label": "Budget reached",
+              "color": "#64748b"
+            }
+          ],
+          "help": "How the last run ended."
+        },
+        {
+          "key": "enr_last_run_at",
+          "label": "Last researched",
+          "type": "datetime",
+          "group": "Research",
+          "indexed": true
+        },
+        {
+          "key": "enr_last_successful_run_at",
+          "label": "Last successful research",
+          "type": "datetime",
+          "group": "Research",
+          "indexed": true,
+          "help": "What freshness is measured against. NOT 'last researched': a failed run is still a run, and reading activity instead of success would let one failure this morning refuse the record for the next thirty days."
+        },
+        {
+          "key": "enr_domain",
+          "label": "Confirmed domain",
+          "type": "text",
+          "group": "Research",
+          "indexed": true,
+          "help": "The one domain everything else was resolved against. If this is wrong, everything below is wrong."
+        },
+        {
+          "key": "enr_review_state",
+          "label": "Review",
+          "type": "select",
+          "group": "Research",
+          "default": "none",
+          "options": [
+            {
+              "value": "none",
+              "label": "-",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "warning",
+              "label": "Check this",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "confirmed",
+              "label": "Confirmed",
+              "color": "#16a34a"
+            }
+          ],
+          "help": "A question about the result, not a verdict on the run. Deliberately separate from the outcome: folding it in would stop freshness advancing on a perfectly good run, so every ordinary press would pay for research again."
+        },
+        {
+          "key": "enr_review_reason",
+          "label": "Why",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_review_fingerprint",
+          "label": "Reviewed state",
+          "type": "text",
+          "group": "Research",
+          "help": "hash(domain|typed name|discovered legal name). What a human actually confirmed, so the confirmation lapses when any of the three changes rather than silencing a genuinely different mismatch years later."
+        },
+        {
+          "key": "enr_website",
+          "label": "Website (found)",
+          "type": "url",
+          "group": "Research"
+        },
+        {
+          "key": "enr_description",
+          "label": "What they do",
+          "type": "longtext",
+          "group": "Research"
+        },
+        {
+          "key": "enr_industry",
+          "label": "Industry (found)",
+          "type": "text",
+          "group": "Research",
+          "help": "What the company does, in the research's own words - \"Web Hosting, Cloud Infrastructure, Data Center Services\". Free text on purpose: it is a description, and a select whose options can never be shrunk once shipped is the wrong place for one. The groupable answer is `enr_industry_code`, which fills the `industry` select."
+        },
+        {
+          "key": "enr_industry_code",
+          "label": "Sector (found)",
+          "type": "text",
+          "group": "Research",
+          "help": "The single closest option of the `industry` select, asked for as a closed set and checked against it before promotion. Stored as text here for the same reason every other researched value is: this is the evidence, `industry` is the answer."
+        },
+        {
+          "key": "enr_phone",
+          "label": "Phone (found)",
+          "type": "text",
+          "group": "Research",
+          "help": "What research found, kept beside the `phone` field it fills when that one is empty. The pair is the audit trail: `phone` is the number the company uses, this is where it came from."
+        },
+        {
+          "key": "enr_hq_city",
+          "label": "HQ city (found)",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_hq_country",
+          "label": "HQ country (found)",
+          "type": "text",
+          "group": "Research",
+          "help": "ISO-3166 alpha-2. Text, not a select: a select option list can never be shrunk once shipped, and this one is filled by a model."
+        },
+        {
+          "key": "enr_registered_city",
+          "label": "Registered city",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_registered_country",
+          "label": "Registered country",
+          "type": "text",
+          "group": "Research",
+          "indexed": true,
+          "help": "ISO-3166 alpha-2, read off the Impressum. A REGISTERED address, which can be a registered office, a subsidiary, a law firm acting as representative or a virtual office - it does not say where the company operates. That is what enr_hq_* is for, and it stays empty unless a page says 'headquartered in'."
+        },
+        {
+          "key": "enr_registered_street",
+          "label": "Street",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_registered_postcode",
+          "label": "Postcode",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_legal_name",
+          "label": "Legal name",
+          "type": "text",
+          "group": "Research",
+          "help": "The registered name from the company's own legal notice. Different from the name on this record whenever somebody typed a trading name, which is a question for a human rather than a correction to make automatically."
+        },
+        {
+          "key": "enr_legal_form",
+          "label": "Legal form",
+          "type": "text",
+          "group": "Research",
+          "help": "GmbH, AG, SE, Ltd, Inc. Says what kind of entity this is, which is what decides who is liable and what a contract has to name."
+        },
+        {
+          "key": "enr_register_court",
+          "label": "Registered at",
+          "type": "text",
+          "group": "Research",
+          "help": "The court or registry holding the entry - Amtsgericht Koln, Companies House."
+        },
+        {
+          "key": "enr_register_number",
+          "label": "Register number",
+          "type": "text",
+          "group": "Research",
+          "help": "HRB / HRA / company number, read as TEXT off a page the company controls. Evidence a human can check, never a key anything is joined on."
+        },
+        {
+          "key": "enr_vat_id",
+          "label": "VAT id",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_employee_count",
+          "label": "Employees",
+          "type": "integer",
+          "group": "Research",
+          "indexed": true
+        },
+        {
+          "key": "enr_employee_range",
+          "label": "Headcount band",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_founded_year",
+          "label": "Founded",
+          "type": "integer",
+          "group": "Research",
+          "help": "When the business began, which is frequently long before the current legal entity was incorporated - a company founded in 1923 can have a GmbH dated 2004 after a restructuring. Both are true and they are kept apart."
+        },
+        {
+          "key": "enr_incorporation_date",
+          "label": "Incorporated",
+          "type": "date",
+          "group": "Research",
+          "help": "When the CURRENT legal entity was registered. See enr_founded_year for why this is a separate field."
+        },
+        {
+          "key": "enr_acquirer",
+          "label": "Acquired by",
+          "type": "text",
+          "group": "Research",
+          "indexed": true,
+          "help": "The company that bought this one. The single most important thing to know about a counterparty and the one a stale record is most likely to be wrong about: the entity on a contract may not exist under that name any more."
+        },
+        {
+          "key": "enr_acquired_on",
+          "label": "Acquired on",
+          "type": "date",
+          "group": "Research"
+        },
+        {
+          "key": "enr_parent_name",
+          "label": "Parent company (found)",
+          "type": "text",
+          "group": "Research",
+          "help": "The name of the company above this one, as research found it. It is a NAME, not a link: the link (parent_organization) is only made when that company is a record of yours too, because a group has no natural place to stop climbing and nobody wants Volkswagen AG invented as a record they have no relationship with. When the name is here and the link is empty, the company simply is not in your data yet."
+        },
+        {
+          "key": "enr_capital_stage",
+          "label": "Stage",
+          "type": "select",
+          "group": "Research",
+          "indexed": true,
+          "help": "Where the company is right now, financially. ONE field because it is one question a person asks - 'what kind of company is this' - even though it folds two axes together: how it is financed (bootstrapped through the venture stages to listed) and whether it still trades (acquired, insolvent, closed). Where the two disagree the END STATE wins, because a listed company in insolvency proceedings is an insolvent company first. Not derived from the legal form: most German AGs are privately held.",
+          "options": [
+            {
+              "value": "bootstrapped",
+              "label": "Bootstrapped",
+              "color": "#64748b"
+            },
+            {
+              "value": "pre_seed",
+              "label": "Pre-seed",
+              "color": "#a78bfa"
+            },
+            {
+              "value": "seed",
+              "label": "Seed",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "series_a",
+              "label": "Series A",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "series_b",
+              "label": "Series B",
+              "color": "#6d28d9"
+            },
+            {
+              "value": "series_c",
+              "label": "Series C",
+              "color": "#5b21b6"
+            },
+            {
+              "value": "series_d_plus",
+              "label": "Series D+",
+              "color": "#4c1d95"
+            },
+            {
+              "value": "private_equity",
+              "label": "PE-owned",
+              "color": "#0f766e"
+            },
+            {
+              "value": "listed",
+              "label": "Publicly traded",
+              "color": "#0891b2"
+            },
+            {
+              "value": "otc",
+              "label": "Privately traded",
+              "color": "#0e7490"
+            },
+            {
+              "value": "acquired",
+              "label": "Acquired",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "insolvent",
+              "label": "Insolvent",
+              "color": "#dc2626"
+            },
+            {
+              "value": "closed",
+              "label": "Closed",
+              "color": "#991b1b"
+            }
+          ]
+        },
+        {
+          "key": "enr_ticker",
+          "label": "Ticker",
+          "type": "text",
+          "group": "Research",
+          "help": "The exchange's own symbol, e.g. VOW3. Empty for a private company, and empty rather than guessed for a listed one whose symbol is not known."
+        },
+        {
+          "key": "enr_exchange",
+          "label": "Exchange",
+          "type": "text",
+          "group": "Research",
+          "help": "Where it is listed, as a person would say it - XETRA, NYSE, LSE. The machine-readable form is `enr_primary_mic`."
+        },
+        {
+          "key": "enr_isin",
+          "label": "ISIN",
+          "type": "text",
+          "group": "Research",
+          "indexed": true,
+          "help": "ISO 6166 identifier of the ordinary share. The ONLY identifier here with a check digit, so a malformed one is rejected arithmetically rather than merely looking wrong. That check proves the string is well-formed - never that it belongs to this company, nor that it is the share rather than a bond, which is why a recalled ISIN is not sufficient on its own to load market data."
+        },
+        {
+          "key": "enr_primary_mic",
+          "label": "Venue code",
+          "type": "text",
+          "group": "Research",
+          "help": "ISO 10383 code of the venue where the shares principally trade - XETR, XLON, XNYS. Text validated against a registry rather than a select, because MICs are retired and re-issued and a select's options can never be removed once shipped. `primary` is a business fact about this company, not whichever venue a data vendor happened to return first."
+        },
+        {
+          "key": "enr_trading_currency",
+          "label": "Trades in",
+          "type": "text",
+          "group": "Research",
+          "help": "ISO 4217 code the shares trade in. A share price without one is a number."
+        },
+        {
+          "key": "enr_total_funding",
+          "label": "Total funding raised",
+          "type": "decimal",
+          "group": "Research"
+        },
+        {
+          "key": "enr_funding_currency",
+          "label": "Funding currency",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_investors",
+          "label": "Investors",
+          "type": "text",
+          "group": "Research",
+          "help": "Named backers, from rounds where the source named them. Every name has to appear in the quote it came from - a list is exactly the shape where one fabrication hides among facts."
+        },
+        {
+          "key": "enr_last_round_on",
+          "label": "Latest round date",
+          "type": "date",
+          "group": "Research",
+          "indexed": true
+        },
+        {
+          "key": "enr_last_round_type",
+          "label": "Latest round",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_last_round_amount",
+          "label": "Latest round amount",
+          "type": "decimal",
+          "group": "Research"
+        },
+        {
+          "key": "enr_last_round_currency",
+          "label": "Latest round currency",
+          "type": "text",
+          "group": "Research"
+        },
+        {
+          "key": "enr_logo_url",
+          "label": "Logo",
+          "type": "text",
+          "group": "Research",
+          "help": "Where this company's logo is served from. The platform fetched it once off the company's own site and keeps a copy, so opening a list of companies never tells each of those companies that somebody is looking at them."
+        },
+        {
+          "key": "enr_logo_source_url",
+          "label": "Logo source",
+          "type": "url",
+          "group": "Research",
+          "help": "The page or file the logo was fetched from. Kept so a later run can tell an unchanged source from a moved one."
+        },
+        {
+          "key": "enr_provenance",
+          "label": "Provenance",
+          "type": "json",
+          "group": "Research",
+          "help": "fieldKey -> { url, title, confidence, runId, lastVerifiedAt }. Machine-facing; the human-readable copy is the Facts list."
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "subtitle": [
+              "city",
+              "country"
+            ],
+            "facts": [
+              "roles",
+              "industry",
+              "website",
+              "owner"
+            ],
+            "actions": [
+              "enrich_now",
+              "refresh_research",
+              "delete"
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Overview",
+                "blocks": [
+                  {
+                    "kind": "columns",
+                    "weights": [
+                      3,
+                      2
+                    ],
+                    "columns": [
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Company profile",
+                          "icon": "text-box-outline",
+                          "edit": [
+                            "description",
+                            "industry",
+                            "website"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "description",
+                                "industry",
+                                "website"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "child",
+                          "entity": "contact",
+                          "via": "organization",
+                          "childType": "table",
+                          "label": "Contacts"
+                        }
+                      ],
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Account essentials",
+                          "icon": "briefcase-account-outline",
+                          "edit": [
+                            "roles",
+                            "owner",
+                            "status",
+                            "email",
+                            "phone"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "roles",
+                                "owner",
+                                "status",
+                                "email",
+                                "phone"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Connected work",
+                          "icon": "view-grid-plus-outline",
+                          "blocks": [
+                            {
+                              "kind": "relatedApps",
+                              "empty": "No connected work yet. Deals, invoices and tickets linked to this company will appear here automatically."
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Details",
+                "blocks": [
+                  {
+                    "kind": "columns",
+                    "columns": [
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Company profile",
+                          "icon": "domain",
+                          "edit": [
+                            "name",
+                            "roles",
+                            "status",
+                            "industry",
+                            "description"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "name",
+                                "roles",
+                                "status",
+                                "industry",
+                                "description"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Contact channels",
+                          "icon": "at",
+                          "edit": [
+                            "website",
+                            "email",
+                            "phone"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "website",
+                                "email",
+                                "phone"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Primary address",
+                          "icon": "map-marker-outline",
+                          "edit": [
+                            "street",
+                            "postcode",
+                            "city",
+                            "country"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "street",
+                                "postcode",
+                                "city",
+                                "country"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        }
+                      ],
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Group",
+                          "icon": "file-tree-outline",
+                          "edit": [
+                            "parent_organization",
+                            "group_role"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "parent_organization",
+                                "group_role"
+                              ],
+                              "hideEmpty": true
+                            },
+                            {
+                              "kind": "child",
+                              "entity": "organization",
+                              "via": "parent_organization",
+                              "childType": "table",
+                              "label": "Companies under this one",
+                              "hideWhenEmpty": true,
+                              "fields": [
+                                "name",
+                                "group_role",
+                                "city",
+                                "country"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Billing",
+                          "icon": "receipt-text-outline",
+                          "edit": [
+                            "billing_email",
+                            "payment_terms"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "billing_email",
+                                "payment_terms"
+                              ],
+                              "cols": 1,
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Internal",
+                          "icon": "account-outline",
+                          "edit": [
+                            "owner",
+                            "notes"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "owner",
+                                "notes"
+                              ],
+                              "hideEmpty": true
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Research",
+                "blocks": [
+                  {
+                    "kind": "text",
+                    "text": "Researching this company now. It takes a minute or two — reload the page to see the result.",
+                    "icon": "radar",
+                    "color": "info",
+                    "visibleWhen": {
+                      "value": "{{record.enr_state}}",
+                      "in": [
+                        "queued",
+                        "running"
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "text",
+                    "text": "The last research run did not finish. Press Refresh to try again.",
+                    "icon": "alert-circle-outline",
+                    "color": "warning",
+                    "visibleWhen": {
+                      "value": "{{record.enr_last_outcome}}",
+                      "in": [
+                        "failed",
+                        "skipped",
+                        "budget_stopped"
+                      ]
+                    }
+                  },
+                  {
+                    "kind": "tabs",
+                    "tabs": [
+                      {
+                        "label": "Overview",
+                        "blocks": [
+                          {
+                            "kind": "tiles",
+                            "tiles": [
+                              {
+                                "label": "Employees",
+                                "field": "enr_employee_count",
+                                "format": "number",
+                                "icon": "account-group"
+                              },
+                              {
+                                "label": "Total raised",
+                                "field": "enr_total_funding",
+                                "format": "number",
+                                "icon": "finance"
+                              },
+                              {
+                                "label": "Founded",
+                                "field": "enr_founded_year",
+                                "format": "number",
+                                "icon": "flag-outline"
+                              },
+                              {
+                                "label": "Last researched",
+                                "field": "enr_last_run_at",
+                                "format": "date",
+                                "icon": "radar"
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "columns",
+                            "columns": [
+                              [
+                                {
+                                  "kind": "section",
+                                  "label": "What they do",
+                                  "icon": "text-box-outline",
+                                  "blocks": [
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_description",
+                                        "enr_industry",
+                                        "enr_industry_code"
+                                      ],
+                                      "hideEmpty": true
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "section",
+                                  "label": "Where they are",
+                                  "icon": "map-marker-outline",
+                                  "blocks": [
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_hq_city",
+                                        "enr_hq_country",
+                                        "enr_phone"
+                                      ],
+                                      "cols": 1,
+                                      "hideEmpty": true
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "section",
+                                  "label": "Registration",
+                                  "icon": "certificate-outline",
+                                  "blocks": [
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_legal_name",
+                                        "enr_legal_form",
+                                        "enr_register_court",
+                                        "enr_register_number",
+                                        "enr_vat_id",
+                                        "enr_incorporation_date",
+                                        "enr_registered_street",
+                                        "enr_registered_postcode",
+                                        "enr_registered_city",
+                                        "enr_registered_country"
+                                      ],
+                                      "cols": 1,
+                                      "hideEmpty": true
+                                    },
+                                    {
+                                      "kind": "child",
+                                      "entity": "company_officer",
+                                      "via": "organization",
+                                      "childType": "table",
+                                      "label": "Officers",
+                                      "fields": [
+                                        "name",
+                                        "role",
+                                        "since",
+                                        "last_seen_at"
+                                      ]
+                                    }
+                                  ]
+                                },
+                                {
+                                  "kind": "section",
+                                  "label": "Size",
+                                  "icon": "account-group",
+                                  "blocks": [
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_employee_count",
+                                        "enr_employee_range",
+                                        "enr_founded_year"
+                                      ],
+                                      "cols": 1,
+                                      "hideEmpty": true
+                                    }
+                                  ]
+                                }
+                              ],
+                              [
+                                {
+                                  "kind": "section",
+                                  "label": "Listing",
+                                  "icon": "chart-line",
+                                  "edit": [
+                                    "enr_capital_stage",
+                                    "enr_ticker",
+                                    "enr_primary_mic",
+                                    "enr_isin",
+                                    "enr_trading_currency",
+                                    "enr_exchange"
+                                  ],
+                                  "blocks": [
+                                    {
+                                      "kind": "externalEmbed",
+                                      "key": "share_price",
+                                      "provider": "tradingview_mini",
+                                      "label": "Share price",
+                                      "height": 220
+                                    },
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_ticker",
+                                        "enr_primary_mic",
+                                        "enr_isin",
+                                        "enr_trading_currency",
+                                        "enr_exchange"
+                                      ],
+                                      "cols": 1,
+                                      "hideEmpty": true
+                                    }
+                                  ],
+                                  "visibleWhen": {
+                                    "value": "{{record.enr_capital_stage}}",
+                                    "in": [
+                                      "listed",
+                                      "otc"
+                                    ]
+                                  }
+                                },
+                                {
+                                  "kind": "section",
+                                  "label": "Funding",
+                                  "icon": "finance",
+                                  "blocks": [
+                                    {
+                                      "kind": "fields",
+                                      "fields": [
+                                        "enr_capital_stage",
+                                        "enr_parent_name",
+                                        "enr_acquirer",
+                                        "enr_acquired_on",
+                                        "enr_total_funding",
+                                        "enr_funding_currency",
+                                        "enr_investors",
+                                        "enr_last_round_type",
+                                        "enr_last_round_on",
+                                        "enr_last_round_amount"
+                                      ],
+                                      "cols": 1,
+                                      "hideEmpty": true
+                                    },
+                                    {
+                                      "kind": "child",
+                                      "entity": "company_investor",
+                                      "via": "organization",
+                                      "childType": "table",
+                                      "label": "Investors",
+                                      "hideWhenEmpty": true,
+                                      "fields": [
+                                        "name",
+                                        "role",
+                                        "url"
+                                      ]
+                                    },
+                                    {
+                                      "kind": "child",
+                                      "entity": "funding_round",
+                                      "via": "organization",
+                                      "childType": "table",
+                                      "label": "Rounds",
+                                      "hideWhenEmpty": true,
+                                      "fields": [
+                                        "round_type",
+                                        "announced_on",
+                                        "amount",
+                                        "currency",
+                                        "lead_investor"
+                                      ]
+                                    }
+                                  ],
+                                  "edit": [
+                                    "enr_capital_stage",
+                                    "enr_parent_name",
+                                    "enr_acquirer",
+                                    "enr_acquired_on"
+                                  ]
+                                }
+                              ]
+                            ]
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Sources & confidence",
+                      "blocks": [
+                        {
+                          "kind": "text",
+                          "text": "See what was found, where it came from and whether it still needs review. Technical job diagnostics stay out of the main company profile.",
+                          "icon": "shield-check-outline",
+                          "color": "muted"
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Research status",
+                          "icon": "radar",
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "enr_last_outcome",
+                                "enr_review_state",
+                                "enr_review_reason",
+                                "enr_domain",
+                                "enr_last_successful_run_at"
+                              ],
+                              "cols": 2,
+                              "hideEmpty": true
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Verified facts",
+                            "icon": "check-decagram-outline",
+                            "blocks": [
+                              {
+                                "kind": "child",
+                              "entity": "enrichment_fact",
+                              "via": "organization",
+                              "childType": "table",
+                              "label": "Facts",
+                              "fields": [
+                                "label",
+                                "value_text",
+                                "source_url",
+                                "confidence",
+                                "as_of",
+                                "fact_status"
+                              ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "section",
+                            "label": "Sources",
+                            "icon": "link-variant",
+                            "blocks": [
+                              {
+                                "kind": "child",
+                                "entity": "enrichment_source",
+                                "via": "organization",
+                                "childType": "table",
+                                "label": "Pages read",
+                                "fields": [
+                                "title",
+                                "url",
+                                "source_kind",
+                                "published_at",
+                                "fetched_at"
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "section",
+                            "label": "Channels",
+                            "icon": "broadcast",
+                            "blocks": [
+                              {
+                                "kind": "child",
+                              "entity": "company_channel",
+                              "via": "organization",
+                              "childType": "table",
+                              "label": "Channels",
+                              "fields": [
+                                "kind",
+                                "label",
+                                "url",
+                                "status",
+                                "last_seen_on_site_at"
+                              ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "section",
+                            "label": "Corrections",
+                            "icon": "pencil-outline",
+                            "blocks": [
+                              {
+                                "kind": "child",
+                              "entity": "enrichment_override",
+                              "via": "organization",
+                              "childType": "table",
+                              "label": "Corrections",
+                              "fields": [
+                                "field_key",
+                                "value_text",
+                                "reason",
+                                "active"
+                              ]
+                              }
+                            ]
+                          },
+                          {
+                            "kind": "section",
+                          "label": "Research history",
+                            "icon": "history",
+                            "blocks": [
+                              {
+                                "kind": "child",
+                              "entity": "enrichment_run",
+                              "via": "organization",
+                              "childType": "table",
+                              "label": "Runs",
+                              "fields": [
+                                "run_kind",
+                                "outcome",
+                                "started_at",
+                                "finished_at",
+                                "documents_seen",
+                                "facts_written",
+                                "records_written"
+                              ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "News & updates",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "company_post",
+                    "via": "organization",
+                    "childType": "cards",
+                    "label": "Latest updates"
+                  },
+                  {
+                    "kind": "text",
+                    "text": "Posts, videos and press releases from this company's own channels, read from their feeds. A channel with no machine-readable feed — LinkedIn, for one — is listed under Evidence but cannot be read here.",
+                    "color": "muted"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "subtitle": [
+              "city",
+              "country"
+            ],
+            "facts": [
+              "roles",
+              "industry",
+              "owner"
+            ],
+            "actions": [
+              "edit"
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "At a glance",
+            "icon": "office-building-outline",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "industry",
+                  "website",
+                  "phone",
+                  "enr_founded_year",
+                  "enr_employee_range"
+                ],
+                "hideEmpty": true
+              }
+            ]
+          },
+          {
+            "kind": "child",
+            "entity": "company_post",
+            "via": "organization",
+            "childType": "cards",
+            "label": "Latest updates",
+            "limit": 2
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Company identity",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "name",
+                  "website",
+                  "roles",
+                  "owner"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Business profile",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "status",
+                  "industry",
+                  "description"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Contact channels",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "email",
+                  "phone"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Primary address",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "street",
+                  "postcode",
+                  "city",
+                  "country"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Internal notes",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "imageField": "enr_logo_url"
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "description": "A person at an organization we deal with. EXTERNAL people only — colleagues come from the platform people directory, and leads, candidates and applicants belong to the app that runs that process.",
+      "icon": "card-account-details",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text"
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "mobile",
+          "label": "Mobile",
+          "type": "phone"
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary contact",
+          "type": "boolean",
+          "default": false,
+          "help": "The person to approach first at this organization."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "indexed": true,
+          "help": "Archive a contact who has left; references from past records still resolve to their name.",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a",
+              "phase": "active"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#94a3b8",
+              "phase": "cancelled"
+            }
+          ]
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "full_name",
+            "subtitle": [
+              "job_title",
+              "organization"
+            ],
+            "facts": [
+              "email",
+              "phone",
+              "mobile",
+              "owner"
+            ],
+            "actions": [
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "fields"
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "full_name",
+            "subtitle": [
+              "job_title",
+              "organization"
+            ],
+            "facts": [
+              "email",
+              "phone"
+            ],
+            "actions": [
+              "edit"
+            ]
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Person",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "full_name",
+                  "organization",
+                  "job_title",
+                  "is_primary"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Contact details",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "email",
+                  "phone",
+                  "mobile"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Internal",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "owner",
+                  "status",
+                  "notes"
+                ],
+                "columns": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "enrichment_run",
+      "label": "Research run",
+      "labelPlural": "Research runs",
+      "description": "One automatic research run: what it looked at, what it wrote, what it cost, and how it ended. Kept with the organization so a failure is visible on the record, not only in an admin table.",
+      "icon": "radar",
+      "displayField": "summary",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "job_id",
+          "label": "Job",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "run_kind",
+          "label": "Kind",
+          "type": "text"
+        },
+        {
+          "key": "outcome",
+          "label": "Outcome",
+          "type": "select",
+          "options": [
+            {
+              "value": "running",
+              "label": "Running",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "ok",
+              "label": "OK",
+              "color": "#16a34a"
+            },
+            {
+              "value": "partial",
+              "label": "Partial",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "needs_review",
+              "label": "Needs review",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "failed",
+              "label": "Failed",
+              "color": "#dc2626"
+            },
+            {
+              "value": "skipped",
+              "label": "Skipped",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "budget_stopped",
+              "label": "Budget reached",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "attempt",
+          "label": "Attempt",
+          "type": "integer"
+        },
+        {
+          "key": "terminal_reason",
+          "label": "Reason",
+          "type": "text"
+        },
+        {
+          "key": "counts_as_success",
+          "label": "Counted as current",
+          "type": "boolean",
+          "help": "Decided when the run finished, never recomputed. 'Enough fields verified' depends on a setting an admin can change, and re-reading old runs against today's threshold would silently move freshness for records nobody touched."
+        },
+        {
+          "key": "success_policy_version",
+          "label": "Policy",
+          "type": "text"
+        },
+        {
+          "key": "started_at",
+          "label": "Started",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "finished_at",
+          "label": "Finished",
+          "type": "datetime"
+        },
+        {
+          "key": "connectors_used",
+          "label": "Sources used",
+          "type": "text"
+        },
+        {
+          "key": "documents_seen",
+          "label": "Documents",
+          "type": "integer"
+        },
+        {
+          "key": "facts_written",
+          "label": "Facts",
+          "type": "integer"
+        },
+        {
+          "key": "records_written",
+          "label": "Records",
+          "type": "integer"
+        },
+        {
+          "key": "llm_input_tokens",
+          "label": "Input tokens",
+          "type": "integer"
+        },
+        {
+          "key": "llm_output_tokens",
+          "label": "Output tokens",
+          "type": "integer"
+        },
+        {
+          "key": "cost_estimate",
+          "label": "Est. cost",
+          "type": "decimal"
+        },
+        {
+          "key": "summary",
+          "label": "Summary",
+          "type": "text"
+        },
+        {
+          "key": "error",
+          "label": "Error",
+          "type": "longtext"
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{organization}|{job_id}. ONE durable row per logical job, so a retry updates its run rather than adding one - and so a run that failed before the apply transaction can still be created by the reconciler without racing it."
+        }
+      ]
+    },
+    {
+      "key": "enrichment_source",
+      "label": "Source",
+      "labelPlural": "Sources",
+      "description": "A page the research actually read. Every promoted fact points at one of these, so any number on the record can be traced back to where it came from.",
+      "icon": "link-variant",
+      "displayField": "title",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "url",
+          "label": "URL",
+          "type": "url"
+        },
+        {
+          "key": "url_key",
+          "label": "URL key",
+          "type": "text",
+          "indexed": true,
+          "help": "Normalized URL - lowercased host, tracking parameters stripped, no fragment."
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{url_key}|{content_hash}. Synthetic because uniqueness is per FIELD in this schema while the real constraint is per organization; the database index on this is what actually prevents duplicates under concurrency. The content hash is part of the IDENTITY, not decoration beside it - keying on the URL alone would give one mutable row per page, and an August fact would keep citing a source record that no longer describes what was fetched."
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text"
+        },
+        {
+          "key": "site",
+          "label": "Site",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "source_kind",
+          "label": "Kind",
+          "type": "text"
+        },
+        {
+          "key": "connector",
+          "label": "Found via",
+          "type": "text"
+        },
+        {
+          "key": "published_at",
+          "label": "Published",
+          "type": "datetime"
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First seen",
+          "type": "datetime"
+        },
+        {
+          "key": "last_seen_at",
+          "label": "Last seen",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "content_hash",
+          "label": "Content hash",
+          "type": "text",
+          "help": "Same URL is not same evidence. A fact extracted in August cites /about; by October /about says something else, and one mutable row would no longer describe what was fetched. Identical content still collapses to one row; changed content is a new version."
+        },
+        {
+          "key": "fetched_at",
+          "label": "Fetched",
+          "type": "datetime"
+        },
+        {
+          "key": "excerpt",
+          "label": "Excerpt",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "enrichment_run_source",
+      "label": "Run document",
+      "labelPlural": "Run documents",
+      "description": "Which documents one run actually read, and which of them reached the model. A source is shared across every run that saw it, so the source row itself cannot say which run used it - that is what this join carries. It is also the only record of the corpus a fact was checked against: 'did the model actually see this page' becomes a query instead of a guess.",
+      "icon": "file-search-outline",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "run",
+          "label": "Run",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "enrichment_run",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "source",
+          "label": "Document",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "enrichment_source",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "corpus_rank",
+          "label": "Rank",
+          "type": "integer",
+          "help": "Where this document sat in the ranked corpus. Own-domain pages outrank registries, which outrank news."
+        },
+        {
+          "key": "included_in_prompt",
+          "label": "Sent to the model",
+          "type": "boolean",
+          "help": "A ranked document is not necessarily a sent one - the corpus is truncated at a token budget. Citation checking is only meaningful against what was actually sent, so the distinction is stored rather than inferred."
+        },
+        {
+          "key": "prompt_label",
+          "label": "Cited as",
+          "type": "text",
+          "help": "The label this document carried IN the prompt - [S1], [S2]. Facts cite that label, so without it the join can prove a document was sent but not which id the model was told to use for it. The label is assigned per run, so the same page is [S1] in one run and [S3] in the next; storing the boolean alone left the citation check with nothing to resolve against."
+        },
+        {
+          "key": "prompt_position",
+          "label": "Position",
+          "type": "integer",
+          "help": "Where it sat in the sent corpus. Distinct from corpus_rank, which is the ranking BEFORE truncation - a document can rank third and be sent second because the one above it was dropped."
+        },
+        {
+          "key": "characters_sent",
+          "label": "Characters sent",
+          "type": "integer",
+          "help": "How much of the document reached the model. A quote can only be contained in what was actually sent, so a containment failure on a long page is a different diagnosis from one on a short page."
+        },
+        {
+          "key": "was_clipped",
+          "label": "Clipped",
+          "type": "boolean",
+          "help": "The document was cut at the budget. When a quote fails containment against a clipped document, the honest reading is 'the model may have seen text we no longer have', not 'the model invented it' - and those call for opposite fixes."
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{runId}|{sourceId}. One row per document per run however many times the run is retried."
+        }
+      ]
+    },
+    {
+      "key": "enrichment_fact",
+      "label": "Fact",
+      "labelPlural": "Facts & sources",
+      "description": "Where a single promoted value came from: the quote, the source, the confidence, and whether it was applied. Superseded rows are kept so the record shows WHY a value changed.",
+      "icon": "format-quote-close",
+      "displayField": "label",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "run",
+          "label": "Found by run",
+          "type": "reference",
+          "targetEntity": "enrichment_run",
+          "onDelete": "setNull",
+          "indexed": true,
+          "help": "setNull, not cascade: runs are pruned to the newest 100 and facts are not. A cascade here would delete a CURRENT promoted value because the run that found it aged out of the history table."
+        },
+        {
+          "key": "field_key",
+          "label": "Field",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "label",
+          "label": "Fact",
+          "type": "text"
+        },
+        {
+          "key": "value_text",
+          "label": "Value",
+          "type": "longtext"
+        },
+        {
+          "key": "quote",
+          "label": "Quoted from source",
+          "type": "longtext",
+          "help": "The sentence this came from, verbatim, so a human can check the claim without opening the source."
+        },
+        {
+          "key": "quote_verified",
+          "label": "Quote found in source",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "support_check",
+          "label": "Support check",
+          "type": "text",
+          "help": "Which verification the fact passed, or the one it failed. A quote that EXISTS is not the same as a quote that SUPPORTS the claim."
+        },
+        {
+          "key": "source_url",
+          "label": "Source",
+          "type": "url"
+        },
+        {
+          "key": "source_title",
+          "label": "Source title",
+          "type": "text"
+        },
+        {
+          "key": "confidence",
+          "label": "Confidence",
+          "type": "decimal"
+        },
+        {
+          "key": "as_of",
+          "label": "As of",
+          "type": "date"
+        },
+        {
+          "key": "fact_status",
+          "label": "Status",
+          "type": "select",
+          "indexed": true,
+          "default": "current",
+          "options": [
+            {
+              "value": "current",
+              "label": "Current",
+              "color": "#16a34a"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#dc2626"
+            },
+            {
+              "value": "superseded",
+              "label": "Superseded",
+              "color": "#94a3b8"
+            }
+          ],
+          "help": "Replaces the 'applied' flag, which could not express both 'kept as rejected evidence' and 'not the current answer'. A rejected row had a null superseded_at, so it read as active and competed with the real fact for the one-per-field key."
+        },
+        {
+          "key": "superseded_at",
+          "label": "Superseded",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{field_key} while active. Enforces ONE live fact per field in the database rather than by convention."
+        }
+      ]
+    },
+    {
+      "key": "funding_round",
+      "label": "Funding round",
+      "labelPlural": "Funding rounds",
+      "description": "A funding event. The latest of these is rolled up onto the organization in code - the model is never asked for both the rounds and a summary of the rounds, because the two would disagree.",
+      "icon": "finance",
+      "displayField": "round_type",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "round_type",
+          "label": "Round",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "announced_on",
+          "label": "Announced",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "decimal"
+        },
+        {
+          "key": "currency",
+          "label": "Currency",
+          "type": "text"
+        },
+        {
+          "key": "valuation",
+          "label": "Valuation",
+          "type": "decimal",
+          "help": "Post-money valuation at this round. Only when it was actually REPORTED - a valuation is the number press coverage most often estimates, and an estimate on a record reads as a fact."
+        },
+        {
+          "key": "valuation_currency",
+          "label": "Valuation currency",
+          "type": "text"
+        },
+        {
+          "key": "lead_investor",
+          "label": "Lead",
+          "type": "text"
+        },
+        {
+          "key": "investors",
+          "label": "Investors",
+          "type": "longtext"
+        },
+        {
+          "key": "source_urls",
+          "label": "Sources",
+          "type": "json",
+          "help": "A list. Round identity is reconciled partly on SHARED source references, which one column cannot express - and two reports agreeing is exactly what decides whether something is one round or two extensions."
+        },
+        {
+          "key": "quote",
+          "label": "Quote",
+          "type": "longtext"
+        },
+        {
+          "key": "counted",
+          "label": "In the total",
+          "type": "boolean",
+          "default": false,
+          "help": "Whether this round is counted in enr_total_funding. A round that failed verification is KEPT and shown - 'we saw this claim and would not stand behind it' is information - but it is excluded from the sum. Without this column the record shows three rounds and a total that adds up to one of them, which reads as a broken number rather than as the refusal it is."
+        },
+        {
+          "key": "support_check",
+          "label": "Check",
+          "type": "text",
+          "help": "Which verification layer accepted or refused this round. An unverified round is kept and shown, and is excluded from the total - a double-counted round is a wrong number that looks completely plausible."
+        },
+        {
+          "key": "confidence",
+          "label": "Confidence",
+          "type": "decimal"
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{reconciled round identity}. Deliberately NOT round type plus date: a round found first without a date and later with one would change key and land as a second row, and two extensions of one round share a type and an approximate date. Identity is reconciled over type, date within a tolerance, amount, currency and shared sources - and a round whose identity is still ambiguous is never counted into a total."
+        }
+      ]
+    },
+    {
+      "key": "company_investor",
+      "label": "Investor",
+      "labelPlural": "Investors",
+      "description": "A firm or person that put money into this company. Its own entity rather than a comma-separated string on the record, because an investor is something somebody wants to CLICK - a name alone means opening a search engine, and that is the difference between a record that answers a question and one that just displays a fact. Shared across rounds: a fund that led the Seed and followed the Series A is one investor with two rounds, not two rows.",
+      "icon": "cash-multiple",
+      "displayField": "name",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "name",
+          "label": "Investor",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "url",
+          "label": "Website",
+          "type": "url",
+          "help": "The investor's own site. A url field renders as a link, which is the whole reason this is an entity - and it is left EMPTY rather than guessed, because a wrong link on a named firm is worse than no link."
+        },
+        {
+          "key": "role",
+          "label": "Role",
+          "type": "select",
+          "help": "Whether this firm led a round or participated. Led is worth showing on its own: the lead sets the terms and is the relationship that matters.",
+          "options": [
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "participant",
+              "label": "Participant"
+            }
+          ]
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First seen",
+          "type": "datetime"
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{name}. One row per investor across every round - a fund that followed on is not a second investor."
+        }
+      ]
+    },
+    {
+      "key": "company_channel",
+      "label": "Channel",
+      "labelPlural": "Channels",
+      "description": "Where this company publishes: its blog, press page, YouTube channel, LinkedIn page. Discovered from links on the company's OWN site, which is what makes them trustworthy - a channel found by searching a company name is a guess wearing a link. Discovery only: nothing here is polled yet, and a channel never changes a value on the record.",
+      "icon": "broadcast",
+      "displayField": "label",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "kind",
+          "label": "Channel",
+          "type": "select",
+          "indexed": true,
+          "options": [
+            {
+              "value": "blog",
+              "label": "Blog",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "news",
+              "label": "News",
+              "color": "#0891b2"
+            },
+            {
+              "value": "press",
+              "label": "Press",
+              "color": "#6366f1"
+            },
+            {
+              "value": "changelog",
+              "label": "Changelog",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "podcast",
+              "label": "Podcast",
+              "color": "#d946ef"
+            },
+            {
+              "value": "youtube",
+              "label": "YouTube",
+              "color": "#dc2626"
+            },
+            {
+              "value": "linkedin",
+              "label": "LinkedIn",
+              "color": "#0a66c2"
+            },
+            {
+              "value": "x",
+              "label": "X",
+              "color": "#334155"
+            },
+            {
+              "value": "github",
+              "label": "GitHub",
+              "color": "#475569"
+            },
+            {
+              "value": "mastodon",
+              "label": "Mastodon",
+              "color": "#6364ff"
+            },
+            {
+              "value": "bluesky",
+              "label": "Bluesky",
+              "color": "#0285ff"
+            },
+            {
+              "value": "instagram",
+              "label": "Instagram",
+              "color": "#e1306c"
+            },
+            {
+              "value": "facebook",
+              "label": "Facebook",
+              "color": "#1877f2"
+            },
+            {
+              "value": "tiktok",
+              "label": "TikTok",
+              "color": "#111827"
+            },
+            {
+              "value": "imprint",
+              "label": "Legal notice"
+            },
+            {
+              "value": "careers",
+              "label": "Careers"
+            },
+            {
+              "value": "pricing",
+              "label": "Pricing"
+            },
+            {
+              "value": "investor_relations",
+              "label": "Investor relations"
+            },
+            {
+              "value": "crunchbase",
+              "label": "Crunchbase"
+            },
+            {
+              "value": "wikipedia",
+              "label": "Wikipedia"
+            },
+            {
+              "value": "docs",
+              "label": "Documentation"
+            },
+            {
+              "value": "status",
+              "label": "Status page"
+            },
+            {
+              "value": "stock",
+              "label": "Share price"
+            }
+          ],
+          "help": "Closed on purpose: it drives an icon and a grouping, and a free-text kind would be spelled three ways by the end of the first month."
+        },
+        {
+          "key": "label",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "key": "url",
+          "label": "Link",
+          "type": "url"
+        },
+        {
+          "key": "feed_url",
+          "label": "Feed",
+          "type": "url",
+          "help": "Set when the page declared a machine-readable feed. This is what makes a channel pollable later; without one it is still worth showing, but only a human can read it."
+        },
+        {
+          "key": "discovered_from",
+          "label": "Found on",
+          "type": "url",
+          "help": "The page whose links this came from. A channel is only trustworthy because the company's own site vouched for it, so the page that did the vouching is part of the record."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a",
+              "phase": "active"
+            },
+            {
+              "value": "stale",
+              "label": "No longer linked",
+              "color": "#f59e0b",
+              "phase": "active"
+            }
+          ],
+          "help": "A channel the site stops linking to goes stale rather than being deleted - the posts already collected from it were real when they were collected."
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First seen",
+          "type": "datetime"
+        },
+        {
+          "key": "last_seen_on_site_at",
+          "label": "Last seen on site",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{kind}|{normalized url}. Synthetic because uniqueness is per FIELD in this schema while the real constraint is per organization."
+        }
+      ]
+    },
+    {
+      "key": "company_officer",
+      "label": "Officer",
+      "labelPlural": "Officers",
+      "description": "A person the commercial register or the legal notice DECLARES in a role: a managing director, a board member, an authorized signatory. Deliberately not a contact - a contact is somebody you deal with and curate, this is a researched claim about the company. Name and role only: a model that half-remembers a director will invent an email address with total confidence, and an invented address for a real named person is the one error here with a victim. Promoting an officer to a contact is a human action.",
+      "icon": "account-tie",
+      "displayField": "name",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "role",
+          "label": "Role",
+          "type": "text",
+          "help": "Free text, not a select: officer titles vary by jurisdiction and legal form (Geschaeftsfuehrer, Vorstand, Prokurist, director, company secretary), and a core-app select's options can never be removed once shipped."
+        },
+        {
+          "key": "since",
+          "label": "In role since",
+          "type": "date"
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First seen",
+          "type": "datetime"
+        },
+        {
+          "key": "last_seen_at",
+          "label": "Last confirmed",
+          "type": "datetime",
+          "help": "When research last saw this person published in this role. An officer who has left keeps the row and stops being confirmed - deleting them would erase the fact that they held it."
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{name}|{role}. One person legitimately holds two roles - managing director AND authorized signatory - and each is its own published fact, so the role is part of the identity."
+        }
+      ]
+    },
+    {
+      "key": "company_post",
+      "label": "Post",
+      "labelPlural": "Posts",
+      "description": "Something this company published: a blog post, a press release, a video. Read from the channel's own feed. Monitoring output, not research - a post is a dated item with a link, and it never changes a value on the record.",
+      "icon": "post-outline",
+      "displayField": "title",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "channel",
+          "label": "Channel",
+          "type": "reference",
+          "targetEntity": "company_channel",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text"
+        },
+        {
+          "key": "url",
+          "label": "Link",
+          "type": "url"
+        },
+        {
+          "key": "published_at",
+          "label": "Published",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "excerpt",
+          "label": "Summary",
+          "type": "longtext"
+        },
+        {
+          "key": "image_url",
+          "label": "Image",
+          "type": "url"
+        },
+        {
+          "key": "external_id",
+          "label": "Source id",
+          "type": "text",
+          "help": "The feed's own id for the item - an RSS guid, an Atom id. A real column rather than something hidden inside the dedup key, because identity is what you query and what you look at in a support ticket."
+        },
+        {
+          "key": "fetched_at",
+          "label": "Fetched",
+          "type": "datetime"
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{channelId}|{external_id}. A site that changes ?p=123 into a slug has not published the post twice."
+        }
+      ]
+    },
+    {
+      "key": "enrichment_override",
+      "label": "Correction",
+      "labelPlural": "Corrections",
+      "description": "A human correcting a researched value. While one is active the writer never overwrites that field, and keeps refreshing every other one. This is also what makes a correction RATE countable rather than something inferred from history.",
+      "icon": "pencil",
+      "displayField": "field_key",
+      "ownedBy": {
+        "parent": "organization",
+        "via": "organization"
+      },
+      "fields": [
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "organization",
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "field_key",
+          "label": "Field",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "value_text",
+          "label": "Correct value",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "reason",
+          "label": "Why",
+          "type": "text"
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true,
+          "help": "Turn this off to let automatic research manage the field again."
+        },
+        {
+          "key": "dedup_key",
+          "label": "Key",
+          "type": "text",
+          "unique": true,
+          "help": "{parentId}|{field_key}|active while active, {parentId}|{field_key}|{id} once it is not. The key MOVES on deactivation on purpose: an inactive row that kept the active key would leave the unique index refusing the next correction for that field, so the user turns one off and then cannot make another, for a reason nothing in the UI could explain."
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "key": "organizations",
+      "label": "Companies",
+      "icon": "domain",
+      "entity": "organization",
+      "state": [
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "roles",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "industry",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "country",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "owner",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "status",
+          "type": "text",
+          "default": "active"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "filterbar",
+              "entity": "organization",
+              "search": {
+                "state": "q",
+                "placeholder": "Search companies…"
+              },
+              "facets": [
+                {
+                  "state": "roles",
+                  "field": "roles"
+                },
+                {
+                  "state": "industry",
+                  "field": "industry"
+                },
+                {
+                  "state": "country",
+                  "field": "country"
+                },
+                {
+                  "state": "owner",
+                  "field": "owner"
+                },
+                {
+                  "state": "status",
+                  "field": "status"
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "newButton": true,
+              "openDetail": true,
+              "fields": [
+                "name",
+                "roles",
+                "industry",
+                "city",
+                "owner"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "name",
+                  "city",
+                  "website"
+                ]
+              },
+              "source": {
+                "entity": "organization",
+                "sort": [
+                  {
+                    "field": "name",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "roles",
+                    "operator": "contains",
+                    "value": "{{state.roles}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "industry",
+                    "operator": "eq",
+                    "value": "{{state.industry}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "country",
+                    "operator": "eq",
+                    "value": "{{state.country}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "contacts",
+      "label": "Contacts",
+      "icon": "card-account-details",
+      "entity": "contact",
+      "state": [
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "organization",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "owner",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "status",
+          "type": "text",
+          "default": "active"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "filterbar",
+              "entity": "contact",
+              "search": {
+                "state": "q",
+                "placeholder": "Search contacts…"
+              },
+              "facets": [
+                {
+                  "state": "organization",
+                  "field": "organization"
+                },
+                {
+                  "state": "owner",
+                  "field": "owner"
+                },
+                {
+                  "state": "status",
+                  "field": "status"
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "newButton": true,
+              "openDetail": true,
+              "fields": [
+                "full_name",
+                "job_title",
+                "organization",
+                "email",
+                "phone",
+                "owner",
+                "status"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "full_name",
+                  "job_title"
+                ]
+              },
+              "source": {
+                "entity": "contact",
+                "sort": [
+                  {
+                    "field": "full_name",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "organization",
+                    "operator": "eq",
+                    "value": "{{state.organization}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "owner",
+                    "operator": "eq",
+                    "value": "{{state.owner}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Every member of the workspace. Reads the directory so a company reference resolves to a name on their own records, and cannot change it.",
+      "grants": [
+        {
+          "entity": "organization",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "notes",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "contact",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "notes",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "enrichment_run",
+          "read": true
+        },
+        {
+          "entity": "enrichment_source",
+          "read": true
+        },
+        {
+          "entity": "company_channel",
+          "read": true
+        },
+        {
+          "entity": "company_post",
+          "read": true
+        },
+        {
+          "entity": "enrichment_fact",
+          "read": true
+        },
+        {
+          "entity": "funding_round",
+          "read": true
+        },
+        {
+          "entity": "enrichment_override",
+          "read": true,
+          "create": true,
+          "update": true
+        }
+      ]
+    },
+    {
+      "key": "editor",
+      "name": "Editor",
+      "description": "Maintains the directory: adds companies and contacts, corrects them, and archives the ones that are no longer current. Nobody deletes — a deleted company would strand every record pointing at it.",
+      "grants": [
+        {
+          "entity": "organization",
+          "read": true,
+          "create": true,
+          "update": true,
+          "commands": [
+            "enrich_now",
+            "refresh_research"
+          ]
+        },
+        {
+          "entity": "contact",
+          "read": true,
+          "create": true,
+          "update": true
+        },
+        {
+          "entity": "enrichment_run",
+          "read": true
+        },
+        {
+          "entity": "enrichment_source",
+          "read": true
+        },
+        {
+          "entity": "company_channel",
+          "read": true
+        },
+        {
+          "entity": "company_post",
+          "read": true
+        },
+        {
+          "entity": "enrichment_fact",
+          "read": true
+        },
+        {
+          "entity": "funding_round",
+          "read": true
+        },
+        {
+          "entity": "enrichment_override",
+          "read": true,
+          "create": true,
+          "update": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0f766e"
+  },
+  "commands": [
+    {
+      "key": "enrich_now",
+      "label": "Research now",
+      "icon": "radar",
+      "entity": "organization",
+      "description": "Look this company up on the public web and file what is found alongside - never over - what you typed.",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "style": "primary",
+      "when": {
+        "field": "website",
+        "operator": "isNotEmpty"
+      },
+      "effects": [
+        {
+          "type": "enrich",
+          "target": "self",
+          "kind": "full"
+        }
+      ],
+      "successMessage": "Research queued.",
+      "busy": {
+        "when": {
+          "field": "enr_state",
+          "operator": "in",
+          "value": [
+            "queued",
+            "running"
+          ]
+        },
+        "label": "Researching…"
+      }
+    },
+    {
+      "key": "refresh_research",
+      "label": "Refresh",
+      "icon": "refresh",
+      "entity": "organization",
+      "description": "Research this company again even though it was looked up recently. Ordinary research is refused inside the freshness window so nobody can run up a bill by pressing a button five times; this is the deliberate way past it.",
+      "placements": [
+        "recordHeader"
+      ],
+      "when": {
+        "field": "website",
+        "operator": "isNotEmpty"
+      },
+      "effects": [
+        {
+          "type": "enrich",
+          "target": "self",
+          "kind": "refresh"
+        }
+      ],
+      "successMessage": "Refresh queued.",
+      "busy": {
+        "when": {
+          "field": "enr_state",
+          "operator": "in",
+          "value": [
+            "queued",
+            "running"
+          ]
+        },
+        "label": "Researching…"
+      }
+    }
+  ]
+}

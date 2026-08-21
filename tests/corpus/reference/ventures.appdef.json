@@ -1,0 +1,2390 @@
+{
+  "schemaVersion": "2.0",
+  "key": "ventures",
+  "name": "Ventures",
+  "version": "1.1.0",
+  "description": "The agency's venture arm: every company we hold equity in, what we put in, what the stake is marked at today, what has come back, and what it returned.",
+  "archetype": {
+    "kind": "tracker",
+    "coreJob": "Know what we put into each company, what the stake is worth now, and what it returned"
+  },
+  "presentation": {
+    "icon": "chart-line-variant",
+    "color": "#0d9488",
+    "category": "Finance",
+    "tagline": "Holdings, marks, returns"
+  },
+  "entities": [
+    {
+      "key": "company",
+      "label": "Holding",
+      "labelPlural": "Holdings",
+      "description": "A company we have invested in, or are about to.",
+      "displayField": "name",
+      "icon": "domain",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Company",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "organization",
+          "label": "Company record",
+          "type": "reference",
+          "targetApp": "core_organizations",
+          "targetEntity": "organization",
+          "onDelete": "setNull",
+          "indexed": true,
+          "help": "The shared Organizations record for this company. A holding is the INVESTMENT - stake, entry, valuation, exit - and the company it is a stake in is the same company the CRM and Invoicing deal with, which is why five of these are also clients."
+        },
+        {
+          "key": "sector",
+          "label": "Sector",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "options": [
+            {
+              "value": "fintech",
+              "label": "Fintech",
+              "color": "#2563eb"
+            },
+            {
+              "value": "logistics",
+              "label": "Logistics",
+              "color": "#0891b2"
+            },
+            {
+              "value": "energy",
+              "label": "Energy",
+              "color": "#16a34a"
+            },
+            {
+              "value": "healthcare",
+              "label": "Healthcare",
+              "color": "#e11d48"
+            },
+            {
+              "value": "retail",
+              "label": "Retail",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "sports",
+              "label": "Sports",
+              "color": "#a855f7"
+            },
+            {
+              "value": "travel",
+              "label": "Travel",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "software",
+              "label": "Software",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "indexed": true,
+          "help": "The company's funding stage at our latest ticket.",
+          "options": [
+            {
+              "value": "pre_seed",
+              "label": "Pre-seed",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "seed",
+              "label": "Seed",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "series_a",
+              "label": "Series A",
+              "color": "#2563eb"
+            },
+            {
+              "value": "series_b",
+              "label": "Series B",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "growth",
+              "label": "Growth",
+              "color": "#16a34a"
+            }
+          ]
+        },
+        {
+          "key": "country",
+          "label": "Country",
+          "type": "select",
+          "default": "de",
+          "options": [
+            {
+              "value": "de",
+              "label": "Germany"
+            },
+            {
+              "value": "at",
+              "label": "Austria"
+            },
+            {
+              "value": "ch",
+              "label": "Switzerland"
+            },
+            {
+              "value": "nl",
+              "label": "Netherlands"
+            },
+            {
+              "value": "dk",
+              "label": "Denmark"
+            },
+            {
+              "value": "ee",
+              "label": "Estonia"
+            }
+          ]
+        },
+        {
+          "key": "relationship",
+          "label": "Relationship",
+          "type": "select",
+          "default": "none",
+          "help": "How the company relates to the agency side of the business.",
+          "options": [
+            {
+              "value": "client",
+              "label": "Current client",
+              "color": "#16a34a"
+            },
+            {
+              "value": "former_client",
+              "label": "Former client",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "none",
+              "label": "Investment only",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "lead",
+          "label": "Deal lead",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "holding_status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "entry_date",
+          "label": "First invested",
+          "type": "date",
+          "role": "start",
+          "indexed": true,
+          "help": "Stamped automatically the first time the holding is funded."
+        },
+        {
+          "key": "ownership_pct",
+          "label": "Ownership %",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 2,
+          "unit": "%",
+          "help": "Our fully diluted share of the company, from the latest cap table."
+        },
+        {
+          "key": "current_value",
+          "label": "Current value",
+          "type": "money",
+          "currency": "EUR",
+          "help": "What our stake is marked at today. Use “Record valuation” rather than editing this by hand — that keeps the mark history."
+        },
+        {
+          "key": "valued_on",
+          "label": "Marked on",
+          "type": "date",
+          "indexed": true
+        },
+        {
+          "key": "value_basis",
+          "label": "Valuation basis",
+          "type": "select",
+          "default": "cost",
+          "options": [
+            {
+              "value": "round_price",
+              "label": "Last round price",
+              "color": "#2563eb"
+            },
+            {
+              "value": "secondary",
+              "label": "Secondary trade",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "dcf",
+              "label": "Discounted cash flow",
+              "color": "#a855f7"
+            },
+            {
+              "value": "cost",
+              "label": "Held at cost",
+              "color": "#64748b"
+            },
+            {
+              "value": "write_down",
+              "label": "Write-down",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "exit_on",
+          "label": "Exited on",
+          "type": "date",
+          "group": "Exit"
+        },
+        {
+          "key": "exit_proceeds",
+          "label": "Exit proceeds",
+          "type": "money",
+          "currency": "EUR",
+          "group": "Exit"
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "founded_year",
+          "label": "Founded",
+          "type": "integer"
+        },
+        {
+          "key": "thesis",
+          "label": "Why we invested",
+          "type": "longtext",
+          "group": "Notes"
+        },
+        {
+          "key": "description",
+          "label": "What they do",
+          "type": "longtext",
+          "group": "Notes"
+        },
+        {
+          "key": "invested",
+          "label": "Invested",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "rollup": {
+              "entity": "investment",
+              "via": "company",
+              "op": "sum",
+              "field": "amount"
+            }
+          }
+        },
+        {
+          "key": "realized",
+          "label": "Realized",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "rollup": {
+              "entity": "distribution",
+              "via": "company",
+              "op": "sum",
+              "field": "amount"
+            }
+          }
+        },
+        {
+          "key": "ticket_count",
+          "label": "Tickets",
+          "type": "integer",
+          "computed": {
+            "rollup": {
+              "entity": "investment",
+              "via": "company",
+              "op": "count"
+            }
+          }
+        },
+        {
+          "key": "total_value",
+          "label": "Total value",
+          "type": "money",
+          "currency": "EUR",
+          "help": "The mark plus everything already distributed — what the holding is worth to us all in.",
+          "computed": {
+            "expr": "current_value + realized"
+          }
+        },
+        {
+          "key": "gain",
+          "label": "Gain",
+          "type": "money",
+          "currency": "EUR",
+          "computed": {
+            "expr": "current_value + realized - invested"
+          }
+        },
+        {
+          "key": "moic",
+          "label": "Multiple",
+          "type": "decimal",
+          "precision": 10,
+          "scale": 2,
+          "unit": "x",
+          "help": "Total value over money in. 1.0 is break-even.",
+          "computed": {
+            "expr": "(current_value + realized) / invested"
+          }
+        },
+        {
+          "key": "dpi",
+          "label": "Returned",
+          "type": "decimal",
+          "precision": 10,
+          "scale": 2,
+          "unit": "x",
+          "help": "Cash actually back in the bank, over money in.",
+          "computed": {
+            "expr": "realized / invested"
+          }
+        },
+        {
+          "key": "gain_pct",
+          "label": "Gain %",
+          "type": "decimal",
+          "precision": 10,
+          "scale": 1,
+          "unit": "%",
+          "computed": {
+            "expr": "(current_value + realized - invested) / invested * 100"
+          }
+        },
+        {
+          "key": "held_days",
+          "label": "Days held",
+          "type": "integer",
+          "computed": {
+            "expr": "days_between(entry_date, valued_on)"
+          }
+        },
+        {
+          "key": "cagr_pct",
+          "label": "Return p.a.",
+          "type": "decimal",
+          "precision": 10,
+          "scale": 1,
+          "unit": "%",
+          "help": "Annualized return between the entry date and the latest mark. Empty until the holding has both.",
+          "computed": {
+            "expr": "(pow((current_value + realized) / invested, 365 / days_between(entry_date, valued_on)) - 1) * 100"
+          }
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "status": "holding_status",
+            "subtitle": [
+              "sector",
+              "stage"
+            ],
+            "facts": [
+              "invested",
+              "current_value",
+              "ownership_pct",
+              "lead",
+              "valued_on"
+            ],
+            "actions": [
+              "record_valuation",
+              "commit_holding",
+              "fund_holding",
+              "record_exit",
+              "write_off",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process",
+            "label": "Holding lifecycle"
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Invested",
+                "field": "invested",
+                "format": "money",
+                "icon": "cash-minus"
+              },
+              {
+                "label": "Current value",
+                "field": "current_value",
+                "format": "money",
+                "icon": "cash-multiple"
+              },
+              {
+                "label": "Realized",
+                "field": "realized",
+                "format": "money",
+                "icon": "cash-plus"
+              },
+              {
+                "label": "Multiple",
+                "field": "moic",
+                "format": "number",
+                "icon": "close-circle-multiple-outline"
+              },
+              {
+                "label": "Gain %",
+                "field": "gain_pct",
+                "format": "percent",
+                "icon": "trending-up",
+                "attention": {
+                  "op": "lt",
+                  "value": 0
+                }
+              },
+              {
+                "label": "Return p.a.",
+                "field": "cagr_pct",
+                "format": "percent",
+                "icon": "speedometer"
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Exit",
+            "icon": "door-open",
+            "visibleWhen": {
+              "value": "{{record.holding_status}}",
+              "eq": "exited"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "exit_on",
+                  "exit_proceeds",
+                  "dpi"
+                ],
+                "cols": 3
+              }
+            ]
+          },
+          {
+            "kind": "columns",
+            "weights": [
+              1,
+              2
+            ],
+            "columns": [
+              [
+                {
+                  "kind": "section",
+                  "label": "Company",
+                  "icon": "information-outline",
+                  "blocks": [
+                    {
+                      "kind": "fields",
+                      "fields": [
+                        "sector",
+                        "stage",
+                        "country",
+                        "relationship",
+                        "founded_year",
+                        "website"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "section",
+                  "label": "Our position",
+                  "icon": "chart-pie",
+                  "blocks": [
+                    {
+                      "kind": "fields",
+                      "fields": [
+                        "lead",
+                        "entry_date",
+                        "ownership_pct",
+                        "value_basis"
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "section",
+                  "label": "Notes",
+                  "icon": "note-text-outline",
+                  "visibleWhen": {
+                    "value": "{{record.thesis}}",
+                    "neq": ""
+                  },
+                  "blocks": [
+                    {
+                      "kind": "fields",
+                      "fields": [
+                        "thesis",
+                        "description"
+                      ]
+                    }
+                  ]
+                }
+              ],
+              [
+                {
+                  "kind": "tabs",
+                  "tabs": [
+                    {
+                      "label": "Value",
+                      "blocks": [
+                        {
+                          "kind": "chart",
+                          "chartType": "line",
+                          "label": "Marked value over time",
+                          "source": {
+                            "entity": "valuation",
+                            "via": "company",
+                            "aggregate": {
+                              "op": "max",
+                              "field": "value",
+                              "groupBy": "month_of:marked_on"
+                            }
+                          }
+                        },
+                        {
+                          "kind": "child",
+                          "entity": "valuation",
+                          "via": "company",
+                          "childType": "table",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Valuations"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Investments",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "investment",
+                          "via": "company",
+                          "childType": "lineItems",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "inlineEdit": true,
+                          "label": "Investments"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Distributions",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "distribution",
+                          "via": "company",
+                          "childType": "table",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Distributions"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "Updates",
+                      "blocks": [
+                        {
+                          "kind": "child",
+                          "entity": "company_update",
+                          "via": "company",
+                          "childType": "feed",
+                          "subordinate": true,
+                          "inlineCreate": true,
+                          "label": "Updates"
+                        }
+                      ]
+                    },
+                    {
+                      "label": "History",
+                      "blocks": [
+                        {
+                          "kind": "history"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+        ]
+      },
+      "peek": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "status": "holding_status",
+            "subtitle": [
+              "sector",
+              "stage"
+            ],
+            "facts": [
+              "invested",
+              "current_value",
+              "lead"
+            ],
+            "actions": [
+              "record_valuation",
+              "edit"
+            ]
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Invested",
+                "field": "invested",
+                "format": "money"
+              },
+              {
+                "label": "Total value",
+                "field": "total_value",
+                "format": "money"
+              },
+              {
+                "label": "Multiple",
+                "field": "moic",
+                "format": "number"
+              }
+            ]
+          },
+          {
+            "kind": "table",
+            "label": "Recent marks",
+            "source": {
+              "entity": "valuation",
+              "via": "company",
+              "sort": [
+                {
+                  "field": "marked_on",
+                  "direction": "desc"
+                }
+              ],
+              "limit": 3
+            },
+            "fields": [
+              "marked_on",
+              "value",
+              "basis"
+            ],
+            "openDetail": true
+          }
+        ]
+      },
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "Company",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "name",
+                  "sector",
+                  "stage",
+                  "country",
+                  "website",
+                  "founded_year"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Our position",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "lead",
+                  "relationship",
+                  "ownership_pct",
+                  "entry_date"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "thesis",
+                  "description"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "investment",
+      "label": "Investment",
+      "labelPlural": "Investments",
+      "description": "One cheque into a holding. Follow-ons are separate rows.",
+      "displayField": "invested_on",
+      "icon": "cash-minus",
+      "ownedBy": {
+        "parent": "company",
+        "via": "company",
+        "as": "lineItems"
+      },
+      "fields": [
+        {
+          "key": "company",
+          "label": "Holding",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "invested_on",
+          "label": "Invested on",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "money",
+          "currency": "EUR",
+          "required": true
+        },
+        {
+          "key": "instrument",
+          "label": "Instrument",
+          "type": "select",
+          "default": "equity",
+          "options": [
+            {
+              "value": "equity",
+              "label": "Equity",
+              "color": "#2563eb"
+            },
+            {
+              "value": "safe",
+              "label": "SAFE",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "convertible",
+              "label": "Convertible loan",
+              "color": "#a855f7"
+            },
+            {
+              "value": "equity_for_fees",
+              "label": "Equity for fees",
+              "color": "#16a34a"
+            }
+          ]
+        },
+        {
+          "key": "round",
+          "label": "Round",
+          "type": "select",
+          "options": [
+            {
+              "value": "pre_seed",
+              "label": "Pre-seed",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "seed",
+              "label": "Seed",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "series_a",
+              "label": "Series A",
+              "color": "#2563eb"
+            },
+            {
+              "value": "series_b",
+              "label": "Series B",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "bridge",
+              "label": "Bridge",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "ownership_after",
+          "label": "Ownership after",
+          "type": "decimal",
+          "precision": 6,
+          "scale": 2,
+          "unit": "%"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "valuation",
+      "label": "Valuation",
+      "labelPlural": "Valuations",
+      "description": "A mark: what our stake was worth on a given date, and how we arrived at it.",
+      "displayField": "marked_on",
+      "icon": "chart-line",
+      "ownedBy": {
+        "parent": "company",
+        "via": "company",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "company",
+          "label": "Holding",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "marked_on",
+          "label": "Marked on",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "value",
+          "label": "Value of our stake",
+          "type": "money",
+          "currency": "EUR",
+          "required": true
+        },
+        {
+          "key": "basis",
+          "label": "Basis",
+          "type": "select",
+          "default": "round_price",
+          "options": [
+            {
+              "value": "round_price",
+              "label": "Last round price",
+              "color": "#2563eb"
+            },
+            {
+              "value": "secondary",
+              "label": "Secondary trade",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "dcf",
+              "label": "Discounted cash flow",
+              "color": "#a855f7"
+            },
+            {
+              "value": "cost",
+              "label": "Held at cost",
+              "color": "#64748b"
+            },
+            {
+              "value": "write_down",
+              "label": "Write-down",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "key": "distribution",
+      "label": "Distribution",
+      "labelPlural": "Distributions",
+      "description": "Money coming back out of a holding.",
+      "displayField": "received_on",
+      "icon": "cash-plus",
+      "ownedBy": {
+        "parent": "company",
+        "via": "company",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "company",
+          "label": "Holding",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "received_on",
+          "label": "Received on",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "amount",
+          "label": "Amount",
+          "type": "money",
+          "currency": "EUR",
+          "required": true
+        },
+        {
+          "key": "kind",
+          "label": "Kind",
+          "type": "select",
+          "default": "exit",
+          "options": [
+            {
+              "value": "dividend",
+              "label": "Dividend",
+              "color": "#16a34a"
+            },
+            {
+              "value": "secondary",
+              "label": "Secondary sale",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "exit",
+              "label": "Exit proceeds",
+              "color": "#2563eb"
+            },
+            {
+              "value": "liquidation",
+              "label": "Liquidation",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "key": "company_update",
+      "label": "Update",
+      "labelPlural": "Updates",
+      "description": "What the founders told us this quarter.",
+      "displayField": "headline",
+      "icon": "message-text-outline",
+      "ownedBy": {
+        "parent": "company",
+        "via": "company",
+        "as": "feed"
+      },
+      "fields": [
+        {
+          "key": "company",
+          "label": "Holding",
+          "type": "reference",
+          "targetEntity": "company",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "headline",
+          "label": "Headline",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "period",
+          "label": "Period",
+          "type": "text",
+          "help": "For example Q2 2026."
+        },
+        {
+          "key": "body",
+          "label": "Update",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "holdings_table",
+      "label": "All holdings",
+      "type": "table",
+      "entity": "company",
+      "sort": [
+        {
+          "field": "total_value",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "sector",
+          "stage",
+          "holding_status",
+          "invested",
+          "current_value",
+          "realized",
+          "moic",
+          "gain_pct",
+          "valued_on"
+        ]
+      }
+    },
+    {
+      "key": "returns_table",
+      "label": "Returns",
+      "type": "table",
+      "entity": "company",
+      "sort": [
+        {
+          "field": "gain",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "sector",
+          "entry_date",
+          "held_days",
+          "invested",
+          "total_value",
+          "gain",
+          "moic",
+          "cagr_pct",
+          "dpi"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "portfolio",
+      "label": "Portfolio",
+      "icon": "view-dashboard",
+      "entity": "company",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Portfolio value",
+                  "format": "money",
+                  "size": "lg",
+                  "icon": "cash-multiple",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "current_value"
+                    },
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "held"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "holdings",
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "held"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Invested",
+                  "format": "money",
+                  "icon": "cash-minus",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "invested"
+                    }
+                  },
+                  "link": {
+                    "page": "holdings"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Portfolio multiple",
+                  "format": "multiple",
+                  "icon": "close-circle-multiple-outline",
+                  "combine": {
+                    "mode": "ratio"
+                  },
+                  "sources": [
+                    {
+                      "entity": "company",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "total_value"
+                      }
+                    },
+                    {
+                      "entity": "company",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "invested"
+                      }
+                    }
+                  ],
+                  "link": {
+                    "page": "returns"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Realized",
+                  "format": "money",
+                  "icon": "cash-plus",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "realized"
+                    }
+                  },
+                  "link": {
+                    "page": "cashflow"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Companies held",
+                  "icon": "domain",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "held"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "holdings",
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "held"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Written off",
+                  "icon": "trending-down",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "written_off"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "holdings",
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "written_off"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "weights": [
+                2,
+                1
+              ],
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Invested against value, by sector",
+                    "sources": [
+                      {
+                        "label": "Invested",
+                        "color": "#94a3b8",
+                        "source": {
+                          "entity": "company",
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "invested",
+                            "groupBy": "sector"
+                          }
+                        }
+                      },
+                      {
+                        "label": "Value",
+                        "color": "#0d9488",
+                        "source": {
+                          "entity": "company",
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "total_value",
+                            "groupBy": "sector"
+                          }
+                        }
+                      }
+                    ],
+                    "link": {
+                      "page": "holdings"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Where the money sits",
+                    "source": {
+                      "entity": "company",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "current_value",
+                        "groupBy": "sector"
+                      },
+                      "filters": [
+                        {
+                          "field": "holding_status",
+                          "operator": "eq",
+                          "value": "held"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "holdings"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Money deployed by month",
+                    "source": {
+                      "entity": "investment",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "amount",
+                        "groupBy": "month_of:invested_on"
+                      }
+                    },
+                    "link": {
+                      "page": "cashflow"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Money back by month",
+                    "source": {
+                      "entity": "distribution",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "amount",
+                        "groupBy": "month_of:received_on"
+                      }
+                    },
+                    "link": {
+                      "page": "cashflow"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Largest holdings",
+              "icon": "format-list-numbered",
+              "blocks": [
+                {
+                  "kind": "repeat",
+                  "as": "holding",
+                  "direction": "column",
+                  "gap": "sm",
+                  "openDetail": true,
+                  "emptyText": "Nothing held yet.",
+                  "source": {
+                    "entity": "company",
+                    "sort": [
+                      {
+                        "field": "total_value",
+                        "direction": "desc"
+                      }
+                    ],
+                    "limit": 8,
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "held"
+                      }
+                    ]
+                  },
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "md",
+                      "align": "center",
+                      "blocks": [
+                        {
+                          "kind": "stack",
+                          "gap": "none",
+                          "width": "md",
+                          "blocks": [
+                            {
+                              "kind": "field",
+                              "field": "name",
+                              "weight": "medium"
+                            },
+                            {
+                              "kind": "chip",
+                              "field": "sector"
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "stat",
+                          "field": "total_value",
+                          "format": "share",
+                          "grow": true,
+                          "max": {
+                            "source": {
+                              "entity": "company",
+                              "aggregate": {
+                                "op": "sum",
+                                "field": "total_value"
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "kind": "stat",
+                          "field": "total_value",
+                          "format": "money",
+                          "size": "sm"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "holdings",
+      "label": "Holdings",
+      "icon": "domain",
+      "entity": "company",
+      "state": [
+        {
+          "key": "mode",
+          "type": "enum",
+          "default": "list",
+          "options": [
+            {
+              "value": "list",
+              "label": "List"
+            },
+            {
+              "value": "board",
+              "label": "Board"
+            }
+          ]
+        },
+        {
+          "key": "q",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "sector",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "stage",
+          "type": "text",
+          "default": ""
+        },
+        {
+          "key": "lead",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "align": "center",
+              "blocks": [
+                {
+                  "kind": "control",
+                  "control": "segmented",
+                  "stateKey": "mode"
+                },
+                {
+                  "kind": "filterbar",
+                  "entity": "company",
+                  "grow": true,
+                  "search": {
+                    "state": "q",
+                    "placeholder": "Search holdings…"
+                  },
+                  "facets": [
+                    {
+                      "state": "sector",
+                      "field": "sector"
+                    },
+                    {
+                      "state": "stage",
+                      "field": "stage"
+                    },
+                    {
+                      "state": "lead",
+                      "field": "lead"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "list"
+              },
+              "newButton": true,
+              "openDetail": true,
+              "groupBy": {
+                "field": "sector"
+              },
+              "fields": [
+                "name",
+                "stage",
+                "holding_status",
+                "invested",
+                "current_value",
+                "realized",
+                "moic",
+                "cagr_pct",
+                "valued_on"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "name",
+                  "description"
+                ]
+              },
+              "source": {
+                "entity": "company",
+                "sort": [
+                  {
+                    "field": "total_value",
+                    "direction": "desc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "sector",
+                    "operator": "eq",
+                    "value": "{{state.sector}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "stage",
+                    "operator": "eq",
+                    "value": "{{state.stage}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "lead",
+                    "operator": "eq",
+                    "value": "{{state.lead}}",
+                    "optional": true
+                  }
+                ]
+              }
+            },
+            {
+              "kind": "board",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "board"
+              },
+              "newButton": true,
+              "openDetail": true,
+              "groupField": "holding_status",
+              "sumField": "total_value",
+              "cardFields": [
+                "sector",
+                "invested",
+                "current_value",
+                "moic"
+              ],
+              "search": {
+                "state": "q",
+                "fields": [
+                  "name",
+                  "description"
+                ]
+              },
+              "source": {
+                "entity": "company",
+                "filters": [
+                  {
+                    "field": "sector",
+                    "operator": "eq",
+                    "value": "{{state.sector}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "stage",
+                    "operator": "eq",
+                    "value": "{{state.stage}}",
+                    "optional": true
+                  },
+                  {
+                    "field": "lead",
+                    "operator": "eq",
+                    "value": "{{state.lead}}",
+                    "optional": true
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "cashflow",
+      "label": "Cash flow",
+      "icon": "swap-vertical",
+      "entity": "company",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Total deployed",
+                  "format": "money",
+                  "icon": "cash-minus",
+                  "source": {
+                    "entity": "investment",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "amount"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Total returned",
+                  "format": "money",
+                  "icon": "cash-plus",
+                  "source": {
+                    "entity": "distribution",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "amount"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Cheques written",
+                  "icon": "file-document-multiple-outline",
+                  "source": {
+                    "entity": "investment",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Average cheque",
+                  "format": "money",
+                  "icon": "calculator",
+                  "source": {
+                    "entity": "investment",
+                    "aggregate": {
+                      "op": "avg",
+                      "field": "amount"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Deployed by instrument",
+                    "source": {
+                      "entity": "investment",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "amount",
+                        "groupBy": "instrument"
+                      }
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Returned by kind",
+                    "source": {
+                      "entity": "distribution",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "amount",
+                        "groupBy": "kind"
+                      }
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Money out",
+              "icon": "cash-minus",
+              "blocks": [
+                {
+                  "kind": "table",
+                  "openDetail": true,
+                  "fields": [
+                    "invested_on",
+                    "company",
+                    "amount",
+                    "instrument",
+                    "round",
+                    "ownership_after"
+                  ],
+                  "source": {
+                    "entity": "investment",
+                    "sort": [
+                      {
+                        "field": "invested_on",
+                        "direction": "desc"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Money in",
+              "icon": "cash-plus",
+              "blocks": [
+                {
+                  "kind": "table",
+                  "openDetail": true,
+                  "fields": [
+                    "received_on",
+                    "company",
+                    "amount",
+                    "kind",
+                    "note"
+                  ],
+                  "source": {
+                    "entity": "distribution",
+                    "sort": [
+                      {
+                        "field": "received_on",
+                        "direction": "desc"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "returns",
+      "label": "Returns",
+      "icon": "trending-up",
+      "entity": "company",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Best multiple",
+                  "icon": "trophy-outline",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "max",
+                      "field": "moic"
+                    }
+                  },
+                  "link": {
+                    "page": "holdings"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Total gain",
+                  "format": "money",
+                  "icon": "trending-up",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "gain"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Best return p.a.",
+                  "format": "percent",
+                  "icon": "speedometer",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "max",
+                      "field": "cagr_pct"
+                    }
+                  },
+                  "link": {
+                    "page": "holdings"
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Average hold",
+                  "icon": "calendar-clock",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "avg",
+                      "field": "held_days"
+                    },
+                    "filters": [
+                      {
+                        "field": "invested",
+                        "operator": "gt",
+                        "value": 0
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Exited",
+                  "icon": "door-open",
+                  "source": {
+                    "entity": "company",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "exited"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "holdings",
+                    "filters": [
+                      {
+                        "field": "holding_status",
+                        "operator": "eq",
+                        "value": "exited"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Gain by sector",
+                    "source": {
+                      "entity": "company",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "gain",
+                        "groupBy": "sector"
+                      }
+                    },
+                    "link": {
+                      "page": "holdings"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Invested by deal lead",
+                    "source": {
+                      "entity": "company",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "invested",
+                        "groupBy": "lead"
+                      }
+                    },
+                    "link": {
+                      "page": "holdings"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "section",
+              "label": "Every holding, best first",
+              "icon": "format-list-numbered",
+              "blocks": [
+                {
+                  "kind": "view",
+                  "view": "returns_table"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "holding_lifecycle",
+      "entity": "company",
+      "stateField": "holding_status",
+      "initialState": "watchlist",
+      "states": [
+        {
+          "key": "watchlist",
+          "label": "Watchlist",
+          "color": "#94a3b8"
+        },
+        {
+          "key": "committed",
+          "label": "Committed",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "held",
+          "label": "Held",
+          "color": "#2563eb"
+        },
+        {
+          "key": "exited",
+          "label": "Exited",
+          "color": "#16a34a",
+          "terminal": true
+        },
+        {
+          "key": "written_off",
+          "label": "Written off",
+          "color": "#dc2626",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "commit",
+          "label": "Commit",
+          "from": [
+            "watchlist"
+          ],
+          "to": "committed",
+          "command": "commit_holding"
+        },
+        {
+          "key": "fund",
+          "label": "Fund",
+          "from": [
+            "committed"
+          ],
+          "to": "held",
+          "command": "fund_holding"
+        },
+        {
+          "key": "exit",
+          "label": "Record exit",
+          "from": [
+            "held"
+          ],
+          "to": "exited",
+          "command": "record_exit"
+        },
+        {
+          "key": "write_off",
+          "label": "Write off",
+          "from": [
+            "held",
+            "committed"
+          ],
+          "to": "written_off",
+          "command": "write_off"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "commit_holding",
+      "label": "Commit",
+      "entity": "company",
+      "icon": "handshake",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "successMessage": "Committed — fund it once the money moves.",
+      "effects": []
+    },
+    {
+      "key": "fund_holding",
+      "label": "Fund",
+      "entity": "company",
+      "icon": "cash-fast",
+      "style": "primary",
+      "placements": [
+        "recordHeader"
+      ],
+      "confirm": {
+        "title": "Fund this holding?",
+        "message": "Marks the holding as held and stamps the entry date. Add the cheque itself as an investment row.",
+        "confirmLabel": "Fund"
+      },
+      "successMessage": "Funded.",
+      "effects": []
+    },
+    {
+      "key": "record_valuation",
+      "label": "Record valuation",
+      "entity": "company",
+      "icon": "chart-line",
+      "style": "primary",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "when": {
+        "field": "holding_status",
+        "operator": "eq",
+        "value": "held"
+      },
+      "input": {
+        "fields": [
+          "current_value",
+          "valued_on",
+          "value_basis"
+        ],
+        "required": [
+          "current_value",
+          "valued_on"
+        ]
+      },
+      "successMessage": "Mark recorded.",
+      "effects": [
+        {
+          "type": "createRecord",
+          "entity": "valuation",
+          "set": {
+            "company": "{{record.id}}",
+            "value": "{{record.current_value}}",
+            "marked_on": "{{record.valued_on}}",
+            "basis": "{{record.value_basis}}"
+          }
+        }
+      ]
+    },
+    {
+      "key": "record_exit",
+      "label": "Record exit",
+      "entity": "company",
+      "icon": "door-open",
+      "style": "primary",
+      "placements": [
+        "recordHeader"
+      ],
+      "input": {
+        "fields": [
+          "exit_on",
+          "exit_proceeds"
+        ],
+        "required": [
+          "exit_on",
+          "exit_proceeds"
+        ]
+      },
+      "confirm": {
+        "title": "Record the exit?",
+        "message": "Books the proceeds as a distribution and clears the mark — the holding is no longer on the books at a value.",
+        "confirmLabel": "Record exit"
+      },
+      "successMessage": "Exit recorded.",
+      "effects": [
+        {
+          "type": "createRecord",
+          "entity": "distribution",
+          "set": {
+            "company": "{{record.id}}",
+            "amount": "{{record.exit_proceeds}}",
+            "received_on": "{{record.exit_on}}",
+            "kind": "exit",
+            "note": "Exit proceeds"
+          }
+        },
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "current_value": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "write_off",
+      "label": "Write off",
+      "entity": "company",
+      "icon": "trending-down",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "confirm": {
+        "title": "Write this holding off?",
+        "message": "Marks the stake at zero. The investment history stays on file.",
+        "tone": "danger",
+        "confirmLabel": "Write off"
+      },
+      "successMessage": "Written off.",
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "current_value": 0,
+            "value_basis": "write_down"
+          }
+        }
+      ]
+    }
+  ],
+  "workflows": [
+    {
+      "key": "stamp_entry_date",
+      "name": "Stamp the entry date on first funding",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "company",
+        "field": "holding_status"
+      },
+      "when": {
+        "field": "holding_status",
+        "operator": "eq",
+        "value": "held"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "setIfEmpty": true,
+          "set": {
+            "entry_date": "{{today}}"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "partner",
+      "name": "Partner",
+      "description": "Runs the venture arm: adds holdings, writes cheques, records marks and exits.",
+      "grants": [
+        {
+          "entity": "company",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        },
+        {
+          "entity": "investment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "valuation",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "distribution",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "company_update",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "analyst",
+      "name": "Analyst",
+      "description": "Keeps the marks and the paperwork current, but cannot remove anything.",
+      "grants": [
+        {
+          "entity": "company",
+          "create": true,
+          "read": true,
+          "update": true,
+          "commands": [
+            "record_valuation"
+          ]
+        },
+        {
+          "entity": "investment",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "valuation",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "distribution",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "company_update",
+          "create": true,
+          "read": true,
+          "update": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Sees the portfolio and its returns, changes nothing.",
+      "grants": [
+        {
+          "entity": "company",
+          "read": true
+        },
+        {
+          "entity": "investment",
+          "read": true
+        },
+        {
+          "entity": "valuation",
+          "read": true
+        },
+        {
+          "entity": "distribution",
+          "read": true
+        },
+        {
+          "entity": "company_update",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0d9488",
+    "secondaryColor": "#14b8a6",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

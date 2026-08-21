@@ -1,0 +1,1079 @@
+{
+  "schemaVersion": "1.0",
+  "key": "customer_support",
+  "name": "Customer Support System",
+  "version": "1.0.1",
+  "description": "A customer support system for managing tickets, customer interactions, and support workflows. Integrates with Microsoft Exchange for email-to-ticket conversion, shared mailbox monitoring, and agent email communication. Core entities include Ticket, Customer, Agent, Interaction, and SLA Policy.",
+  "entities": [
+    {
+      "key": "customer",
+      "label": "Customer",
+      "labelPlural": "Customers",
+      "description": "A person or organisation that receives support.",
+      "icon": "users",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email Address",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "indexed": true,
+          "help": "Primary email used for Exchange-bound communication."
+        },
+        {
+          "key": "phone",
+          "label": "Phone Number",
+          "type": "phone"
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "customer_status",
+          "label": "Customer Status",
+          "type": "select",
+          "required": true,
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#28a745"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#dc3545"
+            },
+            {
+              "value": "vip",
+              "label": "VIP",
+              "color": "#ffc107"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "agent",
+      "label": "Agent",
+      "labelPlural": "Agents",
+      "description": "A support agent who handles tickets and interactions.",
+      "icon": "headset",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email Address",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "help": "Agent mailbox used for Exchange integration."
+        },
+        {
+          "key": "phone",
+          "label": "Phone Number",
+          "type": "phone"
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "skills",
+          "label": "Skills",
+          "type": "multiselect",
+          "options": [
+            {
+              "value": "general",
+              "label": "General Support"
+            },
+            {
+              "value": "billing",
+              "label": "Billing"
+            },
+            {
+              "value": "technical",
+              "label": "Technical"
+            },
+            {
+              "value": "escalation",
+              "label": "Escalation"
+            },
+            {
+              "value": "account_mgmt",
+              "label": "Account Management"
+            }
+          ]
+        },
+        {
+          "key": "availability",
+          "label": "Availability",
+          "type": "select",
+          "required": true,
+          "default": "available",
+          "options": [
+            {
+              "value": "available",
+              "label": "Available",
+              "color": "#28a745"
+            },
+            {
+              "value": "busy",
+              "label": "Busy",
+              "color": "#ffc107"
+            },
+            {
+              "value": "offline",
+              "label": "Offline",
+              "color": "#6c757d"
+            }
+          ]
+        },
+        {
+          "key": "capacity",
+          "label": "Max Concurrent Tickets",
+          "type": "integer",
+          "default": 10,
+          "help": "Maximum number of open tickets an agent can handle simultaneously."
+        }
+      ]
+    },
+    {
+      "key": "sla_policy",
+      "label": "SLA Policy",
+      "labelPlural": "SLA Policies",
+      "description": "Defines service-level targets for response and resolution times.",
+      "icon": "shield-check",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Policy Name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "priority",
+          "label": "Ticket Priority",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#28a745"
+            },
+            {
+              "value": "normal",
+              "label": "Normal",
+              "color": "#17a2b8"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#ffc107"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#dc3545"
+            }
+          ]
+        },
+        {
+          "key": "response_time_hours",
+          "label": "Response Time (hours)",
+          "type": "decimal",
+          "required": true,
+          "precision": 6,
+          "scale": 2,
+          "help": "Target time for first response."
+        },
+        {
+          "key": "resolution_time_hours",
+          "label": "Resolution Time (hours)",
+          "type": "decimal",
+          "required": true,
+          "precision": 6,
+          "scale": 2,
+          "help": "Target time for full resolution."
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "ticket",
+      "label": "Ticket",
+      "labelPlural": "Tickets",
+      "description": "A support ticket tracking a customer issue.",
+      "icon": "ticket",
+      "displayField": "subject",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "ticket_status",
+          "label": "Ticket Status",
+          "type": "select",
+          "required": true,
+          "default": "new",
+          "indexed": true,
+          "options": [
+            {
+              "value": "new",
+              "label": "New",
+              "color": "#17a2b8"
+            },
+            {
+              "value": "open",
+              "label": "Open",
+              "color": "#007bff"
+            },
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#ffc107"
+            },
+            {
+              "value": "resolved",
+              "label": "Resolved",
+              "color": "#28a745"
+            },
+            {
+              "value": "closed",
+              "label": "Closed",
+              "color": "#6c757d"
+            }
+          ]
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "required": true,
+          "default": "normal",
+          "indexed": true,
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#28a745"
+            },
+            {
+              "value": "normal",
+              "label": "Normal",
+              "color": "#17a2b8"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#ffc107"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#dc3545"
+            }
+          ]
+        },
+        {
+          "key": "channel",
+          "label": "Channel",
+          "type": "select",
+          "required": true,
+          "default": "email",
+          "options": [
+            {
+              "value": "email",
+              "label": "Email"
+            },
+            {
+              "value": "phone",
+              "label": "Phone"
+            },
+            {
+              "value": "web",
+              "label": "Web Form"
+            },
+            {
+              "value": "chat",
+              "label": "Chat"
+            }
+          ]
+        },
+        {
+          "key": "customer_id",
+          "label": "Customer",
+          "type": "reference",
+          "targetEntity": "customer",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "agent_id",
+          "label": "Assigned Agent",
+          "type": "reference",
+          "targetEntity": "agent",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "sla_policy_id",
+          "label": "SLA Policy",
+          "type": "reference",
+          "targetEntity": "sla_policy",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "exchange_message_id",
+          "label": "Exchange Message ID",
+          "type": "text",
+          "help": "Message-ID header from the originating Exchange email (if created from email)."
+        },
+        {
+          "key": "exchange_thread_id",
+          "label": "Exchange Thread ID",
+          "type": "text",
+          "indexed": true,
+          "help": "Conversation/Thread index from Exchange for grouping related emails."
+        },
+        {
+          "key": "due_at",
+          "label": "Due Date",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "resolved_at",
+          "label": "Resolved At",
+          "type": "datetime"
+        },
+        {
+          "key": "tags",
+          "label": "Tags",
+          "type": "multiselect",
+          "options": [
+            {
+              "value": "exchange_synced",
+              "label": "Exchange Synced"
+            },
+            {
+              "value": "escalated",
+              "label": "Escalated"
+            },
+            {
+              "value": "auto_created",
+              "label": "Auto-Created"
+            },
+            {
+              "value": "follow_up",
+              "label": "Follow-Up"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "interaction",
+      "label": "Interaction",
+      "labelPlural": "Interactions",
+      "description": "A communication or activity log entry associated with a ticket.",
+      "icon": "chat-left-text",
+      "displayField": "subject",
+      "fields": [
+        {
+          "key": "ticket_id",
+          "label": "Ticket",
+          "type": "reference",
+          "targetEntity": "ticket",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "agent_id",
+          "label": "Agent",
+          "type": "reference",
+          "targetEntity": "agent",
+          "onDelete": "setNull",
+          "indexed": true
+        },
+        {
+          "key": "customer_id",
+          "label": "Customer",
+          "type": "reference",
+          "targetEntity": "customer",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "type": "select",
+          "required": true,
+          "default": "email",
+          "indexed": true,
+          "options": [
+            {
+              "value": "email",
+              "label": "Email",
+              "color": "#007bff"
+            },
+            {
+              "value": "call",
+              "label": "Phone Call",
+              "color": "#28a745"
+            },
+            {
+              "value": "chat",
+              "label": "Chat",
+              "color": "#17a2b8"
+            },
+            {
+              "value": "note",
+              "label": "Internal Note",
+              "color": "#ffc107"
+            },
+            {
+              "value": "system",
+              "label": "System",
+              "color": "#6c757d"
+            }
+          ]
+        },
+        {
+          "key": "direction",
+          "label": "Direction",
+          "type": "select",
+          "required": true,
+          "default": "inbound",
+          "options": [
+            {
+              "value": "inbound",
+              "label": "Inbound",
+              "color": "#17a2b8"
+            },
+            {
+              "value": "outbound",
+              "label": "Outbound",
+              "color": "#007bff"
+            },
+            {
+              "value": "internal",
+              "label": "Internal",
+              "color": "#ffc107"
+            }
+          ]
+        },
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "content",
+          "label": "Content",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "exchange_message_id",
+          "label": "Exchange Message ID",
+          "type": "text",
+          "help": "Message-ID header from Exchange for deduplication and threading."
+        },
+        {
+          "key": "exchange_thread_id",
+          "label": "Exchange Thread ID",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "sent_at",
+          "label": "Sent / Received At",
+          "type": "datetime",
+          "indexed": true
+        },
+        {
+          "key": "is_internal",
+          "label": "Internal Only",
+          "type": "boolean",
+          "default": false,
+          "help": "If true, this interaction is not visible to the customer."
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "ticket_interactions",
+      "label": "Interactions",
+      "type": "oneToMany",
+      "fromEntity": "ticket",
+      "toEntity": "interaction",
+      "inverseField": "ticket_id"
+    },
+    {
+      "key": "customer_tickets",
+      "label": "Tickets",
+      "type": "oneToMany",
+      "fromEntity": "customer",
+      "toEntity": "ticket",
+      "inverseField": "customer_id"
+    },
+    {
+      "key": "agent_tickets",
+      "label": "Assigned Tickets",
+      "type": "oneToMany",
+      "fromEntity": "agent",
+      "toEntity": "ticket",
+      "inverseField": "agent_id"
+    },
+    {
+      "key": "customer_interactions",
+      "label": "Interactions",
+      "type": "oneToMany",
+      "fromEntity": "customer",
+      "toEntity": "interaction",
+      "inverseField": "customer_id"
+    }
+  ],
+  "views": [
+    {
+      "key": "ticket_table",
+      "label": "All Tickets",
+      "type": "table",
+      "entity": "ticket",
+      "sort": [
+        {
+          "field": "created_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "ticket_status",
+          "priority",
+          "channel",
+          "customer_id",
+          "agent_id",
+          "due_at",
+          "created_at"
+        ]
+      }
+    },
+    {
+      "key": "ticket_kanban",
+      "label": "Ticket Board",
+      "type": "kanban",
+      "entity": "ticket",
+      "config": {
+        "groupByField": "ticket_status",
+        "columns": [
+          "new",
+          "open",
+          "pending",
+          "resolved",
+          "closed"
+        ]
+      }
+    },
+    {
+      "key": "ticket_detail",
+      "label": "Ticket Detail",
+      "type": "detail",
+      "entity": "ticket"
+    },
+    {
+      "key": "open_tickets",
+      "label": "Open Tickets",
+      "type": "table",
+      "entity": "ticket",
+      "filters": [
+        {
+          "field": "ticket_status",
+          "operator": "in",
+          "value": [
+            "new",
+            "open",
+            "pending"
+          ]
+        }
+      ],
+      "sort": [
+        {
+          "field": "priority",
+          "direction": "asc"
+        },
+        {
+          "field": "due_at",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "key": "customer_table",
+      "label": "Customers",
+      "type": "table",
+      "entity": "customer",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "email",
+          "company",
+          "customer_status"
+        ]
+      }
+    },
+    {
+      "key": "customer_detail",
+      "label": "Customer Detail",
+      "type": "detail",
+      "entity": "customer"
+    },
+    {
+      "key": "agent_table",
+      "label": "Agents",
+      "type": "table",
+      "entity": "agent",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "email",
+          "title",
+          "availability",
+          "capacity"
+        ]
+      }
+    },
+    {
+      "key": "agent_detail",
+      "label": "Agent Detail",
+      "type": "detail",
+      "entity": "agent"
+    },
+    {
+      "key": "interaction_table",
+      "label": "Interactions",
+      "type": "table",
+      "entity": "interaction",
+      "sort": [
+        {
+          "field": "sent_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "subject",
+          "ticket_id",
+          "type",
+          "direction",
+          "agent_id",
+          "sent_at"
+        ]
+      }
+    },
+    {
+      "key": "sla_policy_table",
+      "label": "SLA Policies",
+      "type": "table",
+      "entity": "sla_policy",
+      "sort": [
+        {
+          "field": "priority",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "priority",
+          "response_time_hours",
+          "resolution_time_hours",
+          "active"
+        ]
+      }
+    },
+    {
+      "key": "support_dashboard",
+      "label": "Support Dashboard",
+      "type": "dashboard",
+      "entity": "ticket",
+      "config": {
+        "widgets": [
+          {
+            "type": "metric",
+            "label": "Open Tickets",
+            "entity": "ticket",
+            "filter": {
+              "ticket_status": [
+                "new",
+                "open",
+                "pending"
+              ]
+            },
+            "metric": "count"
+          },
+          {
+            "type": "metric",
+            "label": "Urgent Tickets",
+            "entity": "ticket",
+            "filter": {
+              "priority": "urgent",
+              "ticket_status": [
+                "new",
+                "open",
+                "pending"
+              ]
+            },
+            "metric": "count"
+          },
+          {
+            "type": "metric",
+            "label": "Resolved This Week",
+            "entity": "ticket",
+            "filter": {
+              "ticket_status": "resolved"
+            },
+            "metric": "count"
+          },
+          {
+            "type": "chart",
+            "label": "Tickets by Priority",
+            "entity": "ticket",
+            "groupBy": "priority",
+            "chartType": "bar"
+          },
+          {
+            "type": "chart",
+            "label": "Tickets by Status",
+            "entity": "ticket",
+            "groupBy": "ticket_status",
+            "chartType": "donut"
+          },
+          {
+            "type": "chart",
+            "label": "Tickets by Channel",
+            "entity": "ticket",
+            "groupBy": "channel",
+            "chartType": "bar"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "auto_assign_ticket",
+      "name": "Auto-Assign New Ticket",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "ticket"
+      },
+      "conditions": [
+        {
+          "field": "agent_id",
+          "operator": "isEmpty"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "ticket_created_notify",
+      "name": "Notify on New Ticket",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "ticket"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "sla_breach_warning",
+      "name": "SLA Breach Warning",
+      "enabled": true,
+      "trigger": {
+        "event": "schedule",
+        "entity": "ticket",
+        "cron": "0 */1 * * *"
+      },
+      "conditions": [
+        {
+          "field": "ticket_status",
+          "operator": "in",
+          "value": [
+            "new",
+            "open",
+            "pending"
+          ]
+        },
+        {
+          "field": "due_at",
+          "operator": "lt",
+          "value": "now"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "email_inbound_interaction",
+      "name": "Email Inbound – Log Interaction",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "interaction"
+      },
+      "conditions": [
+        {
+          "field": "type",
+          "operator": "eq",
+          "value": "email"
+        },
+        {
+          "field": "direction",
+          "operator": "eq",
+          "value": "inbound"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "ticket_resolved_notify",
+      "name": "Notify Customer on Resolution",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "ticket",
+        "field": "ticket_status"
+      },
+      "conditions": [
+        {
+          "field": "ticket_status",
+          "operator": "eq",
+          "value": "resolved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "escalate_urgent",
+      "name": "Escalate Urgent Tickets",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "ticket",
+        "field": "priority"
+      },
+      "conditions": [
+        {
+          "field": "priority",
+          "operator": "eq",
+          "value": "urgent"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "requestApproval"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to all entities and configuration.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "agent",
+      "name": "Agent",
+      "description": "Standard support agent — can manage tickets, interactions, and view customers and SLA policies.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "interaction",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "customer",
+          "create": false,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "agent",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "sla_policy",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to tickets and interactions.",
+      "grants": [
+        {
+          "entity": "ticket",
+          "read": true
+        },
+        {
+          "entity": "interaction",
+          "read": true
+        },
+        {
+          "entity": "customer",
+          "read": true
+        },
+        {
+          "entity": "agent",
+          "read": true
+        },
+        {
+          "entity": "sla_policy",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#007bff",
+    "secondaryColor": "#17a2b8",
+    "font": "Inter, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  },
+  "plugins": [
+    {
+      "id": "microsoft_exchange",
+      "version": "^1.0",
+      "config": {
+        "shared_mailbox_monitoring": true,
+        "email_to_ticket_conversion": true,
+        "agent_email_sync": true,
+        "threading_enabled": true
+      }
+    }
+  ]
+}

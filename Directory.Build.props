@@ -1,0 +1,46 @@
+<Project>
+
+  <!--
+    Where each project puts obj/ and bin/.
+
+    THE PROBLEM THIS SOLVES. A host may bind-mount this repository into a container that runs
+    `dotnet watch` while a developer also builds the same tree from the host. Both SDKs then build the
+    SAME source into the SAME obj/ directories and corrupt each other: NuGet's
+    `project.assets.json already exists`, and MSBuild's `ResolvePackageAssets` failing to read its own
+    cache file.
+
+    WITH CORDANGO_BUILD_ROOT SET, intermediate and output paths move to a container-local volume and
+    the bind-mounted tree is never written to. WITHOUT it (a developer's machine, CI, a plain clone),
+    nothing changes and obj/bin sit where every .NET tool expects them.
+
+    It has to live in Directory.Build.props rather than each .csproj: BaseIntermediateOutputPath is
+    read during restore, before the SDK's own props are imported, and setting it any later is silently
+    ignored for restore while still applying to build, which produces a worse failure than the one it
+    fixes.
+  -->
+  <PropertyGroup Condition="'$(CORDANGO_BUILD_ROOT)' != ''">
+    <BaseIntermediateOutputPath>$(CORDANGO_BUILD_ROOT)/$(MSBuildProjectName)/obj/</BaseIntermediateOutputPath>
+    <BaseOutputPath>$(CORDANGO_BUILD_ROOT)/$(MSBuildProjectName)/bin/</BaseOutputPath>
+
+    <!--
+      And exclude the CONVENTIONAL obj/bin, which is no longer excluded automatically.
+
+      The SDK's default source glob skips $(BaseIntermediateOutputPath) and $(BaseOutputPath). Move
+      those elsewhere and the ordinary ./obj suddenly looks like ordinary source: a container reading
+      the bind-mounted tree compiles the host's leftover generated AssemblyInfo.cs alongside its own
+      and fails with CS0579 "duplicate attribute", an error that names a file nobody wrote and points
+      at neither cause.
+    -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+
+  <!--
+    DO NOT set CORDANGO_BUILD_ROOT to run TESTS. It is for app hosts only.
+
+    `Corpus.RepoRoot()` finds the repository by walking up from the test assembly's location, so an
+    output directory outside the repo makes it throw and takes every corpus-driven theory down with
+    it. Said here because the failure names a missing repo root and gives no hint that an environment
+    variable caused it.
+  -->
+
+</Project>

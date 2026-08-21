@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Cordango.Compiler.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!-- These suites used to sit in namespaces NESTED inside the code they exercise, so every type
+       resolved with no using at all. One project now covers the whole compiler, and global usings
+       keep that reach in four lines rather than in every file. -->
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Cordango.Definition" />
+    <Using Include="Cordango.Cord" />
+    <Using Include="Cordango.Compile" />
+    <Using Include="Cordango.Semantics" />
+  </ItemGroup>
+
+  <!-- The compiler. Nothing else, and that is the point: this project's dependency set IS the
+       extraction claim, so `dotnet test Cordango.slnx` runs in a plain clone with no database, no
+       containers and nothing of the platform. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cordango.Compiler\Cordango.Compiler.csproj" />
+  </ItemGroup>
+
+  <!-- The conformance corpus, copied next to the test binary. The wildcard registers new apps
+       automatically — the reference suites walk the whole folder, so dropping a new .appdef.json
+       into tests/corpus/reference is enough to pin it. -->
+  <ItemGroup>
+    <Content Include="..\corpus\reference\*.appdef.json" Link="fixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\corpus\crm.appdef.json" Link="fixtures\crm.appdef.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\fixtures\invalid\broken.appdef.json" Link="fixtures\broken.appdef.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\schemas\platform-entities.json" Link="fixtures\platform-entities.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- The raw allowlist: every place in the corpus Cord fell back to carrying a fragment instead of
+       modelling it. Read from the repo (not copied) so the test and the reviewed file are the same
+       artifact. -->
+  <ItemGroup>
+    <None Include="..\fixtures\raw-allowlist.json" Link="raw-allowlist.json" />
+  </ItemGroup>
+
+</Project>

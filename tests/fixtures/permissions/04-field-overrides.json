@@ -1,0 +1,73 @@
+{
+  "name": "A field's answer is its override, else the entity default, resolved per role before unioning",
+  "why": "The order matters and is easy to get wrong. Union the entity defaults first and then apply overrides, and a role that may read everything re-opens a field another role hid — which is the opposite of what the definition said.",
+  "roles": [
+    {
+      "key": "manager",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true,
+          "update": true,
+          "fieldOverrides": [
+            { "field": "salary", "read": true, "update": false },
+            { "field": "notes", "update": false }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "colleague",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [ { "field": "salary", "read": false } ]
+        }
+      ]
+    },
+    {
+      "key": "editor",
+      "grants": [ { "entity": "employee", "read": true, "update": true } ]
+    }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["manager"],
+      "entity": "employee",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "fields": {
+        "salary": { "read": true, "update": false },
+        "notes": { "read": true, "update": false },
+        "name": { "read": true, "update": true }
+      }
+    },
+    {
+      "roleKeys": ["colleague"],
+      "entity": "employee",
+      "expect": { "create": false, "read": true, "update": false, "delete": false },
+      "fields": {
+        "salary": { "read": false, "update": false },
+        "name": { "read": true, "update": false }
+      }
+    },
+    {
+      "roleKeys": ["manager", "colleague"],
+      "entity": "employee",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "fields": {
+        "salary": { "read": true, "update": false },
+        "notes": { "read": true, "update": false }
+      }
+    },
+    {
+      "roleKeys": ["colleague", "editor"],
+      "entity": "employee",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "fields": {
+        "salary": { "read": true, "update": true },
+        "name": { "read": true, "update": true }
+      }
+    }
+  ]
+}

@@ -1,0 +1,907 @@
+{
+  "schemaVersion": "1.0",
+  "key": "vendor_approval",
+  "name": "Vendor Approval System",
+  "version": "1.0.1",
+  "description": "A system for submitting and reviewing new supplier/vendor requests. Internal staff submit vendor requests with company details and justification; finance reviews and approves or rejects them before the vendor can be used in procurement.",
+  "entities": [
+    {
+      "key": "vendor_request",
+      "label": "Vendor Request",
+      "labelPlural": "Vendor Requests",
+      "description": "A request from internal staff to approve a new supplier for procurement use.",
+      "icon": "file-text",
+      "displayField": "vendor_name",
+      "fields": [
+        {
+          "key": "vendor_name",
+          "label": "Vendor Name",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "The trading name of the proposed supplier."
+        },
+        {
+          "key": "legal_entity_name",
+          "label": "Legal Entity Name",
+          "type": "text",
+          "help": "The registered legal name of the company, if different from the trading name."
+        },
+        {
+          "key": "tax_id",
+          "label": "Tax ID / Registration No.",
+          "type": "text",
+          "help": "VAT, EIN, or company registration number."
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "contact_name",
+          "label": "Primary Contact Name",
+          "type": "text"
+        },
+        {
+          "key": "contact_email",
+          "label": "Primary Contact Email",
+          "type": "email"
+        },
+        {
+          "key": "contact_phone",
+          "label": "Primary Contact Phone",
+          "type": "phone"
+        },
+        {
+          "key": "address",
+          "label": "Business Address",
+          "type": "longtext"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "it_software",
+              "label": "IT & Software",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "professional_services",
+              "label": "Professional Services",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "facilities",
+              "label": "Facilities & Maintenance",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "logistics",
+              "label": "Logistics & Shipping",
+              "color": "#10b981"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing & Media",
+              "color": "#ec4899"
+            },
+            {
+              "value": "raw_materials",
+              "label": "Raw Materials",
+              "color": "#ef4444"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6b7280"
+            }
+          ]
+        },
+        {
+          "key": "justification",
+          "label": "Justification",
+          "type": "longtext",
+          "required": true,
+          "help": "Why is this vendor needed? Describe the goods/services and why this supplier was chosen."
+        },
+        {
+          "key": "estimated_annual_spend",
+          "label": "Estimated Annual Spend",
+          "type": "money",
+          "currency": "USD",
+          "help": "Rough estimate of annual procurement from this vendor."
+        },
+        {
+          "key": "requested_by",
+          "label": "Requested By",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "Name of the internal staff member submitting this request."
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#10b981"
+            },
+            {
+              "value": "it",
+              "label": "IT",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#ec4899"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "procurement",
+              "label": "Procurement",
+              "color": "#ef4444"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6b7280"
+            }
+          ]
+        },
+        {
+          "key": "approval_status",
+          "label": "Approval Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "pending",
+          "options": [
+            {
+              "value": "pending",
+              "label": "Pending Review",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "under_review",
+              "label": "Under Review",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#10b981"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#ef4444"
+            },
+            {
+              "value": "on_hold",
+              "label": "On Hold",
+              "color": "#6b7280"
+            }
+          ]
+        },
+        {
+          "key": "submitted_date",
+          "label": "Submitted Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "default": "normal",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#6b7280"
+            },
+            {
+              "value": "normal",
+              "label": "Normal",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "supporting_docs",
+          "label": "Supporting Documents",
+          "type": "attachment",
+          "help": "Quotes, contracts, W-9, or other supporting documents."
+        }
+      ]
+    },
+    {
+      "key": "finance_review",
+      "label": "Finance Review",
+      "labelPlural": "Finance Reviews",
+      "description": "A finance team member's review and decision on a vendor request.",
+      "icon": "check-square",
+      "displayField": "reviewer",
+      "fields": [
+        {
+          "key": "vendor_request",
+          "label": "Vendor Request",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetEntity": "vendor_request",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "reviewer",
+          "label": "Reviewer",
+          "type": "text",
+          "required": true,
+          "help": "Name of the finance team member performing the review."
+        },
+        {
+          "key": "decision",
+          "label": "Decision",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "options": [
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#10b981"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#ef4444"
+            },
+            {
+              "value": "more_info_needed",
+              "label": "More Info Needed",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "review_date",
+          "label": "Review Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "review_notes",
+          "label": "Review Notes",
+          "type": "longtext",
+          "required": true,
+          "help": "Detailed notes explaining the decision."
+        },
+        {
+          "key": "conditions",
+          "label": "Conditions / Stipulations",
+          "type": "longtext",
+          "help": "Any conditions attached to the approval (e.g., spend cap, trial period)."
+        },
+        {
+          "key": "risk_assessment",
+          "label": "Risk Assessment",
+          "type": "select",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low Risk",
+              "color": "#10b981"
+            },
+            {
+              "value": "medium",
+              "label": "Medium Risk",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "high",
+              "label": "High Risk",
+              "color": "#ef4444"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "vendor",
+      "label": "Vendor",
+      "labelPlural": "Vendors",
+      "description": "An approved supplier available for use in procurement.",
+      "icon": "building",
+      "displayField": "vendor_name",
+      "fields": [
+        {
+          "key": "vendor_name",
+          "label": "Vendor Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "legal_entity_name",
+          "label": "Legal Entity Name",
+          "type": "text"
+        },
+        {
+          "key": "tax_id",
+          "label": "Tax ID / Registration No.",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "contact_name",
+          "label": "Primary Contact Name",
+          "type": "text"
+        },
+        {
+          "key": "contact_email",
+          "label": "Primary Contact Email",
+          "type": "email"
+        },
+        {
+          "key": "contact_phone",
+          "label": "Primary Contact Phone",
+          "type": "phone"
+        },
+        {
+          "key": "address",
+          "label": "Business Address",
+          "type": "longtext"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "it_software",
+              "label": "IT & Software",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "professional_services",
+              "label": "Professional Services",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "facilities",
+              "label": "Facilities & Maintenance",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "logistics",
+              "label": "Logistics & Shipping",
+              "color": "#10b981"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing & Media",
+              "color": "#ec4899"
+            },
+            {
+              "value": "raw_materials",
+              "label": "Raw Materials",
+              "color": "#ef4444"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6b7280"
+            }
+          ]
+        },
+        {
+          "key": "vendor_status",
+          "label": "Vendor Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#10b981"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#6b7280"
+            },
+            {
+              "value": "suspended",
+              "label": "Suspended",
+              "color": "#ef4444"
+            }
+          ]
+        },
+        {
+          "key": "approved_date",
+          "label": "Approved Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "vendor_request",
+          "label": "Source Vendor Request",
+          "type": "reference",
+          "targetEntity": "vendor_request",
+          "onDelete": "setNull",
+          "help": "The original vendor request that led to this approved vendor."
+        },
+        {
+          "key": "payment_terms",
+          "label": "Payment Terms",
+          "type": "text",
+          "help": "e.g., Net 30, Net 60"
+        },
+        {
+          "key": "credit_limit",
+          "label": "Credit Limit",
+          "type": "money",
+          "currency": "USD"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "vendor_request_reviews",
+      "label": "Finance Reviews",
+      "type": "oneToMany",
+      "fromEntity": "vendor_request",
+      "toEntity": "finance_review",
+      "inverseField": "vendor_request"
+    },
+    {
+      "key": "vendor_request_approved_vendors",
+      "label": "Approved Vendors",
+      "type": "oneToMany",
+      "fromEntity": "vendor_request",
+      "toEntity": "vendor",
+      "inverseField": "vendor_request"
+    }
+  ],
+  "views": [
+    {
+      "key": "vendor_requests_table",
+      "label": "All Vendor Requests",
+      "type": "table",
+      "entity": "vendor_request",
+      "filters": [],
+      "sort": [
+        {
+          "field": "submitted_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "vendor_name",
+          "category",
+          "requested_by",
+          "department",
+          "approval_status",
+          "priority",
+          "submitted_date"
+        ]
+      }
+    },
+    {
+      "key": "vendor_requests_kanban",
+      "label": "Request Pipeline",
+      "type": "kanban",
+      "entity": "vendor_request",
+      "filters": [],
+      "sort": [
+        {
+          "field": "submitted_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "groupByField": "approval_status",
+        "columns": [
+          "vendor_name",
+          "category",
+          "requested_by",
+          "priority"
+        ]
+      }
+    },
+    {
+      "key": "vendor_request_detail",
+      "label": "Vendor Request Detail",
+      "type": "detail",
+      "entity": "vendor_request",
+      "config": {
+        "sections": [
+          {
+            "title": "Vendor Information",
+            "fields": [
+              "vendor_name",
+              "legal_entity_name",
+              "tax_id",
+              "website",
+              "contact_name",
+              "contact_email",
+              "contact_phone",
+              "address",
+              "category"
+            ]
+          },
+          {
+            "title": "Request Information",
+            "fields": [
+              "requested_by",
+              "department",
+              "justification",
+              "estimated_annual_spend",
+              "priority",
+              "submitted_date",
+              "approval_status",
+              "supporting_docs"
+            ]
+          },
+          {
+            "title": "Finance Reviews",
+            "fields": [
+              "vendor_request_reviews"
+            ]
+          },
+          {
+            "title": "Approved Vendor",
+            "fields": [
+              "vendor_request_approved_vendors"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "finance_reviews_table",
+      "label": "Finance Reviews",
+      "type": "table",
+      "entity": "finance_review",
+      "sort": [
+        {
+          "field": "review_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "vendor_request",
+          "reviewer",
+          "decision",
+          "risk_assessment",
+          "review_date"
+        ]
+      }
+    },
+    {
+      "key": "vendors_table",
+      "label": "Approved Vendors",
+      "type": "table",
+      "entity": "vendor",
+      "filters": [
+        {
+          "field": "vendor_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "sort": [
+        {
+          "field": "vendor_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "vendor_name",
+          "legal_entity_name",
+          "category",
+          "contact_name",
+          "vendor_status",
+          "approved_date"
+        ]
+      }
+    },
+    {
+      "key": "vendor_detail",
+      "label": "Vendor Detail",
+      "type": "detail",
+      "entity": "vendor",
+      "config": {
+        "sections": [
+          {
+            "title": "Vendor Information",
+            "fields": [
+              "vendor_name",
+              "legal_entity_name",
+              "tax_id",
+              "website",
+              "category",
+              "vendor_status",
+              "approved_date"
+            ]
+          },
+          {
+            "title": "Contact",
+            "fields": [
+              "contact_name",
+              "contact_email",
+              "contact_phone",
+              "address"
+            ]
+          },
+          {
+            "title": "Commercial",
+            "fields": [
+              "payment_terms",
+              "credit_limit",
+              "vendor_request"
+            ]
+          },
+          {
+            "title": "Notes",
+            "fields": [
+              "notes"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "vendor_request",
+      "config": {
+        "widgets": [
+          {
+            "title": "Requests by Approval Status",
+            "type": "chart",
+            "chartType": "pie",
+            "groupBy": "approval_status"
+          },
+          {
+            "title": "Requests by Category",
+            "type": "chart",
+            "chartType": "bar",
+            "groupBy": "category"
+          },
+          {
+            "title": "Recent Requests",
+            "type": "list",
+            "entity": "vendor_request",
+            "limit": 5,
+            "sort": {
+              "field": "submitted_date",
+              "direction": "desc"
+            }
+          },
+          {
+            "title": "Total Approved Vendors",
+            "type": "metric",
+            "entity": "vendor",
+            "filter": {
+              "field": "vendor_status",
+              "operator": "eq",
+              "value": "active"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_finance_on_new_request",
+      "name": "Notify Finance on New Vendor Request",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "vendor_request"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "notify_requester_on_decision",
+      "name": "Notify Requester on Status Change",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "vendor_request",
+        "field": "approval_status"
+      },
+      "conditions": [
+        {
+          "field": "approval_status",
+          "operator": "in",
+          "value": [
+            "approved",
+            "rejected"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "create_vendor_on_approval",
+      "name": "Create Approved Vendor Record",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "vendor_request",
+        "field": "approval_status"
+      },
+      "conditions": [
+        {
+          "field": "approval_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "createRecord"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "finance_reviewer",
+      "name": "Finance Reviewer",
+      "description": "Can review vendor requests, approve/reject, and manage approved vendors.",
+      "grants": [
+        {
+          "entity": "vendor_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "finance_review",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "vendor",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "requester",
+      "name": "Requester",
+      "description": "Internal staff who can submit vendor requests and view their status.",
+      "grants": [
+        {
+          "entity": "vendor_request",
+          "create": true,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "finance_review",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "vendor",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to all data.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#1e40af",
+    "secondaryColor": "#0e7490",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

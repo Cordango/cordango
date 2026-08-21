@@ -1,0 +1,730 @@
+{
+  "schemaVersion": "1.0",
+  "key": "contract_management",
+  "name": "Contract Management",
+  "version": "1.0.1",
+  "description": "An app to manage contracts throughout their lifecycle, including assigning owners, tagging/categorizing contracts, uploading PDF documents, and tracking renewal dates with automated reminders before contracts expire. Main entities: Contract, Owner, Tag, Document, Reminder.",
+  "entities": [
+    {
+      "key": "owner",
+      "label": "Owner",
+      "labelPlural": "Owners",
+      "icon": "user",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "text"
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "contract",
+      "label": "Contract",
+      "labelPlural": "Contracts",
+      "icon": "file-text",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Contract Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "contract_number",
+          "label": "Contract Number",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "counterparty",
+          "label": "Counterparty",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "owner_id",
+          "label": "Owner",
+          "type": "reference",
+          "targetEntity": "owner",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "contract_status",
+          "label": "Contract Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "draft",
+          "options": [
+            {
+              "value": "draft",
+              "label": "Draft",
+              "color": "#6b7280"
+            },
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#22c55e"
+            },
+            {
+              "value": "expiring",
+              "label": "Expiring Soon",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "expired",
+              "label": "Expired",
+              "color": "#ef4444"
+            },
+            {
+              "value": "terminated",
+              "label": "Terminated",
+              "color": "#6366f1"
+            }
+          ]
+        },
+        {
+          "key": "start_date",
+          "label": "Start Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "end_date",
+          "label": "End Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "auto_renew",
+          "label": "Auto Renew",
+          "type": "boolean",
+          "default": false
+        },
+        {
+          "key": "value",
+          "label": "Contract Value",
+          "type": "money",
+          "currency": "USD"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "tag",
+      "label": "Tag",
+      "labelPlural": "Tags",
+      "icon": "tag",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Tag Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "type": "select",
+          "default": "#3b82f6",
+          "options": [
+            {
+              "value": "#3b82f6",
+              "label": "Blue",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "#22c55e",
+              "label": "Green",
+              "color": "#22c55e"
+            },
+            {
+              "value": "#f59e0b",
+              "label": "Amber",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "#ef4444",
+              "label": "Red",
+              "color": "#ef4444"
+            },
+            {
+              "value": "#8b5cf6",
+              "label": "Purple",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "#ec4899",
+              "label": "Pink",
+              "color": "#ec4899"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "document",
+      "label": "Document",
+      "labelPlural": "Documents",
+      "icon": "paperclip",
+      "displayField": "file_name",
+      "fields": [
+        {
+          "key": "contract_id",
+          "label": "Contract",
+          "type": "reference",
+          "targetEntity": "contract",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "file_name",
+          "label": "File Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "file_attachment",
+          "label": "PDF File",
+          "type": "attachment",
+          "required": true
+        },
+        {
+          "key": "file_size",
+          "label": "File Size (bytes)",
+          "type": "integer"
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "reminder",
+      "label": "Reminder",
+      "labelPlural": "Reminders",
+      "icon": "bell",
+      "displayField": "message",
+      "fields": [
+        {
+          "key": "contract_id",
+          "label": "Contract",
+          "type": "reference",
+          "targetEntity": "contract",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "reminder_date",
+          "label": "Reminder Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "days_before_expiry",
+          "label": "Days Before Expiry",
+          "type": "integer",
+          "required": true,
+          "default": 30
+        },
+        {
+          "key": "message",
+          "label": "Message",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "sent",
+          "label": "Sent",
+          "type": "boolean",
+          "default": false,
+          "indexed": true
+        },
+        {
+          "key": "owner_id",
+          "label": "Recipient (Owner)",
+          "type": "reference",
+          "targetEntity": "owner",
+          "required": true,
+          "onDelete": "restrict"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "contract_documents",
+      "label": "Documents",
+      "type": "oneToMany",
+      "fromEntity": "contract",
+      "toEntity": "document",
+      "inverseField": "contract_id"
+    },
+    {
+      "key": "contract_reminders",
+      "label": "Reminders",
+      "type": "oneToMany",
+      "fromEntity": "contract",
+      "toEntity": "reminder",
+      "inverseField": "contract_id"
+    },
+    {
+      "key": "owner_contracts",
+      "label": "Owned Contracts",
+      "type": "oneToMany",
+      "fromEntity": "owner",
+      "toEntity": "contract",
+      "inverseField": "owner_id"
+    },
+    {
+      "key": "contract_tags",
+      "label": "Tags",
+      "type": "manyToMany",
+      "fromEntity": "contract",
+      "toEntity": "tag"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_contracts",
+      "label": "All Contracts",
+      "type": "table",
+      "entity": "contract",
+      "sort": [
+        {
+          "field": "end_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "contract_number",
+          "counterparty",
+          "owner_id",
+          "contract_status",
+          "start_date",
+          "end_date",
+          "value"
+        ]
+      }
+    },
+    {
+      "key": "contracts_kanban",
+      "label": "Contracts by Status",
+      "type": "kanban",
+      "entity": "contract",
+      "config": {
+        "groupByField": "contract_status",
+        "columns": [
+          "title",
+          "counterparty",
+          "end_date",
+          "value"
+        ]
+      }
+    },
+    {
+      "key": "contract_calendar",
+      "label": "Renewal Calendar",
+      "type": "calendar",
+      "entity": "contract",
+      "config": {
+        "dateField": "end_date",
+        "titleField": "title"
+      }
+    },
+    {
+      "key": "contract_detail",
+      "label": "Contract Detail",
+      "type": "detail",
+      "entity": "contract"
+    },
+    {
+      "key": "expiring_contracts",
+      "label": "Expiring Contracts",
+      "type": "table",
+      "entity": "contract",
+      "filters": [
+        {
+          "field": "contract_status",
+          "operator": "in",
+          "value": [
+            "expiring",
+            "active"
+          ]
+        }
+      ],
+      "sort": [
+        {
+          "field": "end_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "counterparty",
+          "owner_id",
+          "contract_status",
+          "end_date",
+          "auto_renew"
+        ]
+      }
+    },
+    {
+      "key": "owners_table",
+      "label": "Owners",
+      "type": "table",
+      "entity": "owner",
+      "config": {
+        "columns": [
+          "name",
+          "email",
+          "department",
+          "title",
+          "active"
+        ]
+      }
+    },
+    {
+      "key": "tags_table",
+      "label": "Tags",
+      "type": "table",
+      "entity": "tag",
+      "config": {
+        "columns": [
+          "name",
+          "color",
+          "description"
+        ]
+      }
+    },
+    {
+      "key": "documents_table",
+      "label": "Documents",
+      "type": "table",
+      "entity": "document",
+      "sort": [
+        {
+          "field": "file_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "contract_id",
+          "file_name",
+          "file_size",
+          "description"
+        ]
+      }
+    },
+    {
+      "key": "reminders_table",
+      "label": "Reminders",
+      "type": "table",
+      "entity": "reminder",
+      "sort": [
+        {
+          "field": "reminder_date",
+          "direction": "asc"
+        }
+      ],
+      "filters": [
+        {
+          "field": "sent",
+          "operator": "eq",
+          "value": false
+        }
+      ],
+      "config": {
+        "columns": [
+          "contract_id",
+          "reminder_date",
+          "days_before_expiry",
+          "message",
+          "sent",
+          "owner_id"
+        ]
+      }
+    },
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "contract",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Total Contracts",
+            "entity": "contract",
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Active Contracts",
+            "entity": "contract",
+            "filter": {
+              "contract_status": "active"
+            },
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Expiring Soon",
+            "entity": "contract",
+            "filter": {
+              "contract_status": "expiring"
+            },
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Total Value",
+            "entity": "contract",
+            "aggregation": "sum",
+            "field": "value"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_owner_on_creation",
+      "name": "Notify Owner on Contract Creation",
+      "trigger": {
+        "event": "record.created",
+        "entity": "contract"
+      },
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "reminder_30_days_before_expiry",
+      "name": "Generate 30-Day Expiry Reminder",
+      "trigger": {
+        "event": "schedule",
+        "entity": "contract",
+        "cron": "0 8 * * *"
+      },
+      "conditions": [
+        {
+          "field": "contract_status",
+          "operator": "in",
+          "value": [
+            "active",
+            "expiring"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "createRecord"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "auto_status_to_expiring",
+      "name": "Mark Contracts as Expiring Soon",
+      "trigger": {
+        "event": "schedule",
+        "entity": "contract",
+        "cron": "0 1 * * *"
+      },
+      "conditions": [
+        {
+          "field": "contract_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "notify_owner_on_document_upload",
+      "name": "Notify Owner on Document Upload",
+      "trigger": {
+        "event": "record.created",
+        "entity": "document"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to all contract management entities.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Contract Manager",
+      "description": "Create and manage contracts, documents, reminders, and tags.",
+      "grants": [
+        {
+          "entity": "contract",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "owner",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "tag",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "document",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "reminder",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to contracts and related entities.",
+      "grants": [
+        {
+          "entity": "contract",
+          "read": true
+        },
+        {
+          "entity": "owner",
+          "read": true
+        },
+        {
+          "entity": "tag",
+          "read": true
+        },
+        {
+          "entity": "document",
+          "read": true
+        },
+        {
+          "entity": "reminder",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#1e40af",
+    "secondaryColor": "#3b82f6",
+    "font": "Inter, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

@@ -1,0 +1,61 @@
+entity: assumption
+icon: lightbulb-on-outline
+label: Assumption
+ownedBy:
+  as: table
+  via: scenario
+  parent: scenario
+description: A named assumption behind a scenario's numbers, so investors can see what drives the plan.
+plural: Assumptions
+display: statement
+fields:
+  statement:
+    type: text
+    label: Assumption
+    required: true
+  scenario:
+    type: reference
+    label: Scenario
+    indexed: true
+    onDelete: cascade
+    required: true
+    targetEntity: scenario
+  driver:
+    type: select
+    label: Drives
+    options:
+      - label: User growth
+        value: users
+      - label: Pricing
+        value: pricing
+      - label: Churn
+        value: churn
+      - label: Hiring
+        value: hiring
+      - label: Costs
+        value: costs
+      - label: Funding
+        value: funding
+      - label: Other
+        value: other
+    required: true
+  value_text:
+    type: text
+    label: Value
+  confidence:
+    type: select
+    label: Confidence
+    default: medium
+    options:
+      - color: "#dc2626"
+        label: Low
+        value: low
+      - color: "#f59e0b"
+        label: Medium
+        value: medium
+      - color: "#0f766e"
+        label: High
+        value: high
+  rationale:
+    type: longtext
+    label: Rationale

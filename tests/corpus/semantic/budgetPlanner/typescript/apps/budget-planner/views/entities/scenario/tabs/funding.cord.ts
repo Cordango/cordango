@@ -1,0 +1,27 @@
+import { defineTab } from "@cord/sdk";
+
+export default defineTab({
+  key: "funding",
+  label: "Funding",
+  blocks: [
+    {
+      via: "scenario",
+      kind: "child",
+      label: "Funding Rounds",
+      entity: "funding_round",
+      fields: [
+        "name",
+        "round_type",
+        "round_stage",
+        "amount",
+        "expected_close",
+        "pre_money_valuation",
+        "equity_given",
+        "lead_investor",
+      ],
+      childType: "table",
+      inlineEdit: true,
+      inlineCreate: true,
+    },
+  ],
+} as const);

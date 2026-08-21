@@ -1,0 +1,44 @@
+{
+  "name": "Commands are denied unless a grant names them",
+  "why": "Update does not imply any command. A command is a business action with its own consequences — refunding, publishing, terminating — and inferring the right to run one from the right to edit a field is how a role acquires powers nobody granted it.",
+  "roles": [
+    {
+      "key": "agent",
+      "grants": [ { "entity": "ticket", "read": true, "update": true, "commands": ["close"] } ]
+    },
+    {
+      "key": "editor",
+      "grants": [ { "entity": "ticket", "read": true, "update": true } ]
+    },
+    {
+      "key": "supervisor",
+      "grants": [ { "entity": "ticket", "read": true, "commands": ["*"] } ]
+    }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["agent"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "commands": { "close": true, "escalate": false, "purge": false }
+    },
+    {
+      "roleKeys": ["editor"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "commands": { "close": false, "escalate": false }
+    },
+    {
+      "roleKeys": ["supervisor"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": false, "delete": false },
+      "commands": { "close": true, "escalate": true, "anything_at_all": true }
+    },
+    {
+      "roleKeys": ["agent", "editor"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": true, "delete": false },
+      "commands": { "close": true, "escalate": false }
+    }
+  ]
+}

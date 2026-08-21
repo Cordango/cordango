@@ -1,0 +1,669 @@
+{
+  "schemaVersion": "1.0",
+  "key": "employee_directory",
+  "name": "Employee Directory",
+  "version": "1.0.0",
+  "description": "A simple internal employee directory app that lets HR and managers browse, search, and manage employee records. Employees are linked to a department, role, and location, and can have one or more emergency contacts.",
+  "entities": [
+    {
+      "key": "department",
+      "label": "Department",
+      "labelPlural": "Departments",
+      "icon": "building",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Department Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "cost_center",
+          "label": "Cost Center",
+          "type": "text",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "role",
+      "label": "Role",
+      "labelPlural": "Roles",
+      "icon": "briefcase",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "grade",
+          "label": "Grade",
+          "type": "select",
+          "options": [
+            {
+              "value": "L1",
+              "label": "L1 – Entry",
+              "color": "#4CAF50"
+            },
+            {
+              "value": "L2",
+              "label": "L2 – Junior",
+              "color": "#2196F3"
+            },
+            {
+              "value": "L3",
+              "label": "L3 – Mid",
+              "color": "#FF9800"
+            },
+            {
+              "value": "L4",
+              "label": "L4 – Senior",
+              "color": "#9C27B0"
+            },
+            {
+              "value": "L5",
+              "label": "L5 – Lead",
+              "color": "#F44336"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "location",
+      "label": "Location",
+      "labelPlural": "Locations",
+      "icon": "map_pin",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Location Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "address",
+          "label": "Address",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "city",
+          "label": "City",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "country",
+          "label": "Country",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "timezone",
+          "label": "Timezone",
+          "type": "text",
+          "help": "IANA timezone, e.g. America/New_York"
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "icon": "user",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "employee_number",
+          "label": "Employee Number",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Work Email",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "personal_email",
+          "label": "Personal Email",
+          "type": "email"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "photo",
+          "label": "Profile Photo",
+          "type": "attachment"
+        },
+        {
+          "key": "department_id",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "role_id",
+          "label": "Role",
+          "type": "reference",
+          "targetEntity": "role",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "location_id",
+          "label": "Location",
+          "type": "reference",
+          "targetEntity": "location",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "manager_id",
+          "label": "Manager",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull",
+          "help": "Direct supervisor (self-reference)."
+        },
+        {
+          "key": "employment_status",
+          "label": "Employment Status",
+          "type": "select",
+          "required": true,
+          "default": "active",
+          "indexed": true,
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#4CAF50"
+            },
+            {
+              "value": "on_leave",
+              "label": "On Leave",
+              "color": "#FF9800"
+            },
+            {
+              "value": "terminated",
+              "label": "Terminated",
+              "color": "#F44336"
+            }
+          ]
+        },
+        {
+          "key": "hire_date",
+          "label": "Hire Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "termination_date",
+          "label": "Termination Date",
+          "type": "date"
+        },
+        {
+          "key": "bio",
+          "label": "Bio",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "emergency_contact",
+      "label": "Emergency Contact",
+      "labelPlural": "Emergency Contacts",
+      "icon": "phone_call",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "employee_id",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "name",
+          "label": "Contact Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "relationship",
+          "label": "Relationship",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "spouse",
+              "label": "Spouse",
+              "color": "#E91E63"
+            },
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#9C27B0"
+            },
+            {
+              "value": "parent",
+              "label": "Parent",
+              "color": "#2196F3"
+            },
+            {
+              "value": "sibling",
+              "label": "Sibling",
+              "color": "#00BCD4"
+            },
+            {
+              "value": "child",
+              "label": "Child",
+              "color": "#4CAF50"
+            },
+            {
+              "value": "relative",
+              "label": "Other Relative",
+              "color": "#FF9800"
+            },
+            {
+              "value": "friend",
+              "label": "Friend",
+              "color": "#795548"
+            }
+          ]
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary Contact",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "department_employees",
+      "label": "Employees",
+      "type": "oneToMany",
+      "fromEntity": "department",
+      "toEntity": "employee",
+      "inverseField": "department_id"
+    },
+    {
+      "key": "role_employees",
+      "label": "Employees",
+      "type": "oneToMany",
+      "fromEntity": "role",
+      "toEntity": "employee",
+      "inverseField": "role_id"
+    },
+    {
+      "key": "location_employees",
+      "label": "Employees",
+      "type": "oneToMany",
+      "fromEntity": "location",
+      "toEntity": "employee",
+      "inverseField": "location_id"
+    },
+    {
+      "key": "employee_emergency_contacts",
+      "label": "Emergency Contacts",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "emergency_contact",
+      "inverseField": "employee_id"
+    }
+  ],
+  "views": [
+    {
+      "key": "employee_table",
+      "label": "All Employees",
+      "type": "table",
+      "entity": "employee",
+      "filters": [
+        {
+          "field": "employment_status",
+          "operator": "neq",
+          "value": "terminated"
+        }
+      ],
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "employee_number",
+          "email",
+          "department_id",
+          "role_id",
+          "location_id",
+          "employment_status"
+        ]
+      }
+    },
+    {
+      "key": "employee_detail",
+      "label": "Employee Profile",
+      "type": "detail",
+      "entity": "employee"
+    },
+    {
+      "key": "employee_kanban",
+      "label": "Employees by Status",
+      "type": "kanban",
+      "entity": "employee",
+      "config": {
+        "groupByField": "employment_status"
+      }
+    },
+    {
+      "key": "department_table",
+      "label": "Departments",
+      "type": "table",
+      "entity": "department",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "description",
+          "cost_center"
+        ]
+      }
+    },
+    {
+      "key": "role_table",
+      "label": "Roles",
+      "type": "table",
+      "entity": "role",
+      "sort": [
+        {
+          "field": "title",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "grade",
+          "description"
+        ]
+      }
+    },
+    {
+      "key": "location_table",
+      "label": "Locations",
+      "type": "table",
+      "entity": "location",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "city",
+          "country",
+          "timezone"
+        ]
+      }
+    },
+    {
+      "key": "emergency_contact_table",
+      "label": "Emergency Contacts",
+      "type": "table",
+      "entity": "emergency_contact",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee_id",
+          "name",
+          "relationship",
+          "phone",
+          "is_primary"
+        ]
+      }
+    },
+    {
+      "key": "directory_dashboard",
+      "label": "Directory Overview",
+      "type": "dashboard",
+      "entity": "employee",
+      "config": {
+        "widgets": [
+          {
+            "title": "Total Employees",
+            "type": "stat",
+            "entity": "employee",
+            "aggregation": "count"
+          },
+          {
+            "title": "Active Employees",
+            "type": "stat",
+            "entity": "employee",
+            "aggregation": "count",
+            "filters": [
+              {
+                "field": "employment_status",
+                "operator": "eq",
+                "value": "active"
+              }
+            ]
+          },
+          {
+            "title": "On Leave",
+            "type": "stat",
+            "entity": "employee",
+            "aggregation": "count",
+            "filters": [
+              {
+                "field": "employment_status",
+                "operator": "eq",
+                "value": "on_leave"
+              }
+            ]
+          },
+          {
+            "title": "Employees by Department",
+            "type": "breakdown",
+            "entity": "employee",
+            "groupBy": "department_id"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_on_new_employee",
+      "name": "Notify HR on New Employee",
+      "trigger": {
+        "event": "record.created",
+        "entity": "employee"
+      },
+      "conditions": [],
+      "actions": [
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "alert_on_termination",
+      "name": "Alert When Employee Terminated",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "employee",
+        "field": "employment_status"
+      },
+      "conditions": [
+        {
+          "field": "employment_status",
+          "operator": "eq",
+          "value": "terminated"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "hr_admin",
+      "name": "HR Admin",
+      "description": "Full read/write access to all employee directory data.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Can browse all employees and manage emergency contacts.",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "role",
+          "read": true
+        },
+        {
+          "entity": "location",
+          "read": true
+        },
+        {
+          "entity": "emergency_contact",
+          "create": true,
+          "read": true,
+          "update": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to the employee directory.",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "personal_email",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "role",
+          "read": true
+        },
+        {
+          "entity": "location",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#64748B",
+    "font": "Inter, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

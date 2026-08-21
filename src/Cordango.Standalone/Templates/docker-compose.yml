@@ -1,0 +1,57 @@
+# Everything {{AppName}} needs to run, on one machine.
+#
+# Two services and one volume. The database version is pinned rather than floating on `latest`,
+# because a Postgres major upgrade is a decision to make deliberately on a Tuesday morning and not
+# one to discover after a `docker compose pull`.
+
+services:
+  db:
+    image: postgres:17.5-alpine
+    environment:
+      POSTGRES_DB: {{AppKey}}
+      POSTGRES_USER: {{AppKey}}
+      # Defaulted so that `docker compose up` works with no setup at all. It is safe HERE and only
+      # here: this service publishes no port, so the only thing that can reach the database is the
+      # app container on this compose network. Set DB_PASSWORD in .env before you put this anywhere
+      # real — and certainly before you add a `ports:` mapping to this service.
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-cordango-local-only}
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{AppKey}}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      # The application migrates its own schema at startup, so it needs a database that is ready to
+      # answer rather than merely a container that has been created.
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Database: "Host=db;Port=5432;Database={{AppKey}};Username={{AppKey}};Password=${DB_PASSWORD:-cordango-local-only}"
+      # The generated demo dataset, loaded into empty tables only. Once there are rows this does
+      # nothing, so it is safe to leave on — set SEED=false to skip it entirely.
+      Seed__Enabled: ${SEED:-true}
+      Seed__Date: ${SEED_DATE:-}
+
+      # The first administrator, for an UNATTENDED start. Empty by default, and empty is the
+      # normal case: the application then has no account at all, and the first screen anybody
+      # reaches asks them to create one. That is how a person gets in without being handed a
+      # password somebody or something else chose.
+      #
+      # Set both anywhere the first request will not be yours — the account exists before the
+      # application accepts anything, and the setup screen never appears. After an administrator
+      # exists these are ignored, and they never reset a password.
+      Admin__Email: ${ADMIN_EMAIL:-}
+      Admin__Password: ${ADMIN_PASSWORD:-}
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - media:/appdata/media
+
+volumes:
+  db:
+  media:

@@ -1,0 +1,30 @@
+import { defineCollectionView } from "@cord/sdk";
+
+export default defineCollectionView({
+  key: "scenarios_table",
+  label: "All Scenarios",
+  entity: "scenario",
+  kind: "table",
+  settings: {
+    columns: [
+      "name",
+      "case_type",
+      "scenario_stage",
+      "plan_start",
+      "total_revenue",
+      "total_costs",
+      "cash_at_end",
+      "runway_months",
+    ],
+    filterBar: {
+      facets: ["case_type", "scenario_stage"],
+      search: ["name"],
+    },
+    defaultSort: [
+      {
+        field: "case_type",
+        direction: "asc",
+      },
+    ],
+  },
+} as const);

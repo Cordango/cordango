@@ -1,0 +1,41 @@
+{
+  "name": "Any role that allows an operation allows it",
+  "why": "A person holding two roles gets the union of both, not the intersection and not the first match. Getting this backwards makes adding a role to somebody take access away.",
+  "roles": [
+    { "key": "reader", "grants": [ { "entity": "ticket", "read": true } ] },
+    { "key": "closer", "grants": [ { "entity": "ticket", "read": true, "update": true } ] },
+    { "key": "purger", "grants": [ { "entity": "ticket", "delete": true } ] }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["reader"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": false, "delete": false }
+    },
+    {
+      "roleKeys": ["reader", "closer"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": true, "delete": false }
+    },
+    {
+      "roleKeys": ["reader", "closer", "purger"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": true, "update": true, "delete": true }
+    },
+    {
+      "roleKeys": ["reader"],
+      "entity": "invoice",
+      "expect": { "create": false, "read": false, "update": false, "delete": false }
+    },
+    {
+      "roleKeys": [],
+      "entity": "ticket",
+      "expect": { "create": false, "read": false, "update": false, "delete": false }
+    },
+    {
+      "roleKeys": ["nonexistent"],
+      "entity": "ticket",
+      "expect": { "create": false, "read": false, "update": false, "delete": false }
+    }
+  ]
+}

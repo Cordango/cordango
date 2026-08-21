@@ -1,0 +1,10 @@
+form: assumption
+blocks:
+  - kind: fields
+    fields:
+      - statement
+      - driver
+      - value_text
+      - confidence
+      - rationale
+    columns: 2

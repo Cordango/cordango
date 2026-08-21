@@ -1,0 +1,121 @@
+entity: cost_line
+icon: cash-multiple
+kind: collection
+label: Cost Line
+description: "A non-payroll cost: fixed monthly, scaling per user, or a one-off payment such as a German government fee."
+plural: Cost Lines
+display: name
+fields:
+  name:
+    type: text
+    label: Cost Line
+    required: true
+  scenario:
+    type: reference
+    label: Scenario
+    indexed: true
+    onDelete: cascade
+    required: true
+    targetEntity: scenario
+  cost_category:
+    type: reference
+    label: Category
+    indexed: true
+    targetEntity: cost_category
+  cost_behaviour:
+    type: select
+    label: Behaviour
+    default: fixed_monthly
+    options:
+      - color: "#0f766e"
+        label: Fixed monthly
+        value: fixed_monthly
+      - color: "#38bdf8"
+        label: Per user per month
+        value: per_user
+      - color: "#f59e0b"
+        label: One-off payment
+        value: one_off
+      - value: percent_of_revenue
+        label: "% of a base"
+        color: "#a16207"
+    required: true
+  monthly_amount:
+    help: Used when behaviour is Fixed monthly.
+    type: money
+    group: Amounts
+    label: Fixed Amount / Month
+    currency: EUR
+  amount_per_user:
+    help: Used when behaviour is Per user.
+    type: money
+    group: Amounts
+    label: Amount per User / Month
+    currency: EUR
+  one_off_amount:
+    help: Used when behaviour is One-off.
+    type: money
+    group: Amounts
+    label: One-off Amount
+    currency: EUR
+  one_off_date:
+    type: date
+    group: Amounts
+    label: One-off Date
+  start_month:
+    role: start
+    type: date
+    group: Timing
+    label: Starts
+  end_month:
+    type: date
+    group: Timing
+    label: Ends
+  annual_increase_rate:
+    type: decimal
+    unit: "%"
+    group: Timing
+    label: Annual Increase
+    scale: 2
+    default: 0
+    precision: 6
+  is_government_fee:
+    help: Trade register, IHK, notary, Finanzamt, GmbH filing and similar German statutory costs.
+    type: boolean
+    group: Timing
+    label: Government / Statutory Fee
+    default: false
+  vendor:
+    type: text
+    group: Timing
+    label: Vendor / Authority
+  notes:
+    type: longtext
+    group: Timing
+    label: Notes
+  percent_amount:
+    label: Percent of Revenue
+    type: decimal
+    unit: "%"
+    precision: 8
+    scale: 3
+    group: Amounts
+    help: Used when behaviour is % of revenue — payment and collection fees, revenue share, affiliate commission.
+  percent_basis:
+    label: Percentage Of
+    type: select
+    group: Amounts
+    default: revenue
+    options:
+      - value: revenue
+        label: Revenue
+        color: "#0f766e"
+      - value: payroll
+        label: Gross payroll
+        color: "#6366f1"
+    help: Which figure the percentage applies to. Both are always positive, so the fee can never come out as a credit.
+  one_off_month:
+    label: One-off Month
+    type: integer
+    group: Amounts
+    help: Month of the plan this is paid, counting from month 1. Use this OR the exact date, whichever you actually know.

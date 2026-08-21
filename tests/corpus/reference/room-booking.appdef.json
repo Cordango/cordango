@@ -1,0 +1,1089 @@
+{
+  "schemaVersion": "2.0",
+  "key": "room_booking",
+  "name": "Room Booking",
+  "version": "1.0.0",
+  "description": "Find an available meeting room, book a slot inline from a weekly grid, and let managers approve or decline requests. The hand-authored reference app for COMPOSITION_REFRAME_FINAL.md Phase 1 — the best room-booking experience expressible against today's runtime, with the gaps recorded in GAPS.md.",
+  "archetype": {
+    "kind": "scheduling",
+    "coreJob": "See which rooms are free across the week and book a slot inline"
+  },
+  "presentation": {
+    "icon": "meeting_room",
+    "color": "#0e7490",
+    "category": "Operations",
+    "tagline": "Book a room in one click"
+  },
+  "entities": [
+    {
+      "key": "room",
+      "label": "Room",
+      "labelPlural": "Rooms",
+      "displayField": "name",
+      "icon": "meeting_room",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "capacity",
+          "label": "Capacity",
+          "type": "integer",
+          "required": true,
+          "group": "Details"
+        },
+        {
+          "key": "tier",
+          "label": "Tier",
+          "type": "select",
+          "default": "standard",
+          "group": "Details",
+          "options": [
+            {
+              "value": "standard",
+              "label": "Standard",
+              "color": "#64748b"
+            },
+            {
+              "value": "premium",
+              "label": "Premium",
+              "color": "#0e7490"
+            }
+          ]
+        },
+        {
+          "key": "amenities",
+          "label": "Amenities",
+          "type": "multiselect",
+          "group": "Details",
+          "options": [
+            {
+              "value": "projector",
+              "label": "Projector"
+            },
+            {
+              "value": "whiteboard",
+              "label": "Whiteboard"
+            },
+            {
+              "value": "video",
+              "label": "Video conferencing"
+            }
+          ]
+        },
+        {
+          "key": "location",
+          "label": "Location",
+          "type": "text",
+          "group": "Details"
+        }
+      ]
+    },
+    {
+      "key": "booking",
+      "label": "Booking",
+      "labelPlural": "Bookings",
+      "displayField": "purpose",
+      "icon": "event",
+      "fields": [
+        {
+          "key": "room",
+          "label": "Room",
+          "type": "reference",
+          "targetEntity": "room",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "date",
+          "label": "Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "slot",
+          "label": "Slot",
+          "type": "select",
+          "default": "morning",
+          "group": "When",
+          "options": [
+            {
+              "value": "morning",
+              "label": "Morning"
+            },
+            {
+              "value": "afternoon",
+              "label": "Afternoon"
+            },
+            {
+              "value": "evening",
+              "label": "Evening"
+            }
+          ]
+        },
+        {
+          "key": "purpose",
+          "label": "Purpose",
+          "type": "text",
+          "group": "When"
+        },
+        {
+          "key": "booked_by",
+          "label": "Booked by",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "The person who made the booking. Set automatically to the signed-in user."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true,
+          "help": "Standard rooms confirm on booking; premium rooms start pending until approved."
+        },
+        {
+          "key": "decline_reason",
+          "label": "Decline reason",
+          "type": "longtext",
+          "group": "Decision"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "purpose",
+            "status": "status",
+            "facts": [
+              "room",
+              "date",
+              "slot",
+              "booked_by"
+            ],
+            "actions": [
+              "approve_booking",
+              "decline_booking",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "pending"
+            }
+          },
+          {
+            "kind": "section",
+            "label": "Attendees",
+            "blocks": [
+              {
+                "kind": "child",
+                "entity": "booking_attendee",
+                "via": "booking",
+                "childType": "table",
+                "subordinate": true,
+                "inlineCreate": true,
+                "label": "Attendees"
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Why this was declined",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "declined"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "decline_reason"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "booking_attendee",
+      "label": "Attendee",
+      "labelPlural": "Attendees",
+      "icon": "person",
+      "displayField": "person",
+      "ownedBy": {
+        "parent": "booking",
+        "via": "booking",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "booking",
+          "label": "Booking",
+          "type": "reference",
+          "targetEntity": "booking",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "person",
+          "label": "Person",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "required": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "optional",
+          "label": "Optional",
+          "type": "boolean",
+          "default": false,
+          "help": "Optional attendee (nice-to-have, not required)."
+        }
+      ]
+    },
+    {
+      "key": "booking_policy",
+      "label": "Booking Policy",
+      "kind": "settings",
+      "icon": "settings",
+      "fields": [
+        {
+          "key": "max_advance_days",
+          "label": "Max advance (days)",
+          "type": "integer",
+          "default": 30,
+          "help": "How far ahead a room may be booked."
+        },
+        {
+          "key": "allow_weekend",
+          "label": "Allow weekend bookings",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "room_bookings",
+      "label": "Room Bookings",
+      "type": "oneToMany",
+      "fromEntity": "room",
+      "toEntity": "booking",
+      "inverseField": "room"
+    },
+    {
+      "key": "booking_attendees",
+      "label": "Booking Attendees",
+      "type": "oneToMany",
+      "fromEntity": "booking",
+      "toEntity": "booking_attendee",
+      "inverseField": "booking"
+    }
+  ],
+  "views": [
+    {
+      "key": "rooms_table",
+      "label": "All rooms",
+      "type": "table",
+      "entity": "room",
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "capacity",
+          "tier",
+          "location"
+        ]
+      }
+    },
+    {
+      "key": "my_bookings_table",
+      "label": "My bookings",
+      "type": "table",
+      "entity": "booking",
+      "filters": [
+        {
+          "field": "booked_by",
+          "operator": "eq",
+          "value": "{{actor.id}}"
+        }
+      ],
+      "sort": [
+        {
+          "field": "date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "date",
+          "room",
+          "slot",
+          "status"
+        ]
+      }
+    },
+    {
+      "key": "pending_bookings_table",
+      "label": "Awaiting decision",
+      "type": "table",
+      "entity": "booking",
+      "filters": [
+        {
+          "field": "status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "sort": [
+        {
+          "field": "date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "date",
+          "room",
+          "booked_by",
+          "slot"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "availability",
+      "label": "Availability",
+      "icon": "grid_view",
+      "entity": "booking",
+      "state": [
+        {
+          "key": "mode",
+          "type": "enum",
+          "default": "week",
+          "options": [
+            {
+              "value": "week",
+              "label": "Week"
+            },
+            {
+              "value": "day",
+              "label": "Day"
+            }
+          ]
+        },
+        {
+          "key": "cursor",
+          "type": "date",
+          "default": "{{today}}"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "align": "center",
+              "blocks": [
+                {
+                  "kind": "text",
+                  "value": "Room availability",
+                  "size": "lg",
+                  "weight": "bold",
+                  "grow": true
+                },
+                {
+                  "kind": "control",
+                  "control": "segmented",
+                  "stateKey": "mode"
+                },
+                {
+                  "kind": "control",
+                  "control": "stepper",
+                  "stateKey": "cursor",
+                  "step": {
+                    "unit": "week",
+                    "amount": 1
+                  },
+                  "visibleWhen": {
+                    "value": "{{state.mode}}",
+                    "eq": "week"
+                  }
+                },
+                {
+                  "kind": "control",
+                  "control": "stepper",
+                  "stateKey": "cursor",
+                  "step": {
+                    "unit": "day",
+                    "amount": 1
+                  },
+                  "visibleWhen": {
+                    "value": "{{state.mode}}",
+                    "eq": "day"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "stack",
+              "gap": "none",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "week"
+              },
+              "blocks": [
+                {
+                  "kind": "row",
+                  "gap": "none",
+                  "blocks": [
+                    {
+                      "kind": "card",
+                      "width": "md",
+                      "padding": "sm",
+                      "tone": "muted",
+                      "blocks": [
+                        {
+                          "kind": "text",
+                          "value": "Room"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "repeat",
+                      "as": "hcol",
+                      "direction": "row",
+                      "source": {
+                        "dates": {
+                          "from": "{{state.cursor}}",
+                          "count": 7
+                        }
+                      },
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "sm",
+                          "padding": "sm",
+                          "tone": "muted",
+                          "blocks": [
+                            {
+                              "kind": "text",
+                              "value": "{{hcol.label}}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "repeat",
+                  "as": "room",
+                  "source": {
+                    "entity": "room",
+                    "sort": [
+                      {
+                        "field": "name",
+                        "direction": "asc"
+                      }
+                    ]
+                  },
+                  "emptyText": "No rooms yet.",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "none",
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "md",
+                          "padding": "sm",
+                          "bordered": true,
+                          "tint": "tier",
+                          "blocks": [
+                            {
+                              "kind": "field",
+                              "field": "name",
+                              "weight": "medium"
+                            },
+                            {
+                              "kind": "row",
+                              "gap": "sm",
+                              "blocks": [
+                                {
+                                  "kind": "chip",
+                                  "field": "tier"
+                                },
+                                {
+                                  "kind": "field",
+                                  "field": "capacity"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "repeat",
+                          "as": "day",
+                          "direction": "row",
+                          "source": {
+                            "dates": {
+                              "from": "{{state.cursor}}",
+                              "count": 7
+                            }
+                          },
+                          "blocks": [
+                            {
+                              "kind": "card",
+                              "width": "sm",
+                              "padding": "xs",
+                              "bordered": true,
+                              "gap": "sm",
+                              "blocks": [
+                                {
+                                  "kind": "repeat",
+                                  "as": "slot",
+                                  "direction": "column",
+                                  "gap": "sm",
+                                  "source": {
+                                    "options": {
+                                      "entity": "booking",
+                                      "field": "slot"
+                                    }
+                                  },
+                                  "blocks": [
+                                    {
+                                      "kind": "cell",
+                                      "entity": "booking",
+                                      "field": "purpose",
+                                      "editable": true,
+                                      "openDetail": true,
+                                      "placeholder": "",
+                                      "keys": {
+                                        "room": "{{room.id}}",
+                                        "date": "{{day.date}}",
+                                        "slot": "{{slot.value}}"
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "stack",
+              "gap": "none",
+              "visibleWhen": {
+                "value": "{{state.mode}}",
+                "eq": "day"
+              },
+              "blocks": [
+                {
+                  "kind": "row",
+                  "gap": "none",
+                  "blocks": [
+                    {
+                      "kind": "card",
+                      "width": "md",
+                      "padding": "sm",
+                      "tone": "muted",
+                      "blocks": [
+                        {
+                          "kind": "text",
+                          "value": "Room"
+                        }
+                      ]
+                    },
+                    {
+                      "kind": "repeat",
+                      "as": "scol",
+                      "direction": "row",
+                      "source": {
+                        "options": {
+                          "entity": "booking",
+                          "field": "slot"
+                        }
+                      },
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "md",
+                          "padding": "sm",
+                          "tone": "muted",
+                          "blocks": [
+                            {
+                              "kind": "text",
+                              "value": "{{scol.label}}"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "kind": "repeat",
+                  "as": "room",
+                  "source": {
+                    "entity": "room",
+                    "sort": [
+                      {
+                        "field": "name",
+                        "direction": "asc"
+                      }
+                    ]
+                  },
+                  "emptyText": "No rooms yet.",
+                  "blocks": [
+                    {
+                      "kind": "row",
+                      "gap": "none",
+                      "blocks": [
+                        {
+                          "kind": "card",
+                          "width": "md",
+                          "padding": "sm",
+                          "bordered": true,
+                          "tint": "tier",
+                          "blocks": [
+                            {
+                              "kind": "field",
+                              "field": "name",
+                              "weight": "medium"
+                            },
+                            {
+                              "kind": "row",
+                              "gap": "sm",
+                              "blocks": [
+                                {
+                                  "kind": "chip",
+                                  "field": "tier"
+                                },
+                                {
+                                  "kind": "field",
+                                  "field": "capacity"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "repeat",
+                          "as": "slot",
+                          "direction": "row",
+                          "source": {
+                            "options": {
+                              "entity": "booking",
+                              "field": "slot"
+                            }
+                          },
+                          "blocks": [
+                            {
+                              "kind": "card",
+                              "width": "md",
+                              "padding": "sm",
+                              "bordered": true,
+                              "minHeight": 56,
+                              "blocks": [
+                                {
+                                  "kind": "cell",
+                                  "entity": "booking",
+                                  "field": "purpose",
+                                  "editable": true,
+                                  "openDetail": true,
+                                  "placeholder": "",
+                                  "keys": {
+                                    "room": "{{room.id}}",
+                                    "date": "{{state.cursor}}",
+                                    "slot": "{{slot.value}}"
+                                  }
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "my_bookings",
+      "label": "My bookings",
+      "icon": "event_available",
+      "entity": "booking",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "my_bookings_table"
+        }
+      ]
+    },
+    {
+      "key": "approvals",
+      "label": "Approvals",
+      "icon": "fact_check",
+      "entity": "booking",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "stat",
+              "label": "Awaiting decision",
+              "source": {
+                "entity": "booking",
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "pending"
+                  }
+                ],
+                "aggregate": {
+                  "op": "count"
+                }
+              }
+            },
+            {
+              "kind": "view",
+              "view": "pending_bookings_table"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "rooms",
+      "label": "Rooms",
+      "icon": "meeting_room",
+      "entity": "room",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "rooms_table"
+        }
+      ]
+    },
+    {
+      "key": "insights",
+      "label": "Insights",
+      "icon": "chart_bar",
+      "entity": "booking",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "text",
+              "value": "Room load",
+              "size": "lg",
+              "weight": "bold"
+            },
+            {
+              "kind": "text",
+              "value": "How heavily each room is booked, and where the week's demand falls.",
+              "size": "sm",
+              "color": "#94a3b8"
+            },
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Total bookings",
+                  "source": {
+                    "entity": "booking",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Rooms",
+                  "source": {
+                    "entity": "room",
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Awaiting decision",
+                  "source": {
+                    "entity": "booking",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "pending"
+                      }
+                    ],
+                    "aggregate": {
+                      "op": "count"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Load by room (bookings)",
+                    "source": {
+                      "entity": "booking",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "room"
+                      }
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Load by day",
+                    "source": {
+                      "entity": "booking",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "date"
+                      }
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "booking_flow",
+      "entity": "booking",
+      "stateField": "status",
+      "initialState": {
+        "rules": [
+          {
+            "when": {
+              "path": "room.tier",
+              "operator": "eq",
+              "value": "standard"
+            },
+            "state": "approved"
+          }
+        ],
+        "fallback": "pending"
+      },
+      "states": [
+        {
+          "key": "pending",
+          "label": "Pending",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "approved",
+          "label": "Approved",
+          "color": "#16a34a",
+          "terminal": true
+        },
+        {
+          "key": "declined",
+          "label": "Declined",
+          "color": "#dc2626",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "approve",
+          "label": "Approve",
+          "from": [
+            "pending"
+          ],
+          "to": "approved",
+          "command": "approve_booking"
+        },
+        {
+          "key": "decline",
+          "label": "Decline",
+          "from": [
+            "pending"
+          ],
+          "to": "declined",
+          "command": "decline_booking"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "approve_booking",
+      "label": "Approve",
+      "entity": "booking",
+      "style": "primary",
+      "placements": [
+        "recordHeader"
+      ],
+      "successMessage": "Booking approved.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.booked_by}}",
+          "title": "Booking approved",
+          "message": "Your room booking was approved.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "decline_booking",
+      "label": "Decline",
+      "entity": "booking",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "input": {
+        "fields": [
+          "decline_reason"
+        ],
+        "required": [
+          "decline_reason"
+        ]
+      },
+      "confirm": {
+        "title": "Decline this booking?",
+        "tone": "danger",
+        "confirmLabel": "Decline"
+      },
+      "successMessage": "Booking declined.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.booked_by}}",
+          "title": "Booking declined",
+          "message": "Your room booking was declined.",
+          "link": "auto"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Books rooms and manages their own bookings.",
+      "grants": [
+        {
+          "entity": "booking",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "room",
+          "read": true
+        },
+        {
+          "entity": "booking_policy",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Reviews pending bookings and approves or declines them.",
+      "grants": [
+        {
+          "entity": "booking",
+          "read": true,
+          "update": true,
+          "commands": [
+            "approve_booking",
+            "decline_booking"
+          ]
+        },
+        {
+          "entity": "room",
+          "read": true
+        },
+        {
+          "entity": "booking_policy",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Manages rooms and booking policy.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#0e7490",
+    "secondaryColor": "#f59e0b",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

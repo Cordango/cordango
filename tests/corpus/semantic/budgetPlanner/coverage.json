@@ -1,0 +1,21 @@
+{
+  "authority": "../../../exploration/budget-planner.appdef.json",
+  "authoritySha256": "b59951c06e3680ef1cc03ac364f774a6b4eed0072f7025e0fe6acf36404fafe6",
+  "semanticSha256": "7c0c205474219141b46c3a30ab68dd2235142e1bd5b1782ff542432a916a8606",
+  "counts": {
+    "entities": 16,
+    "fields": 218,
+    "lifecycles": 3,
+    "transitions": 15,
+    "standaloneActions": 3,
+    "commandsRepresented": 18,
+    "automations": 8,
+    "roles": 3,
+    "collectionViews": 17,
+    "screens": 10,
+    "relations": 14,
+    "recordSurfaces": 24,
+    "detailTabs": 8
+  },
+  "note": "Both variants are generated from the same semantic object graph. Explicit layout is retained where the current Cord screen vocabulary cannot express the hand-designed screen exactly."
+}

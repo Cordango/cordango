@@ -1,0 +1,30 @@
+import { defineCollectionView } from "@cord/sdk";
+
+export default defineCollectionView({
+  key: "funding_table",
+  label: "Funding Rounds",
+  entity: "funding_round",
+  kind: "table",
+  settings: {
+    columns: [
+      "name",
+      "scenario",
+      "round_type",
+      "round_stage",
+      "amount",
+      "expected_close",
+      "pre_money_valuation",
+      "equity_given",
+    ],
+    filterBar: {
+      facets: ["scenario", "round_type", "round_stage"],
+      search: ["name", "lead_investor"],
+    },
+    defaultSort: [
+      {
+        field: "expected_close",
+        direction: "asc",
+      },
+    ],
+  },
+} as const);

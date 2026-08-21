@@ -1,0 +1,36 @@
+role: viewer
+name: Investor / Viewer
+description: Read-only access to the plan, for investors and advisors.
+grants:
+  scenario:
+    read: true
+  period:
+    read: true
+  revenue_plan:
+    read: true
+  hiring_line:
+    read: true
+  cost_line:
+    read: true
+  revenue_stream:
+    read: true
+  funding_round:
+    read: true
+  assumption:
+    read: true
+  team:
+    read: true
+  cost_category:
+    read: true
+  budget_settings:
+    read: true
+  segment:
+    read: true
+  adoption_point:
+    read: true
+  acquisition:
+    read: true
+  lifecycle_step:
+    read: true
+  cohort_month:
+    read: true

@@ -1,0 +1,921 @@
+{
+  "schemaVersion": "2.0",
+  "key": "core_calendar",
+  "name": "Calendar",
+  "version": "1.0.0",
+  "description": "One place for what is actually on someone's day, and for letting other people book time in it. Calendars imported from Outlook and Google land here as ordinary records so an app can point at a meeting the way it points at a person, and booking pages turn a shareable link into a real appointment. Imported events are READ-ONLY by design: they are a cache of somebody else's system, and editing them here would produce two disagreeing truths with no way to tell which is stale.",
+  "presentation": {
+    "icon": "calendar-month",
+    "color": "#0ea5e9",
+    "category": "Core",
+    "tagline": "Your day, and the time others can book in it"
+  },
+  "entities": [
+    {
+      "key": "calendar_source",
+      "label": "Calendar",
+      "labelPlural": "Calendars",
+      "displayField": "name",
+      "icon": "calendar",
+      "kind": "config",
+      "description": "One connected calendar. This is what makes 'I have several calendars' first class rather than a pile of events with a provider column: colour, visibility and the booking target all hang off the source, and turning one off hides its events everywhere at once.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "provider",
+          "label": "Provider",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "options": [
+            {
+              "value": "microsoft",
+              "label": "Outlook",
+              "color": "#0078d4"
+            },
+            {
+              "value": "google",
+              "label": "Google",
+              "color": "#ea4335"
+            },
+            {
+              "value": "local",
+              "label": "Cordango",
+              "color": "#0ea5e9"
+            }
+          ],
+          "help": "Where the events come from. 'Cordango' is a calendar that lives only here — nothing is imported into it."
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "cascade",
+          "help": "Whose calendar this is. A personal connection, so it goes away with the person."
+        },
+        {
+          "key": "color",
+          "label": "Colour",
+          "type": "text",
+          "help": "Hex colour used for this calendar's events."
+        },
+        {
+          "key": "is_visible",
+          "label": "Shown",
+          "type": "boolean",
+          "default": true,
+          "help": "Off hides this calendar's events from every surface without disconnecting it."
+        },
+        {
+          "key": "is_default_target",
+          "label": "Default for bookings",
+          "type": "boolean",
+          "help": "New booking pages write confirmed appointments into this calendar unless told otherwise."
+        },
+        {
+          "key": "external_id",
+          "label": "External id",
+          "type": "text",
+          "indexed": true,
+          "group": "Sync",
+          "help": "The provider's own id for this calendar. Set by the import; not meaningful to a person."
+        },
+        {
+          "key": "sync_status",
+          "label": "Sync status",
+          "type": "select",
+          "group": "Sync",
+          "default": "ok",
+          "options": [
+            {
+              "value": "ok",
+              "label": "OK",
+              "color": "#16a34a"
+            },
+            {
+              "value": "needs_reauth",
+              "label": "Needs sign-in",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "error",
+              "label": "Error",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "last_synced_at",
+          "label": "Last synced",
+          "type": "datetime",
+          "group": "Sync"
+        },
+        {
+          "key": "last_error",
+          "label": "Last error",
+          "type": "longtext",
+          "group": "Sync"
+        }
+      ]
+    },
+    {
+      "key": "calendar_event",
+      "label": "Event",
+      "labelPlural": "Events",
+      "displayField": "title",
+      "icon": "calendar-clock",
+      "description": "One appointment, at one instant, on one calendar. Recurring series arrive already EXPANDED into their individual occurrences — the provider does that expansion and applies each per-instance override, and re-deriving it from a rule would mean disagreeing with the user's own Outlook, which is the reference they will compare against.",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "calendar",
+          "label": "Calendar",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetEntity": "calendar_source",
+          "onDelete": "cascade",
+          "optionsFilter": [
+            {
+              "field": "owner",
+              "operator": "eq",
+              "value": "{{actor.id}}"
+            }
+          ],
+          "help": "Disconnecting a calendar takes its events with it — they are a cache, not the user's own data."
+        },
+        {
+          "key": "starts_at",
+          "label": "Starts",
+          "type": "datetime",
+          "required": true,
+          "indexed": true,
+          "role": "start"
+        },
+        {
+          "key": "ends_at",
+          "label": "Ends",
+          "type": "datetime",
+          "required": true,
+          "indexed": true,
+          "help": "Always set, including for all-day events, so a busy interval is never open-ended."
+        },
+        {
+          "key": "is_all_day",
+          "label": "All day",
+          "type": "boolean",
+          "help": "An all-day event is a DATE, not an instant. Stored as midnight of the local date and never put through a timezone conversion, which is how one lands on the wrong day."
+        },
+        {
+          "key": "time_zone",
+          "label": "Time zone",
+          "type": "text",
+          "group": "Details",
+          "help": "IANA zone the organizer set, e.g. Europe/Berlin."
+        },
+        {
+          "key": "location",
+          "label": "Location",
+          "type": "text",
+          "group": "Details"
+        },
+        {
+          "key": "description",
+          "label": "Notes",
+          "type": "longtext",
+          "group": "Details"
+        },
+        {
+          "key": "organizer_email",
+          "label": "Organizer",
+          "type": "email",
+          "group": "Details"
+        },
+        {
+          "key": "attendee_count",
+          "label": "Attendees",
+          "type": "integer",
+          "group": "Details"
+        },
+        {
+          "key": "show_as",
+          "label": "Shows as",
+          "type": "select",
+          "default": "busy",
+          "indexed": true,
+          "options": [
+            {
+              "value": "free",
+              "label": "Free",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "tentative",
+              "label": "Tentative",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "busy",
+              "label": "Busy",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "out_of_office",
+              "label": "Out of office",
+              "color": "#dc2626"
+            },
+            {
+              "value": "working_elsewhere",
+              "label": "Working elsewhere",
+              "color": "#0891b2"
+            }
+          ],
+          "help": "What availability reads. Explicit rather than inferred: an event you are 'free' during must not block a booking, and nothing else in the record says so."
+        },
+        {
+          "key": "sensitivity",
+          "label": "Sensitivity",
+          "type": "select",
+          "default": "normal",
+          "group": "Details",
+          "options": [
+            {
+              "value": "normal",
+              "label": "Normal",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "private",
+              "label": "Private",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "confidential",
+              "label": "Confidential",
+              "color": "#dc2626"
+            }
+          ],
+          "help": "Drives whether the title is masked when shown. Masking is a rendering decision — the title is stored as it came."
+        },
+        {
+          "key": "is_cancelled",
+          "label": "Cancelled",
+          "type": "boolean",
+          "indexed": true,
+          "help": "Kept rather than deleted: looking back at yesterday should show a struck-through 'cancelled', not a hole where a meeting was."
+        },
+        {
+          "key": "origin",
+          "label": "Origin",
+          "type": "select",
+          "required": true,
+          "default": "local",
+          "indexed": true,
+          "options": [
+            {
+              "value": "imported",
+              "label": "Imported",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "local",
+              "label": "Cordango",
+              "color": "#0ea5e9"
+            }
+          ],
+          "help": "Explicit, not inferred from 'has an external id' — an event created here and later pushed to Outlook WILL have one and must still read as local."
+        },
+        {
+          "key": "external_id",
+          "label": "External id",
+          "type": "text",
+          "indexed": true,
+          "group": "Sync"
+        },
+        {
+          "key": "external_series_id",
+          "label": "Series id",
+          "type": "text",
+          "indexed": true,
+          "group": "Sync",
+          "help": "The recurring series this occurrence belongs to, when it is one."
+        },
+        {
+          "key": "external_etag",
+          "label": "ETag",
+          "type": "text",
+          "group": "Sync"
+        },
+        {
+          "key": "synced_at",
+          "label": "Synced",
+          "type": "datetime",
+          "group": "Sync"
+        }
+      ]
+    },
+    {
+      "key": "booking_page",
+      "label": "Booking page",
+      "labelPlural": "Booking pages",
+      "displayField": "name",
+      "icon": "calendar-account",
+      "description": "A shareable link that lets someone outside the workspace pick a free slot. The rules of engagement live here — how long, how much notice, which hours, how much buffer — so the public page computes them rather than being told what to offer.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "What the visitor sees as the heading, e.g. 'Intro call'."
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "cascade",
+          "help": "Whose time is being booked. Their calendars decide what is free."
+        },
+        {
+          "key": "slug",
+          "label": "Link",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true,
+          "help": "The unguessable part of the public URL. Random by design: the hostname may tell the world this workspace exists, but which appointments somebody offers must not be enumerable."
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "help": "Shown to the visitor under the heading."
+        },
+        {
+          "key": "duration_minutes",
+          "label": "Duration",
+          "type": "integer",
+          "required": true,
+          "default": 30,
+          "unit": " min"
+        },
+        {
+          "key": "buffer_before_minutes",
+          "label": "Buffer before",
+          "type": "integer",
+          "default": 0,
+          "unit": " min",
+          "group": "Rules"
+        },
+        {
+          "key": "buffer_after_minutes",
+          "label": "Buffer after",
+          "type": "integer",
+          "default": 0,
+          "unit": " min",
+          "group": "Rules"
+        },
+        {
+          "key": "min_notice_hours",
+          "label": "Minimum notice",
+          "type": "integer",
+          "default": 12,
+          "unit": " h",
+          "group": "Rules",
+          "help": "Slots closer than this are not offered — nobody wants a stranger booking them in ten minutes."
+        },
+        {
+          "key": "max_days_ahead",
+          "label": "Booking window",
+          "type": "integer",
+          "default": 60,
+          "unit": " days",
+          "group": "Rules"
+        },
+        {
+          "key": "time_zone",
+          "label": "Time zone",
+          "type": "text",
+          "required": true,
+          "group": "Rules",
+          "help": "IANA zone the availability windows are written in, e.g. Europe/Berlin. The visitor still sees their own."
+        },
+        {
+          "key": "availability",
+          "label": "Availability",
+          "type": "json",
+          "group": "Rules",
+          "help": "Weekly windows and date exceptions, e.g. {\"weekly\":{\"mon\":[[\"09:00\",\"17:00\"]]},\"exceptions\":[{\"date\":\"2026-12-24\",\"windows\":[]}]}. Times are \"HH:mm\" strings — a slot rule is not a platform field type."
+        },
+        {
+          "key": "target_calendar",
+          "label": "Write bookings to",
+          "type": "reference",
+          "targetEntity": "calendar_source",
+          "onDelete": "setNull",
+          "group": "Rules",
+          "optionsFilter": [
+            {
+              "field": "owner",
+              "operator": "eq",
+              "value": "{{actor.id}}"
+            }
+          ],
+          "help": "Where a confirmed booking is created. Empty means it lives only in Cordango — the slot will not block anything in Outlook."
+        },
+        {
+          "key": "location_kind",
+          "label": "Meeting type",
+          "type": "select",
+          "default": "online",
+          "group": "Rules",
+          "options": [
+            {
+              "value": "online",
+              "label": "Online",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "phone",
+              "label": "Phone",
+              "color": "#16a34a"
+            },
+            {
+              "value": "in_person",
+              "label": "In person",
+              "color": "#7c3aed"
+            }
+          ]
+        },
+        {
+          "key": "location_detail",
+          "label": "Where",
+          "type": "text",
+          "group": "Rules",
+          "help": "Address, or the number you will call. A link is generated for online meetings."
+        },
+        {
+          "key": "is_published",
+          "label": "Published",
+          "type": "boolean",
+          "default": false,
+          "indexed": true,
+          "help": "Off means the link answers as if it did not exist. A draft booking page must not be bookable."
+        }
+      ]
+    },
+    {
+      "key": "booking_contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "displayField": "name",
+      "icon": "account-outline",
+      "description": "Somebody outside the workspace who booked time. Deliberately an ordinary app record and NOT a platform person: external people are not colleagues, they have no login, no seat and no grants, and minting an account per stranger would be account enumeration wearing a data model.",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "text"
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First booked",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "key": "booking",
+      "label": "Booking",
+      "labelPlural": "Bookings",
+      "displayField": "summary",
+      "icon": "calendar-check",
+      "description": "One appointment somebody booked through a public page. Stays 'pending' until the emailed link is clicked — which is both correct behaviour and the strongest cheap defence there is, because it costs a spammer a working mailbox per attempt.",
+      "unique": [
+        [
+          "page",
+          "starts_at"
+        ]
+      ],
+      "fields": [
+        {
+          "key": "summary",
+          "label": "Summary",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "Who and when, in one line. Written by the server so a booking reads as something in every list without a join."
+        },
+        {
+          "key": "page",
+          "label": "Booking page",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetEntity": "booking_page",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "contact",
+          "label": "Booked by",
+          "type": "reference",
+          "required": true,
+          "indexed": true,
+          "targetEntity": "booking_contact",
+          "onDelete": "restrict"
+        },
+        {
+          "key": "starts_at",
+          "label": "Starts",
+          "type": "datetime",
+          "required": true,
+          "indexed": true,
+          "role": "start"
+        },
+        {
+          "key": "ends_at",
+          "label": "Ends",
+          "type": "datetime",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "default": "pending",
+          "indexed": true,
+          "role": "status",
+          "options": [
+            {
+              "value": "pending",
+              "label": "Awaiting confirmation",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "confirmed",
+              "label": "Confirmed",
+              "color": "#16a34a"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "help": "What the visitor typed when booking."
+        },
+        {
+          "key": "visitor_time_zone",
+          "label": "Visitor time zone",
+          "type": "text",
+          "group": "Details"
+        },
+        {
+          "key": "confirmed_at",
+          "label": "Confirmed",
+          "type": "datetime",
+          "group": "Details"
+        },
+        {
+          "key": "cancelled_at",
+          "label": "Cancelled",
+          "type": "datetime",
+          "group": "Details"
+        },
+        {
+          "key": "write_back_state",
+          "label": "In calendar",
+          "type": "select",
+          "default": "pending",
+          "group": "Sync",
+          "options": [
+            {
+              "value": "not_applicable",
+              "label": "Not applicable",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "done",
+              "label": "Created",
+              "color": "#16a34a"
+            },
+            {
+              "value": "failed",
+              "label": "Failed",
+              "color": "#dc2626"
+            }
+          ],
+          "help": "A failure here never un-books anybody: the visitor has already been told they are booked, so the owner is told to add it by hand instead."
+        },
+        {
+          "key": "write_back_error",
+          "label": "Write-back error",
+          "type": "longtext",
+          "group": "Sync"
+        },
+        {
+          "key": "external_event_id",
+          "label": "External event id",
+          "type": "text",
+          "indexed": true,
+          "group": "Sync"
+        }
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "key": "my_day",
+      "label": "My day",
+      "icon": "calendar-today",
+      "entity": "calendar_event",
+      "detailFull": true,
+      "blocks": [
+        {
+          "kind": "calendar",
+          "range": "day",
+          "startField": "starts_at",
+          "endField": "ends_at",
+          "labelField": "title",
+          "colorField": "show_as",
+          "openDetail": true,
+          "timeAxis": {
+            "startHour": 7,
+            "endHour": 21,
+            "slotMinutes": 30
+          },
+          "source": {
+            "entity": "calendar_event",
+            "filters": [
+              {
+                "field": "is_cancelled",
+                "operator": "neq",
+                "value": true
+              }
+            ],
+            "sort": [
+              {
+                "field": "starts_at",
+                "direction": "asc"
+              }
+            ]
+          },
+          "allowCreate": true
+        }
+      ]
+    },
+    {
+      "key": "bookings",
+      "label": "Bookings",
+      "icon": "calendar-check",
+      "entity": "booking",
+      "detailFull": true,
+      "state": [
+        {
+          "key": "status",
+          "type": "text",
+          "default": ""
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "filterbar",
+              "entity": "booking",
+              "facets": [
+                {
+                  "state": "status",
+                  "field": "status"
+                }
+              ]
+            },
+            {
+              "kind": "table",
+              "openDetail": true,
+              "fields": [
+                "summary",
+                "starts_at",
+                "status",
+                "page",
+                "contact"
+              ],
+              "source": {
+                "entity": "booking",
+                "sort": [
+                  {
+                    "field": "starts_at",
+                    "direction": "asc"
+                  }
+                ],
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "eq",
+                    "value": "{{state.status}}",
+                    "optional": true
+                  }
+                ]
+              },
+              "newButton": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "booking_pages",
+      "label": "Booking pages",
+      "icon": "calendar-account",
+      "entity": "booking_page",
+      "detailFull": true,
+      "blocks": [
+        {
+          "kind": "table",
+          "newButton": true,
+          "openDetail": true,
+          "fields": [
+            "name",
+            "owner",
+            "duration_minutes",
+            "is_published"
+          ],
+          "source": {
+            "entity": "booking_page",
+            "sort": [
+              {
+                "field": "name",
+                "direction": "asc"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "key": "calendars",
+      "label": "Calendars",
+      "icon": "calendar",
+      "entity": "calendar_source",
+      "detailFull": true,
+      "blocks": [
+        {
+          "kind": "table",
+          "openDetail": true,
+          "fields": [
+            "name",
+            "provider",
+            "is_visible",
+            "sync_status",
+            "last_synced_at"
+          ],
+          "source": {
+            "entity": "calendar_source",
+            "filters": [
+              {
+                "field": "owner",
+                "operator": "eq",
+                "value": "{{actor.id}}"
+              }
+            ],
+            "sort": [
+              {
+                "field": "name",
+                "direction": "asc"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "processes": [],
+  "commands": [],
+  "roles": [
+    {
+      "key": "member",
+      "name": "Member",
+      "description": "Reads their own calendars and events, and runs their own booking pages. Imported events are read-only for everybody — they are a cache of another system.",
+      "grants": [
+        {
+          "entity": "calendar_source",
+          "read": true
+        },
+        {
+          "entity": "calendar_event",
+          "read": true
+        },
+        {
+          "entity": "booking_page",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "booking",
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "booking_contact",
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Manages every workspace calendar and booking page. Still cannot edit an imported event: read-only there is a property of the data, not of the role.",
+      "grants": [
+        {
+          "entity": "calendar_source",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "calendar_event",
+          "read": true
+        },
+        {
+          "entity": "booking_page",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "booking",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "booking_contact",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    }
+  ]
+}

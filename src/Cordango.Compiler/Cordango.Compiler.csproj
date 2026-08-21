@@ -1,0 +1,76 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    RULE 0 — this project is the portable core, and this ItemGroup is the whole claim.
+
+    ZERO ProjectReferences and exactly ONE package. Everything an application definition means lives
+    here and can be reasoned about without a database, a container, a web host or a model provider:
+
+      Definition/   the contract. Schema gate, semantic validation, normalizer, computed-expression
+                    language, core-app registry, definition hash.
+      Cord/         the semantic model authored source is written in, and the lowering to a
+                    definition. A function of the model ALONE.
+      Compile/      definition to runtime manifest, plus the one validation pipeline every caller
+                    goes through.
+      Semantics/    condition and template evaluation, shared by every host that runs an app.
+      Tokens/       the access-token format. One credential is written by a Cordango server and read
+                    by the CLI, on opposite sides of a boundary this repository enforces, so it can
+                    live in neither of them. A second implementation was the alternative, and a
+                    security-relevant encoding with two implementations drifts at the checksum first
+                    and at the hash second, where neither drift shows up as an error: it shows up as
+                    tokens that verify on one side and not the other. It is BCL-only, so it carries
+                    nothing into the portable boundary and does not earn an assembly of its own.
+
+    MUST NOT be added here, ever: any web framework, EF or Npgsql, any AI or provider client, any
+    tenant or hosting concern. Hosts adapt to this project; it never reaches back.
+
+    Not a convention anyone has to remember: tests/Compiler.Tests/BoundaryTests.cs asserts the
+    compiled assembly's reference set against an allowlist and this file's shape against the rule.
+  -->
+  <ItemGroup>
+    <PackageReference Include="JsonSchema.Net" Version="9.2.2" />
+  </ItemGroup>
+
+  <!-- The App Definition schema + canonical platform entities are the single source of truth
+       (shared with the Python spec in ../../schemas); embed them so the gate is self-contained. -->
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\schemas\app-definition.schema.json" Link="app-definition.schema.json" LogicalName="app-definition.schema.json" />
+    <EmbeddedResource Include="..\..\schemas\platform-entities.json" Link="platform-entities.json" LogicalName="platform-entities.json" />
+    <!-- The BLUEPRINT schema: a different language from the App Definition (what the user approved,
+         in their vocabulary, with stable identity). Embedded for the same reason - BlueprintGate
+         validates structurally against it, and the proposer tool schemas are sliced from it so a
+         proposer can never emit definition structures and undo an approval. -->
+    <EmbeddedResource Include="..\..\schemas\blueprint.schema.json" Link="blueprint.schema.json" LogicalName="blueprint.schema.json" />
+    <!-- Core apps: the registry plus EVERY shipped version of each definition (the compatibility
+         validator replays the real upgrade path, so old versions are not dead weight). Flat file
+         names — schemas/core/<systemKey>.<version>.json — keep the logical resource names stable
+         across platforms; MSBuild's RecursiveDir would bake in Windows separators. -->
+    <EmbeddedResource Include="..\..\schemas\core\*.json" LogicalName="core/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <!-- These live OUTSIDE the project tree, so `dotnet watch` (which a dev container may run) never
+       saw them change: no rebuild, no restart, no warning. And an embedded resource cannot be
+       hot-reloaded anyway — Gate.RawSchema is a `static readonly` parsed once per process. The
+       result was a long-lived container silently validating against an ANCIENT schema: on
+       2026-07-14 it rejected a correctly-composed matrix (`as` = "false schema") AND valid domains
+       (`target:"self"`), which reads as "the model failed" when the model was right. Watch them so
+       any edit forces a restart. -->
+  <ItemGroup>
+    <Watch Include="..\..\schemas\*.json" />
+    <Watch Include="..\..\schemas\src\*.json" />
+    <Watch Include="..\..\schemas\core\*.json" />
+  </ItemGroup>
+
+  <!-- No InternalsVisibleTo, deliberately. Every suite that holds this code to account does it
+       through the public surface, which is the same surface a generator or a host gets. A test that
+       needs to reach inside is testing something that should have been public or should not have
+       been tested directly. -->
+
+</Project>

@@ -1,0 +1,51 @@
+entity: growth_phase
+label: Growth Phase
+icon: trending-up
+description: A stretch of the plan with its own growth and churn rates — a launch ramp, then a steadier climb. Phases are numbered in months from the plan start.
+ownedBy:
+  parent: scenario
+  via: scenario
+  as: table
+plural: Growth Phases
+display: name
+fields:
+  name:
+    label: Phase
+    type: text
+    required: true
+  scenario:
+    label: Scenario
+    type: reference
+    targetEntity: scenario
+    required: true
+    indexed: true
+    onDelete: cascade
+  from_month:
+    label: From month
+    type: integer
+    required: true
+    default: 1
+    help: Counted from the plan start. Month 1 is the first month of the plan.
+  to_month:
+    label: To month
+    type: integer
+    help: Leave empty to run to the end of the plan.
+  growth_pct:
+    label: Growth / month
+    type: decimal
+    unit: "%"
+    precision: 8
+    scale: 2
+    default: 25
+    help: New users won this month, as a share of last month's base.
+  churn_pct:
+    label: Churn / month
+    type: decimal
+    unit: "%"
+    precision: 8
+    scale: 2
+    default: 1.5
+    help: Users lost this month, as a share of last month's base.
+  notes:
+    label: Notes
+    type: longtext

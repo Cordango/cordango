@@ -1,0 +1,761 @@
+{
+  "schemaVersion": "1.0",
+  "key": "employee_pulse",
+  "name": "Employee Pulse",
+  "version": "1.0.1",
+  "description": "An employee satisfaction tool that integrates with Slack to send monthly pulse-survey questions, collect responses, and surface trends to HR/people-ops.",
+  "entities": [
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "description": "An employee who receives and responds to pulse surveys.",
+      "icon": "users",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Work Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "slack_user_id",
+          "label": "Slack User ID",
+          "type": "text",
+          "help": "The Slack user ID used to DM surveys to the employee.",
+          "indexed": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#4287f5"
+            },
+            {
+              "value": "product",
+              "label": "Product",
+              "color": "#42b3f5"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#c242f5"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#f5a142"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#f5d142"
+            },
+            {
+              "value": "people_ops",
+              "label": "People Ops",
+              "color": "#42f59e"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#f54242"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#9e42f5"
+            }
+          ]
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true,
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "survey_cycle",
+      "label": "Survey Cycle",
+      "labelPlural": "Survey Cycles",
+      "description": "A monthly pulse-survey cycle containing one or more questions sent to employees.",
+      "icon": "calendar-clock",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Cycle Name",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "e.g., 'January 2025 Pulse'"
+        },
+        {
+          "key": "cycle_month",
+          "label": "Cycle Month",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "cycle_status",
+          "label": "Cycle Status",
+          "type": "select",
+          "options": [
+            {
+              "value": "draft",
+              "label": "Draft",
+              "color": "#9e9e9e"
+            },
+            {
+              "value": "scheduled",
+              "label": "Scheduled",
+              "color": "#2196f3"
+            },
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#4caf50"
+            },
+            {
+              "value": "closed",
+              "label": "Closed",
+              "color": "#f44336"
+            }
+          ],
+          "default": "draft",
+          "indexed": true
+        },
+        {
+          "key": "sent_count",
+          "label": "Surveys Sent",
+          "type": "integer",
+          "default": 0,
+          "help": "Number of employees who received the survey."
+        },
+        {
+          "key": "response_count",
+          "label": "Responses Received",
+          "type": "integer",
+          "default": 0
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "question",
+      "label": "Question",
+      "labelPlural": "Questions",
+      "description": "A survey question belonging to a cycle.",
+      "icon": "help-circle",
+      "displayField": "prompt",
+      "fields": [
+        {
+          "key": "prompt",
+          "label": "Question Text",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "question_type",
+          "label": "Question Type",
+          "type": "select",
+          "options": [
+            {
+              "value": "rating_1_5",
+              "label": "Rating (1–5)",
+              "color": "#4287f5"
+            },
+            {
+              "value": "yes_no",
+              "label": "Yes / No",
+              "color": "#4caf50"
+            },
+            {
+              "value": "nps",
+              "label": "NPS (0–10)",
+              "color": "#ff9800"
+            },
+            {
+              "value": "text",
+              "label": "Open Text",
+              "color": "#9c27b0"
+            }
+          ],
+          "required": true
+        },
+        {
+          "key": "survey_cycle",
+          "label": "Survey Cycle",
+          "type": "reference",
+          "targetEntity": "survey_cycle",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "order",
+          "label": "Display Order",
+          "type": "integer",
+          "default": 1,
+          "help": "Order in which the question appears in the survey."
+        }
+      ]
+    },
+    {
+      "key": "response",
+      "label": "Response",
+      "labelPlural": "Responses",
+      "description": "An individual employee's response to a survey question.",
+      "icon": "message-square",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "question",
+          "label": "Question",
+          "type": "reference",
+          "targetEntity": "question",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "survey_cycle",
+          "label": "Survey Cycle",
+          "type": "reference",
+          "targetEntity": "survey_cycle",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "rating_value",
+          "label": "Rating Value",
+          "type": "integer",
+          "help": "Numeric answer for rating/NPS/yes-no questions."
+        },
+        {
+          "key": "text_value",
+          "label": "Text Answer",
+          "type": "longtext",
+          "help": "Free-text answer for open-ended questions."
+        },
+        {
+          "key": "submitted_at",
+          "label": "Submitted At",
+          "type": "datetime",
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "engagement_trend",
+      "label": "Engagement Trend",
+      "labelPlural": "Engagement Trends",
+      "description": "Aggregated engagement metrics per cycle, optionally broken down by department.",
+      "icon": "trending-up",
+      "displayField": "label",
+      "fields": [
+        {
+          "key": "label",
+          "label": "Trend Label",
+          "type": "text",
+          "required": true,
+          "help": "e.g., 'January 2025 – Engineering'"
+        },
+        {
+          "key": "survey_cycle",
+          "label": "Survey Cycle",
+          "type": "reference",
+          "targetEntity": "survey_cycle",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "text",
+          "help": "Department this trend row covers, or 'All' for company-wide."
+        },
+        {
+          "key": "average_score",
+          "label": "Average Score",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 2
+        },
+        {
+          "key": "response_rate",
+          "label": "Response Rate (%)",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 2
+        },
+        {
+          "key": "sentiment",
+          "label": "Sentiment",
+          "type": "select",
+          "options": [
+            {
+              "value": "positive",
+              "label": "Positive",
+              "color": "#4caf50"
+            },
+            {
+              "value": "neutral",
+              "label": "Neutral",
+              "color": "#ff9800"
+            },
+            {
+              "value": "negative",
+              "label": "Negative",
+              "color": "#f44336"
+            }
+          ]
+        },
+        {
+          "key": "trend_direction",
+          "label": "Trend Direction",
+          "type": "select",
+          "options": [
+            {
+              "value": "up",
+              "label": "Up",
+              "color": "#4caf50"
+            },
+            {
+              "value": "down",
+              "label": "Down",
+              "color": "#f44336"
+            },
+            {
+              "value": "flat",
+              "label": "Flat",
+              "color": "#9e9e9e"
+            }
+          ]
+        },
+        {
+          "key": "computed_at",
+          "label": "Computed At",
+          "type": "datetime",
+          "indexed": true
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "cycle_questions",
+      "label": "Questions",
+      "type": "oneToMany",
+      "fromEntity": "survey_cycle",
+      "toEntity": "question",
+      "inverseField": "survey_cycle"
+    },
+    {
+      "key": "cycle_responses",
+      "label": "Responses",
+      "type": "oneToMany",
+      "fromEntity": "survey_cycle",
+      "toEntity": "response",
+      "inverseField": "survey_cycle"
+    },
+    {
+      "key": "question_responses",
+      "label": "Responses",
+      "type": "oneToMany",
+      "fromEntity": "question",
+      "toEntity": "response",
+      "inverseField": "question"
+    },
+    {
+      "key": "employee_responses",
+      "label": "Responses",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "response",
+      "inverseField": "employee"
+    },
+    {
+      "key": "cycle_trends",
+      "label": "Engagement Trends",
+      "type": "oneToMany",
+      "fromEntity": "survey_cycle",
+      "toEntity": "engagement_trend",
+      "inverseField": "survey_cycle"
+    }
+  ],
+  "views": [
+    {
+      "key": "employee_table",
+      "label": "Employees",
+      "type": "table",
+      "entity": "employee",
+      "filters": [
+        {
+          "field": "active",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "sort": [
+        {
+          "field": "name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "email",
+          "department",
+          "title",
+          "active"
+        ]
+      }
+    },
+    {
+      "key": "employee_detail",
+      "label": "Employee Detail",
+      "type": "detail",
+      "entity": "employee"
+    },
+    {
+      "key": "survey_cycle_table",
+      "label": "Survey Cycles",
+      "type": "table",
+      "entity": "survey_cycle",
+      "sort": [
+        {
+          "field": "cycle_month",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "cycle_month",
+          "cycle_status",
+          "sent_count",
+          "response_count"
+        ]
+      }
+    },
+    {
+      "key": "survey_cycle_kanban",
+      "label": "Cycle Board",
+      "type": "kanban",
+      "entity": "survey_cycle",
+      "config": {
+        "groupByField": "cycle_status"
+      }
+    },
+    {
+      "key": "survey_cycle_detail",
+      "label": "Cycle Detail",
+      "type": "detail",
+      "entity": "survey_cycle"
+    },
+    {
+      "key": "question_table",
+      "label": "Questions",
+      "type": "table",
+      "entity": "question",
+      "sort": [
+        {
+          "field": "order",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "prompt",
+          "question_type",
+          "survey_cycle",
+          "order"
+        ]
+      }
+    },
+    {
+      "key": "response_table",
+      "label": "Responses",
+      "type": "table",
+      "entity": "response",
+      "sort": [
+        {
+          "field": "submitted_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "question",
+          "rating_value",
+          "text_value",
+          "submitted_at"
+        ]
+      }
+    },
+    {
+      "key": "engagement_trend_table",
+      "label": "Engagement Trends",
+      "type": "table",
+      "entity": "engagement_trend",
+      "sort": [
+        {
+          "field": "computed_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "label",
+          "survey_cycle",
+          "department",
+          "average_score",
+          "response_rate",
+          "sentiment",
+          "trend_direction"
+        ]
+      }
+    },
+    {
+      "key": "engagement_dashboard",
+      "label": "Engagement Dashboard",
+      "type": "dashboard",
+      "entity": "engagement_trend",
+      "config": {
+        "widgets": [
+          {
+            "type": "metric",
+            "title": "Avg. Company Score",
+            "aggregation": "avg",
+            "field": "average_score",
+            "filter": {
+              "department": "All"
+            }
+          },
+          {
+            "type": "lineChart",
+            "title": "Score Over Time",
+            "xField": "survey_cycle",
+            "yField": "average_score"
+          },
+          {
+            "type": "barChart",
+            "title": "Response Rate by Department",
+            "xField": "department",
+            "yField": "response_rate"
+          },
+          {
+            "type": "breakdown",
+            "title": "Sentiment Distribution",
+            "field": "sentiment"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_slack_on_cycle_active",
+      "name": "Notify Slack When Cycle Goes Active",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "survey_cycle",
+        "field": "cycle_status"
+      },
+      "conditions": [
+        {
+          "field": "cycle_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "webhook"
+        }
+      ]
+    },
+    {
+      "key": "trend_on_response",
+      "name": "Recompute Trend on New Response",
+      "trigger": {
+        "event": "record.created",
+        "entity": "response"
+      },
+      "actions": [
+        {
+          "type": "createRecord"
+        },
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "reminder_unresponded",
+      "name": "Weekly Reminder for Unanswered Surveys",
+      "trigger": {
+        "event": "schedule",
+        "entity": "survey_cycle",
+        "cron": "0 9 * * 1"
+      },
+      "conditions": [
+        {
+          "field": "cycle_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "hr_user",
+      "name": "HR / People Ops",
+      "description": "Can manage cycles, questions, and view all responses and trends. Cannot delete employees.",
+      "grants": [
+        {
+          "entity": "employee",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "survey_cycle",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "question",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "response",
+          "read": true
+        },
+        {
+          "entity": "engagement_trend",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to trends and cycles.",
+      "grants": [
+        {
+          "entity": "survey_cycle",
+          "read": true
+        },
+        {
+          "entity": "engagement_trend",
+          "read": true
+        },
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "email",
+              "read": false
+            },
+            {
+              "field": "slack_user_id",
+              "read": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#6366f1",
+    "secondaryColor": "#8b5cf6",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  },
+  "plugins": [
+    {
+      "id": "slack_integration",
+      "version": "^1.0",
+      "config": {
+        "notificationChannel": "#people-ops",
+        "dmSurveys": true
+      }
+    }
+  ]
+}

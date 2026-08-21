@@ -1,0 +1,16 @@
+view: adoption_table
+label: Adoption curve
+entity: adoption_point
+kind: table
+settings:
+  columns:
+    - age
+    - user_adoption
+    - apps_adoption
+  filterBar:
+    facets:
+      - scenario
+  inlineEdit: true
+  defaultSort:
+    - field: age
+      direction: asc

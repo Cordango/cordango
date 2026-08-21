@@ -1,0 +1,421 @@
+{
+  "schemaVersion": "2.0",
+  "key": "recruiting",
+  "name": "Recruiting",
+  "version": "1.0.0",
+  "description": "Candidate pipeline for Cordango GmbH: move applicants through screening, interviews and offers to a hire, with a historic interview log per candidate.",
+  "presentation": {
+    "icon": "account-search",
+    "color": "#db2777",
+    "category": "HR",
+    "tagline": "Pipeline, interviews, offers"
+  },
+  "entities": [
+    {
+      "key": "position",
+      "label": "Position",
+      "labelPlural": "Positions",
+      "displayField": "title",
+      "icon": "briefcase-outline",
+      "kind": "config",
+      "fields": [
+        { "key": "title", "label": "Title", "type": "text", "required": true },
+        { "key": "department", "label": "Department", "type": "reference", "targetApp": "platform", "targetEntity": "department", "onDelete": "setNull" },
+        { "key": "hiring_manager", "label": "Hiring manager", "type": "reference", "targetApp": "platform", "targetEntity": "person", "onDelete": "setNull" },
+        { "key": "open", "label": "Open", "type": "boolean", "default": true }
+      ]
+    },
+    {
+      "key": "candidate",
+      "label": "Candidate",
+      "labelPlural": "Candidates",
+      "displayField": "name",
+      "icon": "account-search",
+      "fields": [
+        { "key": "name", "label": "Name", "type": "text", "required": true },
+        { "key": "email", "label": "Email", "type": "email" },
+        { "key": "position", "label": "Position", "type": "reference", "targetEntity": "position", "required": true, "onDelete": "restrict", "indexed": true },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "required": true,
+          "default": "applied",
+          "help": "Where the candidate sits in the pipeline. Drag the card on the Pipeline board to change it.",
+          "options": [
+            { "value": "applied", "label": "Applied", "color": "#64748b" },
+            { "value": "screening", "label": "Screening", "color": "#0ea5e9" },
+            { "value": "interview", "label": "Interview", "color": "#8b5cf6" },
+            { "value": "offer", "label": "Offer", "color": "#f59e0b" }
+          ]
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true,
+          "help": "Active candidates live on the board; Hired/Rejected is decided with the header buttons, independent of stage."
+        },
+        {
+          "key": "source",
+          "label": "Source",
+          "type": "select",
+          "default": "referral",
+          "options": [
+            { "value": "referral", "label": "Referral", "color": "#16a34a" },
+            { "value": "job_board", "label": "Job board", "color": "#0ea5e9" },
+            { "value": "agency", "label": "Agency", "color": "#f59e0b" },
+            { "value": "outbound", "label": "Outbound", "color": "#8b5cf6" }
+          ]
+        },
+        { "key": "salary_expectation", "label": "Salary expectation", "type": "money", "currency": "EUR" },
+        { "key": "applied_on", "label": "Applied on", "type": "date", "required": true, "indexed": true },
+        { "key": "reject_reason", "label": "Reject reason", "type": "longtext", "group": "Decision" },
+        { "key": "notes", "label": "Notes", "type": "longtext", "group": "Notes" }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "name",
+            "status": "status",
+            "facts": ["position", "stage", "source", "applied_on"],
+            "actions": ["hire_candidate", "reject_candidate", "edit", "delete"]
+          },
+          {
+            "kind": "process",
+            "visibleWhen": { "value": "{{record.status}}", "eq": "active" }
+          },
+          {
+            "kind": "section",
+            "label": "Interviews",
+            "blocks": [
+              { "kind": "child", "entity": "interview", "via": "candidate", "childType": "feed" }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Why rejected",
+            "visibleWhen": { "value": "{{record.status}}", "eq": "rejected" },
+            "blocks": [
+              { "kind": "fields", "fields": ["reject_reason"] }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Notes",
+            "blocks": [
+              { "kind": "fields", "fields": ["notes"] }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "interview",
+      "label": "Interview",
+      "labelPlural": "Interviews",
+      "displayField": "feedback",
+      "icon": "account-voice",
+      "ownedBy": { "parent": "candidate", "via": "candidate", "as": "feed" },
+      "fields": [
+        { "key": "candidate", "label": "Candidate", "type": "reference", "targetEntity": "candidate", "required": true, "onDelete": "cascade" },
+        { "key": "interviewed_by", "label": "Interviewed by", "type": "reference", "targetApp": "platform", "targetEntity": "person", "onDelete": "setNull" },
+        { "key": "interview_date", "label": "Interview date", "type": "date", "required": true },
+        {
+          "key": "rating",
+          "label": "Rating",
+          "type": "select",
+          "options": [
+            { "value": "strong_no", "label": "Strong no", "color": "#dc2626" },
+            { "value": "no", "label": "No", "color": "#f59e0b" },
+            { "value": "yes", "label": "Yes", "color": "#0ea5e9" },
+            { "value": "strong_yes", "label": "Strong yes", "color": "#16a34a" }
+          ]
+        },
+        { "key": "feedback", "label": "Feedback", "type": "longtext" }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "pipeline_board",
+      "label": "Pipeline",
+      "type": "kanban",
+      "entity": "candidate",
+      "filters": [
+        { "field": "status", "operator": "eq", "value": "active" }
+      ],
+      "config": {
+        "groupByField": "stage"
+      }
+    },
+    {
+      "key": "candidates_table",
+      "label": "All candidates",
+      "type": "table",
+      "entity": "candidate",
+      "sort": [{ "field": "applied_on", "direction": "desc" }],
+      "config": {
+        "columns": ["name", "position", "stage", "status", "source", "applied_on"]
+      }
+    },
+    {
+      "key": "open_positions_table",
+      "label": "Open positions",
+      "type": "table",
+      "entity": "position",
+      "filters": [
+        { "field": "open", "operator": "eq", "value": true }
+      ],
+      "config": {
+        "columns": ["title", "department", "hiring_manager"]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "overview",
+      "label": "Overview",
+      "icon": "view-dashboard",
+      "entity": "candidate",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "In pipeline",
+                  "icon": "account-multiple-outline",
+                  "source": {
+                    "entity": "candidate",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "active" }]
+                  },
+                  "link": {
+                    "page": "candidates",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "active" }]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "In interview",
+                  "icon": "account-voice",
+                  "source": {
+                    "entity": "candidate",
+                    "aggregate": { "op": "count" },
+                    "filters": [
+                      { "field": "status", "operator": "eq", "value": "active" },
+                      { "field": "stage", "operator": "eq", "value": "interview" }
+                    ]
+                  },
+                  "link": {
+                    "page": "candidates",
+                    "filters": [
+                      { "field": "status", "operator": "eq", "value": "active" },
+                      { "field": "stage", "operator": "eq", "value": "interview" }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Offers out",
+                  "icon": "email-fast-outline",
+                  "source": {
+                    "entity": "candidate",
+                    "aggregate": { "op": "count" },
+                    "filters": [
+                      { "field": "status", "operator": "eq", "value": "active" },
+                      { "field": "stage", "operator": "eq", "value": "offer" }
+                    ]
+                  },
+                  "link": {
+                    "page": "candidates",
+                    "filters": [
+                      { "field": "status", "operator": "eq", "value": "active" },
+                      { "field": "stage", "operator": "eq", "value": "offer" }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Hired",
+                  "icon": "party-popper",
+                  "source": {
+                    "entity": "candidate",
+                    "aggregate": { "op": "count" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "hired" }]
+                  },
+                  "link": {
+                    "page": "candidates",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "hired" }]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Pipeline by stage",
+                    "source": {
+                      "entity": "candidate",
+                      "aggregate": { "op": "count", "groupBy": "stage" },
+                      "filters": [{ "field": "status", "operator": "eq", "value": "active" }]
+                    },
+                    "link": { "page": "candidates" }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Candidates by source",
+                    "source": {
+                      "entity": "candidate",
+                      "aggregate": { "op": "count", "groupBy": "source" }
+                    },
+                    "link": { "page": "candidates" }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "chart",
+              "chartType": "bar",
+              "label": "Applications by month",
+              "source": {
+                "entity": "candidate",
+                "aggregate": { "op": "count", "groupBy": "month_of:applied_on" }
+              },
+              "link": { "page": "candidates" }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "pipeline",
+      "label": "Pipeline",
+      "icon": "view-column",
+      "entity": "candidate",
+      "blocks": [
+        { "kind": "view", "view": "pipeline_board" }
+      ]
+    },
+    {
+      "key": "candidates",
+      "label": "Candidates",
+      "icon": "account-search",
+      "entity": "candidate",
+      "blocks": [
+        { "kind": "view", "view": "candidates_table" }
+      ]
+    },
+    {
+      "key": "positions",
+      "label": "Open positions",
+      "icon": "briefcase-outline",
+      "entity": "position",
+      "blocks": [
+        { "kind": "view", "view": "open_positions_table" }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "candidate_flow",
+      "entity": "candidate",
+      "stateField": "status",
+      "initialState": "active",
+      "states": [
+        { "key": "active", "label": "Active", "color": "#0ea5e9" },
+        { "key": "hired", "label": "Hired", "color": "#16a34a", "terminal": true },
+        { "key": "rejected", "label": "Rejected", "color": "#dc2626", "terminal": true }
+      ],
+      "transitions": [
+        { "key": "hire", "label": "Hire", "from": ["active"], "to": "hired", "command": "hire_candidate" },
+        { "key": "reject", "label": "Reject", "from": ["active"], "to": "rejected", "command": "reject_candidate" }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "hire_candidate",
+      "label": "Hire",
+      "entity": "candidate",
+      "style": "primary",
+      "placements": ["recordHeader"],
+      "confirm": {
+        "title": "Hire this candidate?",
+        "confirmLabel": "Hire"
+      },
+      "successMessage": "Hired 🎉",
+      "effects": []
+    },
+    {
+      "key": "reject_candidate",
+      "label": "Reject",
+      "entity": "candidate",
+      "style": "danger",
+      "placements": ["recordHeader"],
+      "input": {
+        "fields": ["reject_reason"],
+        "required": ["reject_reason"]
+      },
+      "confirm": {
+        "title": "Reject this candidate?",
+        "tone": "danger",
+        "confirmLabel": "Reject"
+      },
+      "successMessage": "Candidate rejected.",
+      "effects": []
+    }
+  ],
+  "roles": [
+    {
+      "key": "recruiter",
+      "name": "Recruiter",
+      "description": "Runs the pipeline: manages candidates, positions and interviews, hires and rejects.",
+      "grants": [
+        { "entity": "candidate", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] },
+        { "entity": "position", "create": true, "read": true, "update": true, "delete": true },
+        { "entity": "interview", "create": true, "read": true, "update": true, "delete": true }
+      ]
+    },
+    {
+      "key": "interviewer",
+      "name": "Interviewer",
+      "description": "Sees candidates and positions, logs interview feedback.",
+      "grants": [
+        { "entity": "candidate", "read": true },
+        { "entity": "position", "read": true },
+        { "entity": "interview", "create": true, "read": true }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        { "entity": "*", "create": true, "read": true, "update": true, "delete": true, "commands": ["*"] }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#db2777",
+    "secondaryColor": "#f472b6",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

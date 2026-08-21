@@ -1,0 +1,91 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.Standalone</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    THIS IS A PACKAGE. `dotnet pack` produces the artifact a generated application references.
+
+    It is the runtime, not the application: records, hooks, permissions, the query builder, the
+    directory, the error wire. None of it varies with the definition, which is exactly why it does
+    not belong in the user's own project — a generated application should contain the user's
+    application and nothing else.
+
+    Until the package is public, the generator emits this source as a sibling PROJECT instead, and
+    the emitted csproj carries the one line that swaps it for a PackageReference. Same code either
+    way; the difference is a restore.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackageId>Cordango.Standalone</PackageId>
+    <Version>0.1.0-alpha</Version>
+    <Authors>Cordango</Authors>
+    <Description>The runtime a Cordango-generated standalone application runs on: typed records, lifecycle hooks, definition-driven permissions, filtering and aggregates, the built-in people-and-organizations directory, and the {code, error} wire.</Description>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/cordango/cordango</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/cordango/cordango</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>cordango;codegen;aspnetcore;efcore</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <!--
+    THIS PROJECT IS NOT A DEPENDENCY OF A GENERATED APPLICATION. IT IS ITS SOURCE.
+
+    Every .cs file here is compiled twice. Once into this assembly, where the repository's own tests
+    exercise it — so the code a generated app runs is code with tests behind it rather than a string
+    literal nobody ever ran. And once inside the user's application, because
+    Cordango.SourceGen.DotNetVue emits these same files verbatim into `Cordango/` under the generated
+    project.
+
+    Emitting source rather than referencing a package is deliberate for v1. There is no published
+    NuGet feed yet, and more importantly a generated application is supposed to be one the owner can
+    read end to end, build offline, step into with a debugger and fork if we disappear. A binary they
+    cannot open would undercut the whole point of the standalone target. When a package does exist,
+    swapping to it is one PackageReference line in the emitted csproj — the same trade the vendored
+    web-controls dist makes on the JavaScript side.
+
+    These files keep their Apache-2.0 headers when they land in a user's repository. They are our
+    code under our licence; the GENERATED files beside them are the user's and carry no header.
+  -->
+  <!--
+    Two dependencies, and they are the two a generated application already has: the web framework it
+    is hosted by and the ORM it stores rows with. The database PROVIDER is not among them — this
+    library never names Postgres, so the same runtime source compiles in an application somebody
+    repointed at SQL Server or SQLite without touching a line of it.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+  </ItemGroup>
+
+  <!--
+    Templates/ is what a generated application looks like BEFORE any entity exists: its Program.cs,
+    its project file, its configuration, its Docker packaging, its Vue shell. It is the user's code,
+    so it is not compiled here and carries no licence header — only the instantiation test proves it
+    builds, by materialising it and running the real SDK over it.
+  -->
+  <ItemGroup>
+    <Compile Remove="Templates/**" />
+    <None Include="Templates/**" />
+  </ItemGroup>
+
+  <!-- The test project sees `internal`, so a helper worth testing does not have to become public
+       just to be reachable. An assembly attribute, so it never travels into a generated
+       application's source. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cordango.Standalone.Tests" />
+  </ItemGroup>
+
+</Project>

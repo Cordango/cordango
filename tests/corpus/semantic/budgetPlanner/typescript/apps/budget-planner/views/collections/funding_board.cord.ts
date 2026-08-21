@@ -1,0 +1,13 @@
+import { defineCollectionView } from "@cord/sdk";
+
+export default defineCollectionView({
+  key: "funding_board",
+  label: "Raise Pipeline",
+  entity: "funding_round",
+  kind: "kanban",
+  settings: {
+    cardFields: ["round_type", "amount", "expected_close", "lead_investor"],
+    interaction: "interactive",
+    groupByField: "round_stage",
+  },
+} as const);

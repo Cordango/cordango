@@ -1,0 +1,18 @@
+{
+  "schemaVersion": "1.0",
+  "key": "broken",
+  "name": "Broken App",
+  "version": "1.0.0",
+  "entities": [
+    {
+      "key": "thing",
+      "label": "Thing",
+      "fields": [
+        { "key": "status", "label": "Status", "type": "select" },
+        { "key": "owner", "label": "Owner", "type": "reference" },
+        { "key": "amount", "label": "Amount", "type": "kryptonite" },
+        { "key": "Bad Key", "label": "Bad", "type": "text" }
+      ]
+    }
+  ]
+}

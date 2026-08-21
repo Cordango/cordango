@@ -1,0 +1,29 @@
+{
+  "name": "The replacement is per role, and the union still happens across roles",
+  "why": "One role narrowing an entity does not narrow it for a person who also holds a role that does not. Two rules interacting, and the place an implementation is most likely to short-circuit.",
+  "roles": [
+    {
+      "key": "restricted",
+      "grants": [
+        { "entity": "*", "read": true, "update": true },
+        { "entity": "payroll", "read": true }
+      ]
+    },
+    {
+      "key": "unrestricted",
+      "grants": [ { "entity": "*", "read": true, "update": true } ]
+    }
+  ],
+  "cases": [
+    {
+      "roleKeys": ["restricted"],
+      "entity": "payroll",
+      "expect": { "create": false, "read": true, "update": false, "delete": false }
+    },
+    {
+      "roleKeys": ["restricted", "unrestricted"],
+      "entity": "payroll",
+      "expect": { "create": false, "read": true, "update": true, "delete": false }
+    }
+  ]
+}

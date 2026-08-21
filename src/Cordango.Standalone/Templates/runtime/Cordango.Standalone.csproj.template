@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    THE CORDANGO RUNTIME. Not your application — the library your application sits on.
+
+    It is here as source, and it is here as a SEPARATE PROJECT, so that `api/` contains your code and
+    only your code. Records, lifecycle hooks, permission resolution, the query builder, the built-in
+    directory, the error wire: none of it varies with your definition, and none of it is anything you
+    should have to read to understand your own application.
+
+    Source rather than a package reference for one reason: the package is not public yet. When it is,
+    delete this directory and replace the ProjectReference in api/{{AppNamespace}}.Api.csproj with
+
+        <PackageReference Include="Cordango.Standalone" Version="{{RuntimeVersion}}" />
+
+    which is the same code, restored instead of compiled. Nothing else changes.
+
+    Apache-2.0, and the file headers say so. Keeping it as source is also perfectly reasonable — fork
+    it, trim it, change how permissions resolve. It is yours to do that with.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.Standalone</RootNamespace>
+    <AssemblyName>Cordango.Standalone</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+  </ItemGroup>
+
+</Project>

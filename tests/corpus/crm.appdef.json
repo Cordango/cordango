@@ -1,0 +1,653 @@
+{
+  "schemaVersion": "2.0",
+  "key": "crm",
+  "name": "CRM",
+  "version": "2.0.0",
+  "description": "A simple B2B CRM: companies, contacts, deals, and activities with a sales pipeline process and deal commands.",
+  "presentation": {
+    "icon": "handshake",
+    "color": "#2563eb",
+    "category": "Sales",
+    "tagline": "Track companies, contacts, and your deal pipeline."
+  },
+  "entities": [
+    {
+      "key": "company",
+      "label": "Company",
+      "labelPlural": "Companies",
+      "icon": "building",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "industry",
+          "label": "Industry",
+          "type": "select",
+          "options": [
+            {
+              "value": "software",
+              "label": "Software"
+            },
+            {
+              "value": "finance",
+              "label": "Finance"
+            },
+            {
+              "value": "manufacturing",
+              "label": "Manufacturing"
+            },
+            {
+              "value": "other",
+              "label": "Other"
+            }
+          ]
+        },
+        {
+          "key": "employees",
+          "label": "Employees",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "icon": "user",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "unique": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "onDelete": "setNull"
+        }
+      ]
+    },
+    {
+      "key": "deal",
+      "label": "Deal",
+      "labelPlural": "Deals",
+      "icon": "handshake",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "value",
+          "label": "Value",
+          "type": "money",
+          "currency": "EUR",
+          "precision": 12,
+          "scale": 2
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "role": "status",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person"
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "reference",
+          "targetEntity": "company",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "close_date",
+          "label": "Expected Close",
+          "type": "date"
+        },
+        {
+          "key": "lost_reason",
+          "label": "Lost Reason",
+          "type": "longtext",
+          "group": "Outcome"
+        }
+      ]
+    },
+    {
+      "key": "activity",
+      "label": "Activity",
+      "labelPlural": "Activities",
+      "icon": "calendar",
+      "displayField": "subject",
+      "fields": [
+        {
+          "key": "subject",
+          "label": "Subject",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "type": "select",
+          "options": [
+            {
+              "value": "call",
+              "label": "Call"
+            },
+            {
+              "value": "email",
+              "label": "Email"
+            },
+            {
+              "value": "meeting",
+              "label": "Meeting"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        },
+        {
+          "key": "deal",
+          "label": "Deal",
+          "type": "reference",
+          "targetEntity": "deal",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "due_at",
+          "label": "Due",
+          "type": "datetime"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "company_contacts",
+      "label": "Contacts",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "contact",
+      "inverseField": "company"
+    },
+    {
+      "key": "company_deals",
+      "label": "Deals",
+      "type": "oneToMany",
+      "fromEntity": "company",
+      "toEntity": "deal",
+      "inverseField": "company"
+    },
+    {
+      "key": "deal_activities",
+      "label": "Activities",
+      "type": "oneToMany",
+      "fromEntity": "deal",
+      "toEntity": "activity",
+      "inverseField": "deal"
+    }
+  ],
+  "processes": [
+    {
+      "key": "sales_pipeline",
+      "entity": "deal",
+      "stateField": "stage",
+      "initialState": "lead",
+      "states": [
+        {
+          "key": "lead",
+          "label": "Lead",
+          "color": "#94a3b8"
+        },
+        {
+          "key": "qualified",
+          "label": "Qualified",
+          "color": "#3b82f6"
+        },
+        {
+          "key": "proposal",
+          "label": "Proposal",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "won",
+          "label": "Won",
+          "color": "#22c55e",
+          "terminal": true
+        },
+        {
+          "key": "lost",
+          "label": "Lost",
+          "color": "#ef4444",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "qualify",
+          "label": "Qualify",
+          "from": [
+            "lead"
+          ],
+          "to": "qualified",
+          "command": "qualify_deal"
+        },
+        {
+          "key": "propose",
+          "label": "Send Proposal",
+          "from": [
+            "qualified"
+          ],
+          "to": "proposal",
+          "command": "propose_deal"
+        },
+        {
+          "key": "win",
+          "label": "Mark Won",
+          "from": [
+            "proposal"
+          ],
+          "to": "won",
+          "command": "win_deal"
+        },
+        {
+          "key": "lose",
+          "label": "Mark Lost",
+          "from": [
+            "lead",
+            "qualified",
+            "proposal"
+          ],
+          "to": "lost",
+          "command": "lose_deal",
+          "requiredFields": [
+            "lost_reason"
+          ]
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "qualify_deal",
+      "label": "Qualify",
+      "icon": "check",
+      "entity": "deal",
+      "style": "primary",
+      "effects": []
+    },
+    {
+      "key": "propose_deal",
+      "label": "Send Proposal",
+      "icon": "file-document",
+      "entity": "deal",
+      "effects": []
+    },
+    {
+      "key": "win_deal",
+      "label": "Mark Won",
+      "icon": "trophy",
+      "entity": "deal",
+      "style": "primary",
+      "confirm": {
+        "title": "Mark {{record.title}} as won?",
+        "message": "The owner will be notified.",
+        "tone": "default"
+      },
+      "successMessage": "{{record.title}} won — congratulations!",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.owner}}",
+          "title": "Deal won",
+          "message": "You won {{record.title}}.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "lose_deal",
+      "label": "Mark Lost",
+      "icon": "close",
+      "entity": "deal",
+      "style": "danger",
+      "confirm": {
+        "title": "Mark this deal lost?",
+        "message": "Record why so the team can learn from it.",
+        "tone": "danger",
+        "confirmLabel": "Mark Lost"
+      },
+      "input": {
+        "fields": [
+          "lost_reason"
+        ],
+        "required": [
+          "lost_reason"
+        ]
+      },
+      "effects": []
+    },
+    {
+      "key": "log_call",
+      "label": "Log Call",
+      "icon": "phone",
+      "entity": "deal",
+      "placements": [
+        "recordHeader",
+        "tableRow"
+      ],
+      "successMessage": "Call logged.",
+      "effects": [
+        {
+          "type": "createRecord",
+          "entity": "activity",
+          "set": {
+            "subject": "Call about {{record.title}}",
+            "type": "call",
+            "deal": "{{record.id}}"
+          }
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "deals_pipeline",
+      "label": "Pipeline",
+      "type": "kanban",
+      "entity": "deal",
+      "sort": [
+        {
+          "field": "close_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "groupByField": "stage",
+        "interaction": "interactive",
+        "cardFields": [
+          "value",
+          "owner"
+        ]
+      }
+    },
+    {
+      "key": "deals_table",
+      "label": "All Deals",
+      "type": "table",
+      "entity": "deal",
+      "config": {
+        "columns": [
+          "title",
+          "value",
+          "stage",
+          "owner",
+          "company",
+          "close_date"
+        ]
+      }
+    },
+    {
+      "key": "contacts_table",
+      "label": "Contacts",
+      "type": "table",
+      "entity": "contact",
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "phone",
+          "company"
+        ]
+      }
+    },
+    {
+      "key": "companies_table",
+      "label": "Companies",
+      "type": "table",
+      "entity": "company",
+      "config": {
+        "columns": [
+          "name",
+          "industry",
+          "employees",
+          "website"
+        ]
+      }
+    },
+    {
+      "key": "overview",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "deal",
+      "config": {
+        "widgets": [
+          {
+            "type": "metric",
+            "source": {
+              "entity": "deal",
+              "aggregate": {
+                "op": "count"
+              },
+              "filters": [
+                {
+                  "field": "stage",
+                  "operator": "in",
+                  "value": [
+                    "lead",
+                    "qualified",
+                    "proposal"
+                  ]
+                }
+              ]
+            },
+            "viz": {
+              "title": "Open Deals"
+            }
+          },
+          {
+            "type": "chart",
+            "source": {
+              "entity": "deal",
+              "aggregate": {
+                "op": "count",
+                "groupBy": "stage"
+              }
+            },
+            "viz": {
+              "chartType": "donut",
+              "title": "Pipeline by Stage"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "stale_deal_reminder",
+      "name": "Reminder after 7 days of inactivity",
+      "trigger": {
+        "event": "schedule",
+        "cron": "0 8 * * *",
+        "entity": "deal"
+      },
+      "when": {
+        "field": "stage",
+        "operator": "in",
+        "value": [
+          "lead",
+          "qualified",
+          "proposal"
+        ]
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.owner}}",
+          "message": "This deal has been inactive for 7 days.",
+          "link": "auto"
+        },
+        {
+          "type": "createRecord",
+          "entity": "activity",
+          "set": {
+            "subject": "Follow up on stale deal",
+            "type": "call",
+            "deal": "{{record.id}}"
+          }
+        }
+      ]
+    },
+    {
+      "key": "big_deal_alert",
+      "name": "Alert owner on deals over 10,000",
+      "trigger": {
+        "event": "record.created",
+        "entity": "deal"
+      },
+      "when": {
+        "field": "value",
+        "operator": "gt",
+        "value": 10000
+      },
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.owner}}",
+          "title": "Big deal created",
+          "message": "A deal over 10,000 was created: {{record.title}}.",
+          "link": "auto"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "sales_rep",
+      "name": "Sales Rep",
+      "grants": [
+        {
+          "entity": "company",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "contact",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "deal",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "commands": [
+            "qualify_deal",
+            "propose_deal",
+            "win_deal",
+            "lose_deal",
+            "log_call"
+          ]
+        },
+        {
+          "entity": "activity",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "grants": [
+        {
+          "entity": "*",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563eb",
+    "secondaryColor": "#1e293b",
+    "font": "Inter",
+    "radius": "large",
+    "density": "comfortable",
+    "darkMode": true
+  },
+  "plugins": [
+    {
+      "id": "notifications",
+      "version": "1.0.0"
+    },
+    {
+      "id": "audit-log",
+      "version": "1.0.0"
+    }
+  ]
+}

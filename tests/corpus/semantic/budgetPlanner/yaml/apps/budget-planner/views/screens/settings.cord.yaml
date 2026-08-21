@@ -1,0 +1,8 @@
+screen: settings
+label: Planner Settings
+icon: cog-outline
+subject: budget_settings
+navigationGroup: config
+layout:
+  - kind: settings
+    entity: budget_settings

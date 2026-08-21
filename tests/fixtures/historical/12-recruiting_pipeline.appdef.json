@@ -1,0 +1,1346 @@
+{
+  "schemaVersion": "1.0",
+  "key": "recruiting_pipeline",
+  "name": "Recruiting Pipeline",
+  "version": "1.0.1",
+  "description": "Internal talent acquisition app tracking candidates through the hiring lifecycle: application, screening, interviews, feedback, offers, and acceptance.",
+  "entities": [
+    {
+      "key": "hiring_manager",
+      "label": "Hiring Manager",
+      "labelPlural": "Hiring Managers",
+      "icon": "briefcase",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "product",
+              "label": "Product",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#EC4899"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#10B981"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#6B7280"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "key": "recruiter",
+      "label": "Recruiter",
+      "labelPlural": "Recruiters",
+      "icon": "user",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "default": "Recruiter"
+        }
+      ]
+    },
+    {
+      "key": "candidate",
+      "label": "Candidate",
+      "labelPlural": "Candidates",
+      "icon": "users",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "first_name",
+          "label": "First Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "last_name",
+          "label": "Last Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "indexed": true,
+          "help": "Auto-populated display field — can be set manually."
+        },
+        {
+          "key": "current_title",
+          "label": "Current Title",
+          "type": "text"
+        },
+        {
+          "key": "linkedin_url",
+          "label": "LinkedIn URL",
+          "type": "url"
+        },
+        {
+          "key": "resume",
+          "label": "Resume",
+          "type": "attachment"
+        },
+        {
+          "key": "stage",
+          "label": "Stage",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "applied",
+          "options": [
+            {
+              "value": "applied",
+              "label": "Applied",
+              "color": "#6B7280"
+            },
+            {
+              "value": "screening",
+              "label": "Screening",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "interview",
+              "label": "Interview",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "feedback_review",
+              "label": "Feedback Review",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "offer",
+              "label": "Offer",
+              "color": "#10B981"
+            },
+            {
+              "value": "hired",
+              "label": "Hired",
+              "color": "#22C55E"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "source",
+          "label": "Source",
+          "type": "select",
+          "options": [
+            {
+              "value": "referral",
+              "label": "Referral",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "linkedin",
+              "label": "LinkedIn",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "job_board",
+              "label": "Job Board",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "company_website",
+              "label": "Company Website",
+              "color": "#10B981"
+            },
+            {
+              "value": "agency",
+              "label": "Agency",
+              "color": "#EC4899"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "assigned_recruiter",
+          "label": "Assigned Recruiter",
+          "type": "reference",
+          "targetEntity": "recruiter",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "job_opening",
+      "label": "Job Opening",
+      "labelPlural": "Job Openings",
+      "icon": "folder-open",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "product",
+              "label": "Product",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#EC4899"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#10B981"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#6B7280"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "location",
+          "label": "Location",
+          "type": "text"
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment Type",
+          "type": "select",
+          "required": true,
+          "default": "full_time",
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-Time",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-Time",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "contract",
+              "label": "Contract",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "internship",
+              "label": "Internship",
+              "color": "#10B981"
+            }
+          ]
+        },
+        {
+          "key": "opening_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "open",
+          "options": [
+            {
+              "value": "open",
+              "label": "Open",
+              "color": "#22C55E"
+            },
+            {
+              "value": "on_hold",
+              "label": "On Hold",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "closed",
+              "label": "Closed",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "hiring_manager",
+          "label": "Hiring Manager",
+          "type": "reference",
+          "targetEntity": "hiring_manager",
+          "required": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "assigned_recruiter",
+          "label": "Assigned Recruiter",
+          "type": "reference",
+          "targetEntity": "recruiter",
+          "onDelete": "setNull"
+        }
+      ]
+    },
+    {
+      "key": "interview",
+      "label": "Interview",
+      "labelPlural": "Interviews",
+      "icon": "calendar",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "default": "Interview"
+        },
+        {
+          "key": "candidate",
+          "label": "Candidate",
+          "type": "reference",
+          "targetEntity": "candidate",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "job_opening",
+          "label": "Job Opening",
+          "type": "reference",
+          "targetEntity": "job_opening",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "interview_type",
+          "label": "Interview Type",
+          "type": "select",
+          "required": true,
+          "default": "technical",
+          "options": [
+            {
+              "value": "phone_screen",
+              "label": "Phone Screen",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "technical",
+              "label": "Technical",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "behavioral",
+              "label": "Behavioral",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "system_design",
+              "label": "System Design",
+              "color": "#EC4899"
+            },
+            {
+              "value": "culture_fit",
+              "label": "Culture Fit",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "final",
+              "label": "Final Round",
+              "color": "#10B981"
+            }
+          ]
+        },
+        {
+          "key": "interviewer_name",
+          "label": "Interviewer",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "interviewer_email",
+          "label": "Interviewer Email",
+          "type": "email"
+        },
+        {
+          "key": "scheduled_at",
+          "label": "Scheduled At",
+          "type": "datetime",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "duration_minutes",
+          "label": "Duration (min)",
+          "type": "integer",
+          "default": 60
+        },
+        {
+          "key": "location",
+          "label": "Location / Meeting Link",
+          "type": "text"
+        },
+        {
+          "key": "interview_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "scheduled",
+          "options": [
+            {
+              "value": "scheduled",
+              "label": "Scheduled",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "completed",
+              "label": "Completed",
+              "color": "#22C55E"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#EF4444"
+            },
+            {
+              "value": "no_show",
+              "label": "No Show",
+              "color": "#F59E0B"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "feedback",
+      "label": "Interview Feedback",
+      "labelPlural": "Interview Feedback",
+      "icon": "message-square",
+      "displayField": "headline",
+      "fields": [
+        {
+          "key": "headline",
+          "label": "Headline",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "interview",
+          "label": "Interview",
+          "type": "reference",
+          "targetEntity": "interview",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "candidate",
+          "label": "Candidate",
+          "type": "reference",
+          "targetEntity": "candidate",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "interviewer_name",
+          "label": "Interviewer",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "rating",
+          "label": "Overall Rating",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "1",
+              "label": "★ Poor",
+              "color": "#EF4444"
+            },
+            {
+              "value": "2",
+              "label": "★★ Below Average",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "3",
+              "label": "★★★ Average",
+              "color": "#EAB308"
+            },
+            {
+              "value": "4",
+              "label": "★★★★ Good",
+              "color": "#84CC16"
+            },
+            {
+              "value": "5",
+              "label": "★★★★★ Excellent",
+              "color": "#22C55E"
+            }
+          ]
+        },
+        {
+          "key": "recommendation",
+          "label": "Recommendation",
+          "type": "select",
+          "required": true,
+          "default": "neutral",
+          "options": [
+            {
+              "value": "strong_yes",
+              "label": "Strong Yes",
+              "color": "#22C55E"
+            },
+            {
+              "value": "yes",
+              "label": "Yes",
+              "color": "#84CC16"
+            },
+            {
+              "value": "neutral",
+              "label": "Neutral",
+              "color": "#EAB308"
+            },
+            {
+              "value": "no",
+              "label": "No",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "strong_no",
+              "label": "Strong No",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "strengths",
+          "label": "Strengths",
+          "type": "longtext"
+        },
+        {
+          "key": "weaknesses",
+          "label": "Areas for Improvement",
+          "type": "longtext"
+        },
+        {
+          "key": "comments",
+          "label": "Detailed Comments",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "offer",
+      "label": "Offer",
+      "labelPlural": "Offers",
+      "icon": "file-text",
+      "displayField": "headline",
+      "fields": [
+        {
+          "key": "headline",
+          "label": "Headline",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "candidate",
+          "label": "Candidate",
+          "type": "reference",
+          "targetEntity": "candidate",
+          "required": true,
+          "onDelete": "cascade",
+          "indexed": true
+        },
+        {
+          "key": "job_opening",
+          "label": "Job Opening",
+          "type": "reference",
+          "targetEntity": "job_opening",
+          "required": true,
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "salary",
+          "label": "Base Salary",
+          "type": "money",
+          "required": true,
+          "currency": "USD",
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "key": "signing_bonus",
+          "label": "Signing Bonus",
+          "type": "money",
+          "currency": "USD",
+          "precision": 10,
+          "scale": 2
+        },
+        {
+          "key": "equity",
+          "label": "Equity",
+          "type": "text",
+          "help": "Equity grant details, e.g. '0.05% RSU vesting over 4 years'."
+        },
+        {
+          "key": "start_date",
+          "label": "Proposed Start Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "expiry_date",
+          "label": "Offer Expiry Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "offer_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "draft",
+          "options": [
+            {
+              "value": "draft",
+              "label": "Draft",
+              "color": "#6B7280"
+            },
+            {
+              "value": "sent",
+              "label": "Sent",
+              "color": "#0EA5E9"
+            },
+            {
+              "value": "negotiating",
+              "label": "Negotiating",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "accepted",
+              "label": "Accepted",
+              "color": "#22C55E"
+            },
+            {
+              "value": "declined",
+              "label": "Declined",
+              "color": "#EF4444"
+            },
+            {
+              "value": "withdrawn",
+              "label": "Withdrawn",
+              "color": "#8B5CF6"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "candidate_interviews",
+      "label": "Candidate Interviews",
+      "type": "oneToMany",
+      "fromEntity": "candidate",
+      "toEntity": "interview",
+      "inverseField": "candidate"
+    },
+    {
+      "key": "candidate_feedback",
+      "label": "Candidate Feedback",
+      "type": "oneToMany",
+      "fromEntity": "candidate",
+      "toEntity": "feedback",
+      "inverseField": "candidate"
+    },
+    {
+      "key": "candidate_offers",
+      "label": "Candidate Offers",
+      "type": "oneToMany",
+      "fromEntity": "candidate",
+      "toEntity": "offer",
+      "inverseField": "candidate"
+    },
+    {
+      "key": "job_opening_interviews",
+      "label": "Job Opening Interviews",
+      "type": "oneToMany",
+      "fromEntity": "job_opening",
+      "toEntity": "interview",
+      "inverseField": "job_opening"
+    },
+    {
+      "key": "job_opening_offers",
+      "label": "Job Opening Offers",
+      "type": "oneToMany",
+      "fromEntity": "job_opening",
+      "toEntity": "offer",
+      "inverseField": "job_opening"
+    },
+    {
+      "key": "interview_feedback",
+      "label": "Interview Feedback",
+      "type": "oneToMany",
+      "fromEntity": "interview",
+      "toEntity": "feedback",
+      "inverseField": "interview"
+    },
+    {
+      "key": "hiring_manager_openings",
+      "label": "Hiring Manager Openings",
+      "type": "oneToMany",
+      "fromEntity": "hiring_manager",
+      "toEntity": "job_opening",
+      "inverseField": "hiring_manager"
+    },
+    {
+      "key": "recruiter_candidates",
+      "label": "Recruiter Candidates",
+      "type": "oneToMany",
+      "fromEntity": "recruiter",
+      "toEntity": "candidate",
+      "inverseField": "assigned_recruiter"
+    },
+    {
+      "key": "recruiter_openings",
+      "label": "Recruiter Openings",
+      "type": "oneToMany",
+      "fromEntity": "recruiter",
+      "toEntity": "job_opening",
+      "inverseField": "assigned_recruiter"
+    }
+  ],
+  "views": [
+    {
+      "key": "candidates_table",
+      "label": "All Candidates",
+      "type": "table",
+      "entity": "candidate",
+      "sort": [
+        {
+          "field": "first_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "stage",
+          "source",
+          "assigned_recruiter"
+        ]
+      }
+    },
+    {
+      "key": "candidates_kanban",
+      "label": "Candidate Pipeline",
+      "type": "kanban",
+      "entity": "candidate",
+      "config": {
+        "groupByField": "stage"
+      }
+    },
+    {
+      "key": "candidate_detail",
+      "label": "Candidate Detail",
+      "type": "detail",
+      "entity": "candidate"
+    },
+    {
+      "key": "job_openings_table",
+      "label": "Job Openings",
+      "type": "table",
+      "entity": "job_opening",
+      "sort": [
+        {
+          "field": "title",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "department",
+          "employment_type",
+          "opening_status",
+          "hiring_manager",
+          "assigned_recruiter"
+        ]
+      }
+    },
+    {
+      "key": "job_opening_detail",
+      "label": "Job Opening Detail",
+      "type": "detail",
+      "entity": "job_opening"
+    },
+    {
+      "key": "interviews_table",
+      "label": "Interviews",
+      "type": "table",
+      "entity": "interview",
+      "sort": [
+        {
+          "field": "scheduled_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "candidate",
+          "job_opening",
+          "interview_type",
+          "interviewer_name",
+          "scheduled_at",
+          "interview_status"
+        ]
+      }
+    },
+    {
+      "key": "interview_detail",
+      "label": "Interview Detail",
+      "type": "detail",
+      "entity": "interview"
+    },
+    {
+      "key": "feedback_table",
+      "label": "Interview Feedback",
+      "type": "table",
+      "entity": "feedback",
+      "sort": [
+        {
+          "field": "interview",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "headline",
+          "interview",
+          "candidate",
+          "interviewer_name",
+          "rating",
+          "recommendation"
+        ]
+      }
+    },
+    {
+      "key": "offers_table",
+      "label": "Offers",
+      "type": "table",
+      "entity": "offer",
+      "sort": [
+        {
+          "field": "expiry_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "headline",
+          "candidate",
+          "job_opening",
+          "salary",
+          "offer_status",
+          "expiry_date"
+        ]
+      }
+    },
+    {
+      "key": "offers_kanban",
+      "label": "Offer Pipeline",
+      "type": "kanban",
+      "entity": "offer",
+      "config": {
+        "groupByField": "offer_status"
+      }
+    },
+    {
+      "key": "offer_detail",
+      "label": "Offer Detail",
+      "type": "detail",
+      "entity": "offer"
+    },
+    {
+      "key": "hiring_managers_table",
+      "label": "Hiring Managers",
+      "type": "table",
+      "entity": "hiring_manager",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "department",
+          "title"
+        ]
+      }
+    },
+    {
+      "key": "recruiters_table",
+      "label": "Recruiters",
+      "type": "table",
+      "entity": "recruiter",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "title"
+        ]
+      }
+    },
+    {
+      "key": "recruiting_dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "candidate",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Total Candidates",
+            "entity": "candidate"
+          },
+          {
+            "type": "stat",
+            "label": "Open Positions",
+            "entity": "job_opening",
+            "filter": {
+              "field": "opening_status",
+              "operator": "eq",
+              "value": "open"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Pending Offers",
+            "entity": "offer",
+            "filter": {
+              "field": "offer_status",
+              "operator": "in",
+              "value": [
+                "draft",
+                "sent",
+                "negotiating"
+              ]
+            }
+          },
+          {
+            "type": "breakdown",
+            "label": "Candidates by Stage",
+            "entity": "candidate",
+            "groupBy": "stage"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_recruiter_new_candidate",
+      "name": "Notify Recruiter on New Candidate",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "candidate"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "notify_hiring_manager_new_offer",
+      "name": "Notify Hiring Manager When Offer Drafted",
+      "enabled": true,
+      "trigger": {
+        "event": "record.created",
+        "entity": "offer"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "candidate_stage_to_hired",
+      "name": "Auto-set Stage to Hired on Offer Acceptance",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "offer",
+        "field": "offer_status"
+      },
+      "conditions": [
+        {
+          "field": "offer_status",
+          "operator": "eq",
+          "value": "accepted"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "notify_candidate_offer_sent",
+      "name": "Email Candidate When Offer Is Sent",
+      "enabled": true,
+      "trigger": {
+        "event": "field.changed",
+        "entity": "offer",
+        "field": "offer_status"
+      },
+      "conditions": [
+        {
+          "field": "offer_status",
+          "operator": "eq",
+          "value": "sent"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "reminder_upcoming_interviews",
+      "name": "Daily Upcoming Interview Reminder",
+      "enabled": true,
+      "trigger": {
+        "event": "schedule",
+        "entity": "interview",
+        "cron": "0 8 * * *"
+      },
+      "conditions": [
+        {
+          "field": "interview_status",
+          "operator": "eq",
+          "value": "scheduled"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "recruiter",
+      "name": "Recruiter",
+      "description": "Standard user who manages candidates, interviews, feedback, and offers.",
+      "grants": [
+        {
+          "entity": "candidate",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "job_opening",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "interview",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "feedback",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "offer",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "hiring_manager",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "recruiter",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "hiring_manager_role",
+      "name": "Hiring Manager",
+      "description": "Reviews candidates, interviews, feedback, and offers for their openings.",
+      "grants": [
+        {
+          "entity": "candidate",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "job_opening",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "interview",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "feedback",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "offer",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "hiring_manager",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "recruiter",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to the recruiting pipeline.",
+      "grants": [
+        {
+          "entity": "*",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#4F46E5",
+    "secondaryColor": "#7C3AED",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

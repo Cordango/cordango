@@ -1,0 +1,128 @@
+{
+  "$comment": [
+    "Every place in the corpus where Cord fell back to carrying a raw App Definition fragment instead",
+    "of modelling the construct semantically.",
+    "",
+    "CordCoverageTests asserts this list matches the raw pointers EXACTLY -- not as a subset. That is",
+    "deliberate and it cuts both ways: adding an escape hatch requires a reviewed line here, and",
+    "removing modelling that used to exist fails the build instead of quietly lowering a percentage.",
+    "",
+    "An entry is (app, pointer, reason). `app` is the definition's `key`; `pointer` is a JSON Pointer",
+    "into the App Definition. `reason` is for the human reading the diff: say what is unmodelled and",
+    "why that is acceptable for now, not that a test demanded an entry.",
+    "",
+    "SCOPE: entities and behaviour (processes, commands, workflows, roles). Sections still owned by a",
+    "later slice -- pages, views, theme, presentation, archetype, relations, plugins, and the"
+  ],
+  "scope": {
+    "prefixes": [
+      "/entities",
+      "/processes",
+      "/commands",
+      "/workflows",
+      "/roles"
+    ],
+    "ignoringSegments": [
+      "detail",
+      "peek",
+      "form"
+    ]
+  },
+  "entries": [
+    {
+      "app": "budget_planner",
+      "pointer": "/commands/0/emits",
+      "reason": "`emits` publishes a domain event other automation can subscribe to. It is real vocabulary and it is deliberately NOT on a transition: eventing is a behaviour-to-behaviour wire, and modelling it here would mean designing the subscriber side too. Two occurrences, both in one app."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/commands/4/emits",
+      "reason": "As above."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/processes/0/transitions/3/command",
+      "reason": "clone_scenario -- the command this transition names carries `emits`, which has no home on a transition, so the fold was REFUSED and both halves stay as the document filed them. This is the importer's unfold path working: rather than drop `emits`, it leaves the transition naming its command and lets that command survive as a standalone action. Costs two pointers and keeps the round trip exact."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/processes/2/transitions/2/command",
+      "reason": "shift_hire_start -- same unfold as above: its command carries `emits`."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/0/effects/0/key",
+      "reason": "The idempotency key of the same createForEach is an ARRAY of field keys (a composite), not a single one. Declined for the same reason and carried whole."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/0/effects/0/source",
+      "reason": "createForEach `source` is an OBJECT here -- {range:{from,count,step}} -- generating a row per month rather than iterating an existing collection. CordEffect types Source as a string, so the importer correctly declines it rather than modelling it half-right. One occurrence; a generator source is its own construct and wants its own shape, not a widened string."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/6/effects/0/key",
+      "reason": "The idempotency key of the same createForEach is an ARRAY of field keys (a composite), not a single one. Declined for the same reason and carried raw. Generates one lifecycle row per adoption point, per segment."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/6/effects/0/source",
+      "reason": "createForEach `source` is an OBJECT here -- {entity, filters} -- iterating an existing collection rather than a generated range. Cord's aggregate vocabulary models a filtered read over an entity, but not yet as the SOURCE of a generative effect, so the object is carried raw. Generates one lifecycle row per adoption point, per segment."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/7/effects/0/key",
+      "reason": "The idempotency key of the same createForEach is an ARRAY of field keys (a composite), not a single one. Declined for the same reason and carried raw. Generates one cohort row per lifecycle step, per acquisition. This one builds the cohort grid the Cordango revenue model needs: month m's revenue is every live cohort at its own age, which a rollup cannot express because it aggregates one field rather than multiplying two rows."
+    },
+    {
+      "app": "budget_planner",
+      "pointer": "/workflows/7/effects/0/source",
+      "reason": "createForEach `source` is an OBJECT here -- {entity, filters} -- iterating an existing collection rather than a generated range. Cord's aggregate vocabulary models a filtered read over an entity, but not yet as the SOURCE of a generative effect, so the object is carried raw. Generates one cohort row per lifecycle step, per acquisition. This one builds the cohort grid the Cordango revenue model needs: month m's revenue is every live cohort at its own age, which a rollup cannot express because it aggregates one field rather than multiplying two rows."
+    },
+    {
+      "app": "helpdesk",
+      "pointer": "/entities/2/fields/4/mapsTo",
+      "reason": "intake_form.route_to_person -- `mapsTo` is a FIELD ROLE that wires a form question to the field it fills on the record the submission creates. It is half of a two-sided declaration (the other half is role:targetEntity on the form entity), so modelling it as a lone string property would represent the mechanism rather than the intent. It belongs with the Forms intake surface in the UI slice."
+    },
+    {
+      "app": "helpdesk",
+      "pointer": "/entities/2/fields/5/mapsTo",
+      "reason": "intake_form.route_to_team -- same construct as route_to_person."
+    },
+    {
+      "app": "helpdesk",
+      "pointer": "/entities/2/fields/6/mapsTo",
+      "reason": "intake_form.route_category -- same construct as route_to_person."
+    },
+    {
+      "app": "helpdesk",
+      "pointer": "/entities/2/fields/7/mapsTo",
+      "reason": "intake_form.route_priority -- same construct as route_to_person."
+    },
+    {
+      "app": "people_hr",
+      "pointer": "/roles/1/grants/0/fieldOverrides",
+      "reason": "Per-field permission inside a grant -- read/write narrowed for individual fields. A genuine construct and the only field-level security in the corpus; modelling it means deciding how field rules compose with entity rules, which is a security question and not a lowering one. Two occurrences."
+    },
+    {
+      "app": "people_hr",
+      "pointer": "/roles/2/grants/0/fieldOverrides",
+      "reason": "As above."
+    },
+    {
+      "app": "room_booking",
+      "pointer": "/processes/0/initialState",
+      "reason": "The starting state is CONDITIONAL here -- {rules:[{when,state}],fallback} -- so a standard-tier room is auto-approved while everything else starts pending. CordProcess types InitialState as a state key, so this is carried whole. One occurrence, and widening the type to 'string or rules object' would put a union in the ops schema for a single app."
+    },
+    {
+      "app": "task_manager",
+      "pointer": "/entities/1/fields/11/treeAggregate",
+      "reason": "task.effort -- a display-only subtree rollup on a self-nesting entity, rendered as `own (subtree total)`. It is an aggregate, so it wants to be a CordCalc variant rather than a boolean-ish flag, but it aggregates over the entity's own parent chain rather than through a reference and does not fit CordAggregate as it stands. Modelling it as a third calc kind is small and deliberate work, not a passthrough."
+    },
+    {
+      "app": "task_manager",
+      "pointer": "/entities/1/fields/12/treeAggregate",
+      "reason": "task.cost -- same construct as task.effort."
+    }
+  ]
+}

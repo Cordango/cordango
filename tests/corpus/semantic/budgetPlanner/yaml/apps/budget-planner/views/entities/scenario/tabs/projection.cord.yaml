@@ -1,0 +1,58 @@
+tab: projection
+label: Projection
+blocks:
+  - icon: table-large
+    kind: section
+    label: Period by period
+    blocks:
+      - via: scenario
+        kind: child
+        label: Periods
+        entity: period
+        fields:
+          - label
+          - start_date
+          - new_customers
+          - active_customers
+          - revenue
+          - payroll_cost
+          - other_costs
+          - total_cost
+          - funding_in
+          - cash_end
+        childType: table
+        inlineEdit: true
+        orderField: sequence
+        allowDelete: true
+        inlineCreate: true
+  - kind: columns
+    columns:
+      -
+        - kind: card
+          label: Revenue by period
+          blocks:
+            - kind: chart
+              source:
+                via: scenario
+                entity: period
+                aggregate:
+                  op: sum
+                  field: revenue
+                  groupBy: month_of:start_date
+              chartType: bar
+      -
+        - kind: card
+          label: Total costs by period
+          blocks:
+            - kind: chart
+              source:
+                via: scenario
+                entity: period
+                aggregate:
+                  op: sum
+                  field: total_cost
+                  groupBy: month_of:start_date
+              chartType: area
+    weights:
+      - 1
+      - 1

@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>{{AppNamespace}}</RootNamespace>
+    <AssemblyName>{{AppNamespace}}.Api</AssemblyName>
+  </PropertyGroup>
+
+{{RuntimeReference}}
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.9">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <!-- Update, not Include: the Web SDK already treats .json under the project as Content, and
+       including them a second time is an error rather than a merge. All this adds is the copy. -->
+  <ItemGroup>
+    <Content Update="Resources\**" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="Seed\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

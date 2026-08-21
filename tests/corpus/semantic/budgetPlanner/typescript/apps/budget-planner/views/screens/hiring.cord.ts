@@ -1,0 +1,155 @@
+import { defineScreen } from "@cord/sdk";
+
+export default defineScreen({
+  key: "hiring",
+  label: "Hiring Plan",
+  icon: "account-plus",
+  subject: "hiring_line",
+  layout: [
+    {
+      gap: "md",
+      kind: "row",
+      blocks: [
+        {
+          kind: "card",
+          label: "Planned heads",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Headcount",
+              source: {
+                entity: "hiring_line",
+                filters: [
+                  {
+                    field: "hire_status",
+                    value: ["dropped"],
+                    operator: "notIn",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "headcount",
+                },
+              },
+            },
+          ],
+        },
+        {
+          grow: true,
+          kind: "card",
+          label: "Annual payroll",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Loaded annual cost",
+              format: "money",
+              source: {
+                entity: "hiring_line",
+                filters: [
+                  {
+                    field: "hire_status",
+                    value: ["dropped"],
+                    operator: "notIn",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "annual_cost",
+                },
+              },
+            },
+          ],
+        },
+        {
+          kind: "card",
+          label: "Roles recruiting",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Open roles",
+              source: {
+                entity: "hiring_line",
+                filters: [
+                  {
+                    field: "hire_status",
+                    value: ["approved", "recruiting"],
+                    operator: "in",
+                  },
+                ],
+                aggregate: {
+                  op: "count",
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      kind: "tabs",
+      tabs: [
+        {
+          key: "plan",
+          label: "Plan",
+          blocks: [
+            {
+              kind: "view",
+              view: "hiring_table",
+            },
+            {
+              icon: "plus",
+              kind: "create",
+              label: "New Hiring Line",
+              style: "primary",
+              entity: "hiring_line",
+            },
+          ],
+        },
+        {
+          key: "timeline",
+          label: "Timeline",
+          blocks: [
+            {
+              kind: "view",
+              view: "hiring_timeline",
+            },
+          ],
+        },
+        {
+          key: "teams",
+          label: "By Team",
+          blocks: [
+            {
+              kind: "view",
+              view: "hiring_board",
+            },
+          ],
+        },
+        {
+          key: "cost",
+          label: "Cost by team",
+          blocks: [
+            {
+              kind: "card",
+              label: "Annual loaded cost per team",
+              blocks: [
+                {
+                  kind: "chart",
+                  source: {
+                    entity: "hiring_line",
+                    aggregate: {
+                      op: "sum",
+                      field: "annual_cost",
+                      groupBy: "team",
+                    },
+                  },
+                  chartType: "bar",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+} as const);

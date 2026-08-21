@@ -1,0 +1,620 @@
+{
+  "schemaVersion": "1.0",
+  "key": "it_inventory",
+  "name": "IT Inventory Manager",
+  "version": "1.0.1",
+  "description": "A lightweight inventory app for tracking IT hardware assets (laptops, monitors, phones) and the employees they are assigned to. Core entities include Asset, Employee, and Assignment, with status tracking for checked-in/checked-out assets.",
+  "entities": [
+    {
+      "key": "asset",
+      "label": "Asset",
+      "labelPlural": "Assets",
+      "icon": "laptop",
+      "displayField": "asset_tag",
+      "description": "An IT hardware asset such as a laptop, monitor, or phone.",
+      "fields": [
+        {
+          "key": "asset_tag",
+          "label": "Asset Tag",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true,
+          "help": "Unique identifier label e.g. LT-001"
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "options": [
+            {
+              "value": "laptop",
+              "label": "Laptop",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "monitor",
+              "label": "Monitor",
+              "color": "#8B5CF6"
+            },
+            {
+              "value": "phone",
+              "label": "Phone",
+              "color": "#10B981"
+            }
+          ]
+        },
+        {
+          "key": "manufacturer",
+          "label": "Manufacturer",
+          "type": "text"
+        },
+        {
+          "key": "model",
+          "label": "Model",
+          "type": "text"
+        },
+        {
+          "key": "serial_number",
+          "label": "Serial Number",
+          "type": "text",
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "asset_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "available",
+          "options": [
+            {
+              "value": "available",
+              "label": "Available",
+              "color": "#10B981"
+            },
+            {
+              "value": "checked_out",
+              "label": "Checked Out",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "in_repair",
+              "label": "In Repair",
+              "color": "#EF4444"
+            },
+            {
+              "value": "retired",
+              "label": "Retired",
+              "color": "#6B7280"
+            }
+          ]
+        },
+        {
+          "key": "purchase_date",
+          "label": "Purchase Date",
+          "type": "date"
+        },
+        {
+          "key": "purchase_cost",
+          "label": "Purchase Cost",
+          "type": "money",
+          "currency": "USD"
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "icon": "users",
+      "displayField": "full_name",
+      "description": "An employee who can be assigned IT assets.",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "unique": true,
+          "required": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone"
+        },
+        {
+          "key": "employment_status",
+          "label": "Employment Status",
+          "type": "select",
+          "required": true,
+          "default": "active",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#10B981"
+            },
+            {
+              "value": "inactive",
+              "label": "Inactive",
+              "color": "#6B7280"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "assignment",
+      "label": "Assignment",
+      "labelPlural": "Assignments",
+      "icon": "clipboard-list",
+      "displayField": "asset",
+      "description": "A record of an asset being checked out to or returned by an employee.",
+      "fields": [
+        {
+          "key": "asset",
+          "label": "Asset",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "asset",
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "restrict",
+          "indexed": true
+        },
+        {
+          "key": "assigned_date",
+          "label": "Assigned Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "returned_date",
+          "label": "Returned Date",
+          "type": "date"
+        },
+        {
+          "key": "assignment_status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "default": "active",
+          "indexed": true,
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "returned",
+              "label": "Returned",
+              "color": "#10B981"
+            }
+          ]
+        },
+        {
+          "key": "condition_at_return",
+          "label": "Condition at Return",
+          "type": "select",
+          "options": [
+            {
+              "value": "excellent",
+              "label": "Excellent",
+              "color": "#10B981"
+            },
+            {
+              "value": "good",
+              "label": "Good",
+              "color": "#3B82F6"
+            },
+            {
+              "value": "fair",
+              "label": "Fair",
+              "color": "#F59E0B"
+            },
+            {
+              "value": "damaged",
+              "label": "Damaged",
+              "color": "#EF4444"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "asset_assignments",
+      "label": "Asset Assignments",
+      "type": "oneToMany",
+      "fromEntity": "asset",
+      "toEntity": "assignment",
+      "inverseField": "asset"
+    },
+    {
+      "key": "employee_assignments",
+      "label": "Employee Assignments",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "assignment",
+      "inverseField": "employee"
+    }
+  ],
+  "views": [
+    {
+      "key": "asset_table",
+      "label": "All Assets",
+      "type": "table",
+      "entity": "asset",
+      "sort": [
+        {
+          "field": "asset_tag",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "asset_tag",
+          "name",
+          "category",
+          "manufacturer",
+          "model",
+          "serial_number",
+          "asset_status",
+          "purchase_date"
+        ]
+      }
+    },
+    {
+      "key": "asset_kanban",
+      "label": "Assets by Status",
+      "type": "kanban",
+      "entity": "asset",
+      "config": {
+        "groupByField": "asset_status",
+        "columns": [
+          "asset_tag",
+          "name",
+          "category"
+        ]
+      }
+    },
+    {
+      "key": "asset_detail",
+      "label": "Asset Detail",
+      "type": "detail",
+      "entity": "asset"
+    },
+    {
+      "key": "available_assets",
+      "label": "Available Assets",
+      "type": "table",
+      "entity": "asset",
+      "filters": [
+        {
+          "field": "asset_status",
+          "operator": "eq",
+          "value": "available"
+        }
+      ],
+      "sort": [
+        {
+          "field": "asset_tag",
+          "direction": "asc"
+        }
+      ]
+    },
+    {
+      "key": "employee_table",
+      "label": "All Employees",
+      "type": "table",
+      "entity": "employee",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "department",
+          "title",
+          "employment_status"
+        ]
+      }
+    },
+    {
+      "key": "employee_detail",
+      "label": "Employee Detail",
+      "type": "detail",
+      "entity": "employee"
+    },
+    {
+      "key": "assignment_table",
+      "label": "All Assignments",
+      "type": "table",
+      "entity": "assignment",
+      "sort": [
+        {
+          "field": "assigned_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "asset",
+          "employee",
+          "assigned_date",
+          "returned_date",
+          "assignment_status",
+          "condition_at_return"
+        ]
+      }
+    },
+    {
+      "key": "active_assignments",
+      "label": "Active Assignments",
+      "type": "table",
+      "entity": "assignment",
+      "filters": [
+        {
+          "field": "assignment_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "sort": [
+        {
+          "field": "assigned_date",
+          "direction": "desc"
+        }
+      ]
+    },
+    {
+      "key": "dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "asset",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Total Assets",
+            "entity": "asset",
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Available",
+            "entity": "asset",
+            "filter": {
+              "field": "asset_status",
+              "operator": "eq",
+              "value": "available"
+            },
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "Checked Out",
+            "entity": "asset",
+            "filter": {
+              "field": "asset_status",
+              "operator": "eq",
+              "value": "checked_out"
+            },
+            "aggregation": "count"
+          },
+          {
+            "type": "stat",
+            "label": "In Repair",
+            "entity": "asset",
+            "filter": {
+              "field": "asset_status",
+              "operator": "eq",
+              "value": "in_repair"
+            },
+            "aggregation": "count"
+          },
+          {
+            "type": "breakdown",
+            "label": "Assets by Category",
+            "entity": "asset",
+            "groupBy": "category"
+          },
+          {
+            "type": "breakdown",
+            "label": "Assets by Status",
+            "entity": "asset",
+            "groupBy": "asset_status"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "checkout_asset_on_assignment",
+      "name": "Mark Asset Checked Out on New Assignment",
+      "trigger": {
+        "event": "record.created",
+        "entity": "assignment"
+      },
+      "conditions": [
+        {
+          "field": "assignment_status",
+          "operator": "eq",
+          "value": "active"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "return_asset_on_assignment_close",
+      "name": "Mark Asset Available When Assignment Returned",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "assignment",
+        "field": "assignment_status"
+      },
+      "conditions": [
+        {
+          "field": "assignment_status",
+          "operator": "eq",
+          "value": "returned"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_new_assignment",
+      "name": "Notify on New Asset Assignment",
+      "trigger": {
+        "event": "record.created",
+        "entity": "assignment"
+      },
+      "actions": [
+        {
+          "type": "notify"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Admin",
+      "description": "Full access to all IT inventory data and configuration.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "it_staff",
+      "name": "IT Staff",
+      "description": "Standard users who manage assets, employees, and assignments.",
+      "grants": [
+        {
+          "entity": "asset",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "employee",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "assignment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to inventory data.",
+      "grants": [
+        {
+          "entity": "asset",
+          "read": true
+        },
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "email",
+              "read": false
+            },
+            {
+              "field": "phone",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "assignment",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563EB",
+    "secondaryColor": "#1E40AF",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

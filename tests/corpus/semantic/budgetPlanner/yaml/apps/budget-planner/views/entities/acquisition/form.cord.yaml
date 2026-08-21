@@ -1,0 +1,10 @@
+form: acquisition
+blocks:
+  - kind: fields
+    columns: 2
+    fields:
+      - scenario
+      - segment
+      - label
+      - month
+      - new_customers

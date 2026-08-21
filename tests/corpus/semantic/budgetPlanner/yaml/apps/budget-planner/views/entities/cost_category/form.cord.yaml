@@ -1,0 +1,9 @@
+form: cost_category
+blocks:
+  - kind: fields
+    fields:
+      - name
+      - cost_group
+      - is_opex
+      - description
+    columns: 2

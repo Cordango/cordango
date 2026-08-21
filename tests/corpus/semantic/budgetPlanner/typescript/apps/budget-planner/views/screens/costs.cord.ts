@@ -1,0 +1,200 @@
+import { defineScreen } from "@cord/sdk";
+
+export default defineScreen({
+  key: "costs",
+  label: "Costs & Fees",
+  icon: "cash-multiple",
+  subject: "cost_line",
+  layout: [
+    {
+      gap: "md",
+      kind: "row",
+      blocks: [
+        {
+          kind: "card",
+          label: "Fixed monthly",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Per month",
+              format: "money",
+              source: {
+                entity: "cost_line",
+                filters: [
+                  {
+                    field: "cost_behaviour",
+                    value: "fixed_monthly",
+                    operator: "eq",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "monthly_amount",
+                },
+              },
+            },
+          ],
+        },
+        {
+          kind: "card",
+          label: "Per user",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Per user / month",
+              format: "money",
+              source: {
+                entity: "cost_line",
+                filters: [
+                  {
+                    field: "cost_behaviour",
+                    value: "per_user",
+                    operator: "eq",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "amount_per_user",
+                },
+              },
+            },
+          ],
+        },
+        {
+          kind: "card",
+          label: "One-off",
+          blocks: [
+            {
+              kind: "stat",
+              label: "One-off total",
+              format: "money",
+              source: {
+                entity: "cost_line",
+                filters: [
+                  {
+                    field: "cost_behaviour",
+                    value: "one_off",
+                    operator: "eq",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "one_off_amount",
+                },
+              },
+            },
+          ],
+        },
+        {
+          grow: true,
+          kind: "card",
+          label: "German government fees",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Statutory & government",
+              format: "money",
+              source: {
+                entity: "cost_line",
+                filters: [
+                  {
+                    field: "is_government_fee",
+                    value: true,
+                    operator: "eq",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "one_off_amount",
+                },
+              },
+            },
+          ],
+        },
+      ],
+    },
+    {
+      kind: "tabs",
+      tabs: [
+        {
+          key: "lines",
+          label: "All Cost Lines",
+          blocks: [
+            {
+              kind: "view",
+              view: "cost_lines_table",
+            },
+            {
+              icon: "plus",
+              kind: "create",
+              label: "New Cost Line",
+              style: "primary",
+              entity: "cost_line",
+            },
+          ],
+        },
+        {
+          key: "gov",
+          label: "Government & Statutory",
+          blocks: [
+            {
+              kind: "table",
+              label: "German fees and statutory costs",
+              fields: [
+                "name",
+                "cost_behaviour",
+                "monthly_amount",
+                "percent_amount",
+                "percent_basis",
+                "one_off_amount",
+                "one_off_month",
+                "vendor",
+              ],
+              source: {
+                sort: [
+                  {
+                    field: "one_off_date",
+                    direction: "asc",
+                  },
+                ],
+                entity: "cost_line",
+                filters: [
+                  {
+                    field: "is_government_fee",
+                    value: true,
+                    operator: "eq",
+                  },
+                ],
+              },
+              newButton: true,
+            },
+          ],
+        },
+        {
+          key: "mix",
+          label: "Cost Mix",
+          blocks: [
+            {
+              kind: "card",
+              label: "Fixed monthly cost by category",
+              blocks: [
+                {
+                  kind: "chart",
+                  source: {
+                    entity: "cost_line",
+                    aggregate: {
+                      op: "sum",
+                      field: "monthly_amount",
+                      groupBy: "cost_category",
+                    },
+                  },
+                  chartType: "bar",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+} as const);

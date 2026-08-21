@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appbuilder.dev/schemas/app-definition/2.0",
+  "title": "App Definition",
+  "description": "The single, versioned, validated contract that fully describes an application. The AI emits this document (never freeform code); the runtime, UI, and dev->prod promotion pipeline all consume it. Runtime-provided base fields (Id, CompanyId, AppId, CreatedAt/By, UpdatedAt/By, DeletedAt, RecordState) are implicit on every entity and MUST NOT be declared here — note the lifecycle base field is 'record_state' (active/archived), leaving the key 'status' free for a business field.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "key",
+    "name",
+    "version",
+    "entities"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "description": "Version of THIS App Definition schema the document targets.",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$"
+    },
+    "key": {
+      "description": "Machine identifier for the app, unique within a company.",
+      "$ref": "#/$defs/identifier"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "version": {
+      "description": "Semantic version of the app definition itself; bumped on every published change (drives dev->prod promotion).",
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "archetype": {
+      "description": "What kind of app this fundamentally is — the recurring shape of the work, not the industry. The domain pass classifies it; the design pass builds the app's signature working surface from it instead of defaulting to generic CRUD screens.",
+      "type": "object",
+      "required": [
+        "kind",
+        "coreJob"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "The primary archetype: tracker (system of record: registries, inventory, assets), pipeline (records advance through stages toward win/close: CRM, deals, recruiting), approval (request -> review -> approve/reject: expenses, leave, procurement), scheduling (people/resources placed on time slots: shifts, bookings, appointments), assignment (distributing people/items across stations/teams/owners), ticketing (intake queue triaged to resolution: helpdesk, incidents), planning (work broken into tasks/phases toward a date: projects, events, sprints), catalog (browse offerings and request them: service catalog, asset library), analytics (metrics/reporting are the product), forms (users design forms at runtime and collect responses).",
+          "type": "string",
+          "enum": [
+            "tracker",
+            "pipeline",
+            "approval",
+            "scheduling",
+            "assignment",
+            "ticketing",
+            "planning",
+            "catalog",
+            "analytics",
+            "forms"
+          ]
+        },
+        "coreJob": {
+          "description": "One concrete sentence naming the app's single core job and the working surface a user opens it to do that job (e.g. 'Assign employees to station shifts week by week on a board').",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      }
+    },
+    "plugins": {
+      "description": "First-party or custom plugins this app enables.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pluginRef"
+      }
+    }
+  },
+  "$defs": {
+    "visibleWhen": {
+      "description": "Show this block only when the condition holds — evaluated CLIENT-SIDE against the scope chain, so it can read screen state ('{{state.mode}}'), the bound record/row, or the actor. Give `value` (an expression) plus one of `eq`/`neq`/`in`. This is how a day/week toggle swaps which grid renders, or approval controls show only while pending. Exactly one of eq/neq/in — with none the block is always visible.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "value"
+      ],
+      "properties": {
+        "value": {
+          "description": "An expression resolved against the scope chain, e.g. '{{state.mode}}' or '{{record.status}}'.",
+          "type": "string"
+        },
+        "eq": {
+          "description": "Show when the resolved value equals this."
+        },
+        "neq": {
+          "description": "Show when the resolved value does not equal this."
+        },
+        "in": {
+          "description": "Show when the resolved value is one of these.",
+          "type": "array"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "eq"
+          ]
+        },
+        {
+          "required": [
+            "neq"
+          ]
+        },
+        {
+          "required": [
+            "in"
+          ]
+        }
+      ]
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "minLength": 1,
+      "maxLength": 63
+    },
+    "fieldPath": {
+      "description": "A field key on the current row, or ONE hop through a reference field to a field on its target ('shift.start_time' = the start time of the shift this assignment points at). The hop is what lets a row be keyed or labelled by a fact it does not itself carry — an assignment knows its shift, but the DATE lives on the shift. Exactly one hop; the hop must land on a plain value, not on another reference.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)?$",
+      "minLength": 1,
+      "maxLength": 127
+    },
+    "hexColor": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$"
+    },
+    "filter": {
+      "description": "One condition. Address the value with EITHER 'field' (a key on the row) OR 'path' (one hop through a reference) — exactly one of the two.",
+      "type": "object",
+      "required": [
+        "operator"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "$ref": "#/$defs/identifier"
+        },
+        "path": {
+          "description": "Filter on a field one relation away — 'shift.shift_date' filters assignments by the date of their shift. Use this instead of 'field' when the fact you are filtering on lives on the referenced record.",
+          "$ref": "#/$defs/fieldPath"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "eq",
+            "neq",
+            "gt",
+            "gte",
+            "lt",
+            "lte",
+            "contains",
+            "in",
+            "notIn",
+            "isEmpty",
+            "isNotEmpty",
+            "between",
+            "overlaps"
+          ]
+        },
+        "value": {
+          "description": "A literal, or a SCOPE TOKEN resolved when the block renders: '{{actor.id}}' (the signed-in user — this is how a view becomes personal: 'my tickets', not everyone's), '{{today}}', '{{record.<field>}}' (the detail record), '{{item.<field>}}' (the nearest enclosing repeat row), '{{state.<key>}}' (the page's screen state, e.g. a filter-bar facet), or '{{<name>.<field>}}' for any repeat that declared `as: <name>`. A cell in a grid names BOTH axes at once: value '{{row.id}}' on one filter and '{{col.date}}' on another. Ranges: 'between' takes the inclusive pair [lo, hi]; 'overlaps' the window [from, to]; 'in'/'notIn' a list. Clock tokens work in any of those slots: '{{today}}', '{{now}}', '{{today+7}}', '{{today-2w}}', '{{now-4h}}' (units d/w/h; no month unit)."
+        },
+        "optional": {
+          "description": "When true, this leaf is SKIPPED whenever its resolved value is empty — so a page facet ('all owners') drops out of the filter set instead of matching only rows with a blank value. Pair with a '{{state.<key>}}' value that an unset facet leaves empty.",
+          "type": "boolean"
+        },
+        "endField": {
+          "description": "For 'overlaps' only: the field holding the END of this row's range. The row's range is [field, endField]; the value is the window [from, to].",
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "oneOf": [
+        {
+          "required": [
+            "field"
+          ]
+        },
+        {
+          "required": [
+            "path"
+          ]
+        }
+      ]
+    },
+    "pluginRef": {
+      "type": "object",
+      "required": [
+        "id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "version": {
+          "type": "string"
+        },
+        "config": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

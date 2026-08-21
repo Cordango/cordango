@@ -1,0 +1,67 @@
+import { defineTab } from "@cord/sdk";
+
+export default defineTab({
+  key: "assumptions",
+  label: "Assumptions",
+  blocks: [
+    {
+      kind: "text",
+      size: "sm",
+      value: "A summary of what the other tabs say. Change a price in Pricing & Users, a cost in Costs & Fees or a role in Hiring, and every month recalculates.",
+    },
+    {
+      kind: "section",
+      label: "Scenario",
+      edit: ["plan_start", "plan_months", "starting_cash", "ai_charge_rate", "ai_provider_discount"],
+      blocks: [
+        {
+          kind: "fields",
+          cols: 3,
+          fields: ["plan_start", "plan_months", "starting_cash", "ai_charge_rate", "ai_provider_discount"],
+        },
+      ],
+    },
+    {
+      kind: "child",
+      entity: "adoption_point",
+      via: "scenario",
+      label: "Adoption curve",
+      childType: "table",
+      orderField: "age",
+      fields: ["age", "user_adoption", "apps_adoption"],
+    },
+    {
+      kind: "section",
+      label: "From Pricing & Growth",
+      blocks: [
+        {
+          kind: "fields",
+          cols: 3,
+          fields: ["customers_won", "total_recurring", "total_services", "total_ai_margin"],
+        },
+      ],
+    },
+    {
+      kind: "section",
+      label: "From Costs & Fees",
+      blocks: [
+        {
+          kind: "fields",
+          cols: 3,
+          fields: ["monthly_fixed_costs", "revenue_fee_rate", "one_off_costs"],
+        },
+      ],
+    },
+    {
+      kind: "section",
+      label: "From Hiring",
+      blocks: [
+        {
+          kind: "fields",
+          cols: 3,
+          fields: ["headcount_end"],
+        },
+      ],
+    },
+  ],
+} as const);

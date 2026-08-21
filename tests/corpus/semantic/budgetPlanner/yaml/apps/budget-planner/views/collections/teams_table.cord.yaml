@@ -1,0 +1,9 @@
+view: teams_table
+label: Teams
+entity: team
+kind: table
+settings:
+  columns:
+    - name
+    - function
+    - default_salary

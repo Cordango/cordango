@@ -1,0 +1,174 @@
+import { defineScreen } from "@cord/sdk";
+
+export default defineScreen({
+  key: "funding",
+  label: "Funding & Runway",
+  icon: "bank-transfer-in",
+  subject: "funding_round",
+  layout: [
+    {
+      gap: "md",
+      kind: "row",
+      blocks: [
+        {
+          kind: "card",
+          label: "Closed funding",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Received",
+              format: "money",
+              source: {
+                entity: "funding_round",
+                filters: [
+                  {
+                    field: "round_stage",
+                    value: "closed",
+                    operator: "eq",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "amount",
+                },
+              },
+            },
+          ],
+        },
+        {
+          kind: "card",
+          label: "In progress",
+          blocks: [
+            {
+              kind: "stat",
+              label: "Being raised",
+              format: "money",
+              source: {
+                entity: "funding_round",
+                filters: [
+                  {
+                    field: "round_stage",
+                    value: ["in_conversation", "term_sheet"],
+                    operator: "in",
+                  },
+                ],
+                aggregate: {
+                  op: "sum",
+                  field: "amount",
+                },
+              },
+            },
+          ],
+        },
+        {
+          grow: true,
+          kind: "card",
+          label: "Runway watch",
+          blocks: [
+            {
+              kind: "repeat",
+              blocks: [
+                {
+                  gap: "sm",
+                  kind: "row",
+                  align: "center",
+                  blocks: [
+                    {
+                      grow: true,
+                      kind: "field",
+                      field: "name",
+                    },
+                    {
+                      kind: "field",
+                      field: "runway_months",
+                      label: "Runway (mo)",
+                    },
+                    {
+                      kind: "field",
+                      field: "cash_at_end",
+                      format: "money",
+                    },
+                  ],
+                },
+              ],
+              source: {
+                sort: [
+                  {
+                    field: "runway_months",
+                    direction: "asc",
+                  },
+                ],
+                limit: 4,
+                entity: "scenario",
+                filters: [
+                  {
+                    field: "scenario_stage",
+                    value: "archived",
+                    operator: "neq",
+                  },
+                ],
+              },
+              emptyText: "No scenarios yet.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      kind: "tabs",
+      tabs: [
+        {
+          key: "pipeline",
+          label: "Raise Pipeline",
+          blocks: [
+            {
+              kind: "view",
+              view: "funding_board",
+            },
+          ],
+        },
+        {
+          key: "rounds",
+          label: "All Rounds",
+          blocks: [
+            {
+              kind: "view",
+              view: "funding_table",
+            },
+            {
+              icon: "plus",
+              kind: "create",
+              label: "New Funding Round",
+              style: "primary",
+              entity: "funding_round",
+            },
+          ],
+        },
+        {
+          key: "by_type",
+          label: "By Round Type",
+          blocks: [
+            {
+              kind: "card",
+              label: "Amount by round type",
+              blocks: [
+                {
+                  kind: "chart",
+                  source: {
+                    entity: "funding_round",
+                    aggregate: {
+                      op: "sum",
+                      field: "amount",
+                      groupBy: "round_type",
+                    },
+                  },
+                  chartType: "bar",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  ],
+} as const);

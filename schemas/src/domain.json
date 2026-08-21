@@ -1,0 +1,569 @@
+{
+  "properties": {
+    "entities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entity"
+      }
+    },
+    "relations": {
+      "description": "To-many and many-to-many relationships. To-one relationships are expressed as 'reference' fields on the owning entity.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    }
+  },
+  "$defs": {
+    "entity": {
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "fields"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "labelPlural": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "displayField": {
+          "description": "Field key used as the human-readable label for a record.",
+          "$ref": "#/$defs/identifier"
+        },
+        "imageField": {
+          "description": "Field key holding a PICTURE of the record - a company logo, a product shot, a venue photo. The peer of displayField: that one answers what a record is called, this one what it looks like. A 'url' or 'text' field holding an image URL. Wherever the record appears - its own header, a table cell, a reference to it from another app - it is drawn with this image, falling back to its initials on a stable colour when the field is empty. Declare it only when the field really is an image; anything else renders as a broken picture.",
+          "$ref": "#/$defs/identifier"
+        },
+        "role": {
+          "description": "Marks the entity's part in an archetype. Forms archetype: 'formTemplate' = a form/survey; 'formField' = its questions (reference the template, carry an 'answerType' field); 'formResponse' = a submission (references the template); 'formAnswer' = one answer per question per response (references both, holds an 'answerValue').",
+          "type": "string",
+          "enum": [
+            "formTemplate",
+            "formField",
+            "formResponse",
+            "formAnswer"
+          ]
+        },
+        "kind": {
+          "description": "SURFACE intent — how this entity is presented, distinct from its data shape. Omit (default) for a normal 'collection' the user browses as a list (table/board/detail). Use 'config' for a LOOKUP/reference list other entities point at (territories, product types, categories, risk tiers, partner types): still a browsable, editable list, but it is app CONFIGURATION — the shell groups it under a single 'Configuration' area instead of giving it a top-level nav entry beside the app's real subjects. Use 'settings' for a SINGLETON configuration record: app-wide config/policy/preferences with exactly ONE record per app — the runtime shows it as a grouped FORM (never a table, never a 'New' action). The AI only declares this intent; the compiler derives the surface (and infers 'config' when omitted).",
+          "type": "string",
+          "enum": [
+            "collection",
+            "config",
+            "settings"
+          ]
+        },
+        "series": {
+          "description": "Declares this entity an ORDERED SERIES, which is what lets a computed field call prev(). Records are grouped by 'partition' and ordered by 'order', and every figure that carries from one row to the next — a running cash balance, an opening headcount, a closing stock level — is expressed as prev(field, seed) instead of being typed row by row. The runtime recomputes a whole partition in order after any change to it, so a value cannot be left stale by an edit further up the series.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "partition",
+            "order"
+          ],
+          "properties": {
+            "partition": {
+              "description": "A reference field on THIS entity. Rows sharing its value form one series — the periods of one budget scenario, the months of one plan. prev() never reaches across partitions.",
+              "$ref": "#/$defs/identifier"
+            },
+            "order": {
+              "description": "A numeric or date field on THIS entity giving the order within the partition. 'Previous' means the row immediately before this one by that field.",
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        "ownedBy": {
+          "description": "Marks this entity as SUBORDINATE to a parent — it only exists inside a parent record (comments, line items, subtasks, notes, answers, attachments: records nobody browses as a standalone list). Subordinate entities get NO top-level navigation, page, or table view; the runtime embeds them in the parent record's detail as a child-block. Omit for PRIMARY entities (the real destinations a user navigates to and browses). The runtime also infers this from relation shape when omitted.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "parent",
+            "via"
+          ],
+          "properties": {
+            "parent": {
+              "description": "Parent entity key.",
+              "$ref": "#/$defs/identifier"
+            },
+            "via": {
+              "description": "The reference field on THIS entity that points to the parent.",
+              "$ref": "#/$defs/identifier"
+            },
+            "as": {
+              "description": "Optional override for how the child renders in the parent detail. Omit to let the runtime choose by the child's field shape (comment-like -> feed, checkable -> checklist, money/quantity -> lineItems, else -> table).",
+              "type": "string",
+              "enum": [
+                "feed",
+                "checklist",
+                "lineItems",
+                "table"
+              ]
+            }
+          }
+        },
+        "fields": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/field"
+          }
+        },
+        "unique": {
+          "description": "COMBINATIONS of fields no two records may share — the constraint a single-field `unique` cannot express. Use it when the thing that must be one-of-a-kind is a pair: one booking per (page, start time), one score per (student, exam), one line per (order, product). Each entry lists two or more field keys of THIS entity and becomes a real database constraint, so it holds even when two requests race — which is exactly when a check-before-write does not. Fields that must be unique on their own use `unique` on the field instead.",
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "$ref": "#/$defs/identifier"
+            }
+          }
+        },
+        "detail": {
+          "description": "Authored record-detail layout: a block tree rendered with record binding (kinds: hub, tiles, fields, child, tabs, section, columns). Authored by the design pass; when omitted the runtime synthesizes a default detail from field groups and child entities.",
+          "type": "object",
+          "required": [
+            "blocks"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "blocks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            }
+          }
+        },
+        "peek": {
+          "description": "Optional COMPACT record layout for the quick-look peek/side panel (a row or card's openDetail) — a short summary, not the full detail. Same block vocabulary as detail. When omitted the peek reuses detail.blocks. Keep it tight: an identity header, a few key facts, the primary actions, maybe a short recent-activity list.",
+          "type": "object",
+          "required": [
+            "blocks"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "blocks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/block"
+              }
+            }
+          }
+        },
+        "form": {
+          "description": "Authored create/edit form layout (draft binding): sections of field groups. When omitted the runtime derives sections from field.group labels.",
+          "type": "object",
+          "required": [
+            "blocks"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "blocks": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/formBlock"
+              }
+            }
+          }
+        }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text",
+            "longtext",
+            "integer",
+            "decimal",
+            "money",
+            "boolean",
+            "date",
+            "datetime",
+            "email",
+            "url",
+            "phone",
+            "select",
+            "multiselect",
+            "reference",
+            "json",
+            "attachment"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "unique": {
+          "type": "boolean",
+          "default": false
+        },
+        "indexed": {
+          "type": "boolean",
+          "default": false
+        },
+        "derived": {
+          "description": "Server-filled identity string, recomputed on every write and read-only everywhere — the string counterpart of 'computed', which only produces numbers and booleans. A CLOSED set of platform rules rather than an expression language: these exist to build keys a unique index can stand on, and a key a tenant could author is a key a tenant could break. 'companyDedupKey' = country + city + the legal name including its form, normalised for case, punctuation and German spelling (Müller = mueller); this is what makes 'the same company twice' a constraint rather than a hope. 'companyCode' = a readable handle for the same entity, built from the register number when research has found one and from the country and name until then. Never combine with default/initial/computed.",
+          "type": "string",
+          "enum": [
+            "companyDedupKey",
+            "companyCode"
+          ]
+        },
+        "help": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "group": {
+          "description": "Optional label grouping this field with related fields into a section/tab on the record's detail page (e.g. 'Address', 'Payroll', 'Emergency Contact', 'Immigration'). Fields sharing a group render together; ungrouped fields form the Overview. Purely presentational — no referential meaning. Use 2-5 groups on entities with many fields so the detail reads as tabbed sections, not a flat wall of fields.",
+          "type": "string",
+          "maxLength": 60
+        },
+        "default": {
+          "description": "Must NOT be set on a process-governed field — the process's `initialState` is its default."
+        },
+        "initial": {
+          "description": "Create-time value rules, evaluated top-to-bottom against the NEW record: the FIRST rule whose 'when' holds sets this field's initial value, overriding 'default'. The guard may hop ONE relation via 'path' (e.g. 'room.tier'), so a field's starting value can depend on a REFERENCED record — the runtime idiom for a cross-record condition. Example: a booking's status starts 'approved' when its room's tier is 'standard' but 'pending' otherwise, so standard rooms skip approval while premium ones require it. Applied server-side at insert; the field must not be one the user fills in.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "when",
+              "value"
+            ],
+            "properties": {
+              "when": {
+                "description": "A leaf guard on the new record: { field | path, operator, value }. Use 'path' ('<referenceField>.<targetField>') to test a referenced record's field.",
+                "$ref": "#/$defs/filter"
+              },
+              "value": {
+                "description": "The literal value to set when 'when' holds (must be a valid value for this field — e.g. one of a select's options)."
+              }
+            }
+          }
+        },
+        "treeAggregate": {
+          "description": "For a numeric field on a SELF-NESTING entity (tasks with subtasks): how the value aggregates over a row's subtree in tree surfaces. 'sum' renders a parent as `own (subtree total)` — 'Estimated 14 (40)'. Display-only (client-side); server rollups already count every row (a parent's own value covers only its OWN direct work, never its children's — totals are the plain sum of all rows). Only meaningful on integer/decimal/money fields; set it ONLY where summing is the business truth (effort, cost — never rates, percentages or scores).",
+          "type": "string",
+          "enum": [
+            "sum"
+          ]
+        },
+        "computed": {
+          "description": "Server-calculated value: the field is read-only everywhere and recomputed on every write. EXACTLY ONE of 'expr' or 'rollup'. 'expr' is a typed expression over THIS record and may return a number or boolean; expression dependencies are evaluated in order and cycles are rejected. 'rollup' aggregates records that reference THIS record and remains numeric. Valid expression outputs are integer/decimal/money/boolean; rollups are integer/decimal/money. Never combine with required/default/initial/options or role:'status'.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expr": {
+              "description": "Typed expression over this record: arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses, pow(base, exponent), min(a, b), max(a, b), and duration functions. min/max are how you state a BOUND on one of the row's own figures — a usage charge capped at a ceiling is min(raw_usage, cap), a balance floored at zero is max(0, balance). There is no if/then, and a boolean is never a number, so min/max are the only way to clamp. Field keys may reference other computed fields when the dependency graph is acyclic.",
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 300
+            },
+            "rollup": {
+              "description": "Aggregate over records of 'entity' whose 'via' reference points at this record — or, with 'match', at whatever this record points at. Add 'window' to include only rows whose date range covers this record.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "entity",
+                "via",
+                "op"
+              ],
+              "properties": {
+                "entity": {
+                  "description": "The entity being aggregated (a child or any entity referencing this one).",
+                  "$ref": "#/$defs/identifier"
+                },
+                "via": {
+                  "description": "The reference field on 'entity' that points at THIS entity — or, when 'match' is set, at the record BOTH point at.",
+                  "$ref": "#/$defs/identifier"
+                },
+                "match": {
+                  "description": "A reference field on THIS entity. When set, rows are aggregated when their 'via' equals this record's 'match' rather than this record's id — a SIBLING aggregation. Both must target the same entity. This is how a period sums the hiring lines of its own scenario: neither owns the other, they share a parent.",
+                  "$ref": "#/$defs/identifier"
+                },
+                "window": {
+                  "description": "A declarative SUMIFS, in one of two directions — use exactly one. SPANNING ROWS: 'from'/'to' name the row's own date range and 'against' names a date on THIS record the range must cover — a hire being paid in this month. DATED ROWS: 'at' names the row's single date and 'within' names a range on THIS record it must fall inside — a funding round landing in the month it closes, a one-off fee in the month it is paid. Bounds may be DATES or NUMBERS as long as all of them agree -- 'the months this hire covers' and 'the first six periods' are the same question over different scales, and a growth rate that runs for six months should not have to be restated as calendar dates every time the plan start moves. An empty bound is always OPEN, never exclusive: an open-ended hire is still being paid, and a monthly cost with no dates typed runs for the whole plan.",
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "from": {
+                      "description": "Spanning rows: date or number field on the aggregated entity where the row starts counting. Empty on a row means it has always been running.",
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "to": {
+                      "description": "Spanning rows: date or number field on the aggregated entity where the row stops counting. Omit the property, or leave the field empty on a row, for open-ended.",
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "against": {
+                      "description": "Spanning rows: date or number field on THIS entity that the row's range must cover.",
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "at": {
+                      "description": "Dated rows: the single date or number field on the aggregated entity — the day the money moves. A row with no value lands in no bucket.",
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "within": {
+                      "description": "Dated rows: the range on THIS entity the row's 'at' value must fall inside. Give at least one bound.",
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "from": {
+                          "description": "Date or number field on THIS entity: the start of the bucket.",
+                          "$ref": "#/$defs/identifier"
+                        },
+                        "to": {
+                          "description": "Date or number field on THIS entity: the end of the bucket.",
+                          "$ref": "#/$defs/identifier"
+                        }
+                      }
+                    }
+                  }
+                },
+                "op": {
+                  "type": "string",
+                  "enum": [
+                    "count",
+                    "sum",
+                    "avg",
+                    "min",
+                    "max"
+                  ]
+                },
+                "field": {
+                  "description": "The numeric field on 'entity' being aggregated. Required for sum/avg/min/max; omit for count.",
+                  "$ref": "#/$defs/identifier"
+                },
+                "filters": {
+                  "description": "Optional leaf filters ({field, operator, value}) on the aggregated records — e.g. only lines of kind 'service', only claims with status 'approved'.",
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 5,
+                  "items": {
+                    "$ref": "#/$defs/filter"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "options": {
+          "description": "Allowed values for select/multiselect. REQUIRED unless a process governs this field: a process's states are its options (value/label/colour), and authoring both is an error — put each state's colour on `processes[].states[].color`.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "value",
+              "label"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "type": "string",
+                "minLength": 1
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "color": {
+                "$ref": "#/$defs/hexColor"
+              },
+              "phase": {
+                "description": "Lifecycle meaning of this option, for a role:'status' select WITHOUT a governing process (a process's states carry the phase instead): 'not_started', 'active', 'done', 'cancelled'. Drives the same renderer semantics as processes[].states[].phase.",
+                "type": "string",
+                "enum": [
+                  "not_started",
+                  "active",
+                  "done",
+                  "cancelled"
+                ]
+              }
+            }
+          }
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 38
+        },
+        "scale": {
+          "description": "Decimal places. A DISPLAY contract as much as a storage one: a decimal without it prints every digit the arithmetic produced, so a computed ratio reads '0.7294117647058823' in a table cell.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 20
+        },
+        "unit": {
+          "description": "Short display suffix for an integer/decimal — '%' for a rate, 'x' for a multiple, ' kg' for a weight (include the leading space yourself when the unit is a word). Appended after the number everywhere the field is rendered. Money declares its unit with 'currency' instead, so this is invalid there.",
+          "type": "string",
+          "maxLength": 8
+        },
+        "prefix": {
+          "description": "Short display prefix shown INSIDE the input, before what the user types — the fixed part of a value that is not stored. 'cordango.com/book/' in front of a booking page's slug, 'INV-' in front of an invoice number. The counterpart of 'unit', and display-only in exactly the same way: the stored value never contains it, so changing it later cannot invalidate a single row. Use it whenever a value only makes sense as part of a longer string, instead of making people imagine the rest.",
+          "type": "string",
+          "maxLength": 40
+        },
+        "input": {
+          "description": "A richer control for entering this value, where a plain box would be unusable. The value's TYPE and storage are unchanged — this only says how somebody fills it in. 'timezone' = a searchable list of IANA zones for a 'text' field (nobody types 'Europe/Berlin' correctly, and a wrong zone silently shifts every time the field touches). 'slug' = the URL-safe part of an address: lowercases and strips as you type, and pairs with 'prefix' to show the part that is fixed. 'weeklyHours' = the opening-hours editor for a 'json' field — seven day rows with time ranges plus dated exceptions; the shape a booking page's availability, a shop's opening times or a helpdesk's staffed hours all have, and the alternative today is typing JSON into a one-line box.",
+          "type": "string",
+          "enum": [
+            "timezone",
+            "slug",
+            "weeklyHours"
+          ]
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "targetEntity": {
+          "description": "For 'reference' fields: the entity key this points to (in the app named by targetApp, or this app if omitted).",
+          "$ref": "#/$defs/identifier"
+        },
+        "targetApp": {
+          "description": "For cross-scope references: 'platform' for a canonical platform entity (person/department/group), or another app's key (cross-app, grant-gated). Omit for a local reference.",
+          "$ref": "#/$defs/identifier"
+        },
+        "onDelete": {
+          "description": "For 'reference' fields: behavior when the target record is deleted.",
+          "type": "string",
+          "enum": [
+            "cascade",
+            "restrict",
+            "setNull"
+          ]
+        },
+        "optionsFilter": {
+          "description": "For 'reference' fields: which target records this field OFFERS as choices. Without it a picker lists every record of the target entity, which is wrong whenever the target is personal - 'which calendar?' must offer the signed-in user's calendars, not all fifty in the workspace, and a list of identically-named rows belonging to other people is unusable even when it is harmless. Use '{{actor.id}}' for the signed-in user. This narrows what may be CHOSEN, not what may be READ - it is a usability and correctness rule for pickers, not an access control. The value already on a record always stays visible even when the rule disagrees with it, because silently blanking a field somebody opened to read is not a fix. Leaves use 'field' (a key on the TARGET entity); 'path' is not available here.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/filter"
+          }
+        },
+        "role": {
+          "description": "Semantic role of the field. 'status' = the single 'select' field records move through as a process (drives kanban/timeline; at most one per entity). 'start'/'due' = the entity's semantic start/due date ('date'/'datetime' fields only, at most one of each per entity) — drives generic date affordances (late-start/due-soon/overdue colorization, scheduling surfaces). 'unconfirmed' = a 'json' field (at most one per entity) holding the list of field keys whose CURRENT value was written by the system rather than typed by a person — research, an import, an AI suggestion. The runtime removes a key the moment a human write includes it, and the detail marks those fields as unverified, so a value can be filled in automatically without ever passing itself off as checked. 'differs' = a 'json' field (at most one per entity) holding an OBJECT of field key to the value the system found, for fields a PERSON owns where the system's answer disagrees. The companion to 'unconfirmed' and the reason the system never has to choose: a field somebody filled in is never overwritten, and a machine that knows better says so beside the value instead of replacing it. Cleared on the same terms as 'unconfirmed' - a human write that touches the key means they have seen the disagreement and theirs stands.Forms archetype: 'order' = the integer that orders a formField's questions; 'answerType' = the select field on a formField holding the question type (yes_no/single_choice/multi_choice/scale/short_text/long_text/number/date); 'answerValue' = the json field on a formAnswer holding the submitted value; 'answerRequired' = the boolean field on a formField saying the question must be answered (without it 'required' is a browser-side courtesy the server never sees, which is fine until a stranger can post); 'answerOptions' = the json field on a formField holding the choices a single_choice/multi_choice question offers; 'respondentEmail' = the formField whose answer is the submitter's own email address, which is what a confirmation link can be sent to; 'confirmMode' = the text/select field on a formTemplate holding 'none' (the default, and what almost every public form should be - a submission is accepted as it arrives) or 'email', which holds the submission back until the submitter clicks a link sent to their own answer. Opt-in and rarely right: double opt-in is a mailing-list convention, not a form convention, and asking for it on a survey defeats anonymity. Worth it when a form FILES something a person then acts on and a wrong address would send that somewhere real. 'targetEntity' = the text field on a formTemplate naming the entity a submission CREATES (a helpdesk intake form creates a ticket); 'mapsTo' = the text field on a formField naming which field of that target entity the question fills (empty = the answer is kept on the response only). Public perimeter: 'publicShare' = a 'boolean' field (at most one per entity) that decides whether THIS RECORD is served to people with no account at all - the switch an author flips to publish a booking page or a form, and the only thing that makes a record public; 'publicToken' = the 'text' field (at most one per entity, and required alongside publicShare) holding that record's public ADDRESS. The token is the credential: it is generated with real entropy, never typed by a person, and read-only, because a memorable public address is a guessable one and guessing it is the whole attack. The two go together - a share flag with no token has no address to serve, and a token with no flag has no way to be turned off.",
+          "type": "string",
+          "enum": [
+            "status",
+            "start",
+            "due",
+            "unconfirmed",
+            "differs",
+            "order",
+            "answerType",
+            "answerValue",
+            "answerRequired",
+            "answerOptions",
+            "respondentEmail",
+            "confirmMode",
+            "targetEntity",
+            "mapsTo",
+            "publicShare",
+            "publicToken"
+          ]
+        },
+        "mapsTo": {
+          "description": "Forms archetype, formTemplate only: the field of the template's targetEntity that THIS field's value is copied into when a submission is projected. How a form declares its routing and defaults — 'default_assignee' with mapsTo 'assigned_to' means every ticket from this form starts assigned to whoever the form names. Generic: the engine copies, it does not know what a ticket is.",
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "reference"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "targetEntity"
+            ]
+          }
+        }
+      ]
+    },
+    "relation": {
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "type",
+        "fromEntity",
+        "toEntity"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/identifier"
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "oneToMany",
+            "manyToMany"
+          ]
+        },
+        "fromEntity": {
+          "$ref": "#/$defs/identifier"
+        },
+        "toEntity": {
+          "$ref": "#/$defs/identifier"
+        },
+        "inverseField": {
+          "description": "For oneToMany: the reference field on the 'toEntity' that owns the FK.",
+          "$ref": "#/$defs/identifier"
+        }
+      }
+    }
+  }
+}

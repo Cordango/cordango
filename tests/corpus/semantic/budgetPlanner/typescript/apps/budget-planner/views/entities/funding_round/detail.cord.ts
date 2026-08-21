@@ -1,0 +1,48 @@
+import { defineDetail } from "@cord/sdk";
+
+export default defineDetail({
+  key: "funding_round",
+  blocks: [
+    {
+      kind: "hub",
+      facts: ["amount", "expected_close", "lead_investor", "investor_contact_email"],
+      actions: ["start_raise", "record_term_sheet", "close_round", "abandon_round", "edit"],
+      subtitle: ["round_type", "scenario"],
+    },
+    {
+      kind: "process",
+    },
+    {
+      edit: [
+        "amount",
+        "expected_close",
+        "pre_money_valuation",
+        "equity_given",
+        "lead_investor",
+        "investor_contact_email",
+        "notes",
+      ],
+      kind: "section",
+      label: "Terms",
+      blocks: [
+        {
+          cols: 2,
+          kind: "fields",
+          fields: [
+            "amount",
+            "expected_close",
+            "pre_money_valuation",
+            "equity_given",
+            "lead_investor",
+            "investor_contact_email",
+            "notes",
+          ],
+        },
+      ],
+    },
+    {
+      kind: "history",
+      limit: 20,
+    },
+  ],
+} as const);

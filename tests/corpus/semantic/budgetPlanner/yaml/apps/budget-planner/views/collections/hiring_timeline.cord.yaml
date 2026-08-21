@@ -1,0 +1,7 @@
+view: hiring_timeline
+label: Hiring Timeline
+entity: hiring_line
+kind: timeline
+settings:
+  groupBy: team
+  dateField: start_month

@@ -1,0 +1,18 @@
+automation: warn_low_runway
+name: Warn when runway drops low
+trigger: field.changed
+field: runway_months
+entity: scenario
+when:
+  all:
+    - field: runway_months
+      value: 6
+      operator: lt
+    - field: runway_months
+      operator: isNotEmpty
+effects:
+  - to: "{{record.owner}}"
+    link: auto
+    type: notify
+    title: Runway below 6 months on {{record.name}}
+    message: The scenario {{record.name}} now shows {{record.runway_months}} months of runway. Review hiring and cost lines or bring funding forward.

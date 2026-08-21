@@ -1,0 +1,714 @@
+{
+  "schemaVersion": "1.0",
+  "key": "vacation_requests",
+  "name": "Vacation Request Tool",
+  "version": "1.0.1",
+  "description": "An app where employees submit time-off requests (dates, leave type, reason) and managers review, approve, or reject them. Core entities: Employee, LeaveRequest, LeaveType, and Approval.",
+  "entities": [
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "description": "An employee who can submit or approve leave requests.",
+      "icon": "user",
+      "displayField": "full_name",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Full Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "text",
+          "indexed": true
+        },
+        {
+          "key": "job_title",
+          "label": "Job Title",
+          "type": "text"
+        },
+        {
+          "key": "manager",
+          "label": "Manager",
+          "type": "reference",
+          "targetEntity": "employee",
+          "onDelete": "setNull",
+          "help": "The employee's direct manager who approves their requests."
+        },
+        {
+          "key": "annual_leave_balance",
+          "label": "Annual Leave Balance (days)",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 1,
+          "default": 25
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true,
+          "indexed": true
+        }
+      ]
+    },
+    {
+      "key": "leave_type",
+      "label": "Leave Type",
+      "labelPlural": "Leave Types",
+      "description": "Categories of time off (e.g., Annual Leave, Sick Leave, Unpaid Leave).",
+      "icon": "tag",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "default_days",
+          "label": "Default Annual Allocation (days)",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 1,
+          "default": 0
+        },
+        {
+          "key": "is_paid",
+          "label": "Paid",
+          "type": "boolean",
+          "default": true
+        },
+        {
+          "key": "color",
+          "label": "Color",
+          "type": "text",
+          "help": "Hex color code for calendar display."
+        }
+      ]
+    },
+    {
+      "key": "leave_request",
+      "label": "Leave Request",
+      "labelPlural": "Leave Requests",
+      "description": "A request for time off submitted by an employee.",
+      "icon": "calendar",
+      "displayField": "request_summary",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "leave_type",
+          "label": "Leave Type",
+          "type": "reference",
+          "targetEntity": "leave_type",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "start_date",
+          "label": "Start Date",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "end_date",
+          "label": "End Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "days_requested",
+          "label": "Days Requested",
+          "type": "decimal",
+          "precision": 5,
+          "scale": 1,
+          "required": true,
+          "help": "Total working days covered by this request."
+        },
+        {
+          "key": "reason",
+          "label": "Reason",
+          "type": "longtext",
+          "required": true
+        },
+        {
+          "key": "approval_status",
+          "label": "Approval Status",
+          "type": "select",
+          "required": true,
+          "indexed": true,
+          "default": "pending",
+          "options": [
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#f5a623"
+            },
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#4caf50"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#f44336"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#9e9e9e"
+            }
+          ]
+        },
+        {
+          "key": "request_summary",
+          "label": "Request Summary",
+          "type": "text",
+          "help": "Auto-populated display label."
+        },
+        {
+          "key": "submitted_at",
+          "label": "Submitted At",
+          "type": "datetime",
+          "default": "now"
+        },
+        {
+          "key": "reviewed_at",
+          "label": "Reviewed At",
+          "type": "datetime"
+        },
+        {
+          "key": "manager_comment",
+          "label": "Manager Comment",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "approval",
+      "label": "Approval",
+      "labelPlural": "Approvals",
+      "description": "An approval or rejection record linked to a leave request.",
+      "icon": "check-circle",
+      "displayField": "decision",
+      "fields": [
+        {
+          "key": "leave_request",
+          "label": "Leave Request",
+          "type": "reference",
+          "targetEntity": "leave_request",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "approver",
+          "label": "Approver",
+          "type": "reference",
+          "targetEntity": "employee",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "decision",
+          "label": "Decision",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#4caf50"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#f44336"
+            }
+          ]
+        },
+        {
+          "key": "comment",
+          "label": "Comment",
+          "type": "longtext"
+        },
+        {
+          "key": "decided_at",
+          "label": "Decided At",
+          "type": "datetime",
+          "required": true,
+          "default": "now"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "employee_leave_requests",
+      "label": "Leave Requests",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "leave_request",
+      "inverseField": "employee"
+    },
+    {
+      "key": "leave_type_requests",
+      "label": "Requests",
+      "type": "oneToMany",
+      "fromEntity": "leave_type",
+      "toEntity": "leave_request",
+      "inverseField": "leave_type"
+    },
+    {
+      "key": "leave_request_approvals",
+      "label": "Approvals",
+      "type": "oneToMany",
+      "fromEntity": "leave_request",
+      "toEntity": "approval",
+      "inverseField": "leave_request"
+    },
+    {
+      "key": "approver_approvals",
+      "label": "Approvals Made",
+      "type": "oneToMany",
+      "fromEntity": "employee",
+      "toEntity": "approval",
+      "inverseField": "approver"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_leave_requests",
+      "label": "All Leave Requests",
+      "type": "table",
+      "entity": "leave_request",
+      "sort": [
+        {
+          "field": "submitted_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "days_requested",
+          "approval_status",
+          "submitted_at"
+        ]
+      }
+    },
+    {
+      "key": "pending_requests",
+      "label": "Pending Approvals",
+      "type": "table",
+      "entity": "leave_request",
+      "filters": [
+        {
+          "field": "approval_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "days_requested",
+          "reason",
+          "submitted_at"
+        ]
+      }
+    },
+    {
+      "key": "leave_request_kanban",
+      "label": "Request Board",
+      "type": "kanban",
+      "entity": "leave_request",
+      "config": {
+        "groupByField": "approval_status",
+        "columns": [
+          "employee",
+          "leave_type",
+          "start_date",
+          "end_date",
+          "days_requested"
+        ]
+      }
+    },
+    {
+      "key": "leave_calendar",
+      "label": "Leave Calendar",
+      "type": "calendar",
+      "entity": "leave_request",
+      "filters": [
+        {
+          "field": "approval_status",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "config": {
+        "dateField": "start_date",
+        "endDateField": "end_date",
+        "titleField": "employee"
+      }
+    },
+    {
+      "key": "leave_request_detail",
+      "label": "Request Detail",
+      "type": "detail",
+      "entity": "leave_request"
+    },
+    {
+      "key": "employees",
+      "label": "Employees",
+      "type": "table",
+      "entity": "employee",
+      "sort": [
+        {
+          "field": "full_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "email",
+          "department",
+          "job_title",
+          "manager",
+          "annual_leave_balance",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "employee_detail",
+      "label": "Employee Detail",
+      "type": "detail",
+      "entity": "employee"
+    },
+    {
+      "key": "leave_types",
+      "label": "Leave Types",
+      "type": "table",
+      "entity": "leave_type",
+      "config": {
+        "columns": [
+          "name",
+          "description",
+          "default_days",
+          "is_paid"
+        ]
+      }
+    },
+    {
+      "key": "approvals",
+      "label": "Approvals",
+      "type": "table",
+      "entity": "approval",
+      "sort": [
+        {
+          "field": "decided_at",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "leave_request",
+          "approver",
+          "decision",
+          "comment",
+          "decided_at"
+        ]
+      }
+    },
+    {
+      "key": "vacation_dashboard",
+      "label": "Dashboard",
+      "type": "dashboard",
+      "entity": "leave_request",
+      "config": {
+        "widgets": [
+          {
+            "type": "stat",
+            "label": "Pending Requests",
+            "entity": "leave_request",
+            "filter": {
+              "field": "approval_status",
+              "operator": "eq",
+              "value": "pending"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Approved This Month",
+            "entity": "leave_request",
+            "filter": {
+              "field": "approval_status",
+              "operator": "eq",
+              "value": "approved"
+            }
+          },
+          {
+            "type": "stat",
+            "label": "Total Employees",
+            "entity": "employee"
+          },
+          {
+            "type": "chart",
+            "label": "Requests by Leave Type",
+            "chartType": "bar",
+            "entity": "leave_request",
+            "groupBy": "leave_type"
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_manager_on_submit",
+      "name": "Notify Manager on New Request",
+      "trigger": {
+        "event": "record.created",
+        "entity": "leave_request"
+      },
+      "conditions": [
+        {
+          "field": "approval_status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "notify_employee_on_decision",
+      "name": "Notify Employee on Decision",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "leave_request",
+        "field": "approval_status"
+      },
+      "conditions": [
+        {
+          "field": "approval_status",
+          "operator": "in",
+          "value": [
+            "approved",
+            "rejected"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    },
+    {
+      "key": "create_approval_record",
+      "name": "Create Approval Record on Decision",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "leave_request",
+        "field": "approval_status"
+      },
+      "conditions": [
+        {
+          "field": "approval_status",
+          "operator": "in",
+          "value": [
+            "approved",
+            "rejected"
+          ]
+        }
+      ],
+      "actions": [
+        {
+          "type": "createRecord"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to all entities and operations.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Can review and approve/reject leave requests for their team. Read access to employees and leave types.",
+      "grants": [
+        {
+          "entity": "leave_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "fieldOverrides": [
+            {
+              "field": "approval_status",
+              "read": true,
+              "update": true
+            },
+            {
+              "field": "manager_comment",
+              "read": true,
+              "update": true
+            },
+            {
+              "field": "reviewed_at",
+              "read": true,
+              "update": true
+            }
+          ]
+        },
+        {
+          "entity": "approval",
+          "create": true,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "employee",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "leave_type",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Can submit and view their own leave requests. Read access to leave types.",
+      "grants": [
+        {
+          "entity": "leave_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false,
+          "fieldOverrides": [
+            {
+              "field": "approval_status",
+              "read": true,
+              "update": false
+            },
+            {
+              "field": "reviewed_at",
+              "read": true,
+              "update": false
+            },
+            {
+              "field": "manager_comment",
+              "read": true,
+              "update": false
+            }
+          ]
+        },
+        {
+          "entity": "leave_type",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "employee",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        },
+        {
+          "entity": "approval",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563eb",
+    "secondaryColor": "#64748b",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

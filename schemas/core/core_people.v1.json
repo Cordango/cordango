@@ -1,0 +1,1761 @@
+{
+  "schemaVersion": "2.0",
+  "key": "core_people",
+  "name": "People",
+  "version": "1.0.0",
+  "description": "Who works here, and everything a company needs to keep about them: the employee record, employment history, compensation, emergency contacts, documents and HR notes. Provided by the platform in every workspace, so an app that needs to point at a colleague has something real to point at instead of inventing its own staff list. Onboarding and offboarding are deliberately NOT here — those are a process every company runs differently, and they belong to an HR app built for the way this one runs them.",
+  "presentation": {
+    "icon": "account-group",
+    "color": "#4f46e5",
+    "category": "Core",
+    "tagline": "Who works here, and their records"
+  },
+  "entities": [
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "displayField": "full_name",
+      "icon": "account",
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "Kept in step with the sign-in directory for anyone who has a login; typed by hand for everyone else."
+        },
+        {
+          "key": "person",
+          "label": "Person",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "restrict",
+          "help": "The sign-in identity this record belongs to, when there is one. Empty for people who work here without an account."
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text",
+          "group": "Role"
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "group": "Role",
+          "indexed": true,
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#f43f5e"
+            },
+            {
+              "value": "delivery",
+              "label": "Delivery",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#16a34a"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#d97706"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#db2777"
+            },
+            {
+              "value": "devops",
+              "label": "DevOps",
+              "color": "#0891b2"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#059669"
+            }
+          ]
+        },
+        {
+          "key": "seniority",
+          "label": "Seniority",
+          "type": "select",
+          "group": "Role",
+          "options": [
+            {
+              "value": "junior",
+              "label": "Junior",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "mid",
+              "label": "Mid",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "senior",
+              "label": "Senior",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "principal",
+              "label": "Principal",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment type",
+          "type": "select",
+          "group": "Role",
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-time",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-time",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "contractor",
+              "label": "Contractor",
+              "color": "#64748b"
+            },
+            {
+              "value": "working_student",
+              "label": "Working student",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "contract_type",
+          "label": "Contract",
+          "type": "select",
+          "group": "Role",
+          "options": [
+            {
+              "value": "permanent",
+              "label": "Permanent",
+              "color": "#16a34a"
+            },
+            {
+              "value": "fixed_term",
+              "label": "Fixed term",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance",
+              "color": "#8b5cf6"
+            }
+          ]
+        },
+        {
+          "key": "work_location",
+          "label": "Work location",
+          "type": "select",
+          "group": "Role",
+          "options": [
+            {
+              "value": "berlin",
+              "label": "Berlin",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "hamburg",
+              "label": "Hamburg",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "remote",
+              "label": "Remote",
+              "color": "#16a34a"
+            }
+          ]
+        },
+        {
+          "key": "manager",
+          "label": "Reports to",
+          "type": "reference",
+          "group": "Role",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull"
+        },
+        {
+          "key": "start_date",
+          "label": "Start date",
+          "type": "date",
+          "indexed": true,
+          "group": "Role"
+        },
+        {
+          "key": "employment_status",
+          "label": "Status",
+          "type": "select",
+          "indexed": true,
+          "default": "active",
+          "group": "Role",
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a"
+            },
+            {
+              "value": "on_leave",
+              "label": "On leave",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "alumni",
+              "label": "Alumni",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "employee_number",
+          "label": "Employee no.",
+          "type": "text",
+          "group": "Role"
+        },
+        {
+          "key": "weekly_hours",
+          "label": "Weekly hours",
+          "type": "integer",
+          "group": "Role"
+        },
+        {
+          "key": "probation_end",
+          "label": "Probation ends",
+          "type": "date",
+          "group": "Role"
+        },
+        {
+          "key": "preferred_name",
+          "label": "Preferred name",
+          "type": "text",
+          "group": "Personal"
+        },
+        {
+          "key": "date_of_birth",
+          "label": "Date of birth",
+          "type": "date",
+          "group": "Personal"
+        },
+        {
+          "key": "gender",
+          "label": "Gender",
+          "type": "select",
+          "group": "Personal",
+          "options": [
+            {
+              "value": "female",
+              "label": "Female",
+              "color": "#f472b6"
+            },
+            {
+              "value": "male",
+              "label": "Male",
+              "color": "#60a5fa"
+            },
+            {
+              "value": "non_binary",
+              "label": "Non-binary",
+              "color": "#a78bfa"
+            },
+            {
+              "value": "prefer_not_to_say",
+              "label": "Prefer not to say",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "nationality",
+          "label": "Nationality",
+          "type": "select",
+          "group": "Personal",
+          "help": "Stored as the ISO 3166-1 alpha-2 country code; the label shows the nationality.",
+          "options": [
+            {
+              "value": "US",
+              "label": "American"
+            },
+            {
+              "value": "AT",
+              "label": "Austrian"
+            },
+            {
+              "value": "BG",
+              "label": "Bulgarian"
+            },
+            {
+              "value": "GB",
+              "label": "British"
+            },
+            {
+              "value": "CN",
+              "label": "Chinese"
+            },
+            {
+              "value": "HR",
+              "label": "Croatian"
+            },
+            {
+              "value": "CZ",
+              "label": "Czech"
+            },
+            {
+              "value": "DK",
+              "label": "Danish"
+            },
+            {
+              "value": "NL",
+              "label": "Dutch"
+            },
+            {
+              "value": "FI",
+              "label": "Finnish"
+            },
+            {
+              "value": "FR",
+              "label": "French"
+            },
+            {
+              "value": "DE",
+              "label": "German"
+            },
+            {
+              "value": "GR",
+              "label": "Greek"
+            },
+            {
+              "value": "HU",
+              "label": "Hungarian"
+            },
+            {
+              "value": "IN",
+              "label": "Indian"
+            },
+            {
+              "value": "IE",
+              "label": "Irish"
+            },
+            {
+              "value": "IT",
+              "label": "Italian"
+            },
+            {
+              "value": "JP",
+              "label": "Japanese"
+            },
+            {
+              "value": "LB",
+              "label": "Lebanese"
+            },
+            {
+              "value": "NO",
+              "label": "Norwegian"
+            },
+            {
+              "value": "PL",
+              "label": "Polish"
+            },
+            {
+              "value": "PT",
+              "label": "Portuguese"
+            },
+            {
+              "value": "RO",
+              "label": "Romanian"
+            },
+            {
+              "value": "ES",
+              "label": "Spanish"
+            },
+            {
+              "value": "SE",
+              "label": "Swedish"
+            },
+            {
+              "value": "CH",
+              "label": "Swiss"
+            },
+            {
+              "value": "TR",
+              "label": "Turkish"
+            },
+            {
+              "value": "UA",
+              "label": "Ukrainian"
+            }
+          ]
+        },
+        {
+          "key": "personal_email",
+          "label": "Personal email",
+          "type": "email",
+          "group": "Contact"
+        },
+        {
+          "key": "personal_phone",
+          "label": "Personal phone",
+          "type": "phone",
+          "group": "Contact"
+        },
+        {
+          "key": "home_address",
+          "label": "Home address",
+          "type": "longtext",
+          "group": "Contact"
+        },
+        {
+          "key": "iban",
+          "label": "IBAN",
+          "type": "text",
+          "group": "Payroll",
+          "help": "Bank account payroll pays into. Visible to HR only."
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "full_name",
+            "subtitle": [
+              "job_title",
+              "department"
+            ],
+            "status": "employment_status",
+            "facts": [
+              "manager",
+              "employment_type",
+              "start_date",
+              "work_location"
+            ],
+            "actions": [
+              "mark_inactive"
+            ]
+          },
+          {
+            "kind": "tiles",
+            "tiles": [
+              {
+                "label": "Tenure",
+                "field": "start_date",
+                "format": "tenure",
+                "icon": "calendar-heart"
+              },
+              {
+                "label": "Weekly hours",
+                "field": "weekly_hours",
+                "format": "number",
+                "icon": "clock-outline"
+              },
+              {
+                "label": "Employee no.",
+                "field": "employee_number",
+                "format": "text",
+                "icon": "identifier"
+              },
+              {
+                "label": "Probation ends",
+                "field": "probation_end",
+                "format": "date",
+                "icon": "shield-check-outline"
+              }
+            ]
+          },
+          {
+            "kind": "tabs",
+            "tabs": [
+              {
+                "label": "Details",
+                "blocks": [
+                  {
+                    "kind": "columns",
+                    "columns": [
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Personal",
+                          "edit": [
+                            "preferred_name",
+                            "date_of_birth",
+                            "gender",
+                            "nationality"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "preferred_name",
+                                "date_of_birth",
+                                "gender",
+                                "nationality"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "section",
+                          "label": "Contact",
+                          "edit": [
+                            "personal_email",
+                            "personal_phone",
+                            "home_address"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "personal_email",
+                                "personal_phone",
+                                "home_address"
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "kind": "child",
+                          "entity": "emergency_contact",
+                          "via": "employee",
+                          "childType": "table",
+                          "allowDelete": true,
+                          "label": "Emergency contacts"
+                        }
+                      ],
+                      [
+                        {
+                          "kind": "section",
+                          "label": "Current role",
+                          "edit": [
+                            "job_title",
+                            "department",
+                            "seniority",
+                            "employment_type",
+                            "contract_type",
+                            "work_location",
+                            "manager",
+                            "weekly_hours",
+                            "employee_number",
+                            "probation_end",
+                            "employment_status",
+                            "start_date"
+                          ],
+                          "blocks": [
+                            {
+                              "kind": "fields",
+                              "fields": [
+                                "job_title",
+                                "department",
+                                "seniority",
+                                "employment_type",
+                                "contract_type",
+                                "work_location",
+                                "manager",
+                                "weekly_hours"
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              },
+              {
+                "label": "Documents",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "document",
+                    "via": "employee",
+                    "childType": "table",
+                    "allowDelete": true,
+                    "label": "Documents"
+                  }
+                ]
+              },
+              {
+                "label": "Notes",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "hr_note",
+                    "via": "employee",
+                    "childType": "feed",
+                    "label": "HR notes"
+                  }
+                ]
+              },
+              {
+                "label": "Timeline",
+                "blocks": [
+                  {
+                    "kind": "child",
+                    "entity": "employment",
+                    "via": "employee",
+                    "childType": "table",
+                    "allowDelete": true,
+                    "label": "Employment history"
+                  },
+                  {
+                    "kind": "child",
+                    "entity": "compensation",
+                    "via": "employee",
+                    "childType": "table",
+                    "allowDelete": true,
+                    "label": "Compensation history"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "employment",
+      "label": "Employment record",
+      "labelPlural": "Employment history",
+      "displayField": "job_title",
+      "icon": "briefcase-outline",
+      "ownedBy": {
+        "parent": "employee",
+        "via": "employee"
+      },
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "effective_from",
+          "label": "Effective from",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "effective_to",
+          "label": "Until",
+          "type": "date"
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#f43f5e"
+            },
+            {
+              "value": "delivery",
+              "label": "Delivery",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#16a34a"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#d97706"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#db2777"
+            },
+            {
+              "value": "devops",
+              "label": "DevOps",
+              "color": "#0891b2"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#059669"
+            }
+          ]
+        },
+        {
+          "key": "seniority",
+          "label": "Seniority",
+          "type": "select",
+          "options": [
+            {
+              "value": "junior",
+              "label": "Junior",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "mid",
+              "label": "Mid",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "senior",
+              "label": "Senior",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "principal",
+              "label": "Principal",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment type",
+          "type": "select",
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-time",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-time",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "contractor",
+              "label": "Contractor",
+              "color": "#64748b"
+            },
+            {
+              "value": "working_student",
+              "label": "Working student",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "change_reason",
+          "label": "Reason",
+          "type": "select",
+          "options": [
+            {
+              "value": "hire",
+              "label": "Hire",
+              "color": "#16a34a"
+            },
+            {
+              "value": "promotion",
+              "label": "Promotion",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lateral_move",
+              "label": "Lateral move",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "reorg",
+              "label": "Reorg",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "contract_change",
+              "label": "Contract change",
+              "color": "#64748b"
+            },
+            {
+              "value": "status_change",
+              "label": "Status change",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "compensation",
+      "label": "Compensation record",
+      "labelPlural": "Compensation history",
+      "displayField": "change_reason",
+      "icon": "cash-multiple",
+      "ownedBy": {
+        "parent": "employee",
+        "via": "employee"
+      },
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "effective_from",
+          "label": "Effective from",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "annual_salary",
+          "label": "Annual salary",
+          "type": "money",
+          "currency": "EUR",
+          "required": true
+        },
+        {
+          "key": "pay_grade",
+          "label": "Pay grade",
+          "type": "select",
+          "options": [
+            {
+              "value": "a",
+              "label": "Grade A",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "b",
+              "label": "Grade B",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "c",
+              "label": "Grade C",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "d",
+              "label": "Grade D",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "e",
+              "label": "Grade E",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "bonus_target_pct",
+          "label": "Bonus target %",
+          "type": "decimal"
+        },
+        {
+          "key": "change_reason",
+          "label": "Reason",
+          "type": "select",
+          "options": [
+            {
+              "value": "hire",
+              "label": "Hire",
+              "color": "#16a34a"
+            },
+            {
+              "value": "annual_review",
+              "label": "Annual review",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "promotion",
+              "label": "Promotion",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "market_adjustment",
+              "label": "Market adjustment",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "role_change",
+              "label": "Role change",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "emergency_contact",
+      "label": "Emergency contact",
+      "labelPlural": "Emergency contacts",
+      "displayField": "name",
+      "icon": "phone-alert",
+      "ownedBy": {
+        "parent": "employee",
+        "via": "employee"
+      },
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "name",
+          "label": "Contact name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "relationship",
+          "label": "Relationship",
+          "type": "select",
+          "options": [
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#f472b6"
+            },
+            {
+              "value": "parent",
+              "label": "Parent",
+              "color": "#60a5fa"
+            },
+            {
+              "value": "sibling",
+              "label": "Sibling",
+              "color": "#a78bfa"
+            },
+            {
+              "value": "child",
+              "label": "Child",
+              "color": "#34d399"
+            },
+            {
+              "value": "friend",
+              "label": "Friend",
+              "color": "#22d3ee"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "required": true
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email"
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary contact",
+          "type": "boolean",
+          "default": false
+        }
+      ]
+    },
+    {
+      "key": "document",
+      "label": "Document",
+      "labelPlural": "Documents",
+      "displayField": "title",
+      "icon": "file-document-outline",
+      "ownedBy": {
+        "parent": "employee",
+        "via": "employee"
+      },
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "doc_type",
+          "label": "Type",
+          "type": "select",
+          "options": [
+            {
+              "value": "contract",
+              "label": "Contract",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "id",
+              "label": "ID document",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "passport",
+              "label": "Passport",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "visa",
+              "label": "Visa / permit",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "certificate",
+              "label": "Certificate",
+              "color": "#16a34a"
+            },
+            {
+              "value": "nda",
+              "label": "NDA",
+              "color": "#64748b"
+            },
+            {
+              "value": "review",
+              "label": "Review",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "payslip",
+              "label": "Payslip",
+              "color": "#db2777"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "file",
+          "label": "File",
+          "type": "attachment"
+        },
+        {
+          "key": "issued_on",
+          "label": "Issued",
+          "type": "date"
+        },
+        {
+          "key": "expires_on",
+          "label": "Expires",
+          "type": "date"
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext"
+        }
+      ]
+    },
+    {
+      "key": "hr_note",
+      "label": "HR note",
+      "labelPlural": "HR notes",
+      "displayField": "note",
+      "ownedBy": {
+        "parent": "employee",
+        "via": "employee",
+        "as": "feed"
+      },
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "employee",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who wrote the note — stamped automatically with the current user."
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": true
+        }
+      ]
+    }
+  ],
+  "views": [
+    {
+      "key": "team_table",
+      "label": "All employees",
+      "type": "table",
+      "entity": "employee",
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "full_name",
+          "job_title",
+          "department",
+          "employment_type",
+          "work_location",
+          "start_date",
+          "employment_status"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "team",
+      "label": "Team",
+      "icon": "account-group",
+      "entity": "employee",
+      "detailFull": true,
+      "blocks": [
+        {
+          "kind": "tabs",
+          "tabs": [
+            {
+              "label": "Overview",
+              "blocks": [
+                {
+                  "kind": "repeat",
+                  "source": {
+                    "entity": "employee",
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      }
+                    ],
+                    "sort": [
+                      {
+                        "field": "department",
+                        "direction": "asc"
+                      }
+                    ]
+                  },
+                  "as": "emp",
+                  "wrap": true,
+                  "cols": 4,
+                  "gap": "md",
+                  "filterBar": {
+                    "search": [
+                      "full_name"
+                    ],
+                    "facets": [
+                      "department",
+                      "work_location"
+                    ]
+                  },
+                  "emptyText": "No employees yet.",
+                  "blocks": [
+                    {
+                      "kind": "card",
+                      "padding": "md",
+                      "bordered": true,
+                      "blocks": [
+                        {
+                          "kind": "row",
+                          "gap": "md",
+                          "align": "center",
+                          "blocks": [
+                            {
+                              "kind": "avatar",
+                              "field": "person",
+                              "size": "lg"
+                            },
+                            {
+                              "kind": "stack",
+                              "grow": true,
+                              "gap": "sm",
+                              "blocks": [
+                                {
+                                  "kind": "field",
+                                  "field": "full_name",
+                                  "avatar": false,
+                                  "size": "lg"
+                                },
+                                {
+                                  "kind": "field",
+                                  "field": "job_title"
+                                },
+                                {
+                                  "kind": "row",
+                                  "gap": "sm",
+                                  "wrap": true,
+                                  "blocks": [
+                                    {
+                                      "kind": "chip",
+                                      "field": "department"
+                                    },
+                                    {
+                                      "kind": "chip",
+                                      "field": "work_location"
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "label": "Org chart",
+              "blocks": [
+                {
+                  "kind": "orgchart",
+                  "entity": "employee",
+                  "manager": "manager",
+                  "identity": "person",
+                  "subtitle": "job_title"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "directory",
+      "label": "Directory",
+      "icon": "table-account",
+      "entity": "employee",
+      "detailFull": true,
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "team_table"
+        }
+      ]
+    },
+    {
+      "key": "insights",
+      "label": "Insights",
+      "icon": "chart-box",
+      "entity": "employee",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "row",
+              "gap": "md",
+              "blocks": [
+                {
+                  "kind": "stat",
+                  "label": "Headcount",
+                  "icon": "account-group",
+                  "source": {
+                    "entity": "employee",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "directory",
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Permanent",
+                  "icon": "shield-account-outline",
+                  "source": {
+                    "entity": "employee",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      },
+                      {
+                        "field": "contract_type",
+                        "operator": "eq",
+                        "value": "permanent"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "directory",
+                    "filters": [
+                      {
+                        "field": "contract_type",
+                        "operator": "eq",
+                        "value": "permanent"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "Contractors",
+                  "icon": "badge-account-horizontal-outline",
+                  "source": {
+                    "entity": "employee",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      },
+                      {
+                        "field": "employment_type",
+                        "operator": "eq",
+                        "value": "contractor"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "directory",
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "neq",
+                        "value": "alumni"
+                      },
+                      {
+                        "field": "employment_type",
+                        "operator": "eq",
+                        "value": "contractor"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "kind": "stat",
+                  "label": "On leave",
+                  "icon": "account-clock-outline",
+                  "source": {
+                    "entity": "employee",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "eq",
+                        "value": "on_leave"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "directory",
+                    "filters": [
+                      {
+                        "field": "employment_status",
+                        "operator": "eq",
+                        "value": "on_leave"
+                      }
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Headcount by department",
+                    "source": {
+                      "entity": "employee",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "department"
+                      },
+                      "filters": [
+                        {
+                          "field": "employment_status",
+                          "operator": "neq",
+                          "value": "alumni"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "directory"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "bar",
+                    "label": "Headcount by seniority",
+                    "source": {
+                      "entity": "employee",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "seniority"
+                      },
+                      "filters": [
+                        {
+                          "field": "employment_status",
+                          "operator": "neq",
+                          "value": "alumni"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "directory"
+                    }
+                  }
+                ]
+              ]
+            },
+            {
+              "kind": "columns",
+              "columns": [
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "Gender balance",
+                    "source": {
+                      "entity": "employee",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "gender"
+                      },
+                      "filters": [
+                        {
+                          "field": "employment_status",
+                          "operator": "neq",
+                          "value": "alumni"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "directory"
+                    }
+                  }
+                ],
+                [
+                  {
+                    "kind": "chart",
+                    "chartType": "donut",
+                    "label": "By location",
+                    "source": {
+                      "entity": "employee",
+                      "aggregate": {
+                        "op": "count",
+                        "groupBy": "work_location"
+                      },
+                      "filters": [
+                        {
+                          "field": "employment_status",
+                          "operator": "neq",
+                          "value": "alumni"
+                        }
+                      ]
+                    },
+                    "link": {
+                      "page": "directory"
+                    }
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "processes": [],
+  "commands": [
+    {
+      "key": "mark_inactive",
+      "label": "Disable",
+      "icon": "account-off-outline",
+      "entity": "employee",
+      "style": "danger",
+      "description": "Mark this employee inactive (alumni) — they leave the active team but stay in the directory.",
+      "placements": [
+        "recordHeader"
+      ],
+      "when": {
+        "field": "employment_status",
+        "operator": "neq",
+        "value": "alumni"
+      },
+      "confirm": {
+        "title": "Disable this employee?",
+        "message": "Sets their status to Alumni. They drop off the active Team view but remain searchable in the Directory. Use Offboard first if there is an exit process to run.",
+        "tone": "danger",
+        "confirmLabel": "Disable"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "employment_status": "alumni"
+          }
+        }
+      ],
+      "successMessage": "Employee disabled."
+    }
+  ],
+  "roles": [
+    {
+      "key": "hr",
+      "name": "HR",
+      "description": "Owns employee files, employment history and compensation.",
+      "grants": [
+        {
+          "entity": "employee",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        },
+        {
+          "entity": "employment",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "compensation",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "emergency_contact",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "document",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "hr_note",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Sees their team's basics and role history — not compensation, private data or documents.",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "iban",
+              "read": false
+            },
+            {
+              "field": "date_of_birth",
+              "read": false
+            },
+            {
+              "field": "home_address",
+              "read": false
+            },
+            {
+              "field": "personal_phone",
+              "read": false
+            }
+          ]
+        },
+        {
+          "entity": "employment",
+          "read": true
+        },
+        {
+          "entity": "emergency_contact",
+          "read": true
+        },
+        {
+          "entity": "hr_note",
+          "create": true,
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "The company directory: names, roles, teams — no compensation, documents or private data.",
+      "grants": [
+        {
+          "entity": "employee",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "iban",
+              "read": false
+            },
+            {
+              "field": "date_of_birth",
+              "read": false
+            },
+            {
+              "field": "home_address",
+              "read": false
+            },
+            {
+              "field": "personal_phone",
+              "read": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#818cf8",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

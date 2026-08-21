@@ -1,0 +1,24 @@
+form: funding_round
+blocks:
+  - kind: section
+    label: Round
+    blocks:
+      - kind: fields
+        fields:
+          - scenario
+          - name
+          - round_type
+          - amount
+          - expected_close
+        columns: 2
+  - kind: section
+    label: Terms
+    blocks:
+      - kind: fields
+        fields:
+          - pre_money_valuation
+          - equity_given
+          - lead_investor
+          - investor_contact_email
+          - notes
+        columns: 2

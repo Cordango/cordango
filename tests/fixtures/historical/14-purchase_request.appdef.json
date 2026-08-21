@@ -1,0 +1,1185 @@
+{
+  "schemaVersion": "1.0",
+  "key": "purchase_request",
+  "name": "Purchase Request",
+  "version": "1.0.1",
+  "description": "Internal procurement workflow app where employees submit purchase requests for items, managers review and approve or reject them, and finance tracks spending against departmental or category budgets. Core entities include PurchaseRequest, LineItem, Approval, Budget, Vendor, and Department.",
+  "entities": [
+    {
+      "key": "department",
+      "label": "Department",
+      "labelPlural": "Departments",
+      "description": "An organizational unit that owns budgets and originates purchase requests.",
+      "icon": "building",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Department Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "code",
+          "label": "Department Code",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true,
+          "help": "Short code used on budget reports (e.g. ENG, MKT, FIN)."
+        },
+        {
+          "key": "manager_email",
+          "label": "Manager Email",
+          "type": "email",
+          "required": true,
+          "help": "Department head who approves purchase requests."
+        },
+        {
+          "key": "cost_center",
+          "label": "Cost Center",
+          "type": "text",
+          "help": "Finance cost-center identifier."
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "vendor",
+      "label": "Vendor",
+      "labelPlural": "Vendors",
+      "description": "A supplier from whom items are procured.",
+      "icon": "truck",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Vendor Name",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true
+        },
+        {
+          "key": "contact_email",
+          "label": "Contact Email",
+          "type": "email"
+        },
+        {
+          "key": "contact_phone",
+          "label": "Contact Phone",
+          "type": "phone"
+        },
+        {
+          "key": "website",
+          "label": "Website",
+          "type": "url"
+        },
+        {
+          "key": "tax_id",
+          "label": "Tax ID",
+          "type": "text"
+        },
+        {
+          "key": "payment_terms",
+          "label": "Payment Terms",
+          "type": "text",
+          "help": "e.g. Net 30, Net 60."
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "budget",
+      "label": "Budget",
+      "labelPlural": "Budgets",
+      "description": "A spending limit allocated to a department, optionally scoped by category, for a fiscal period.",
+      "icon": "wallet",
+      "displayField": "title",
+      "fields": [
+        {
+          "key": "title",
+          "label": "Budget Title",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "Human-friendly label, e.g. 'Engineering – Q3 Software Licenses'."
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "options": [
+            {
+              "value": "office_supplies",
+              "label": "Office Supplies",
+              "color": "#6b7280"
+            },
+            {
+              "value": "software",
+              "label": "Software & Licenses",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "hardware",
+              "label": "Hardware & Equipment",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "travel",
+              "label": "Travel & Expenses",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "services",
+              "label": "Professional Services",
+              "color": "#10b981"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6b7280"
+            }
+          ],
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "fiscal_year",
+          "label": "Fiscal Year",
+          "type": "integer",
+          "required": true,
+          "indexed": true,
+          "help": "Four-digit year, e.g. 2025."
+        },
+        {
+          "key": "fiscal_period",
+          "label": "Fiscal Period",
+          "type": "select",
+          "options": [
+            {
+              "value": "annual",
+              "label": "Annual"
+            },
+            {
+              "value": "q1",
+              "label": "Q1"
+            },
+            {
+              "value": "q2",
+              "label": "Q2"
+            },
+            {
+              "value": "q3",
+              "label": "Q3"
+            },
+            {
+              "value": "q4",
+              "label": "Q4"
+            }
+          ],
+          "required": true,
+          "default": "annual"
+        },
+        {
+          "key": "allocated_amount",
+          "label": "Allocated Amount",
+          "type": "money",
+          "required": true,
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2
+        },
+        {
+          "key": "spent_amount",
+          "label": "Spent Amount",
+          "type": "money",
+          "required": true,
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2,
+          "default": 0,
+          "help": "Auto-updated as requests are approved. Updated by workflow."
+        },
+        {
+          "key": "is_active",
+          "label": "Active",
+          "type": "boolean",
+          "default": true
+        }
+      ]
+    },
+    {
+      "key": "purchase_request",
+      "label": "Purchase Request",
+      "labelPlural": "Purchase Requests",
+      "description": "A formal request submitted by an employee to procure one or more items.",
+      "icon": "shopping-cart",
+      "displayField": "request_number",
+      "fields": [
+        {
+          "key": "request_number",
+          "label": "Request Number",
+          "type": "text",
+          "required": true,
+          "unique": true,
+          "indexed": true,
+          "help": "Auto-generated reference number (e.g. PR-2025-0001)."
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "indexed": true,
+          "help": "Short summary of what is being requested."
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "help": "Detailed justification for the purchase."
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "reference",
+          "targetEntity": "department",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict"
+        },
+        {
+          "key": "budget",
+          "label": "Budget",
+          "type": "reference",
+          "targetEntity": "budget",
+          "required": true,
+          "indexed": true,
+          "onDelete": "restrict",
+          "help": "The budget this request will draw from."
+        },
+        {
+          "key": "vendor",
+          "label": "Preferred Vendor",
+          "type": "reference",
+          "targetEntity": "vendor",
+          "indexed": true,
+          "onDelete": "setNull"
+        },
+        {
+          "key": "category",
+          "label": "Category",
+          "type": "select",
+          "options": [
+            {
+              "value": "office_supplies",
+              "label": "Office Supplies",
+              "color": "#6b7280"
+            },
+            {
+              "value": "software",
+              "label": "Software & Licenses",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "hardware",
+              "label": "Hardware & Equipment",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "travel",
+              "label": "Travel & Expenses",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "services",
+              "label": "Professional Services",
+              "color": "#10b981"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#6b7280"
+            }
+          ],
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "priority",
+          "label": "Priority",
+          "type": "select",
+          "options": [
+            {
+              "value": "low",
+              "label": "Low",
+              "color": "#6b7280"
+            },
+            {
+              "value": "medium",
+              "label": "Medium",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "high",
+              "label": "High",
+              "color": "#ef4444"
+            },
+            {
+              "value": "urgent",
+              "label": "Urgent",
+              "color": "#dc2626"
+            }
+          ],
+          "required": true,
+          "default": "medium",
+          "indexed": true
+        },
+        {
+          "key": "request_status",
+          "label": "Request Status",
+          "type": "select",
+          "options": [
+            {
+              "value": "draft",
+              "label": "Draft",
+              "color": "#6b7280"
+            },
+            {
+              "value": "submitted",
+              "label": "Submitted",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "pending_approval",
+              "label": "Pending Approval",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#10b981"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#ef4444"
+            },
+            {
+              "value": "ordered",
+              "label": "Ordered",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "received",
+              "label": "Received",
+              "color": "#059669"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#6b7280"
+            }
+          ],
+          "required": true,
+          "default": "draft",
+          "indexed": true,
+          "help": "Current workflow state of the purchase request."
+        },
+        {
+          "key": "needed_by",
+          "label": "Needed By",
+          "type": "date",
+          "indexed": true,
+          "help": "Date by which the items are needed."
+        },
+        {
+          "key": "total_amount",
+          "label": "Total Amount",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2,
+          "default": 0,
+          "help": "Sum of all line item amounts."
+        },
+        {
+          "key": "requester_email",
+          "label": "Requester Email",
+          "type": "email",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "rejection_reason",
+          "label": "Rejection Reason",
+          "type": "longtext",
+          "help": "Populated when a request is rejected."
+        }
+      ]
+    },
+    {
+      "key": "line_item",
+      "label": "Line Item",
+      "labelPlural": "Line Items",
+      "description": "An individual item within a purchase request.",
+      "icon": "list",
+      "displayField": "item_name",
+      "fields": [
+        {
+          "key": "purchase_request",
+          "label": "Purchase Request",
+          "type": "reference",
+          "targetEntity": "purchase_request",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "item_name",
+          "label": "Item Name",
+          "type": "text",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext"
+        },
+        {
+          "key": "quantity",
+          "label": "Quantity",
+          "type": "integer",
+          "required": true,
+          "default": 1
+        },
+        {
+          "key": "unit_price",
+          "label": "Unit Price",
+          "type": "money",
+          "required": true,
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2
+        },
+        {
+          "key": "line_total",
+          "label": "Line Total",
+          "type": "money",
+          "currency": "USD",
+          "precision": 14,
+          "scale": 2,
+          "default": 0,
+          "help": "Quantity × Unit Price."
+        },
+        {
+          "key": "vendor",
+          "label": "Vendor",
+          "type": "reference",
+          "targetEntity": "vendor",
+          "indexed": true,
+          "onDelete": "setNull",
+          "help": "Override vendor at the line-item level if needed."
+        }
+      ]
+    },
+    {
+      "key": "approval",
+      "label": "Approval",
+      "labelPlural": "Approvals",
+      "description": "An approval or rejection record capturing the decision and rationale for a purchase request.",
+      "icon": "check-circle",
+      "displayField": "approver_email",
+      "fields": [
+        {
+          "key": "purchase_request",
+          "label": "Purchase Request",
+          "type": "reference",
+          "targetEntity": "purchase_request",
+          "required": true,
+          "indexed": true,
+          "onDelete": "cascade"
+        },
+        {
+          "key": "approver_email",
+          "label": "Approver Email",
+          "type": "email",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "approver_role",
+          "label": "Approver Role",
+          "type": "select",
+          "options": [
+            {
+              "value": "manager",
+              "label": "Manager",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#10b981"
+            }
+          ],
+          "required": true
+        },
+        {
+          "key": "decision",
+          "label": "Decision",
+          "type": "select",
+          "options": [
+            {
+              "value": "approved",
+              "label": "Approved",
+              "color": "#10b981"
+            },
+            {
+              "value": "rejected",
+              "label": "Rejected",
+              "color": "#ef4444"
+            }
+          ],
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "comments",
+          "label": "Comments",
+          "type": "longtext",
+          "help": "Approver's rationale or conditions."
+        },
+        {
+          "key": "decided_at",
+          "label": "Decided At",
+          "type": "datetime",
+          "indexed": true
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "key": "department_purchase_requests",
+      "label": "Purchase Requests",
+      "type": "oneToMany",
+      "fromEntity": "department",
+      "toEntity": "purchase_request",
+      "inverseField": "department"
+    },
+    {
+      "key": "department_budgets",
+      "label": "Budgets",
+      "type": "oneToMany",
+      "fromEntity": "department",
+      "toEntity": "budget",
+      "inverseField": "department"
+    },
+    {
+      "key": "vendor_purchase_requests",
+      "label": "Purchase Requests",
+      "type": "oneToMany",
+      "fromEntity": "vendor",
+      "toEntity": "purchase_request",
+      "inverseField": "vendor"
+    },
+    {
+      "key": "purchase_request_line_items",
+      "label": "Line Items",
+      "type": "oneToMany",
+      "fromEntity": "purchase_request",
+      "toEntity": "line_item",
+      "inverseField": "purchase_request"
+    },
+    {
+      "key": "purchase_request_approvals",
+      "label": "Approvals",
+      "type": "oneToMany",
+      "fromEntity": "purchase_request",
+      "toEntity": "approval",
+      "inverseField": "purchase_request"
+    },
+    {
+      "key": "budget_purchase_requests",
+      "label": "Purchase Requests",
+      "type": "oneToMany",
+      "fromEntity": "budget",
+      "toEntity": "purchase_request",
+      "inverseField": "budget"
+    },
+    {
+      "key": "vendor_line_items",
+      "label": "Line Items",
+      "type": "oneToMany",
+      "fromEntity": "vendor",
+      "toEntity": "line_item",
+      "inverseField": "vendor"
+    }
+  ],
+  "views": [
+    {
+      "key": "all_purchase_requests",
+      "label": "All Purchase Requests",
+      "type": "table",
+      "entity": "purchase_request",
+      "sort": [
+        {
+          "field": "needed_by",
+          "direction": "asc"
+        }
+      ],
+      "filters": [
+        {
+          "field": "request_status",
+          "operator": "neq",
+          "value": "draft"
+        }
+      ],
+      "config": {
+        "columns": [
+          "request_number",
+          "title",
+          "department",
+          "category",
+          "priority",
+          "total_amount",
+          "request_status",
+          "needed_by"
+        ]
+      }
+    },
+    {
+      "key": "purchase_requests_kanban",
+      "label": "Request Board",
+      "type": "kanban",
+      "entity": "purchase_request",
+      "filters": [
+        {
+          "field": "request_status",
+          "operator": "neq",
+          "value": "cancelled"
+        }
+      ],
+      "config": {
+        "groupByField": "request_status",
+        "columns": [
+          "request_number",
+          "title",
+          "priority",
+          "total_amount"
+        ]
+      }
+    },
+    {
+      "key": "purchase_request_detail",
+      "label": "Purchase Request Detail",
+      "type": "detail",
+      "entity": "purchase_request"
+    },
+    {
+      "key": "line_items_table",
+      "label": "Line Items",
+      "type": "table",
+      "entity": "line_item",
+      "sort": [
+        {
+          "field": "item_name",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "purchase_request",
+          "item_name",
+          "quantity",
+          "unit_price",
+          "line_total",
+          "vendor"
+        ]
+      }
+    },
+    {
+      "key": "approvals_table",
+      "label": "Approvals",
+      "type": "table",
+      "entity": "approval",
+      "sort": [
+        {
+          "field": "decided_at",
+          "direction": "desc"
+        }
+      ],
+      "filters": [
+        {
+          "field": "decision",
+          "operator": "isNotEmpty",
+          "value": null
+        }
+      ],
+      "config": {
+        "columns": [
+          "purchase_request",
+          "approver_email",
+          "approver_role",
+          "decision",
+          "comments",
+          "decided_at"
+        ]
+      }
+    },
+    {
+      "key": "budgets_table",
+      "label": "Budgets",
+      "type": "table",
+      "entity": "budget",
+      "filters": [
+        {
+          "field": "is_active",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "sort": [
+        {
+          "field": "fiscal_year",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "department",
+          "category",
+          "fiscal_year",
+          "fiscal_period",
+          "allocated_amount",
+          "spent_amount"
+        ]
+      }
+    },
+    {
+      "key": "budgets_by_department",
+      "label": "Budgets by Department",
+      "type": "table",
+      "entity": "budget",
+      "sort": [
+        {
+          "field": "department",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "title",
+          "department",
+          "category",
+          "allocated_amount",
+          "spent_amount"
+        ]
+      }
+    },
+    {
+      "key": "departments_table",
+      "label": "Departments",
+      "type": "table",
+      "entity": "department",
+      "config": {
+        "columns": [
+          "name",
+          "code",
+          "manager_email",
+          "cost_center",
+          "is_active"
+        ]
+      }
+    },
+    {
+      "key": "vendors_table",
+      "label": "Vendors",
+      "type": "table",
+      "entity": "vendor",
+      "filters": [
+        {
+          "field": "is_active",
+          "operator": "eq",
+          "value": true
+        }
+      ],
+      "config": {
+        "columns": [
+          "name",
+          "contact_email",
+          "contact_phone",
+          "website",
+          "payment_terms"
+        ]
+      }
+    },
+    {
+      "key": "finance_dashboard",
+      "label": "Finance Dashboard",
+      "type": "dashboard",
+      "entity": "budget",
+      "config": {
+        "widgets": [
+          {
+            "type": "metric",
+            "label": "Total Allocated",
+            "entity": "budget",
+            "aggregation": "sum",
+            "field": "allocated_amount"
+          },
+          {
+            "type": "metric",
+            "label": "Total Spent",
+            "entity": "budget",
+            "aggregation": "sum",
+            "field": "spent_amount"
+          },
+          {
+            "type": "bar",
+            "label": "Spent by Department",
+            "entity": "budget",
+            "groupBy": "department",
+            "aggregation": "sum",
+            "field": "spent_amount"
+          },
+          {
+            "type": "bar",
+            "label": "Spent by Category",
+            "entity": "budget",
+            "groupBy": "category",
+            "aggregation": "sum",
+            "field": "spent_amount"
+          },
+          {
+            "type": "table",
+            "label": "Requests Pending Approval",
+            "entity": "purchase_request",
+            "filter": {
+              "field": "request_status",
+              "operator": "eq",
+              "value": "pending_approval"
+            },
+            "columns": [
+              "request_number",
+              "title",
+              "total_amount",
+              "needed_by"
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "key": "notify_on_submission",
+      "name": "Notify Manager on Submission",
+      "trigger": {
+        "event": "field.changed",
+        "entity": "purchase_request",
+        "field": "request_status"
+      },
+      "conditions": [
+        {
+          "field": "request_status",
+          "operator": "eq",
+          "value": "submitted"
+        }
+      ],
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "notify_on_approval_decision",
+      "name": "Notify Requester on Decision",
+      "trigger": {
+        "event": "record.created",
+        "entity": "approval"
+      },
+      "actions": [
+        {
+          "type": "email"
+        },
+        {
+          "type": "notify"
+        }
+      ]
+    },
+    {
+      "key": "update_status_on_approval",
+      "name": "Update Request Status on Approval",
+      "trigger": {
+        "event": "record.created",
+        "entity": "approval"
+      },
+      "conditions": [
+        {
+          "field": "decision",
+          "operator": "eq",
+          "value": "approved"
+        }
+      ],
+      "actions": [
+        {
+          "type": "updateField"
+        },
+        {
+          "type": "webhook"
+        }
+      ]
+    },
+    {
+      "key": "budget_alert_on_overrun",
+      "name": "Budget Overrun Alert",
+      "trigger": {
+        "event": "record.updated",
+        "entity": "budget"
+      },
+      "conditions": [
+        {
+          "field": "spent_amount",
+          "operator": "gt",
+          "value": null
+        }
+      ],
+      "actions": [
+        {
+          "type": "notify"
+        },
+        {
+          "type": "email"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access to all entities, configuration, and administrative functions.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        }
+      ]
+    },
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Can create and view their own purchase requests and line items; read-only on vendors and departments.",
+      "grants": [
+        {
+          "entity": "purchase_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "line_item",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "vendor",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        },
+        {
+          "entity": "budget",
+          "read": true,
+          "fieldOverrides": [
+            {
+              "field": "allocated_amount",
+              "read": true,
+              "update": false
+            },
+            {
+              "field": "spent_amount",
+              "read": true,
+              "update": false
+            }
+          ]
+        },
+        {
+          "entity": "approval",
+          "create": false,
+          "read": true,
+          "update": false,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Can review and approve/reject purchase requests for their department and create approval records.",
+      "grants": [
+        {
+          "entity": "purchase_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "line_item",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "approval",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "vendor",
+          "read": true,
+          "create": true,
+          "update": true
+        },
+        {
+          "entity": "department",
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "budget",
+          "read": true,
+          "create": true,
+          "update": true
+        }
+      ]
+    },
+    {
+      "key": "finance",
+      "name": "Finance",
+      "description": "Can manage budgets, track spending, and view all purchase requests and approvals.",
+      "grants": [
+        {
+          "entity": "purchase_request",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        },
+        {
+          "entity": "line_item",
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "approval",
+          "create": true,
+          "read": true,
+          "update": true
+        },
+        {
+          "entity": "budget",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "vendor",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "department",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": false
+        }
+      ]
+    },
+    {
+      "key": "viewer",
+      "name": "Viewer",
+      "description": "Read-only access to purchase requests, budgets, and related entities.",
+      "grants": [
+        {
+          "entity": "purchase_request",
+          "read": true
+        },
+        {
+          "entity": "line_item",
+          "read": true
+        },
+        {
+          "entity": "approval",
+          "read": true
+        },
+        {
+          "entity": "budget",
+          "read": true
+        },
+        {
+          "entity": "vendor",
+          "read": true
+        },
+        {
+          "entity": "department",
+          "read": true
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#2563eb",
+    "secondaryColor": "#0ea5e9",
+    "font": "Inter, system-ui, sans-serif",
+    "radius": "medium",
+    "density": "comfortable",
+    "darkMode": false
+  }
+}

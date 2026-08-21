@@ -1,0 +1,936 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appbuilder.dev/blueprint.schema.json",
+  "title": "Blueprint",
+  "description": "A user-approved product specification. Deliberately NOT the App Definition: this is what the user agreed the app should be, in their vocabulary, with stable identity. Definition lowering turns an approved blueprint into an App Definition deterministically, with no model call. Proposer tool schemas are sliced from THIS file, never from app-definition.schema.json - a proposer that could emit definition structures could undo what the user approved.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "revision",
+    "spark",
+    "app",
+    "intent",
+    "concepts"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "description": "The blueprint schema version this document was authored against. Every revision carries it so an older blueprint can be upgraded rather than misread.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "parentRevision": {
+      "description": "The revision this one was derived from. Absent on revision 1.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "contentHash": {
+      "description": "Content hash of the document with this field removed. Stamped on approval; an approved revision is immutable and the hash is what proves it.",
+      "type": "string"
+    },
+    "spark": {
+      "description": "The user's one sentence. Kept verbatim forever - it is the only part of the blueprint nobody else wrote.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "app": { "$ref": "#/$defs/appSpec" },
+    "intent": { "$ref": "#/$defs/intentSpec" },
+    "actors": { "type": "array", "items": { "$ref": "#/$defs/actorSpec" } },
+    "concepts": {
+      "description": "No minItems: a blueprint mid-interview genuinely has none yet, and a draft that cannot pass its own gate makes EVERY later proposal fail with an error about a field the proposal never touched. 'At least one concept' is an approval rule (see BlueprintInterview.Approve), not a document-shape rule.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/conceptSpec" }
+    },
+    "externals": { "type": "array", "items": { "$ref": "#/$defs/externalConceptSpec" } },
+    "relationships": { "type": "array", "items": { "$ref": "#/$defs/relationshipSpec" } },
+    "references": { "type": "array", "items": { "$ref": "#/$defs/referenceFieldSpec" } },
+    "data": { "$ref": "#/$defs/dataSpec" },
+    "workflows": { "type": "array", "items": { "$ref": "#/$defs/workflowSpec" } },
+    "jobs": { "type": "array", "items": { "$ref": "#/$defs/jobSpec" } },
+    "experience": { "$ref": "#/$defs/experienceSpec" },
+    "scenarios": { "type": "array", "items": { "$ref": "#/$defs/scenarioSpec" } },
+    "ledger": { "type": "array", "items": { "$ref": "#/$defs/requirement" } },
+    "uncertainties": { "type": "array", "items": { "$ref": "#/$defs/uncertainty" } },
+    "assumptions": { "type": "array", "items": { "$ref": "#/$defs/assumption" } },
+    "unsupported": { "type": "array", "items": { "$ref": "#/$defs/unsupportedItem" } },
+    "reviews": { "type": "array", "items": { "$ref": "#/$defs/reviewState" } },
+    "changeRequests": { "type": "array", "items": { "$ref": "#/$defs/changeRequest" } },
+    "generation": { "type": "array", "items": { "$ref": "#/$defs/generationCheckpoint" } }
+  },
+
+  "$defs": {
+    "conceptId":      { "type": "string", "pattern": "^cpt_[a-z0-9_]+$" },
+    "fieldId":        { "type": "string", "pattern": "^fld_[a-z0-9_]+$" },
+    "relationshipId": { "type": "string", "pattern": "^rel_[a-z0-9_]+$" },
+    "externalId":     { "type": "string", "pattern": "^ext_[a-z0-9_]+$" },
+    "referenceId":    { "type": "string", "pattern": "^ref_[a-z0-9_]+$" },
+    "workflowId":     { "type": "string", "pattern": "^wfl_[a-z0-9_]+$" },
+    "stateId":        { "type": "string", "pattern": "^sta_[a-z0-9_]+$" },
+    "transitionId":   { "type": "string", "pattern": "^trn_[a-z0-9_]+$" },
+    "actionId":       { "type": "string", "pattern": "^act_cmd_[a-z0-9_]+$" },
+    "actorId":        { "type": "string", "pattern": "^actor_[a-z0-9_]+$" },
+    "jobId":          { "type": "string", "pattern": "^job_[a-z0-9_]+$" },
+    "surfaceId":      { "type": "string", "pattern": "^srf_[a-z0-9_]+$" },
+    "pageId":         { "type": "string", "pattern": "^pg_[a-z0-9_]+$" },
+    "metricId":       { "type": "string", "pattern": "^mtr_[a-z0-9_]+$" },
+    "scenarioId":     { "type": "string", "pattern": "^scn_[a-z0-9_]+$" },
+    "uncertaintyId":  { "type": "string", "pattern": "^unc_[a-z0-9_]+$" },
+    "requirementId":  { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9_-]*$" },
+
+    "identifier": {
+      "description": "A key that lowers into an App Definition identifier. Renameable - the id beside it is what stays fixed.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "maxLength": 60
+    },
+
+    "appSpec": {
+      "description": "What the app is CALLED. Lowering needs a key, a name and a version for the App Definition root, and inventing them at lowering time would mean the user never approved the name of the thing they approved.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "name"],
+      "properties": {
+        "key":  { "$ref": "#/$defs/identifier" },
+        "handle": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{1,62}$" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "icon": { "type": "string", "maxLength": 50 }
+      }
+    },
+
+    "interpretationSpec": {
+      "description": "What the app is FOR, read out of a description the user already wrote. The identity — name, web address, summary — is not here: the user gives those before any model runs, and the model may not overrule them.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent"],
+      "properties": {
+        "intent": { "$ref": "#/$defs/intentSpec" }
+      }
+    },
+
+    "intentSpec": {
+      "description": "What the app fundamentally IS, named before anything is modelled. Shape-compatible with the existing intent document so Prompts.FormatIntent and PromptModules.From keep working.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coreJob", "workTopology", "archetypeKind"],
+      "properties": {
+        "coreJob": {
+          "description": "ONE concrete sentence naming the job users open the app to DO.",
+          "type": "string", "minLength": 1, "maxLength": 300
+        },
+        "primaryOutcome": {
+          "description": "What success looks like for the user, not for the app.",
+          "type": "string", "maxLength": 300
+        },
+        "primaryUsers": { "type": "array", "items": { "type": "string" } },
+        "primaryActor": { "type": "string" },
+        "primaryEntity": { "type": "string" },
+        "workTopology": {
+          "type": "string",
+          "enum": ["record", "queue", "pipeline", "matrix", "calendar", "dashboard", "catalog"]
+        },
+        "behaviors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["stateful", "approval", "assignment", "scheduling", "collaborative", "analytical"]
+          }
+        },
+        "primarySurface": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "reason"],
+          "properties": {
+            "type":   { "type": "string", "minLength": 1 },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        },
+        "archetypeKind": {
+          "type": "string",
+          "enum": ["tracker", "pipeline", "approval", "scheduling", "assignment",
+                   "ticketing", "planning", "catalog", "analytics", "forms"]
+        },
+        "criticalDecisions":  { "type": "array", "items": { "type": "string" } },
+        "criticalQuantities": { "type": "array", "items": { "type": "string" } },
+        "supportingConcepts": { "type": "array", "items": { "type": "string" } },
+        "needsExtendedPersonData": { "type": "boolean" },
+        "hasSubordinateRecords":   { "type": "boolean" },
+        "interpretation": { "type": "string", "maxLength": 1000 },
+        "interpretationConfirmed": { "type": "boolean" },
+        "uncertaintyPlanningComplete": { "type": "boolean" },
+        "approvedBrief": { "type": "string", "maxLength": 4000 },
+        "mainScreen": { "type": "string", "maxLength": 500 },
+        "mainActions": { "type": "array", "items": { "type": "string", "maxLength": 200 } }
+      }
+    },
+
+    "actorSpec": {
+      "description": "Who uses the app, what they are responsible for, and - concretely - what they may do. Responsibilities alone do not lower; permissions do.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "name"],
+      "properties": {
+        "id":   { "$ref": "#/$defs/actorId" },
+        "key":  { "$ref": "#/$defs/identifier" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "responsibilities": { "type": "array", "items": { "type": "string" } },
+        "entityPermissions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["conceptId"],
+            "properties": {
+              "conceptId": { "$ref": "#/$defs/conceptId" },
+              "create": { "type": "boolean", "default": false },
+              "read":   { "type": "boolean", "default": true },
+              "update": { "type": "boolean", "default": false },
+              "delete": { "type": "boolean", "default": false }
+            }
+          }
+        },
+        "fieldPermissions": {
+          "description": "Only declare the exceptions. A field not listed follows its entity's permission.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fieldId"],
+            "properties": {
+              "fieldId":  { "$ref": "#/$defs/fieldId" },
+              "visible":  { "type": "boolean", "default": true },
+              "editable": { "type": "boolean", "default": true }
+            }
+          }
+        },
+        "actionPermissions": { "type": "array", "items": { "$ref": "#/$defs/actionId" } }
+      }
+    },
+
+    "conceptSpec": {
+      "description": "A thing the business works with, in the business's own word for it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "name", "kind"],
+      "properties": {
+        "id":     { "$ref": "#/$defs/conceptId" },
+        "key":    { "$ref": "#/$defs/identifier" },
+        "name":   { "type": "string", "minLength": 1, "maxLength": 100 },
+        "plural": { "type": "string", "maxLength": 100 },
+        "purpose": {
+          "description": "Plain language: what this is, for someone who does not know the business.",
+          "type": "string", "maxLength": 500
+        },
+        "kind": {
+          "description": "local = its own entity the user browses. enumeration = a closed set of values that becomes select options on the referring field, NOT an entity. config = a lookup list the app groups under Configuration. settings = a singleton config record. subordinate = exists only inside a parent record. terminology = vocabulary only, no storage at all.",
+          "type": "string",
+          "enum": ["local", "enumeration", "config", "settings", "subordinate", "terminology"]
+        },
+        "central": {
+          "description": "True for the concepts the app is ABOUT, false for supporting ones.",
+          "type": "boolean", "default": false
+        },
+        "sensitivity": {
+          "type": "string",
+          "enum": ["none", "internal", "restricted"],
+          "default": "none"
+        },
+        "icon": { "type": "string", "maxLength": 50 },
+        "recordLabel": {
+          "description": "How one record of this concept is named on screen. ONE field - the App Definition's displayField takes a field key and nothing else, so composite labels are recorded as unsupported rather than faked.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fieldId"],
+          "properties": {
+            "fieldId": { "$ref": "#/$defs/fieldId" },
+            "example": { "type": "string", "maxLength": 120 }
+          }
+        },
+        "options": {
+          "description": "kind 'enumeration' only: the closed set of values. 'An enumeration must have options' is a BlueprintGate rule rather than minItems, because an absent list serialises as [] on every other concept kind.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "label"],
+            "properties": {
+              "value": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "phase": { "type": "string", "enum": ["not_started", "active", "done", "cancelled"] }
+            }
+          }
+        },
+        "entityJustification": {
+          "description": "Why this is 'local' rather than 'enumeration'. Required by the gate when a concept looks like a plain label set: additional_properties | own_lifecycle | permissions | hierarchy | cross_record_reuse | external_identity | reporting_importance.",
+          "type": "string",
+          "enum": ["additional_properties", "own_lifecycle", "permissions", "hierarchy",
+                   "cross_record_reuse", "external_identity", "reporting_importance"]
+        }
+      }
+    },
+
+    "externalConceptSpec": {
+      "description": "A dataset this app REFERENCES but does not own: the platform directory, or a core app addressed by SystemKey. Declared once no matter how many fields point at it.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "entityKey", "name"],
+      "properties": {
+        "id":     { "$ref": "#/$defs/externalId" },
+        "source": { "type": "string", "enum": ["platform", "core"] },
+        "entityKey": {
+          "description": "The entity inside the external source: a platform entity key (person, department, group) or an entity of the core app.",
+          "$ref": "#/$defs/identifier"
+        },
+        "coreSystemKey": {
+          "description": "source 'core' only: the core app's permanent SystemKey (e.g. core_organizations). Never a handle - handles are disposable addresses that collide and get suffixed.",
+          "$ref": "#/$defs/identifier"
+        },
+        "name": { "type": "string", "minLength": 1, "maxLength": 100 }
+      }
+    },
+
+    "relationshipSpec": {
+      "description": "A relationship between two LOCAL concepts. Carries enough to lower deterministically: which side stores the key, what happens on delete, and whether the child only exists inside the parent.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "fromConceptId", "toConceptId", "cardinality", "storageOwner", "label"],
+      "properties": {
+        "id":  { "$ref": "#/$defs/relationshipId" },
+        "key": { "$ref": "#/$defs/identifier" },
+        "fromConceptId": { "$ref": "#/$defs/conceptId" },
+        "toConceptId":   { "$ref": "#/$defs/conceptId" },
+        "cardinality": {
+          "type": "string",
+          "enum": ["one_to_one", "one_to_many", "many_to_many"]
+        },
+        "storageOwner": {
+          "description": "Which side holds the reference. 'to' means the toConcept carries a reference field pointing back at the fromConcept - the normal shape for one_to_many (many quotes lines point at one quote).",
+          "type": "string",
+          "enum": ["from", "to"]
+        },
+        "label":        { "type": "string", "minLength": 1, "maxLength": 100 },
+        "inverseLabel": { "type": "string", "maxLength": 100 },
+        "required":     { "type": "boolean", "default": false },
+        "deleteBehavior": {
+          "type": "string",
+          "enum": ["cascade", "restrict", "set_null"],
+          "default": "restrict"
+        },
+        "isComposition": {
+          "description": "The child cannot exist without the parent and is never browsed on its own (quote lines, case notes). Lowers to ownedBy.",
+          "type": "boolean", "default": false
+        },
+        "childPresentation": {
+          "description": "isComposition only: how the child renders inside the parent. Omit to let lowering choose by field shape.",
+          "type": "string",
+          "enum": ["feed", "checklist", "lineItems", "table"]
+        },
+        "purpose": { "type": "string", "maxLength": 300 }
+      }
+    },
+
+    "referenceFieldSpec": {
+      "description": "One local field pointing at an external dataset, with the ROLE it plays. Four person references (requester, assignee, approver, reviewer) are four of these against one externalConceptSpec.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "onConceptId", "externalConceptId", "label", "semanticRole"],
+      "properties": {
+        "id":  { "$ref": "#/$defs/referenceId" },
+        "key": { "$ref": "#/$defs/identifier" },
+        "onConceptId":       { "$ref": "#/$defs/conceptId" },
+        "externalConceptId": { "$ref": "#/$defs/externalId" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "semanticRole": {
+          "description": "What this reference MEANS on the record - owner, submitter, approver, assignee, subject, customer, department. Distinguishes four person fields from each other.",
+          "type": "string", "minLength": 1, "maxLength": 60
+        },
+        "required": { "type": "boolean", "default": false },
+        "deleteBehavior": {
+          "type": "string",
+          "enum": ["cascade", "restrict", "set_null"],
+          "default": "restrict"
+        }
+      }
+    },
+
+    "dataSpec": {
+      "description": "The information the app collects, approved by the user before anything is generated. Reference fields are NOT here - they come from relationships and references, so there is one source of truth per field.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "fields": { "type": "array", "items": { "$ref": "#/$defs/fieldSpec" } }
+      }
+    },
+
+    "fieldSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "conceptId", "label", "type", "purpose", "provenance"],
+      "properties": {
+        "id":  { "$ref": "#/$defs/fieldId" },
+        "key": { "$ref": "#/$defs/identifier" },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "type": {
+          "description": "No 'reference' - reference fields are declared by relationshipSpec and referenceFieldSpec.",
+          "type": "string",
+          "enum": ["text", "longtext", "integer", "decimal", "money", "boolean", "date",
+                   "datetime", "email", "url", "phone", "select", "multiselect", "json", "attachment"]
+        },
+        "purpose": {
+          "description": "Why the user needs this field. Grouping fields by purpose is how the wizard shows them without asking anyone to design a database.",
+          "type": "string",
+          "enum": ["identify", "decide", "transition", "report", "context"]
+        },
+        "provenance": {
+          "description": "Where this field came from. A model's numeric confidence is not trustworthy, so this is a fact about origin rather than a score. Only 'model_suggested' fields are offered for opt-in selection.",
+          "type": "string",
+          "enum": ["confirmed_by_user", "derived_from_workflow", "required_by_surface",
+                   "platform_default", "model_suggested"]
+        },
+        "reason": {
+          "description": "One line the user can read to decide whether they want this field.",
+          "type": "string", "maxLength": 300
+        },
+        "required": { "type": "boolean", "default": false },
+        "unique":   { "type": "boolean", "default": false },
+        "indexed":  { "type": "boolean", "default": false },
+        "help":     { "type": "string", "maxLength": 500 },
+        "group":    { "type": "string", "maxLength": 60 },
+        "default":  {},
+        "unit":     { "type": "string", "maxLength": 8 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "precision": { "type": "integer", "minimum": 1, "maximum": 38 },
+        "scale":     { "type": "integer", "minimum": 0, "maximum": 20 },
+        "optionsFromConceptId": {
+          "description": "select/multiselect: take the options from this 'enumeration' concept instead of listing them here.",
+          "$ref": "#/$defs/conceptId"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "label"],
+            "properties": {
+              "value": { "type": "string", "minLength": 1 },
+              "label": { "type": "string", "minLength": 1 },
+              "phase": { "type": "string", "enum": ["not_started", "active", "done", "cancelled"] }
+            }
+          }
+        },
+        "computed": {
+          "description": "Server-calculated and never typed. Expressions may return numbers or booleans and may reference other computed fields when dependencies are acyclic. Rollups remain numeric. EXACTLY ONE of expr or rollup is enforced semantically by BlueprintGate.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "expr": {
+              "description": "Typed expression over this record, written with FIELD IDS. Supports arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses, pow(base, exponent), min(a, b), max(a, b), and duration functions. min/max state a BOUND on one of the row's own figures (a charge capped at a ceiling is min(raw, cap)) — there is no if/then and a boolean is never a number, so they are the only way to clamp. May reference other computed fields when acyclic. Lowering substitutes keys.",
+              "type": "string", "minLength": 1, "maxLength": 300
+            },
+            "rollup": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["conceptId", "viaRelationshipId", "op"],
+              "properties": {
+                "conceptId":         { "$ref": "#/$defs/conceptId" },
+                "viaRelationshipId": { "$ref": "#/$defs/relationshipId" },
+                "op": { "type": "string", "enum": ["count", "sum", "avg", "min", "max"] },
+                "fieldId": { "$ref": "#/$defs/fieldId" },
+                "filters": {
+                  "type": "array", "maxItems": 5,
+                  "items": { "$ref": "#/$defs/filter" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "workflowSpec": {
+      "description": "The lifecycle of one concept: the states records move through, the legal moves between them, and the actions users invoke.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "conceptId", "statusFieldKey", "label", "states", "transitions"],
+      "properties": {
+        "id":        { "$ref": "#/$defs/workflowId" },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "statusFieldKey": {
+          "description": "The key of the status field this workflow governs. Lowering creates the field and the process together; the field never carries its own options because the App Definition requires the process to own them.",
+          "$ref": "#/$defs/identifier"
+        },
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "states": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "key", "label", "phase"],
+            "properties": {
+              "id":    { "$ref": "#/$defs/stateId" },
+              "key":   { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "phase": { "type": "string", "enum": ["not_started", "active", "done", "cancelled"] },
+              "initial":  { "type": "boolean", "default": false },
+              "terminal": { "type": "boolean", "default": false },
+              "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$" }
+            }
+          }
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "key", "fromStateId", "toStateId", "label"],
+            "properties": {
+              "id":  { "$ref": "#/$defs/transitionId" },
+              "key": { "$ref": "#/$defs/identifier" },
+              "fromStateId": { "$ref": "#/$defs/stateId" },
+              "toStateId":   { "$ref": "#/$defs/stateId" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "actionId": { "$ref": "#/$defs/actionId" },
+              "requiresFieldIds": {
+                "description": "Values that MUST be set for this move to be legal - a rejection reason, a loss reason. This is how 'must give a reason' stops being a convention. May name a field, an external reference or a relationship, because a required rejection reason is just as likely to be a reference to a managed list as a plain field.",
+                "type": "array",
+                "items": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" }
+              },
+              "guard": { "$ref": "#/$defs/filter" },
+              "guardDescription": { "type": "string", "maxLength": 300 }
+            }
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "key", "label"],
+            "properties": {
+              "id":  { "$ref": "#/$defs/actionId" },
+              "key": { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "appearsOn": { "type": "string", "enum": ["detail", "row", "both"], "default": "detail" },
+              "confirm": { "type": "string", "maxLength": 300 },
+              "inputFieldIds": {
+                "description": "Values COLLECTED when the action runs, rather than filled in on the ordinary form. May name a field, an external reference or a relationship.",
+                "type": "array",
+                "items": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "jobSpec": {
+      "description": "A job to be done: one actor, one recurring task, and the surface that serves it. This is where the user's own words live; the experience spec it produces is what lowers.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "actorId", "task", "primaryConceptId"],
+      "properties": {
+        "id":      { "$ref": "#/$defs/jobId" },
+        "actorId": { "$ref": "#/$defs/actorId" },
+        "task":    { "type": "string", "minLength": 1, "maxLength": 300 },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "occasional"] },
+        "primaryConceptId": { "$ref": "#/$defs/conceptId" },
+        "servedBySurfaceId": { "$ref": "#/$defs/surfaceId" },
+        "importantInformation": {
+          "description": "What the user said they need to see. Natural language on purpose - it is interview evidence, not a lowering input. The surface's typed columns are what lowers.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+
+    "experienceSpec": {
+      "description": "The approved screen roster, ID-based and machine-lowerable. Semantic UI intent plus deterministic layout conventions: enough that the compiler never guesses, not so much that the wizard becomes a definition editor. Block trees, spacing and component choice are lowering policy, not blueprint content.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["surfaces", "pages"],
+      "properties": {
+        "surfaces": { "type": "array", "items": { "$ref": "#/$defs/surfaceSpec" } },
+        "pages": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "key", "label", "role"],
+            "properties": {
+              "id":    { "$ref": "#/$defs/pageId" },
+              "key":   { "$ref": "#/$defs/identifier" },
+              "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "icon":  { "type": "string", "maxLength": 50 },
+              "role":  { "type": "string", "enum": ["home", "workspace", "settings"] },
+              "surfaceIds": { "type": "array", "items": { "$ref": "#/$defs/surfaceId" } },
+              "brief": { "type": "string", "maxLength": 300 }
+            }
+          }
+        },
+        "landing": {
+          "description": "Which page each actor opens on. Different actors legitimately land in different places - that is most of what makes a multi-role app feel right.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actorId", "pageId"],
+            "properties": {
+              "actorId": { "$ref": "#/$defs/actorId" },
+              "pageId":  { "$ref": "#/$defs/pageId" }
+            }
+          }
+        }
+      }
+    },
+
+    "surfaceSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "key", "surface", "conceptId", "label"],
+      "properties": {
+        "id":    { "$ref": "#/$defs/surfaceId" },
+        "key":   { "$ref": "#/$defs/identifier" },
+        "label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "surface": {
+          "type": "string",
+          "enum": ["table", "board", "calendar", "dashboard", "detail"]
+        },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "scope": {
+          "description": "global = ONE surface over the collection. per_record = one per record of scopeConceptId, composed inside that record's detail. The cardinality call: 'one matrix' where the domain calls for 'one matrix per employee' is the failure this exists to prevent.",
+          "type": "string",
+          "enum": ["global", "per_record"],
+          "default": "global"
+        },
+        "scopeConceptId": { "$ref": "#/$defs/conceptId" },
+        "groupByFieldId": {
+          "description": "board: the field whose values become columns. Must resolve to a workflow-governed status field or a select.",
+          "$ref": "#/$defs/fieldId"
+        },
+        "dateStartFieldId": { "$ref": "#/$defs/fieldId" },
+        "dateEndFieldId":   { "$ref": "#/$defs/fieldId" },
+        "columns": {
+          "description": "The information that matters on this surface, in order. Field ids, or reference ids for a reference column.",
+          "type": "array",
+          "items": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" }
+        },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/filter" } },
+        "sort": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fieldId", "direction"],
+            "properties": {
+              "fieldId":   { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" },
+              "direction": { "type": "string", "enum": ["asc", "desc"] }
+            }
+          }
+        },
+        "sortableFieldIds":   { "type": "array", "items": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" } },
+        "filterableFieldIds": { "type": "array", "items": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" } },
+        "metrics": { "type": "array", "items": { "$ref": "#/$defs/metricSpec" } },
+        "relatedConceptIds": {
+          "description": "detail: the child or related concepts shown alongside the record.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/conceptId" }
+        }
+      }
+    },
+
+    "metricSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "conceptId", "aggregate"],
+      "properties": {
+        "id":        { "$ref": "#/$defs/metricId" },
+        "label":     { "type": "string", "minLength": 1, "maxLength": 100 },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "aggregate": { "type": "string", "enum": ["count", "sum", "avg", "min", "max"] },
+        "fieldId":   { "$ref": "#/$defs/fieldId" },
+        "groupByFieldId": { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" },
+        "filters":   { "type": "array", "items": { "$ref": "#/$defs/filter" } }
+      }
+    },
+
+    "filter": {
+      "description": "A leaf condition. EXACTLY ONE of literal or context must be present on value - enforced by BlueprintGate rather than a oneOf.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fieldId", "operator"],
+      "properties": {
+        "fieldId":  { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" },
+        "operator": {
+          "type": "string",
+          "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in",
+                   "contains", "is_empty", "is_not_empty", "within_days", "older_than_days"]
+        },
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "literal": {},
+            "context": {
+              "description": "Resolved at read time from who is asking or when they are asking. Deliberately only what the runtime has a token for: '{{actor.id}}' and '{{today}}'. Start-of-week and start-of-month are absent because the clock tokens are offsets (today+7, today-2w) with no start-of-period form, and a blueprint must not be able to say something that cannot be built.",
+              "type": "string",
+              "enum": ["current_actor", "today"]
+            }
+          }
+        }
+      }
+    },
+
+    "scenarioSpec": {
+      "description": "An executable acceptance test in the user's terms. Typed and closed on purpose: natural-language steps would need another model to run them, which is exactly what this architecture is trying to stop doing.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "actorId", "title", "steps", "expect"],
+      "properties": {
+        "id":      { "$ref": "#/$defs/scenarioId" },
+        "actorId": { "$ref": "#/$defs/actorId" },
+        "title": {
+          "description": "The plain-language meaning the USER approves. The steps below are the machine's business.",
+          "type": "string", "minLength": 1, "maxLength": 200
+        },
+        "verifiesRequirementIds": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/requirementId" }
+        },
+        "negative": {
+          "description": "True when this scenario proves something is REFUSED. A requirement with impliesProhibition needs one.",
+          "type": "boolean", "default": false
+        },
+        "given": { "type": "array", "items": { "$ref": "#/$defs/scenarioStep" } },
+        "steps": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scenarioStep" } },
+        "expect": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/scenarioExpectation" } }
+      }
+    },
+
+    "scenarioStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": { "type": "string", "enum": ["create", "update", "command", "transition", "exists", "delete"] },
+        "asActorId": { "$ref": "#/$defs/actorId" },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "as": {
+          "description": "Binds the resulting record to a name later steps refer to with { ref }.",
+          "type": "string", "pattern": "^[a-z][a-z0-9_]*$"
+        },
+        "record":      { "$ref": "#/$defs/scenarioRef" },
+        "actionId":    { "$ref": "#/$defs/actionId" },
+        "transitionId": { "$ref": "#/$defs/transitionId" },
+        "values": {
+          "description": "Field id to value. A value may be a literal or { \"ref\": \"<binding>\" }.",
+          "type": "object"
+        },
+        "expectRefused": {
+          "description": "The step itself must be REJECTED. This is how a prohibition is tested.",
+          "type": "boolean", "default": false
+        }
+      }
+    },
+
+    "scenarioRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref"],
+      "properties": {
+        "ref": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      }
+    },
+
+    "scenarioExpectation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op"],
+      "properties": {
+        "op": {
+          "type": "string",
+          "enum": ["field_equals", "record_exists", "record_absent", "visible_in", "not_visible_in", "count_equals"]
+        },
+        "record":    { "$ref": "#/$defs/scenarioRef" },
+        "fieldId":   { "type": "string", "pattern": "^(fld|ref|rel)_[a-z0-9_]+$" },
+        "value":     {},
+        "surfaceId": { "$ref": "#/$defs/surfaceId" },
+        "conceptId": { "$ref": "#/$defs/conceptId" },
+        "count":     { "type": "integer", "minimum": 0 },
+        "asActorId": { "$ref": "#/$defs/actorId" }
+      }
+    },
+
+    "requirement": {
+      "description": "One thing the app must do. Coverage and verification are COMPUTED - a model never marks its own work covered.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "importance"],
+      "properties": {
+        "id":        { "$ref": "#/$defs/requirementId" },
+        "statement": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "importance": { "type": "string", "enum": ["critical", "important", "nice_to_have"] },
+        "expectedOutcome": { "type": "string", "maxLength": 400 },
+        "impliesProhibition": { "type": "boolean", "default": false },
+        "origin": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": { "type": "string", "enum": ["brief", "user_answer", "model_inference"] },
+            "uncertaintyId": { "$ref": "#/$defs/uncertaintyId" }
+          }
+        },
+        "coveredBy": {
+          "description": "Blueprint element ids that satisfy this requirement. Each must resolve, or design coverage is partial.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "verifiedBy": { "type": "array", "items": { "$ref": "#/$defs/scenarioId" } },
+        "designCoverage": {
+          "description": "COMPUTED at lowering. Absent until then.",
+          "type": "string",
+          "enum": ["covered", "partial", "uncovered", "unsupported"]
+        },
+        "verification": {
+          "description": "COMPUTED after scenarios run. Absent until then. Deliberately separate from designCoverage - 'the structure exists' and 'a user could do it' are different claims.",
+          "type": "string",
+          "enum": ["verified", "failed", "not_run"]
+        }
+      }
+    },
+
+    "uncertainty": {
+      "description": "An unresolved decision the interview may ask about. Consumed by the question planner, not decoration.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "question", "whyItMatters", "affectsLayer"],
+      "properties": {
+        "id":       { "$ref": "#/$defs/uncertaintyId" },
+        "question": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "whyItMatters": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "affectsLayer": {
+          "type": "string",
+          "enum": ["intent", "actors", "concepts", "relationships", "data",
+                   "workflows", "jobs", "experience", "scenarios"]
+        },
+        "suggestedAnswers": { "type": "array", "items": { "type": "string" } },
+        "blocksLowering": {
+          "description": "True when proceeding without an answer would produce the wrong app rather than a defaulted one. Only these block approval.",
+          "type": "boolean", "default": false
+        },
+        "resolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source"],
+          "properties": {
+            "source":   { "type": "string", "enum": ["user_answer", "assumed_default", "inferred"] },
+            "value":    { "type": "string", "maxLength": 500 },
+            "revision": { "type": "integer", "minimum": 1 }
+          }
+        }
+      }
+    },
+
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "statement", "layer"],
+      "properties": {
+        "id":        { "type": "string", "minLength": 1 },
+        "statement": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "layer": {
+          "type": "string",
+          "enum": ["intent", "actors", "concepts", "relationships", "data",
+                   "workflows", "jobs", "experience", "scenarios"]
+        },
+        "revision": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "generationCheckpoint": {
+      "description": "Durable proof that a proposer pass completed, including valid empty results.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "promptVersion", "completedRevision"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "scopeId": { "type": "string", "minLength": 1 },
+        "promptVersion": { "type": "string", "minLength": 1 },
+        "completedRevision": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "reviewState": {
+      "description": "Approval state for one canonical review projection, optionally scoped to a page.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "layer", "status", "contentHash", "dependencyHash"],
+      "properties": {
+        "key": { "type": "string", "pattern": "^(identity|intent|domain|behaviour|permissions|jobs|architecture|navigation|journey|(views|screen):pg_[a-z0-9_]+)$" },
+        "layer": { "type": "string", "enum": ["identity", "intent", "domain", "behaviour", "permissions", "jobs", "architecture", "views", "screen", "navigation", "journey"] },
+        "scopeId": { "$ref": "#/$defs/pageId" },
+        "status": { "type": "string", "enum": ["pending", "ready", "approved", "stale", "changes_requested"] },
+        "contentHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "dependencyHash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "approvedRevision": { "type": "integer", "minimum": 1 },
+        "approvedBy": { "type": "string", "minLength": 1 },
+        "approvedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+
+    "changeRequest": {
+      "description": "An explicit request to revise one review slice; retained after resolution for provenance.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reviewKey", "message", "status", "createdRevision"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^chg_[a-f0-9]{32}$" },
+        "reviewKey": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "status": { "type": "string", "enum": ["open", "resolved", "dismissed"] },
+        "createdRevision": { "type": "integer", "minimum": 1 },
+        "resolvedRevision": { "type": "integer", "minimum": 1 }
+      }
+    },
+
+    "unsupportedItem": {
+      "description": "Something the user asked for that the platform cannot do. Recorded honestly rather than silently dropped or faked.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reason", "capability"],
+      "properties": {
+        "id":            { "type": "string", "minLength": 1 },
+        "requirementId": { "$ref": "#/$defs/requirementId" },
+        "conceptId": {
+          "description": "The concept this limitation is about, when it is about one. A concept with no recordLabel must be covered by a 'composite_record_label' item naming it here — otherwise a missing label is an oversight, not a recorded gap.",
+          "$ref": "#/$defs/conceptId"
+        },
+        "capability": {
+          "description": "The missing platform capability, named so the same gap reads the same way across every blueprint.",
+          "type": "string",
+          "enum": ["row_level_ownership", "composite_record_label", "cross_app_reference",
+                   "external_integration", "scheduled_automation", "other"]
+        },
+        "reason": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "blocksPublication": {
+          "description": "True when a CRITICAL requirement depends on it. Publication is refused rather than shipping an app that quietly does not do the thing.",
+          "type": "boolean", "default": false
+        }
+      }
+    }
+  }
+}

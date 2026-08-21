@@ -1,0 +1,431 @@
+{
+  "schemaVersion": "2.0",
+  "key": "time_off",
+  "name": "Time Off",
+  "version": "1.0.0",
+  "presentation": {
+    "icon": "beach",
+    "color": "#4f46e5",
+    "category": "HR",
+    "tagline": "Who's off, approvals"
+  },
+  "archetype": {
+    "kind": "scheduling",
+    "coreJob": "See who is away at a glance and approve or decline time-off requests"
+  },
+  "entities": [
+    {
+      "key": "time_off",
+      "label": "Time off",
+      "labelPlural": "Time off",
+      "displayField": "type",
+      "icon": "beach",
+      "fields": [
+        {
+          "key": "requested_by",
+          "label": "Person",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "onDelete": "setNull",
+          "help": "Who is taking the time off. Set to the signed-in user."
+        },
+        {
+          "key": "type",
+          "label": "Type",
+          "type": "select",
+          "default": "vacation",
+          "required": true,
+          "options": [
+            {
+              "value": "vacation",
+              "label": "Vacation",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "sick",
+              "label": "Sick",
+              "color": "#ef4444"
+            },
+            {
+              "value": "personal",
+              "label": "Personal",
+              "color": "#a855f7"
+            },
+            {
+              "value": "unpaid",
+              "label": "Unpaid",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "start_date",
+          "label": "From",
+          "type": "date",
+          "required": true,
+          "indexed": true
+        },
+        {
+          "key": "end_date",
+          "label": "To",
+          "type": "date",
+          "required": true
+        },
+        {
+          "key": "reason",
+          "label": "Reason",
+          "type": "text",
+          "help": "Optional note for the approver."
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "role": "status",
+          "indexed": true
+        },
+        {
+          "key": "decline_reason",
+          "label": "Decline reason",
+          "type": "longtext",
+          "group": "Decision"
+        }
+      ],
+      "detail": {
+        "blocks": [
+          {
+            "kind": "hub",
+            "title": "type",
+            "status": "status",
+            "facts": [
+              "requested_by",
+              "start_date",
+              "end_date"
+            ],
+            "actions": [
+              "approve_time_off",
+              "decline_time_off",
+              "edit",
+              "delete"
+            ]
+          },
+          {
+            "kind": "process",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "pending"
+            }
+          },
+          {
+            "kind": "section",
+            "label": "Reason",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "reason"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Why this was declined",
+            "visibleWhen": {
+              "value": "{{record.status}}",
+              "eq": "declined"
+            },
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "decline_reason"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "views": [
+    {
+      "key": "my_time_off_table",
+      "label": "My time off",
+      "type": "table",
+      "entity": "time_off",
+      "filters": [
+        {
+          "field": "requested_by",
+          "operator": "eq",
+          "value": "{{actor.id}}"
+        }
+      ],
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "desc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "type",
+          "start_date",
+          "end_date",
+          "status"
+        ]
+      }
+    },
+    {
+      "key": "pending_table",
+      "label": "Awaiting approval",
+      "type": "table",
+      "entity": "time_off",
+      "filters": [
+        {
+          "field": "status",
+          "operator": "eq",
+          "value": "pending"
+        }
+      ],
+      "sort": [
+        {
+          "field": "start_date",
+          "direction": "asc"
+        }
+      ],
+      "config": {
+        "columns": [
+          "requested_by",
+          "type",
+          "start_date",
+          "end_date"
+        ]
+      }
+    }
+  ],
+  "pages": [
+    {
+      "key": "schedule",
+      "label": "Who's off",
+      "icon": "calendar-month",
+      "entity": "time_off",
+      "state": [
+        {
+          "key": "cursor",
+          "type": "date",
+          "default": "{{today}}"
+        }
+      ],
+      "blocks": [
+        {
+          "kind": "row",
+          "align": "center",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "text",
+              "text": "Who's off",
+              "size": "lg",
+              "weight": "bold",
+              "grow": true
+            }
+          ]
+        },
+        {
+          "kind": "timeline",
+          "entity": "time_off",
+          "rowBy": "requested_by",
+          "startField": "start_date",
+          "endField": "end_date",
+          "axis": {
+            "from": "{{state.cursor}}",
+            "range": "week"
+          },
+          "colorField": "type",
+          "labelField": "type",
+          "openDetail": true
+        }
+      ]
+    },
+    {
+      "key": "approvals",
+      "label": "Approvals",
+      "icon": "check-decagram",
+      "entity": "time_off",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "pending_table"
+        }
+      ]
+    },
+    {
+      "key": "my_time_off",
+      "label": "My time off",
+      "icon": "account-clock",
+      "entity": "time_off",
+      "blocks": [
+        {
+          "kind": "view",
+          "view": "my_time_off_table"
+        }
+      ]
+    }
+  ],
+  "processes": [
+    {
+      "key": "approval",
+      "entity": "time_off",
+      "stateField": "status",
+      "initialState": "pending",
+      "states": [
+        {
+          "key": "pending",
+          "label": "Pending",
+          "color": "#f59e0b"
+        },
+        {
+          "key": "approved",
+          "label": "Approved",
+          "color": "#16a34a",
+          "terminal": true
+        },
+        {
+          "key": "declined",
+          "label": "Declined",
+          "color": "#dc2626",
+          "terminal": true
+        }
+      ],
+      "transitions": [
+        {
+          "key": "approve",
+          "label": "Approve",
+          "from": [
+            "pending"
+          ],
+          "to": "approved",
+          "command": "approve_time_off"
+        },
+        {
+          "key": "decline",
+          "label": "Decline",
+          "from": [
+            "pending"
+          ],
+          "to": "declined",
+          "command": "decline_time_off"
+        }
+      ]
+    }
+  ],
+  "commands": [
+    {
+      "key": "approve_time_off",
+      "label": "Approve",
+      "entity": "time_off",
+      "style": "primary",
+      "placements": [
+        "recordHeader"
+      ],
+      "successMessage": "Time off approved.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.requested_by}}",
+          "title": "Time off approved",
+          "message": "Your time-off request was approved.",
+          "link": "auto"
+        }
+      ]
+    },
+    {
+      "key": "decline_time_off",
+      "label": "Decline",
+      "entity": "time_off",
+      "style": "danger",
+      "placements": [
+        "recordHeader"
+      ],
+      "input": {
+        "fields": [
+          "decline_reason"
+        ],
+        "required": [
+          "decline_reason"
+        ]
+      },
+      "confirm": {
+        "title": "Decline this request?",
+        "tone": "danger",
+        "confirmLabel": "Decline"
+      },
+      "successMessage": "Time off declined.",
+      "effects": [
+        {
+          "type": "notify",
+          "to": "{{record.requested_by}}",
+          "title": "Time off declined",
+          "message": "Your time-off request was declined.",
+          "link": "auto"
+        }
+      ]
+    }
+  ],
+  "roles": [
+    {
+      "key": "employee",
+      "name": "Employee",
+      "description": "Requests time off and tracks their own requests.",
+      "grants": [
+        {
+          "entity": "time_off",
+          "create": true,
+          "read": true
+        }
+      ]
+    },
+    {
+      "key": "manager",
+      "name": "Manager",
+      "description": "Reviews pending requests and approves or declines them.",
+      "grants": [
+        {
+          "entity": "time_off",
+          "read": true,
+          "update": true,
+          "commands": [
+            "approve_time_off",
+            "decline_time_off"
+          ]
+        }
+      ]
+    },
+    {
+      "key": "admin",
+      "name": "Administrator",
+      "description": "Full access.",
+      "grants": [
+        {
+          "entity": "*",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true,
+          "commands": [
+            "*"
+          ]
+        }
+      ]
+    }
+  ],
+  "theme": {
+    "primaryColor": "#4f46e5",
+    "secondaryColor": "#0ea5e9",
+    "font": "Inter",
+    "radius": "medium",
+    "density": "comfortable"
+  }
+}

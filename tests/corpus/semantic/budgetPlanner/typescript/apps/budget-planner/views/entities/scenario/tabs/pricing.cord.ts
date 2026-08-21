@@ -1,0 +1,47 @@
+import { defineTab } from "@cord/sdk";
+
+export default defineTab({
+  key: "pricing",
+  label: "Pricing & Growth",
+  blocks: [
+    {
+      kind: "child",
+      entity: "segment",
+      via: "scenario",
+      label: "Segments",
+      childType: "table",
+      inlineEdit: true,
+      inlineCreate: true,
+      allowDelete: true,
+      fields: [
+        "name",
+        "mature_active_users",
+        "mature_shared_apps",
+        "avg_app_adoption",
+        "setup_fee",
+        "churn_pct",
+      ],
+    },
+    {
+      kind: "child",
+      entity: "acquisition",
+      via: "scenario",
+      label: "New customers by month",
+      childType: "table",
+      inlineEdit: true,
+      orderField: "month",
+      fields: ["month", "segment", "new_customers", "services_revenue"],
+    },
+    {
+      kind: "child",
+      entity: "revenue_plan",
+      via: "scenario",
+      label: "Price list",
+      childType: "table",
+      inlineEdit: true,
+      allowDelete: true,
+      inlineCreate: true,
+      fields: ["name", "tier", "monthly_base_fee", "price_per_app_user", "cap_multiplier"],
+    },
+  ],
+} as const);
