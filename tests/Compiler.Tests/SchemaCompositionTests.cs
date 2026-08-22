@@ -7,11 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>Canaries for the composed schema (schema/app-definition.schema.json is GENERATED
-/// from schema/src/ by compose.py). The composer copies def bodies verbatim, so these assert
-/// the properties a composition bug would silently destroy: the block/effect if-then const
-/// dispatch tables, the absence of <c>unevaluatedProperties</c> (it crashes this very test
-/// host), and that JsonSchema.Net still parses the artifact the gate embeds.</summary>
 public class SchemaCompositionTests
 {
     private static readonly JsonObject Schema =
@@ -22,9 +17,8 @@ public class SchemaCompositionTests
     [Fact]
     public void Embedded_schema_parses_under_JsonSchemaNet()
     {
-        // Schemas.AppDefinitionSchema is `static readonly` — touching it forces the parse.
         Assert.NotNull(Schemas.AppDefinitionSchema);
-        Assert.Equal(81, Defs.Count);   // +effect_createForEach; +deepLink; +block_orgchart; +filterBar; +groupBy; +block_board; +block_gantt; +blockSearch; +block_filterbar; +block_history; +block_answers; +block_intake; +combine; +statMax; +effect_enrich; +block_externalEmbed; +block_relatedApps; +block_create; +timeAxis
+        Assert.Equal(81, Defs.Count);
     }
 
     [Fact]
@@ -35,7 +29,7 @@ public class SchemaCompositionTests
             .Select(d => d.Key["block_".Length..])
             .OrderBy(k => k)
             .ToArray();
-        Assert.Equal(41, variantKinds.Length);   // +create (the page-level "New <record>" button)
+        Assert.Equal(41, variantKinds.Length);
 
         var dispatched = Defs["block"]!["allOf"]!.AsArray()
             .Select(branch => branch?["if"]?["properties"]?["kind"]?["const"]?.GetValue<string>())

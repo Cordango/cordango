@@ -1,0 +1,74 @@
+{
+  "name": "A comparison over blanks is false; a comparison over an unknown is unknown",
+  "why": "The sharpest distinction in the language, and the one an implementation loses by accident. A blank number reads as zero, so two blanks compare as `0 < 0` and the answer is a definite FALSE. But a comparison whose operand could not be worked out is neither true nor false, and a bare `<` on two nullables in C# answers false for both — which would make a rule keyed on 'is the balance below the threshold' fire on every record whose balance has not been computed yet.",
+  "fields": {
+    "balance": { "type": "decimal" },
+    "threshold": { "type": "decimal" },
+    "costs": { "type": "decimal" },
+    "months": { "type": "integer" }
+  },
+  "cases": [
+    {
+      "record": { "balance": 10, "threshold": 20 },
+      "expr": "balance < threshold",
+      "expect": true
+    },
+    {
+      "record": { "balance": 20, "threshold": 10 },
+      "expr": "balance < threshold",
+      "expect": false
+    },
+    {
+      "why": "Both blank. FALSE, definitely — not unknown. Both fields read as zero, and zero is not less than zero. An implementation answering null here has confused an empty field with an unworkable figure.",
+      "record": {},
+      "expr": "balance < threshold",
+      "expect": false
+    },
+    {
+      "why": "And equal, definitely, for the same reason. Two blanks are two zeros.",
+      "record": {},
+      "expr": "balance == threshold",
+      "expect": true
+    },
+    {
+      "why": "Now the other kind of missing. The balance could not be worked out, so whether it is below the threshold is UNKNOWN — not false. This is the case the whole file is for.",
+      "record": { "threshold": 20, "costs": 500, "months": 0 },
+      "expr": "(costs / months) < threshold",
+      "expect": null
+    },
+    {
+      "why": "Unknown on the right-hand side too.",
+      "record": { "balance": 10, "costs": 500, "months": 0 },
+      "expr": "balance < (costs / months)",
+      "expect": null
+    },
+    {
+      "why": "`lt` and `gt` are therefore NOT each other's negation once an unknown is involved. Both are unknown rather than one being true.",
+      "record": { "threshold": 20, "costs": 500, "months": 0 },
+      "expr": "(costs / months) > threshold",
+      "expect": null
+    },
+    {
+      "why": "Equality over an unknown is unknown as well. Two figures nobody could work out are not thereby equal.",
+      "record": { "costs": 500, "months": 0 },
+      "expr": "(costs / months) == 0",
+      "expect": null
+    },
+    {
+      "why": "The boundary is inclusive where the operator says so.",
+      "record": { "balance": 10, "threshold": 10 },
+      "expr": "balance >= threshold",
+      "expect": true
+    },
+    {
+      "record": { "balance": 10, "threshold": 10 },
+      "expr": "balance > threshold",
+      "expect": false
+    },
+    {
+      "record": { "balance": 10, "threshold": 20 },
+      "expr": "balance != threshold",
+      "expect": true
+    }
+  ]
+}

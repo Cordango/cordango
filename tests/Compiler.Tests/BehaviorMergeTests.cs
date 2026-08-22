@@ -7,11 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>BehaviorMerge: lowering the behavior pass's emission onto a frozen pure-domain
-/// definition — section copy, entityPatches → role:'status' select creation, deterministic
-/// states-as-source-of-truth normalization, and the repair-guiding issues. Plus the split
-/// pipeline's foundational gate property: a PURE domain document (no behavior plane at all)
-/// is gate-clean.</summary>
 public class BehaviorMergeTests
 {
     private static JsonNode PureDomain() => JsonNode.Parse("""
@@ -69,14 +64,14 @@ public class BehaviorMergeTests
         Assert.Empty(issues);
         Assert.Single(merged["processes"]!.AsArray());
         Assert.Single(merged["commands"]!.AsArray());
-        Assert.Null(merged["entityPatches"]);   // authoring-only, never stored
+        Assert.Null(merged["entityPatches"]);
 
         var stage = Field(merged, "ticket", "stage");
         Assert.NotNull(stage);
         Assert.Equal("select", stage!["type"]!.GetValue<string>());
         Assert.Equal("status", stage["role"]!.GetValue<string>());
         Assert.Equal("Stage", stage["label"]!.GetValue<string>());
-        Assert.Null(stage["options"]);   // the process's states ARE the options
+        Assert.Null(stage["options"]);
 
         Assert.Empty(Gate.Validate(merged));
     }
@@ -84,8 +79,6 @@ public class BehaviorMergeTests
     [Fact]
     public void A_domain_authored_select_is_normalized_to_process_governance()
     {
-        // The domain pass leaked a stage select WITH options and a default — the merge strips
-        // both deterministically instead of burning a repair round on the gate error.
         var domain = PureDomain();
         (Entity(domain, "ticket")["fields"] as JsonArray)!.Add(JsonNode.Parse("""
             { "key": "stage", "label": "Stage", "type": "select", "default": "open",
@@ -122,7 +115,7 @@ public class BehaviorMergeTests
     public void Patch_targeting_a_non_select_field_is_an_issue()
     {
         var behavior = Behavior();
-        behavior["entityPatches"]![0]!["statusField"]!["key"] = "subject";   // a text field
+        behavior["entityPatches"]![0]!["statusField"]!["key"] = "subject";
         BehaviorMerge.Apply(PureDomain(), behavior, out var issues);
         Assert.Contains(issues, i => i.Contains("not a 'select'"));
     }
@@ -140,7 +133,7 @@ public class BehaviorMergeTests
     public void A_process_governing_a_missing_field_gets_an_entityPatches_hint()
     {
         var behavior = Behavior();
-        behavior.AsObject().Remove("entityPatches");   // process still names stateField 'stage'
+        behavior.AsObject().Remove("entityPatches");
         BehaviorMerge.Apply(PureDomain(), behavior, out var issues);
         Assert.Contains(issues, i => i.Contains("entityPatches") && i.Contains("stage"));
     }

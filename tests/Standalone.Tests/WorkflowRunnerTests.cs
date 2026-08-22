@@ -15,14 +15,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// What a workflow does when a record is written, and — more importantly — what it does not do.
-///
-/// <para>Every test here is a rule that is invisible until it is wrong. A <c>field.changed</c>
-/// workflow that fires on every save rewrites values people corrected by hand; a <c>setIfEmpty</c>
-/// that does not check overwrites the stamp it was meant to protect; a rule that writes a field the
-/// value it already holds turns two harmless workflows into a loop.</para>
-/// </summary>
 public class WorkflowRunnerTests
 {
     [Fact]
@@ -39,13 +31,6 @@ public class WorkflowRunnerTests
         Assert.Equal("moved", (await world.Store.FindAsync(widget.Id, default))!.Note);
     }
 
-    /// <summary>
-    /// Writing a field the value it already has is not a change.
-    ///
-    /// <para>Saving a form resends every field. A workflow keyed on <c>field.changed</c> that fired
-    /// on every save would rewrite the probability somebody had just corrected by hand — and the
-    /// person would watch their edit vanish with nothing to explain it.</para>
-    /// </summary>
     [Fact]
     public async Task A_field_changed_workflow_does_not_fire_when_the_value_was_merely_rewritten()
     {
@@ -75,9 +60,6 @@ public class WorkflowRunnerTests
         Assert.Equal("big", (await world.Store.FindAsync(big.Id, default))!.Note);
     }
 
-    /// <summary>
-    /// <c>setIfEmpty</c> is what makes "stamp the first reply" mean the FIRST one.
-    /// </summary>
     [Fact]
     public async Task Set_if_empty_leaves_a_value_that_is_already_there()
     {
@@ -91,8 +73,6 @@ public class WorkflowRunnerTests
         Assert.Equal("written by hand", (await world.Store.FindAsync(widget.Id, default))!.Note);
     }
 
-    /// <summary>The token grammar reaches effects: a workflow can copy from the record that
-    /// triggered it, and can stamp who did it.</summary>
     [Fact]
     public async Task An_effect_fills_its_tokens_from_the_record_and_the_actor()
     {
@@ -105,13 +85,6 @@ public class WorkflowRunnerTests
         Assert.Equal("thing by tester", (await world.Store.FindAsync(widget.Id, default))!.Note);
     }
 
-    /// <summary>
-    /// Two workflows that write to each other terminate, rather than running until the request dies.
-    ///
-    /// <para>Completing at all is the assertion. Bounded by depth, and caught earlier than that by
-    /// the no-op rule — an effect writing a field the value it already holds is skipped entirely,
-    /// which makes the commonest accidental cycle impossible rather than merely finite.</para>
-    /// </summary>
     [Fact]
     public async Task Two_workflows_writing_to_each_other_terminate()
     {
@@ -128,19 +101,6 @@ public class WorkflowRunnerTests
         Assert.NotNull(await world.Store.FindAsync(widget.Id, default));
     }
 
-    /// <summary>
-    /// Both workflows read the record as the WRITE left it, not as the workflow before them left it.
-    ///
-    /// <para>The rule, stated as a test because it is the one place a reader would otherwise have to
-    /// infer it. <c>copy_name</c> writes the name into the note; <c>copy_note</c> writes the note
-    /// into a third field. Under a shared snapshot <c>copy_note</c> reads the note as it was — blank
-    /// — so the two rules do not depend on which is listed first.</para>
-    ///
-    /// <para>The alternative, re-reading between workflows, reads as more helpful and is worse: two
-    /// rules written independently by two people would silently depend on their order in a file
-    /// neither of them chose. Chaining is still expressible, and more honestly — a workflow's write
-    /// raises its own event, and the rule that wants the new value watches for THAT.</para>
-    /// </summary>
     [Fact]
     public async Task A_workflow_does_not_see_what_the_workflow_before_it_wrote()
     {
@@ -153,17 +113,9 @@ public class WorkflowRunnerTests
         var widget = await world.Store.CreateAsync(new Widget { Name = "a", Amount = 1 }, default);
         var after = await world.Store.FindAsync(widget.Id, default);
 
-        // The note was blank when the batch started, so the second workflow saw a blank — not "a".
         Assert.Equal("seen:", after!.Name);
     }
 
-    /// <summary>
-    /// A date range laid out as records — twelve months of a plan — and laid out ONCE.
-    ///
-    /// <para>The second save is the whole point. A record gets written more than once in its life,
-    /// and a grid builder without a key would lay the months out again on top of themselves: a plan
-    /// asked for three months would quietly end up with six, and nobody would see an error.</para>
-    /// </summary>
     [Fact]
     public async Task A_range_lays_out_one_record_per_step_and_only_once()
     {
@@ -185,7 +137,6 @@ public class WorkflowRunnerTests
         Assert.Equal(["month-1", "month-2", "month-3"], laid.Select(w => w.Name));
         Assert.Equal(["2026-01-01", "2026-02-01", "2026-03-01"], laid.Select(w => w.Note));
 
-        // Trigger it again. The key says these rows exist, so nothing is created.
         await world.Store.CreateAsync(new Widget { Name = "plan again", Amount = 2 }, default);
 
         Assert.Equal(3, world.Store.Query().Count(w => w.Name!.StartsWith("month-")));
@@ -214,8 +165,6 @@ public class WorkflowRunnerTests
 
             var ids = new GuidRecordIdGenerator();
 
-            // The runner needs a writer for the entity, and the writer needs the store the hook
-            // writes through — so the store is built first with a hook that reaches back for it.
             var runner = new Lazy<WorkflowRunner>(() => new WorkflowRunner(
                 new AppWorkflowCatalogue(workflows),
                 [new EntityWriter<Widget>(Store!)],
@@ -234,14 +183,6 @@ public class WorkflowRunnerTests
         public ValueTask DisposeAsync() => Db.DisposeAsync();
     }
 
-    /// <summary>
-    /// Stands in for the container, resolving the runner only when a write asks for it.
-    ///
-    /// <para>The same deferral <see cref="WorkflowHook{T}"/> relies on, and for the same reason: a
-    /// workflow writes through stores and every store notifies workflows, so the graph is a ring
-    /// and something has to be fetched late. Needing this here was the first sign of it; the
-    /// container refusing to build the ring at startup was the second.</para>
-    /// </summary>
     private sealed class LazyHook(Lazy<WorkflowRunner> runner, RecordDescriptor<Widget> descriptor)
         : IAfterCreate<Widget>, IAfterUpdate<Widget>, IServiceProvider
     {

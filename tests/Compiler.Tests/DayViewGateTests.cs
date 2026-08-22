@@ -7,15 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The day view's two invariants, both about a surface that would LOOK broken rather than
-/// misconfigured if they were only conventions.
-///
-/// <para>A day view rules an hour axis. Anchored on a plain <c>date</c> there is no time of day to
-/// place anything at, so every record piles onto hour zero. And an axis whose end is not after its
-/// start has no height to draw into, so it renders as an empty box. Neither reads as "the author
-/// wrote something wrong", which is exactly why the gate has to say so instead.</para>
-/// </summary>
 public class DayViewGateTests
 {
     private static JsonObject Definition(JsonObject calendarBlock, string startType = "datetime")
@@ -75,7 +66,6 @@ public class DayViewGateTests
     [Fact]
     public void The_other_ranges_are_still_fine_over_a_plain_date()
     {
-        // Only the HOUR axis needs a time. A month grid over a due date is the original use.
         foreach (var range in new[] { "week", "month", "year" })
         {
             var errors = Errors(Calendar(("range", range)), startType: "date");

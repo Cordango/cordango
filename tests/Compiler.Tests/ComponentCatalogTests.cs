@@ -10,8 +10,6 @@ using Json.Schema;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The catalog is a contract three consumers depend on (generator/gate/renderer); these
-/// tests guard its well-formedness so a malformed entry can't silently ship.</summary>
 public class ComponentCatalogTests
 {
     [Fact]
@@ -36,7 +34,7 @@ public class ComponentCatalogTests
     {
         foreach (var c in ComponentCatalog.All)
         {
-            var schema = JsonSchema.FromText(c.ConfigSchema.ToJsonString());   // throws if not valid JSON Schema
+            var schema = JsonSchema.FromText(c.ConfigSchema.ToJsonString());
             Assert.Equal("object", c.ConfigSchema["type"]?.GetValue<string>());
             Assert.NotNull(schema);
         }
@@ -45,8 +43,6 @@ public class ComponentCatalogTests
     [Fact]
     public void Config_schemas_are_enforceable_additionalProperties_false()
     {
-        // A representative schema must reject unknown keys and accept a valid config — proving the
-        // gate will actually be able to validate component config against these schemas.
         var table = JsonSchema.FromText(ComponentCatalog.Find("view.table")!.ConfigSchema.ToJsonString());
         Assert.False(table.Evaluate(Json("""{ "bogus": true }""")).IsValid);
         Assert.True(table.Evaluate(Json("""{ "columns": ["name", "stage"], "density": "compact" }""")).IsValid);
@@ -58,7 +54,6 @@ public class ComponentCatalogTests
         var metric = JsonSchema.FromText(ComponentCatalog.Find("widget.metric")!.ConfigSchema.ToJsonString());
         Assert.True(metric.Evaluate(Json("""{ "type": "metric", "source": { "entity": "order", "aggregate": { "op": "sum", "field": "total" } } }""")).IsValid);
         Assert.False(metric.Evaluate(Json("""{ "type": "metric", "source": { "entity": "order", "aggregate": { "op": "bogus" } } }""")).IsValid);
-        // the discriminator is REQUIRED — a typeless widget is rejected
         Assert.False(metric.Evaluate(Json("""{ "source": { "entity": "order", "aggregate": { "op": "count" } } }""")).IsValid);
     }
 
@@ -95,8 +90,6 @@ public class ComponentCatalogTests
     [Fact]
     public void Board_requires_a_groupable_field_not_specifically_a_status()
     {
-        // A board groups by ANY discrete field: a process status OR an assignment field (station,
-        // office, owner). Requiring role:'status' ruled out assignment boards — the same control.
         var board = ComponentCatalog.Find("view.kanban");
         Assert.NotNull(board);
         var shapes = board!.Requires?.DataShape ?? [];
@@ -137,7 +130,6 @@ public class ComponentCatalogTests
         Assert.Equal(ComponentCatalog.Version, json["version"]!.GetValue<string>());
         var emittedIds = ((JsonArray)json["components"]!).Select(c => c!["id"]!.GetValue<string>()).ToHashSet();
         Assert.Equal(ComponentCatalog.All.Select(c => c.Id).ToHashSet(), emittedIds);
-        // tiers emit as lowercase strings; requires/module survive emission
         var aiAssistant = ((JsonArray)json["components"]!).First(c => c!["id"]!.GetValue<string>() == "capability.ai_assistant")!;
         Assert.Equal("capability", aiAssistant["tier"]!.GetValue<string>());
         Assert.Equal("ai", aiAssistant["requires"]!["module"]!.GetValue<string>());

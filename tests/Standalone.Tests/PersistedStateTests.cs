@@ -7,23 +7,6 @@ using Cordango.SourceGen.DotNetVue;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// What a rebuild must not take with it.
-///
-/// <para>A generated application writes two things outside its database: uploaded files, and the
-/// data protection key ring its session and antiforgery cookies are signed with. ASP.NET Core keeps
-/// the second in the user's home directory by default — which, in a container, is INSIDE the
-/// container. Everything works until the image is rebuilt, and then everybody is signed out and the
-/// first POST from an already-open tab comes back "your session token is out of date". Nothing logs
-/// an error, because nothing went wrong: the keys those cookies were written with no longer
-/// exist.</para>
-///
-/// <para>Three files have to agree for that not to happen, and they are the kind of three that drift:
-/// the host chooses a path, the image creates it, the compose file puts a volume over it. The
-/// original bug was exactly a disagreement of this shape — the volume was mounted at
-/// <c>/appdata/media</c>, so anything else written under <c>/appdata</c> was never persisted at
-/// all.</para>
-/// </summary>
 public class PersistedStateTests
 {
     private static readonly IReadOnlyDictionary<string, string> Files =
@@ -38,9 +21,6 @@ public class PersistedStateTests
         Assert.Contains("Storage:Keys", program, StringComparison.Ordinal);
         Assert.Contains("PersistKeysToFileSystem", program, StringComparison.Ordinal);
 
-        // The application name is part of the purpose string every protected value carries, and it
-        // defaults to the content root PATH — so without this, running the same application from a
-        // different directory invalidates every cookie for no visible reason.
         Assert.Contains("SetApplicationName", program, StringComparison.Ordinal);
     }
 
@@ -54,13 +34,6 @@ public class PersistedStateTests
         Assert.Contains("Storage__Keys=/appdata/keys", dockerfile, StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// The volume covers everything the image writes, not one directory inside it.
-    ///
-    /// <para>This is the assertion that would have caught the original bug. A mount at
-    /// <c>/appdata/media</c> persists uploads and silently discards anything else put under
-    /// <c>/appdata</c> — which reads as correct right up until something else is put there.</para>
-    /// </summary>
     [Fact]
     public void The_volume_covers_everything_the_image_writes()
     {

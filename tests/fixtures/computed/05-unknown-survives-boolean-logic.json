@@ -1,0 +1,96 @@
+{
+  "name": "An unknown figure stays unknown through and, or, not and equality",
+  "why": "The rule the rest of the arithmetic was already following and the boolean operators were not. `Compare` answers null for a comparison it cannot make, and every boolean operator used to coerce that straight back to false — so `not ((a / b) < 1)` on a record with a blank divisor answered TRUE, having quietly decided that a figure nobody could work out was below the threshold. A guard reading that would fire on every uncomputed row.",
+  "fields": {
+    "balance": { "type": "decimal" },
+    "threshold": { "type": "decimal" },
+    "costs": { "type": "decimal" },
+    "months": { "type": "integer" },
+    "active": { "type": "boolean" },
+    "archived": { "type": "boolean" }
+  },
+  "cases": [
+    {
+      "why": "First, the thing that is NOT unknown. A blank boolean field is FALSE, exactly as a blank number is zero. Only a figure that could not be worked out is unknown, and an empty checkbox was worked out fine.",
+      "record": {},
+      "expr": "active and archived",
+      "expect": false
+    },
+    {
+      "record": {},
+      "expr": "active or archived",
+      "expect": false
+    },
+    {
+      "record": {},
+      "expr": "not active",
+      "expect": true
+    },
+    {
+      "why": "Two blank checkboxes are equal, because both are definitely false.",
+      "record": {},
+      "expr": "active == archived",
+      "expect": true
+    },
+    {
+      "why": "Now the unknown. The balance could not be worked out, so whether it is below the threshold is unknown — this is the case every one below is built on.",
+      "record": { "threshold": 20, "costs": 500, "months": 0 },
+      "expr": "(costs / months) < threshold",
+      "expect": null
+    },
+    {
+      "why": "Negating something nobody knows still leaves nobody knowing it. This answered TRUE before.",
+      "record": { "threshold": 20, "costs": 500, "months": 0 },
+      "expr": "not ((costs / months) < threshold)",
+      "expect": null
+    },
+    {
+      "why": "AND with a true: the unknown decides the answer, so the answer is unknown.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": true },
+      "expr": "((costs / months) < threshold) and active",
+      "expect": null
+    },
+    {
+      "why": "AND with a false: FALSE, definitely. This is why three-valued logic is worth having rather than refusing the whole expression — the unknown cannot change the answer, so the answer is still known.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": false },
+      "expr": "((costs / months) < threshold) and active",
+      "expect": false
+    },
+    {
+      "why": "OR with a true: TRUE, definitely, and the mirror of the case above.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": true },
+      "expr": "((costs / months) < threshold) or active",
+      "expect": true
+    },
+    {
+      "why": "OR with a false: the unknown decides it again.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": false },
+      "expr": "((costs / months) < threshold) or active",
+      "expect": null
+    },
+    {
+      "why": "Two unknowns are not equal — they are two things nobody knows. Answering TRUE here is C#'s lifted equality on `bool?`, which is two-valued logic wearing a nullable type.",
+      "record": { "threshold": 20, "costs": 500, "months": 0 },
+      "expr": "((costs / months) < threshold) == ((costs / months) < threshold)",
+      "expect": null
+    },
+    {
+      "why": "And inequality against a known boolean is unknown for the same reason.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": true },
+      "expr": "((costs / months) < threshold) != active",
+      "expect": null
+    },
+    {
+      "why": "An unknown nested two deep still comes out. Nothing along the way is entitled to decide it.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": true },
+      "expr": "not (((costs / months) < threshold) and active)",
+      "expect": null
+    },
+    {
+      "why": "But a definite answer that came THROUGH an unknown stays definite. `and false` settles it, and negating a settled false is a settled true.",
+      "record": { "threshold": 20, "costs": 500, "months": 0, "active": false },
+      "expr": "not (((costs / months) < threshold) and active)",
+      "expect": true
+    }
+  ]
+}

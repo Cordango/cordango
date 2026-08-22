@@ -8,24 +8,8 @@ using Cordango.Cord;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// Screens Cord could not raise into operations, and what it can still say about them.
-///
-/// <para><b>The defect, in full.</b> An imported app whose pages cannot round-trip keeps them
-/// verbatim in the raw remainder, and <see cref="CordImport"/> claims none of them — correctly, since
-/// a partially claimed page array cannot round-trip. But it refused WORDLESSLY, and the consequence
-/// landed three layers away: the outline showed no screens at all, inspect had no path to one, and
-/// the review phase then asked a model to revise a screen it could not read. Live on Budget Planner
-/// (10 pages, 12 views), where Cord replied that it had no record of what "Funding &amp; Runway"
-/// contained and was blamed for it.</para>
-///
-/// <para>Preserved is not editable, and nothing here pretends otherwise. It is readable, which is
-/// what a conversation about a screen needs.</para>
-/// </summary>
 public class CordPreservedScreenTests
 {
-    /// <summary>A page whose view belongs to no page — the shape that makes the importer refuse
-    /// everything, and the shape Budget Planner arrived in.</summary>
     private static JsonObject Imported() => JsonNode.Parse("""
     {
       "key":"budget_planner","name":"Budget Planner","version":"1.0.0",
@@ -51,16 +35,11 @@ public class CordPreservedScreenTests
     {
         var app = App();
 
-        // Unchanged behaviour: all-or-nothing, and this app is nothing.
         Assert.Null(app.Screens);
-        // But the pages are still there, which is what makes them describable.
         Assert.NotNull(app.Raw?["pages"]);
         Assert.NotNull(app.Raw?["views"]);
     }
 
-    /// <summary>Describing must not consume what it describes. The refusal is worked out by running
-    /// the import again, and that import CLAIMS the arrays as it goes — on the app's own remainder it
-    /// would delete the very pages the message is about.</summary>
     [Fact]
     public void Describing_a_preserved_screen_does_not_swallow_it()
     {
@@ -71,7 +50,6 @@ public class CordPreservedScreenTests
 
         Assert.NotNull(app.Raw?["pages"]);
         Assert.NotNull(app.Raw?["views"]);
-        // And it still reads the same the second time.
         Assert.Contains("Funding & Runway", CordInspect.Describe(app, "/screens/funding"));
     }
 
@@ -82,7 +60,6 @@ public class CordPreservedScreenTests
 
         Assert.Contains("Funding & Runway", outline);
         Assert.Contains("preserved from the imported app", outline);
-        // The reason is on the page a reader is already looking at, not in a log they will not open.
         Assert.Contains("orphaned__nobody", outline);
         Assert.Contains("/screens/<key>", outline);
     }
@@ -94,11 +71,9 @@ public class CordPreservedScreenTests
 
         Assert.Contains("Funding & Runway", screen);
         Assert.Contains("about funding_round", screen);
-        // Every block on it, including the ones nested inside a row.
         Assert.Contains("Cash today", screen);
         Assert.Contains("a table of funding_round — Rounds", screen);
         Assert.Contains("Runway assumes the current burn.", screen);
-        // And it is honest about what can be done with it.
         Assert.Contains("cannot be edited", screen);
     }
 
@@ -111,8 +86,6 @@ public class CordPreservedScreenTests
         Assert.Contains("funding", answer);
     }
 
-    /// <summary>A screen Cord DID raise reads from the model, not from the remainder — the preserved
-    /// path is the fallback, never the primary.</summary>
     [Fact]
     public void A_raised_screen_is_described_from_the_operations_that_made_it()
     {

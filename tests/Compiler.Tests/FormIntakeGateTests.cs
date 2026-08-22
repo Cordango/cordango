@@ -7,20 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The INTAKE half of the Forms archetype: a form whose submission is projected into a real record,
-/// and the two surfaces that expose it (<c>intake</c> — pick a form and file something;
-/// <c>answers</c> — what the requester said, shown on the record it filed).
-///
-/// <para>Only the SHAPE is checkable here, and that split is the point: which entity a template
-/// targets and which field each question fills are runtime data an ordinary user configures in the
-/// designer, so the gate validates the declarations and the submit endpoint validates the data.
-/// These tests pin the line between the two.</para>
-/// </summary>
 public class FormIntakeGateTests
 {
-    /// <summary>A helpdesk-shaped intake app: the four Forms roles, plus the ticket a submission
-    /// files. `form.route_to` carries routing; `question.fills` carries per-answer mapping.</summary>
     private static JsonObject IntakeApp() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "2.0", "key": "desk", "name": "Desk", "version": "1.0.0",
@@ -72,8 +60,6 @@ public class FormIntakeGateTests
     [Fact]
     public void A_complete_intake_app_passes() => Assert.Empty(Gate.Validate(IntakeApp()));
 
-    // --- the declarations ---------------------------------------------------------------------
-
     [Fact]
     public void TargetEntity_belongs_on_the_template()
     {
@@ -105,7 +91,7 @@ public class FormIntakeGateTests
     public void Routing_without_a_target_is_dead_weight_and_says_so()
     {
         var doc = IntakeApp();
-        Field(doc, "form", "creates").Remove("role");   // the template can no longer name what it creates
+        Field(doc, "form", "creates").Remove("role");
         var errors = Gate.SemanticErrors(doc);
         Assert.Contains(errors, e => e.Contains("routes fields with 'mapsTo'") && e.Contains("nothing to route them onto"));
         Assert.Contains(errors, e => e.Contains("formField 'question' maps answers onto a target entity"));
@@ -119,8 +105,6 @@ public class FormIntakeGateTests
         Assert.Contains(Gate.SemanticErrors(doc), e =>
             e.Contains("'form.name' has role 'mapsTo'") && e.Contains("belongs on a formField"));
     }
-
-    // --- the answers block (record binding) ----------------------------------------------------
 
     [Fact]
     public void Answers_block_resolves_its_link_to_the_submission()
@@ -151,8 +135,6 @@ public class FormIntakeGateTests
     public void Answers_block_needs_the_record_to_link_to_a_submission_at_all()
     {
         var doc = IntakeApp();
-        // A ticket nobody can trace back to a form has no answers to show, and saying so at author
-        // time beats an empty panel nobody can explain.
         ((JsonArray)Entity(doc, "ticket")["fields"]!).RemoveAt(2);
         SetTicketDetail(doc, """[{ "kind": "answers" }]""");
         Assert.Contains(Gate.SemanticErrors(doc), e =>
@@ -181,8 +163,6 @@ public class FormIntakeGateTests
         Assert.Contains(Gate.SemanticErrors(doc), e =>
             e.Contains("block kind 'answers' is only valid in a record detail"));
     }
-
-    // --- the intake block (collection binding) -------------------------------------------------
 
     [Fact]
     public void Intake_block_offers_the_apps_forms()

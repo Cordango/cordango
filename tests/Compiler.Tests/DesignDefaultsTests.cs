@@ -8,9 +8,6 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>Deterministic completion of a finished design. Every case here is drawn from the
-/// 2026-08-02 MeetingPrep app, whose home page had a New button and a planned calendar and rendered
-/// neither, because both sat behind a screen-state toggle that was false when the page loaded.</summary>
 public class DesignDefaultsTests
 {
     private static JsonObject Domain() => (JsonObject)JsonNode.Parse("""
@@ -28,8 +25,6 @@ public class DesignDefaultsTests
     }
     """)!;
 
-    /// <summary>The shipped shape: `mode` defaults to "week", and the only surface that could create
-    /// a meeting is the table view behind `mode == "list"`.</summary>
     private static JsonObject MergedWithHiddenList() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "1.0", "key": "app", "name": "App", "version": "1.0.0",
@@ -77,13 +72,9 @@ public class DesignDefaultsTests
     private static JsonObject PageOf(JsonObject merged) =>
         merged["pages"]!.AsArray().OfType<JsonObject>().First();
 
-    // ---- create path ----------------------------------------------------------------------------
-
     [Fact]
     public void An_app_with_no_create_path_anywhere_gets_one()
     {
-        // The floor. Strip the only surface that could create a meeting and the app becomes a
-        // read-only viewer over records nobody can add.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""
             [ { "kind": "view", "view": "calendar" } ]
@@ -100,9 +91,6 @@ public class DesignDefaultsTests
     [Fact]
     public void A_calendar_only_page_cannot_create_and_is_treated_as_such()
     {
-        // Not a technicality: BlockRenderer wires calendar/timeline/dashboard views to `open` only,
-        // never to `create`. A page whose sole surface is a calendar genuinely has no create path,
-        // which is precisely the surface a scheduling app reaches for.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""[ { "kind": "view", "view": "calendar" } ]""");
 
@@ -112,8 +100,6 @@ public class DesignDefaultsTests
     [Fact]
     public void A_table_gets_its_own_New_button_rather_than_a_stray_one()
     {
-        // Switching on the list's own button reads as part of the list; a separate button above it
-        // would be a second affordance for the same thing.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""
             [ { "kind": "table", "source": { "entity": "meeting" }, "fields": ["title"] } ]
@@ -130,11 +116,6 @@ public class DesignDefaultsTests
     [Fact]
     public void A_create_path_behind_a_tab_or_toggle_still_counts()
     {
-        // Deliberate, and the corpus forced it: sales-crm parks the activity table in a THIRD tab.
-        // A tab and a segmented toggle are the same affordance — one labelled click — so calling one
-        // reachable and the other not would be a distinction with no basis in what a user can do.
-        // The cost is that this fill alone does not answer "the default surface has no New button";
-        // doctrine does.
         var merged = MergedWithHiddenList();
         var before = merged.ToJsonString();
 
@@ -164,7 +145,6 @@ public class DesignDefaultsTests
         PageOf(merged)["blocks"] = JsonNode.Parse("""
             [ { "kind": "text", "value": "Welcome" } ]
             """);
-        // No plan, so the primary view is not placed either — the page really shows nothing.
         Assert.DoesNotContain(DesignDefaults.Apply(Domain(), plan: null, merged),
             n => n.Contains("create path"));
     }
@@ -172,8 +152,6 @@ public class DesignDefaultsTests
     [Fact]
     public void Creating_is_an_app_wide_property_not_a_per_page_one()
     {
-        // sales-crm's "My Day" lists deals and deliberately has NO New button, because the Deals
-        // page owns creating them. Asking the question per page rewrites apps like that.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""[ { "kind": "view", "view": "calendar" } ]""");
         ((JsonArray)merged["pages"]!).Add(JsonNode.Parse("""
@@ -204,13 +182,9 @@ public class DesignDefaultsTests
             n => n.Contains("create path"));
     }
 
-    // ---- primary view placement -----------------------------------------------------------------
-
     [Fact]
     public void A_page_rendering_none_of_its_planned_views_gets_its_primary_placed()
     {
-        // The calendar the plan made this page's first surface, the domain declared correctly, and
-        // the screen designer replaced with a hand-rolled grid it never linked back to.
         var merged = MergedWithHiddenList();
         DesignDefaults.Apply(Domain(), Plan(), merged);
 
@@ -225,8 +199,6 @@ public class DesignDefaultsTests
     [Fact]
     public void A_page_showing_a_planned_view_keeps_the_author_s_choice()
     {
-        // "Planned" is not "mandatory": a page that renders one planned view and omits another has
-        // made a decision. Only a page showing NONE of them is broken.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""[ { "kind": "view", "view": "list" } ]""");
 
@@ -239,8 +211,6 @@ public class DesignDefaultsTests
     [Fact]
     public void Only_the_first_tab_counts_as_visible_for_view_placement()
     {
-        // Placement asks what is on screen at load, and a surface behind a tab is not. (The create
-        // floor asks a different question — see A_create_path_behind_a_tab_or_toggle_still_counts.)
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""
             [ { "kind": "tabs", "tabs": [
@@ -255,8 +225,6 @@ public class DesignDefaultsTests
     [Fact]
     public void Completion_without_a_plan_still_guarantees_the_create_floor()
     {
-        // Refinement and imported apps have no plan document. The create floor reads the definition
-        // alone, so it still holds; only primary-view placement needs the plan's priority order.
         var merged = MergedWithHiddenList();
         PageOf(merged)["blocks"] = JsonNode.Parse("""[ { "kind": "view", "view": "calendar" } ]""");
 
@@ -278,8 +246,6 @@ public class DesignDefaultsTests
     }
 }
 
-/// <summary>Completion must be invisible on documents that were already whole — a fill is a repair,
-/// never a house style imposed on hand-authored apps.</summary>
 public class DesignDefaultsCorpusTests
 {
     [Theory]

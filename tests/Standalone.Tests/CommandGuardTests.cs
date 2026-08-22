@@ -10,21 +10,8 @@ using Cordango.SourceGen.DotNetVue;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// A command's guard reaches the generated application.
-///
-/// <para>The evaluator is pinned by the shared fixtures and the emitter is pinned by its own tests.
-/// This is the join: a definition that says "do not offboard somebody who already left" produces an
-/// application whose command carries that condition. Without it, both halves could be perfect and
-/// the generator could still forget to pass the guard along — which is exactly the state this was in
-/// before, reported as CORD2304 and generated as nothing.</para>
-/// </summary>
 public class CommandGuardTests
 {
-    /// <summary>
-    /// <c>people-hr</c> guards two commands with the same condition: an employee who is already
-    /// <c>alumni</c> cannot be offboarded again.
-    /// </summary>
     [Fact]
     public void A_guard_in_the_definition_becomes_a_guard_in_the_catalogue()
     {
@@ -37,20 +24,12 @@ public class CommandGuardTests
             StringComparison.Ordinal);
     }
 
-    /// <summary>A command with no guard says so, rather than carrying an always-true condition that
-    /// somebody would then have to read to discover means nothing.</summary>
     [Fact]
     public void A_command_with_no_guard_carries_none()
     {
         Assert.Contains("When: null)", Generated("expenses", "api/Commands/AppCommands.cs"), StringComparison.Ordinal);
     }
 
-    /// <summary>
-    /// The guard is gone from the not-yet-emitted list.
-    ///
-    /// <para>A diagnostic that outlives the gap it described is worse than none: it teaches whoever
-    /// reads the build output to ignore that code, and the next real one goes with it.</para>
-    /// </summary>
     [Theory]
     [InlineData("people-hr")]
     [InlineData("ventures")]

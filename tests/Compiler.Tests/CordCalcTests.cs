@@ -11,24 +11,9 @@ using Xunit.Abstractions;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The calculation grammar — the reason to believe the whole idea works.
-///
-/// <para>A rollup is the most mechanical thing in the App Definition and the place a model is most
-/// likely to be valid-but-wrong. The author has to decide four things that are all about the schema
-/// rather than the business: which reference joins the two records, whether it is a direct or a
-/// sibling aggregation, which side of the relationship each date lives on, and which of two window
-/// spellings to use. Three of those four disappear here, and the tests below are what say so.</para>
-///
-/// <para>If this does not hold, stop. Everything after it is a bet on a layer that could not carry the
-/// one construct it was designed for.</para>
-/// </summary>
 public class CordCalcTests(ITestOutputHelper output)
 {
-    // ---- the six shapes, worked ------------------------------------------------------------------
 
-    /// <summary>A budget scenario: periods and the rows that contribute to them. Enough structure for
-    /// `via` to be inferable and for both window directions to be expressible.</summary>
     private static CordApp Model(params CordField[] periodFields) => new(
         Key: "budget",
         Entities:
@@ -71,15 +56,6 @@ public class CordCalcTests(ITestOutputHelper output)
         return f["computed"]!;
     }
 
-    /// <summary>
-    /// SPANNING / DATE — the shape budget-planner's payroll is built from, and the one the schema
-    /// spends seven hundred characters explaining.
-    ///
-    /// <para>Note what the author did NOT write: <c>via</c> (derived — hiring_line's only reference to
-    /// scenario), and the fact that <c>from</c>/<c>to</c> live on the aggregated row while
-    /// <c>against</c> lives on this one. <c>match</c> is implied by <c>over</c> naming a reference
-    /// rather than <c>"mine"</c>.</para>
-    /// </summary>
     [Fact]
     public void A_spanning_window_over_siblings_lowers_to_the_full_rollup_machinery()
     {
@@ -92,15 +68,6 @@ public class CordCalcTests(ITestOutputHelper output)
             Computed(app, "period", "payroll_cost").ToJsonString());
     }
 
-    /// <summary>
-    /// SPANNING / NUMBER — <b>byte-for-byte the same Cord shape</b>, only the field names differ.
-    ///
-    /// <para>This is the single strongest argument for a structured aggregate over a string grammar. A
-    /// string would have been tempted to spell a month index and a calendar date differently, and then
-    /// "the months this hire covers" and "the first six periods" — the same question at two scales —
-    /// would have needed two spellings and two sets of rules. Here the types decide, and the gate
-    /// already enforces that a window compares like with like.</para>
-    /// </summary>
     [Fact]
     public void A_numeric_window_needs_no_different_syntax_from_a_date_window()
     {
@@ -112,8 +79,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.Equal("""{"from":"start_month","to":"end_month","against":"sequence"}""", window.ToJsonString());
     }
 
-    /// <summary>DATED — a round landing inside the period it closes in. The other direction, and the
-    /// variant name is the only thing that had to change.</summary>
     [Fact]
     public void A_dated_window_lowers_to_at_and_within()
     {
@@ -126,8 +91,6 @@ public class CordCalcTests(ITestOutputHelper output)
             Computed(app, "period", "funding_in")["rollup"]!["window"]!.ToJsonString());
     }
 
-    /// <summary>An open bound stays open. An unfinished hire is still on the payroll — the absence has
-    /// to survive lowering, not become an exclusion.</summary>
     [Fact]
     public void An_open_bound_lowers_as_absent_rather_than_as_a_limit()
     {
@@ -139,8 +102,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.False(window.ContainsKey("to"));
     }
 
-    /// <summary>The common case — 33 of the corpus's 45 aggregates. A parent totalling its own
-    /// children says so in one word and gets no <c>match</c> at all.</summary>
     [Fact]
     public void The_plain_parent_case_is_one_word()
     {
@@ -159,8 +120,6 @@ public class CordCalcTests(ITestOutputHelper output)
             Computed(app, "invoice", "total").ToJsonString());
     }
 
-    /// <summary>An expression is handed through untouched. <c>ComputedExpr</c> already owns this
-    /// grammar, <c>prev()</c> included, and a second one here would be a regression.</summary>
     [Fact]
     public void An_expression_passes_through_verbatim()
     {
@@ -169,30 +128,10 @@ public class CordCalcTests(ITestOutputHelper output)
 
         var computed = (JsonObject)Computed(app, "period", "cash_end");
 
-        // Compared as a VALUE, not as serialized text: the default encoder escapes `+` to +, so a
-        // string comparison here would fail on an expression that round-trips perfectly. The hash
-        // tests get this right for free by serializing both sides the same way.
         Assert.Equal(expr, (string?)computed["expr"]);
         Assert.False(computed.ContainsKey("rollup"));
     }
 
-    // ---- inference, and its refusal --------------------------------------------------------------
-
-    /// <summary>
-    /// The census: <c>via</c> is uniquely derivable for EVERY aggregate in the corpus.
-    ///
-    /// <para>50 of 50 — measured, not hoped. That is what makes it right to take the property away
-    /// from the author rather than merely default it: there was never a decision there, only a lookup
-    /// they could get wrong. The floor is the exact count, not a percentage, so a regression names
-    /// itself.</para>
-    ///
-    /// <para>Restated three times on 2026-08-19 as the budget planner's revenue model was rebuilt
-    /// from the Liquiditaetsplan: 45/45 -> 56/56 -> 50/50. The count FELL at the end because the
-    /// cohort engine replaced a wide blended-average model with a narrow one (60 exprs after the
-    /// whole-customer rounding split active_customers in two) — a plan row stopped
-    /// carrying a customer profile, and the weighted rollups that averaged them went with it. Every
-    /// join still infers itself, which is the claim; the totals are only the tripwire.</para>
-    /// </summary>
     [Fact]
     public void Every_aggregate_in_the_corpus_infers_its_own_join()
     {
@@ -227,13 +166,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.Equal(50, inferred);
     }
 
-    /// <summary>
-    /// Two candidate references means no answer, and that is the correct behaviour.
-    ///
-    /// <para>Guessing would be worse than refusing: an aggregate joined through the wrong reference is
-    /// structurally valid, compiles, and quietly reports a wrong number on a screen somebody trusts.
-    /// The candidates are named so the author is asked a question they can actually answer.</para>
-    /// </summary>
     [Fact]
     public void An_ambiguous_join_is_refused_rather_than_guessed()
     {
@@ -251,8 +183,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.Equal(["from_invoice", "to_invoice"], index.Candidates("invoice", "transfer", CordAggregate.Mine));
     }
 
-    /// <summary>A cross-app reference can never be the join between two records of THIS app, so it is
-    /// not a candidate — which is also what stops it creating a phantom ambiguity.</summary>
     [Fact]
     public void A_cross_app_reference_is_not_a_candidate_join()
     {
@@ -269,13 +199,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.Equal("deal", index.Infer("deal", "activity", CordAggregate.Mine));
     }
 
-    /// <summary>
-    /// A <c>via</c> that inference would NOT reproduce is kept explicitly.
-    ///
-    /// <para>Totality outranks elegance. If a real document joins through the reference we would not
-    /// have picked, the round-trip must still be exact — and the coverage report must not claim an
-    /// inference that never happened. Both are satisfied by recording it.</para>
-    /// </summary>
     [Fact]
     public void A_join_inference_would_not_reproduce_is_preserved_verbatim()
     {
@@ -295,16 +218,6 @@ public class CordCalcTests(ITestOutputHelper output)
         Assert.Equal(DefinitionHash.Of(doc), DefinitionHash.Of(CordLower.Lower(app)));
     }
 
-    // ---- how much of the domain this actually models ---------------------------------------------
-
-    /// <summary>
-    /// The floor for the slice that owns entities.
-    ///
-    /// <para>Measured against the entity subtree with <c>detail</c>, <c>peek</c> and <c>form</c>
-    /// excluded — those are authored block trees, they belong to the UI slice, and counting them here
-    /// would set a floor that no amount of domain work could move. They are NOT hidden: they still
-    /// count against the headline corpus number, and every one of them is listed as a raw pointer.</para>
-    /// </summary>
     [Fact]
     public void The_domain_half_of_every_entity_is_modelled()
     {
@@ -324,9 +237,6 @@ public class CordCalcTests(ITestOutputHelper output)
         var fraction = 1.0 - (double)raw / total;
         output.WriteLine($"entity domain coverage: {fraction * 100:F2}%  ({total - raw}/{total} nodes)");
 
-        // 0.99, not 1.0: the corpus holds six genuine constructs this slice does not model —
-        // four `mapsTo` and two `treeAggregate` — and each is a named line in the raw allowlist
-        // rather than an unexplained shortfall.
         Assert.True(fraction >= 0.99,
             $"entity domain coverage {fraction * 100:F2}% is below the floor of 99.00%");
     }

@@ -8,15 +8,6 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The guard on core-app versioning. Each case is a change the data plane cannot absorb — see
-/// <see cref="CoreDefinitionCompatibility"/> for why each one corrupts rather than degrades.
-///
-/// <see cref="Every_shipped_core_version_upgrades_cleanly_to_the_current_one"/> is the one that
-/// actually protects tenants; the rest prove the checker can see each kind of breakage. It runs over
-/// the real registry, so it starts covering a core app the moment one is registered — nobody has to
-/// remember to add a test alongside the definition.
-/// </summary>
 public class CoreDefinitionCompatibilityTests
 {
     private static JsonObject V1() => (JsonObject)JsonNode.Parse("""
@@ -135,9 +126,6 @@ public class CoreDefinitionCompatibilityTests
         Assert.Contains(report.Review, e => e.Contains("default changed"));
     }
 
-    /// <summary>The real guard: every shipped version of every registered core app must upgrade
-    /// cleanly to the version being provisioned. Vacuous until a core app is registered, then
-    /// automatic for it and every one added afterwards.</summary>
     [Fact]
     public void Every_shipped_core_version_upgrades_cleanly_to_the_current_one()
     {
@@ -154,8 +142,6 @@ public class CoreDefinitionCompatibilityTests
         }
     }
 
-    /// <summary>Versions are append-only and ordered, so "the last one" really is the newest and the
-    /// replay above walks the actual upgrade path.</summary>
     [Fact]
     public void Core_versions_are_distinct_and_the_current_one_is_last()
     {
@@ -167,8 +153,6 @@ public class CoreDefinitionCompatibilityTests
         }
     }
 
-    /// <summary>A core definition must pass the same gate as any other app — it IS an ordinary app,
-    /// and the provisioner would otherwise fail at runtime in every tenant at once.</summary>
     [Fact]
     public void Every_core_definition_passes_the_gate()
     {
@@ -177,8 +161,6 @@ public class CoreDefinitionCompatibilityTests
             Assert.Empty(Gate.Validate(version.Node()));
     }
 
-    /// <summary>The registry's declared default role must exist in the definition it points at,
-    /// or every tenant member would hold a role key that grants nothing.</summary>
     [Fact]
     public void Default_role_exists_in_the_current_definition()
     {

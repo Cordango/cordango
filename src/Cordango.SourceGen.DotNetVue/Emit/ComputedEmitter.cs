@@ -124,8 +124,19 @@ public static class ComputedEmitter
 
             "+" or "-" or "*" => $"({left} {node.Op} {right})",
 
-            "and" => $"({left} && {right})",
-            "or" => $"({left} || {right})",
+            // `&` and `|`, NOT `&&` and `||`, and this is not a style choice twice over.
+            //
+            // It did not compile. A boolean computed field is `bool?` the moment a comparison is
+            // involved, because `Calc.Compare` can answer "cannot say" — and `&&` is not defined on
+            // `bool?` in C#, so `((a / b) < 1) and true` emitted CS0019 and the whole application
+            // failed to build. No corpus application has a computed field combining a comparison with
+            // boolean logic, which is the only reason this was not already loud.
+            //
+            // And the operators it does compile to are the right ones anyway: `&` and `|` on `bool?`
+            // are three-valued logic. Unknown AND false is false whatever the unknown turns out to be;
+            // unknown OR true is true. The answer only goes unknown where the unknown could change it.
+            "and" => $"({left} & {right})",
+            "or" => $"({left} | {right})",
 
             // A comparison where either side is unknown is unknown, not false. `Calc.Compare` keeps
             // that; a bare `<` on two nullables would quietly answer false and make a guard on an

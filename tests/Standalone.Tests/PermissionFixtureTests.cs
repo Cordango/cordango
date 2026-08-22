@@ -9,19 +9,6 @@ using Cordango.Standalone.Security;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// The standalone permission rules, checked against the decision fixtures that Cordango Platform's
-/// own suite also checks its implementation against.
-///
-/// <para>Two implementations of four rules, deliberately not sharing code, pinned to one set of
-/// hand-written decisions. That is the whole arrangement: the platform never has to accept a change
-/// made for standalone's reasons, and a divergence between them shows up as a red test in whichever
-/// suite runs first rather than as a wrong answer in production.</para>
-///
-/// <para>If a case here fails, the interesting question is which side moved. Run the platform's
-/// <c>PermissionFixtureTests</c> too: both failing means the fixture is wrong, one failing means an
-/// implementation is.</para>
-/// </summary>
 public class PermissionFixtureTests
 {
     public static TheoryData<string> Fixtures()
@@ -75,12 +62,6 @@ public class PermissionFixtureTests
         }
     }
 
-    /// <summary>
-    /// Guards the guard. A directory that silently held no files, or a fixture that silently held no
-    /// cases, would leave this class green while checking nothing — the failure mode every
-    /// data-driven test has and the one nobody notices, because a passing suite looks the same
-    /// either way.
-    /// </summary>
     [Fact]
     public void The_fixtures_are_actually_there()
     {
@@ -97,15 +78,6 @@ public class PermissionFixtureTests
         Path.Combine(TestPaths.RepoRoot(), "tests", "fixtures", "permissions");
 }
 
-/// <summary>
-/// Turns a definition's <c>roles</c> array into the typed <see cref="AppPermissions"/> the runtime
-/// uses.
-///
-/// <para>It lives in the test project rather than in the runtime, and that is the point: a generated
-/// application has no JSON roles to read. The generator emits <c>AppPermissions</c> as C#, compiled
-/// in, so the runtime never parses a definition at all. This class is that translation done at test
-/// time, so the fixtures can be written in the definition's own vocabulary.</para>
-/// </summary>
 internal static class FixtureRoles
 {
     public static AppPermissions Read(JsonNode? roles)
@@ -149,8 +121,6 @@ internal static class FixtureRoles
         return new AppPermissions(definitions);
     }
 
-    /// <summary>Absent and null both mean "said nothing", which for a field override is different
-    /// from having said false.</summary>
     private static bool? Bool(JsonNode? node) => node?.GetValueKind() switch
     {
         JsonValueKind.True => true,

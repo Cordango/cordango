@@ -7,22 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The two field roles that put a record on the public internet.
-///
-/// <para><c>publicShare</c> is the switch and <c>publicToken</c> is the address, and between them
-/// they are the whole of "this record is served to people with no account". Everything the perimeter
-/// does downstream — resolving a link, refusing an unpublished one — reads these two fields, so a
-/// definition that declares them wrongly is a definition that would either serve something it should
-/// not or serve nothing at all.</para>
-///
-/// <para>Which is why these are checked at AUTHORING time. A token that a person can type is the one
-/// mistake with no visible symptom: the page works perfectly, and the only thing wrong with it is
-/// that somebody else can guess the address. There is no runtime moment at which that fails.</para>
-/// </summary>
 public class PublicShareGateTests
 {
-    /// <summary>A minimal app with one publishable entity, declared correctly.</summary>
     private static JsonObject ShareApp() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "2.0", "key": "pub", "name": "Pub", "version": "1.0.0",
@@ -67,10 +53,6 @@ public class PublicShareGateTests
             e.Contains("'page.is_published' has role 'publicShare'") && e.Contains("must be a 'boolean' field"));
     }
 
-    /// <summary>
-    /// A computed share flag would mean the answer to "is this on the internet" is recalculated by a
-    /// formula on every write. That is a decision, not a derivation.
-    /// </summary>
     [Fact]
     public void The_share_flag_cannot_be_computed()
     {
@@ -89,7 +71,6 @@ public class PublicShareGateTests
             e.Contains("'page.public_token' has role 'publicToken'") && e.Contains("must be a 'text' field"));
     }
 
-    /// <summary>Two records at one address is a link that resolves to whichever was written first.</summary>
     [Fact]
     public void The_token_must_be_unique()
     {
@@ -99,13 +80,6 @@ public class PublicShareGateTests
             e.Contains("'page.public_token' has role 'publicToken' but is not unique"));
     }
 
-    /// <summary>
-    /// The token is GENERATED, and the author does not get a say. They cannot declare it read-only —
-    /// that is not an authorable property — so the compiler stamps the role instead, which is also
-    /// why nothing here asks them to. What they CAN do is declare a default, and that is the one way
-    /// to hand themselves a guessable address: it would either be silently overwritten or, worse,
-    /// honoured. Refused rather than ignored, because the working page would never say which.
-    /// </summary>
     [Fact]
     public void The_token_cannot_be_given_a_default()
     {
@@ -138,11 +112,6 @@ public class PublicShareGateTests
             e.Contains("multiple role:'publicToken' fields"));
     }
 
-    // --- the pair -------------------------------------------------------------------------------
-    //
-    // Both directions, because either half alone is reachable by deleting a field and not noticing
-    // what it was holding up.
-
     [Fact]
     public void A_switch_with_no_address_has_nowhere_to_publish_to()
     {
@@ -161,7 +130,6 @@ public class PublicShareGateTests
             e.Contains("has a role:'publicToken' field") && e.Contains("no role:'publicShare' field"));
     }
 
-    /// <summary>An app that publishes nothing declares neither, and that is the ordinary case.</summary>
     [Fact]
     public void An_entity_that_publishes_nothing_needs_neither()
     {

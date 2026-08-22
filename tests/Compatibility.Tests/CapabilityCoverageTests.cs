@@ -7,19 +7,6 @@ using Cordango.SourceGen.DotNetVue;
 
 namespace Cordango.Compatibility.Tests;
 
-/// <summary>
-/// Every value the language allows is either built or refused ON PURPOSE.
-///
-/// <para>This is the rule that keeps a capability model honest as the language grows. Add a block
-/// kind to the schema and a target that has not been taught about it will, without this, silently
-/// treat it as unsupported with the message "not something this target knows how to build" — which
-/// is true, uninformative, and indistinguishable from a considered decision. Failing here forces
-/// the choice to be made and written down at the moment the vocabulary changes.</para>
-///
-/// <para>Same argument, same shape, as
-/// <c>Every_value_the_platform_accepts_is_offered_or_withheld_on_purpose</c> in the Cord vocabulary
-/// suite. That one exists because an agent could not tell a gap from a decision; so does this.</para>
-/// </summary>
 public class CapabilityCoverageTests
 {
     private static readonly GeneratorCapabilities Standalone = new DotNetVueGenerator().Capabilities;
@@ -46,8 +33,6 @@ public class CapabilityCoverageTests
             + string.Join(", ", unclassified)
             + ". Add each one to Supported, or to Withheld with the reason it is not built.");
 
-        // And nothing invented: a capability naming a value the language does not have is either a
-        // typo or a memory of a feature that was renamed, and both read as support that is not there.
         var unknown = set.Known.Except(language).OrderBy(v => v, StringComparer.Ordinal).ToList();
         Assert.True(unknown.Count == 0,
             $"the standalone target names {axis} the schema does not define: " + string.Join(", ", unknown));
@@ -70,17 +55,12 @@ public class CapabilityCoverageTests
         }
     }
 
-    /// <summary>The open axis. <c>targetApp</c> can name any other application's key, so it cannot
-    /// be enumerated — which makes the standing explanation the only thing a user will ever see for
-    /// a cross-app reference, and it had better be there.</summary>
     [Fact]
     public void The_open_axes_carry_a_standing_explanation()
     {
         Assert.False(string.IsNullOrWhiteSpace(Standalone.PlatformTargets.Fallback));
         Assert.False(string.IsNullOrWhiteSpace(Standalone.PlatformEntities.Fallback));
 
-        // The point of a fallback is the value nobody listed, and it has to meet the same bar as a
-        // listed one: name the platform rather than answering "unsupported".
         Assert.Contains("Cordango Platform", Standalone.PlatformTargets.Explain("some_other_app"),
             StringComparison.Ordinal);
     }

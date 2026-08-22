@@ -7,16 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// <c>entity.unique</c> — combinations no two records may share.
-///
-/// <para>A single-field flag cannot say "one booking per (page, start time)", and neither of the
-/// alternatives holds: a service-level check is check-then-write, which is racy by construction,
-/// and an advisory lock only protects the callers that remember to take it. A database constraint
-/// holds for the ones that do not, which is why a key that fails to resolve has to be a GATE error
-/// rather than a warning — the constraint would silently never be created, and the duplicate it
-/// existed to prevent turns up in production instead.</para>
-/// </summary>
 public class CompositeUniqueTests
 {
     private static JsonObject Definition(JsonNode? unique)
@@ -109,16 +99,9 @@ public class CompositeUniqueTests
         Assert.Contains(errors, e => e.Contains("unique") && e.Contains("repeats"));
     }
 
-    /// <summary>
-    /// One spelling per idea: a single-field combination is the FIELD's own `unique` flag written in
-    /// the wrong place, and allowing both would mean two places to look when asking whether a value
-    /// is unique.
-    /// </summary>
     [Fact]
     public void A_single_field_combination_is_refused_and_points_at_the_field_flag()
     {
-        // Structurally the composed schema requires two entries, so this is belt-and-braces for
-        // definitions that reach the gate without passing structural validation first.
         var errors = Gate.Validate(Definition(new JsonArray { new JsonArray { "page" } })).ToList();
         Assert.Contains(errors, e => e.Contains("unique", StringComparison.OrdinalIgnoreCase));
     }

@@ -7,10 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The namespaced AUTHORING vocabulary (layout.*/data.*/display.*/domain.*/control.*)
-/// and its lowering back to the canonical flat block kinds. The contract these guard: the model
-/// writes dotted names, everything downstream sees flat ones, and no canonical kind is silently
-/// lost from the model's vocabulary.</summary>
 public class BlockKindsTests
 {
     private static HashSet<string> CanonicalKinds(string def = "block")
@@ -25,8 +21,6 @@ public class BlockKindsTests
         var en = (JsonArray)Schemas.AuthoringSchema()["$defs"]![def]!["properties"]!["kind"]!["enum"]!;
         return en.Select(x => x!.GetValue<string>()).ToList();
     }
-
-    // ---- the map itself -------------------------------------------------------------------
 
     [Fact]
     public void Every_authoring_name_lowers_to_a_real_canonical_kind()
@@ -76,8 +70,6 @@ public class BlockKindsTests
         Assert.Equal(2, BlockKinds.ByCanonical["control"].Count);
     }
 
-    // ---- lowering -------------------------------------------------------------------------
-
     [Fact]
     public void Lowering_rewrites_a_nested_block_tree_to_canonical_kinds()
     {
@@ -117,8 +109,6 @@ public class BlockKindsTests
     [Fact]
     public void Lowering_leaves_canonical_and_unknown_kinds_alone()
     {
-        // A flat kind the model emitted from memory must still work; a genuinely bad one must
-        // survive to the gate as an error rather than being silently swallowed.
         var doc = JsonNode.Parse("""
         { "blocks": [ { "kind": "row" }, { "kind": "totally_made_up" }, { "kind": "widgets" } ] }
         """)!;
@@ -133,7 +123,6 @@ public class BlockKindsTests
     [Fact]
     public void Lowering_does_not_touch_other_uses_of_the_key_kind()
     {
-        // entity.kind (collection|config|settings) and archetype.kind share the property name.
         var doc = JsonNode.Parse("""
         { "archetype": { "kind": "scheduling", "coreJob": "x" },
           "entities": [ { "key": "e", "kind": "config" } ] }
@@ -144,8 +133,6 @@ public class BlockKindsTests
         Assert.Equal("scheduling", doc["archetype"]!["kind"]!.GetValue<string>());
         Assert.Equal("config", doc["entities"]![0]!["kind"]!.GetValue<string>());
     }
-
-    // ---- the model-facing schema ----------------------------------------------------------
 
     [Fact]
     public void Authoring_schema_exposes_only_namespaced_kinds()
@@ -167,17 +154,12 @@ public class BlockKindsTests
     [Fact]
     public void Authoring_schema_namespaces_form_blocks_too()
     {
-        // A mixed dialect (layout.section on a page but bare "section" in a form) is exactly the
-        // kind of trap this whole change exists to remove.
         Assert.Equal(["layout.section", "display.fields"], AuthoringEnum("formBlock"));
     }
 
     [Fact]
     public void Authoring_schema_splits_control_into_one_variant_per_preset()
     {
-        // With the union, a preset-backed name gets its OWN shape: the `control` discriminator
-        // property disappears from the model's view entirely, and the stepper's conditional
-        // requirement becomes a plain `required` on just that variant.
         var defs = Schemas.AuthoringSchema()["$defs"]!.AsObject();
         foreach (var (name, alsoRequires) in new[]
                  { ("block_control_segmented", (string?)null), ("block_control_stepper", "step") })
@@ -198,7 +180,6 @@ public class BlockKindsTests
         var defs = Schemas.AuthoringSchema()["$defs"]!.AsObject();
         foreach (var dead in BlockKinds.NotAuthorable)
             Assert.False(defs.ContainsKey($"block_{dead}"), $"block_{dead} is still reachable by the model");
-        // ...and no canonical (bare) variant survives — every one is namespaced.
         Assert.DoesNotContain(defs.Select(kv => kv.Key),
             n => n.StartsWith("block_", StringComparison.Ordinal)
                  && !BlockKinds.All.Any(k => "block_" + k.Name.Replace('.', '_') == n));
@@ -212,8 +193,6 @@ public class BlockKindsTests
         Assert.Contains("widgets", canonical);
         Assert.All(canonical, k => Assert.DoesNotContain('.', k));
     }
-
-    // ---- the catalog the prompt inlines ----------------------------------------------------
 
     [Fact]
     public void Every_block_catalog_entry_advertises_the_kind_the_model_should_write()
@@ -241,8 +220,6 @@ public class BlockKindsTests
         }
     }
 
-    // ---- the round trip -------------------------------------------------------------------
-
     [Fact]
     public void A_dotted_document_validates_authoring_then_lowers_into_a_valid_canonical_one()
     {
@@ -258,13 +235,10 @@ public class BlockKindsTests
         }
         """)!;
 
-        // 1. the model's document is legal against the schema the model was given
         Assert.Empty(Gate.StructuralErrors(doc.DeepClone(), Schemas.AuthoringSchema()));
 
-        // 2. the same document is NOT legal canonically until it is lowered
         Assert.NotEmpty(Gate.StructuralErrors(doc.DeepClone(), Schemas.AppDefinitionSchemaNode()));
 
-        // 3. lowering makes it canonical
         var lowered = Normalizer.LowerAuthoringKinds(doc.DeepClone())!;
         Assert.Empty(Gate.StructuralErrors(lowered, Schemas.AppDefinitionSchemaNode()));
         Assert.Empty(Gate.Validate(lowered));

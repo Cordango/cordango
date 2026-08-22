@@ -11,14 +11,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// Loading a generated dataset.
-///
-/// <para>The seed file is the one artifact where a typed column meets values the generator wrote as
-/// text — a date as <c>{T-30}</c>, a number as a JSON number, an enum as a string. Whether those
-/// land correctly is not visible by reading the file, and a dataset that half-loads produces an
-/// application that looks like it has a data problem rather than a loader problem.</para>
-/// </summary>
 public class SeedTests
 {
     private static readonly DateOnly Anchor = new(2026, 6, 15);
@@ -49,13 +41,6 @@ public class SeedTests
         Assert.Equal(new DateTimeOffset(2026, 6, 17, 9, 0, 0, TimeSpan.Zero), row.At);
     }
 
-    /// <summary>
-    /// A second run over a table that already has rows does nothing.
-    ///
-    /// <para>The property that makes it safe to leave seeding enabled in a compose file: an
-    /// application restarting must not duplicate its demo data, and it certainly must not overwrite
-    /// records somebody entered.</para>
-    /// </summary>
     [Fact]
     public async Task Seeding_a_table_that_already_has_rows_does_nothing()
     {
@@ -68,8 +53,6 @@ public class SeedTests
         Assert.Equal(1, await world.Db.Set<SeedWidget>().CountAsync());
     }
 
-    /// <summary>The anchor moves and every date moves with it, keeping the same shape. That is what
-    /// makes a dataset built in January still read sensibly in November.</summary>
     [Fact]
     public void Re_anchoring_shifts_the_whole_dataset()
     {

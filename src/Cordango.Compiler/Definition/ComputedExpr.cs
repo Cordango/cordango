@@ -15,27 +15,29 @@ public enum ComputedValueKind
     Date,
 }
 
-/// <summary>A typed computed result. A numeric result may be null when its inputs cannot produce a
-/// trustworthy number (for example division by zero or an unset duration endpoint).</summary>
-public readonly record struct ComputedValue(
-    ComputedValueKind Kind, decimal? Number, bool? Boolean, DateTimeOffset? Date)
-{
-    public static ComputedValue FromNumber(decimal? value) => new(ComputedValueKind.Number, value, null, null);
-    public static ComputedValue FromBoolean(bool? value) => new(ComputedValueKind.Boolean, null, value, null);
-    public static ComputedValue FromDate(DateTimeOffset? value) => new(ComputedValueKind.Date, null, null, value);
-}
-
 /// <summary>The statically checked shape of an expression, including every field it reads.</summary>
 public sealed record ComputedExprValidation(
     string? Error,
     ComputedValueKind? ResultKind,
     IReadOnlySet<string> Identifiers);
 
-/// <summary>A small, typed expression language shared by the authoring Gate and runtime. It supports
-/// numeric arithmetic, comparisons that return booleans, boolean logic, date durations, pow and the
-/// two-value bounds min/max. Parsing and evaluation use the same AST, so an expression accepted by
-/// the Gate cannot mean something different at runtime. Expressions are data, never passed to a
-/// language evaluator.</summary>
+/// <summary>
+/// A small, typed expression language: numeric arithmetic, comparisons that return booleans, boolean
+/// logic, date durations, <c>pow</c>, and the two-value bounds <c>min</c>/<c>max</c>.
+///
+/// <para><b>This is the language, not an engine for it.</b> What lives here is the grammar, the
+/// parser, the typed AST and the static checking — everything needed to tell an author their
+/// expression is wrong, and everything needed to TRANSLATE one. There is deliberately no evaluator:
+/// working a figure out over a record is the platform runtime's job, and it does it with its own
+/// code over the tree <see cref="Parse"/> returns.</para>
+///
+/// <para>Two consumers, one grammar. The standalone generator turns each expression into a method
+/// compiled into the application it emits; the platform interprets. They must produce the same
+/// figures, and that is pinned as data in <c>tests/fixtures/computed/</c> rather than trusted —
+/// each side asserted against the same hand-written cases by its own suite.</para>
+///
+/// <para>Expressions are data, never passed to a language evaluator.</para>
+/// </summary>
 public static class ComputedExpr
 {
     public static readonly IReadOnlySet<string> DurationFuncs =
@@ -94,30 +96,6 @@ public static class ComputedExpr
             prevArgError ?? identError ?? (_ => null));
         var node = parser.Parse();
         return new ComputedExprValidation(parser.Error, node?.Kind, parser.Identifiers);
-    }
-
-    /// <summary>Compatibility entry point for numeric expressions.</summary>
-    public static decimal? Evaluate(string? expr, Func<string, decimal?> value,
-        Func<string, DateTimeOffset?>? dateValue = null) =>
-        EvaluateValue(expr, _ => ComputedValueKind.Number, value, _ => null, dateValue)?.Number;
-
-    /// <summary>Evaluate a statically typed expression over one record. Blank numeric inputs retain
-    /// the historical zero semantics; blank booleans read as false. Invalid expressions return null
-    /// and should only be possible when an unvalidated manifest reaches the runtime.</summary>
-    /// <param name="prevValue">The same field on the PREVIOUS row of an ordered series, or null when
-    /// there is none. Null itself (no resolver) means this caller has no series, and every
-    /// <c>prev()</c> falls back to its seed.</param>
-    public static ComputedValue? EvaluateValue(string? expr,
-        Func<string, ComputedValueKind?> fieldKind,
-        Func<string, decimal?> numberValue,
-        Func<string, bool?> booleanValue,
-        Func<string, DateTimeOffset?>? dateValue = null,
-        Func<string, decimal?>? prevValue = null)
-    {
-        var parser = new Parser(expr, fieldKind, _ => null, _ => null, _ => null);
-        var node = parser.Parse();
-        if (node is null || parser.Error is not null) return null;
-        return Eval(node, numberValue, booleanValue, dateValue ?? (_ => null), prevValue);
     }
 
     /// <summary>
@@ -225,102 +203,6 @@ public static class ComputedExpr
     /// <summary><c>prev(field)</c> or <c>prev(field, seed)</c> — the previous row of an ordered
     /// series, and what to use when there is not one.</summary>
     public sealed record PrevNode(string Field, Node? Seed) : Node(ComputedValueKind.Number);
-
-    private static ComputedValue Eval(Node node,
-        Func<string, decimal?> numberValue,
-        Func<string, bool?> booleanValue,
-        Func<string, DateTimeOffset?> dateValue,
-        Func<string, decimal?>? prevValue = null)
-    {
-        decimal? Num(Node n) => Eval(n, numberValue, booleanValue, dateValue, prevValue).Number;
-        bool Bool(Node n) => Eval(n, numberValue, booleanValue, dateValue, prevValue).Boolean == true;
-        DateTimeOffset? Date(Node n) => Eval(n, numberValue, booleanValue, dateValue, prevValue).Date;
-
-        return node switch
-        {
-            NumberNode n => ComputedValue.FromNumber(n.Value),
-            BooleanNode b => ComputedValue.FromBoolean(b.Value),
-            FieldNode f when f.Kind == ComputedValueKind.Number => ComputedValue.FromNumber(numberValue(f.Key) ?? 0m),
-            FieldNode f when f.Kind == ComputedValueKind.Boolean => ComputedValue.FromBoolean(booleanValue(f.Key) ?? false),
-            FieldNode f => ComputedValue.FromDate(dateValue(f.Key)),
-            UnaryNode { Op: "-" } u => ComputedValue.FromNumber(-Num(u.Operand)),
-            UnaryNode u => ComputedValue.FromBoolean(!Bool(u.Operand)),
-            BinaryNode { Op: "+" } b => ComputedValue.FromNumber(Num(b.Left) + Num(b.Right)),
-            BinaryNode { Op: "-" } b => ComputedValue.FromNumber(Num(b.Left) - Num(b.Right)),
-            BinaryNode { Op: "*" } b => ComputedValue.FromNumber(Num(b.Left) * Num(b.Right)),
-            BinaryNode { Op: "/" } b => Divide(Num(b.Left), Num(b.Right)),
-            BinaryNode { Op: "<", Left.Kind: ComputedValueKind.Date } b => Compare(Date(b.Left), Date(b.Right), (a, c) => a < c),
-            BinaryNode { Op: "<=", Left.Kind: ComputedValueKind.Date } b => Compare(Date(b.Left), Date(b.Right), (a, c) => a <= c),
-            BinaryNode { Op: ">", Left.Kind: ComputedValueKind.Date } b => Compare(Date(b.Left), Date(b.Right), (a, c) => a > c),
-            BinaryNode { Op: ">=", Left.Kind: ComputedValueKind.Date } b => Compare(Date(b.Left), Date(b.Right), (a, c) => a >= c),
-            BinaryNode { Op: "<" } b => Compare(Num(b.Left), Num(b.Right), (a, c) => a < c),
-            BinaryNode { Op: "<=" } b => Compare(Num(b.Left), Num(b.Right), (a, c) => a <= c),
-            BinaryNode { Op: ">" } b => Compare(Num(b.Left), Num(b.Right), (a, c) => a > c),
-            BinaryNode { Op: ">=" } b => Compare(Num(b.Left), Num(b.Right), (a, c) => a >= c),
-            BinaryNode { Op: "==", Left.Kind: ComputedValueKind.Number } b =>
-                Compare(Num(b.Left), Num(b.Right), (a, c) => a == c),
-            BinaryNode { Op: "!=", Left.Kind: ComputedValueKind.Number } b =>
-                Compare(Num(b.Left), Num(b.Right), (a, c) => a != c),
-            BinaryNode { Op: "==", Left.Kind: ComputedValueKind.Date } b =>
-                Compare(Date(b.Left), Date(b.Right), (a, c) => a == c),
-            BinaryNode { Op: "!=", Left.Kind: ComputedValueKind.Date } b =>
-                Compare(Date(b.Left), Date(b.Right), (a, c) => a != c),
-            BinaryNode { Op: "==" } b => ComputedValue.FromBoolean(Bool(b.Left) == Bool(b.Right)),
-            BinaryNode { Op: "!=" } b => ComputedValue.FromBoolean(Bool(b.Left) != Bool(b.Right)),
-            BinaryNode { Op: "and" } b => ComputedValue.FromBoolean(Bool(b.Left) && Bool(b.Right)),
-            BinaryNode { Op: "or" } b => ComputedValue.FromBoolean(Bool(b.Left) || Bool(b.Right)),
-            FunctionNode { Name: "pow" } f => ComputedValue.FromNumber(Power(Num(f.Left), Num(f.Right))),
-            FunctionNode { Name: "min" } f => ComputedValue.FromNumber(Bound(Num(f.Left), Num(f.Right), lower: true)),
-            FunctionNode { Name: "max" } f => ComputedValue.FromNumber(Bound(Num(f.Left), Num(f.Right), lower: false)),
-            DurationNode d => ComputedValue.FromNumber(Duration(d.Name, dateValue(d.From), dateValue(d.To))),
-            // No previous row → the seed, or zero. `prevValue` returning null means "there is no
-            // previous row"; a previous row whose field is blank also reads as the seed, which is the
-            // same thing for a running total.
-            PrevNode p => ComputedValue.FromNumber(prevValue?.Invoke(p.Field)
-                ?? (p.Seed is null ? 0m : Num(p.Seed))),
-            _ => ComputedValue.FromNumber(null),
-        };
-    }
-
-    private static ComputedValue Divide(decimal? left, decimal? right) =>
-        ComputedValue.FromNumber(right is null or 0m ? null : left / right);
-
-    private static ComputedValue Compare(decimal? left, decimal? right, Func<decimal, decimal, bool> compare) =>
-        ComputedValue.FromBoolean(left is { } a && right is { } b ? compare(a, b) : null);
-
-    private static ComputedValue Compare(DateTimeOffset? left, DateTimeOffset? right,
-        Func<DateTimeOffset, DateTimeOffset, bool> compare) =>
-        ComputedValue.FromBoolean(left is { } a && right is { } b ? compare(a, b) : null);
-
-    private static decimal? Duration(string name, DateTimeOffset? from, DateTimeOffset? to)
-    {
-        if (from is not { } a || to is not { } b) return null;
-        var span = b - a;
-        return name switch
-        {
-            "minutes_between" => (decimal)span.TotalMinutes,
-            "hours_between" => (decimal)span.TotalHours,
-            "days_between" => (decimal)span.TotalDays,
-            _ => null,
-        };
-    }
-
-    /// <summary>The lower or upper of two values. Null in, null out — same discipline as
-    /// <see cref="Power"/>. A bound that could not be worked out is not the same as no bound, and
-    /// returning the other side would silently un-cap the figure.</summary>
-    private static decimal? Bound(decimal? left, decimal? right, bool lower)
-    {
-        if (left is not { } a || right is not { } b) return null;
-        return lower ? Math.Min(a, b) : Math.Max(a, b);
-    }
-
-    private static decimal? Power(decimal? b, decimal? e)
-    {
-        if (b is not { } bv || e is not { } ev) return null;
-        var result = Math.Pow((double)bv, (double)ev);
-        if (double.IsNaN(result) || double.IsInfinity(result)) return null;
-        try { return (decimal)result; } catch (OverflowException) { return null; }
-    }
 
     private sealed class Parser
     {

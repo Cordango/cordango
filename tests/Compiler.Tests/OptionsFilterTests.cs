@@ -7,22 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// <c>field.optionsFilter</c> — which target records a reference picker OFFERS.
-///
-/// <para>Without it a picker lists every record of the target entity, which is the wrong question
-/// whenever the target is personal: "which calendar?" beside forty colleagues' calendars is not a
-/// choice anybody can make, and the ones belonging to other people are indistinguishable from your
-/// own when they share a name.</para>
-///
-/// <para>The failure mode this gate exists for is quiet. A leaf naming a field the target does not
-/// have filters on a value that is never present, so the picker comes back EMPTY — and an empty
-/// picker reads as "nobody has one yet", which is exactly what a correct-but-unpopulated picker
-/// looks like. Nothing downstream can tell the two apart, so it has to fail here.</para>
-/// </summary>
 public class OptionsFilterTests
 {
-    /// <summary>An app with a personal `calendar` the event points at — the shape this was built for.</summary>
     private static JsonObject Definition(JsonNode? optionsFilter, string fieldType = "reference",
         string? targetApp = null)
     {
@@ -146,19 +132,12 @@ public class OptionsFilterTests
                                   && e.Contains("calendar_source"));
     }
 
-    /// <summary>
-    /// The leaf's `field` is a key on the TARGET, not on the entity declaring the reference. Getting
-    /// that backwards is the obvious mistake, and it has to be caught here rather than producing an
-    /// empty picker: `title` is a real field of `event`, so nothing about the definition looks wrong.
-    /// </summary>
     [Fact]
     public void A_field_of_the_declaring_entity_rather_than_the_target_is_still_an_error()
     {
         Assert.Contains(Errors(Mine("title")), e => e.Contains("optionsFilter") && e.Contains("title"));
     }
 
-    /// <summary>A picker filters over rows it has already loaded, and a hop through a reference is
-    /// not among them — so `path` has to be refused rather than silently matching nothing.</summary>
     [Fact]
     public void A_path_hop_is_refused()
     {
@@ -169,8 +148,6 @@ public class OptionsFilterTests
         Assert.Contains(errors, e => e.Contains("optionsFilter") && e.Contains("owner.email"));
     }
 
-    /// <summary>A select's choices are its `options`. Two spellings for "what may be picked" would be
-    /// two places to look, and only one of them would ever be honoured.</summary>
     [Fact]
     public void It_is_refused_on_a_field_that_is_not_a_reference()
     {
@@ -178,22 +155,11 @@ public class OptionsFilterTests
             e => e.Contains("optionsFilter") && e.Contains("not a reference"));
     }
 
-    /// <summary>
-    /// A platform or core target is resolved at render time and its field list is not knowable here.
-    /// Guessing at it would fail valid apps, so an unresolvable target is left alone rather than
-    /// rejected — the honest answer for a shape the gate genuinely cannot see.
-    /// </summary>
     [Fact]
     public void A_target_the_gate_cannot_see_is_left_alone()
     {
         Assert.False(Complains(Errors(Mine("anything_at_all"), targetApp: "platform")));
     }
-
-    // ---- field.input ---------------------------------------------------------------------------
-    //
-    // A richer control only knows how to read and write one storage shape. Put the opening-hours grid
-    // on a text column and it degrades to a plain box — silently, and only for whoever happens to open
-    // that form, which is the worst place to find out.
 
     private static List<string> InputErrors(string type, string input)
     {

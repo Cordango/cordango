@@ -17,13 +17,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// The guard is checked when the command runs, and in the right place among the other checks.
-///
-/// <para>The evaluator is pinned by the shared fixtures and the emitter by its own tests. What
-/// neither covers is whether the service actually asks — and a guard that is compiled into the
-/// catalogue, evaluated correctly by a class nobody calls, is the same as no guard at all.</para>
-/// </summary>
 public class CommandGuardEnforcementTests
 {
     [Fact]
@@ -38,8 +31,6 @@ public class CommandGuardEnforcementTests
         Assert.Equal("command.not_applicable", refused.Code);
         Assert.Equal(409, refused.StatusCode);
 
-        // And nothing was written. A command that refuses after touching the record is worse than
-        // one that runs.
         Assert.Equal(500, (await world.Store.FindAsync(widget.Id, default))!.Amount);
     }
 
@@ -65,20 +56,12 @@ public class CommandGuardEnforcementTests
         Assert.Equal("shrunk", (await world.Store.FindAsync(widget.Id, default))!.Note);
     }
 
-    /// <summary>
-    /// The guard reads the record as the database holds it, not as the caller may see it.
-    ///
-    /// <para>A guard is the application's rule, not the caller's. One that reads a field this role
-    /// cannot see must still get the true answer, or the same command would be legal for one person
-    /// and not another for reasons the definition never stated.</para>
-    /// </summary>
     [Fact]
     public async Task The_guard_reads_the_whole_record_whatever_the_caller_may_see()
     {
         await using var world = new World(Condition.Leaf("amount", "lt", "100"));
         var widget = await world.Store.CreateAsync(new Widget { Name = "Big", Amount = 500 }, default);
 
-        // A role that may run the command and may not read the field the guard tests.
         var blinkered = new EntityAccess(true, true, true, true,
             fields: new Dictionary<string, FieldRule> { ["amount"] = new(Read: false, Update: false) },
             commands: new HashSet<string>(StringComparer.Ordinal) { "shrink" });

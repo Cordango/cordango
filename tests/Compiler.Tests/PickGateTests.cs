@@ -7,17 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// What the gate refuses about a <c>pick</c>.
-///
-/// <para>These are the mistakes the runtime cannot report. A pick with a misspelled sort field still
-/// returns a record — the wrong one, silently, every week, with nobody watching. "Whose turn is it"
-/// answered confidently and wrongly is the worst thing this feature can do, so the check has to
-/// happen while somebody is still looking at the app.</para>
-/// </summary>
 public class PickGateTests
 {
-    /// <summary>A rota whose weekly schedule stamps next week's person by rule.</summary>
     private static JsonObject Rota(string pickJson) => (JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "rota", "name": "Rota", "version": "1.0.0",
@@ -53,8 +44,6 @@ public class PickGateTests
 
     private static IReadOnlyList<string> Errors(string pickJson) => Gate.Validate(Rota(pickJson));
 
-    /// <summary>The shape that should just work — and it has to, or every negative case below is
-    /// only proving the fixture is broken.</summary>
     [Fact]
     public void A_well_formed_pick_is_accepted() =>
         Assert.Empty(Errors("""
@@ -67,16 +56,12 @@ public class PickGateTests
         { "entity": "people", "sort": [{ "field": "last_brought" }] }
         """), e => e.Contains("pick reads unknown entity 'people'"));
 
-    /// <summary>The one that would otherwise be invisible: it picks somebody, just never the right
-    /// somebody.</summary>
     [Fact]
     public void A_pick_sorted_by_a_field_that_does_not_exist_is_refused() =>
         Assert.Contains(Errors("""
         { "entity": "member", "sort": [{ "field": "last_coffee" }] }
         """), e => e.Contains("pick sorts by 'last_coffee'"));
 
-    /// <summary>Without a sort there is no rule — just whichever row the database happened to return
-    /// first, which nobody can predict, explain, or debug when it looks unfair.</summary>
     [Fact]
     public void A_pick_with_no_sort_is_refused() =>
         Assert.Contains(Errors("""

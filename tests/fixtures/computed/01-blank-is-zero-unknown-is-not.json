@@ -1,0 +1,77 @@
+{
+  "name": "A blank field is zero; a figure that could not be worked out is unknown",
+  "why": "The two kinds of missing, side by side. Collapsing them in either direction is the mistake: treat unknown as zero and a runway of `cash / burn` on a plan with no costs yet reads as nought months, which is alarming and wrong; treat blank as unknown and every total on a half-filled record goes empty.",
+  "fields": {
+    "revenue": { "type": "decimal" },
+    "costs": { "type": "decimal" },
+    "done_tasks": { "type": "integer" },
+    "total_tasks": { "type": "integer" }
+  },
+  "cases": [
+    {
+      "why": "The ordinary case, so the file says what normal looks like before it says what the corners are.",
+      "record": { "revenue": 100, "costs": 40 },
+      "expr": "revenue - costs",
+      "expect": 60
+    },
+    {
+      "why": "A record with no costs has costs of nothing. The total is the revenue, not blank.",
+      "record": { "revenue": 100 },
+      "expr": "revenue - costs",
+      "expect": 100
+    },
+    {
+      "why": "Absorbed in a product too, which is the direction that surprises people: nothing times two is nothing, so a blank multiplicand takes the whole term to zero rather than to unknown.",
+      "record": {},
+      "expr": "revenue * 2",
+      "expect": 0
+    },
+    {
+      "record": {},
+      "expr": "revenue + 1",
+      "expect": 1
+    },
+    {
+      "why": "Division by a blank is the first unknown. A blank divisor reads as zero, and dividing by zero has no answer — so this is NOT `100 / 0 = 0`.",
+      "record": { "revenue": 100 },
+      "expr": "revenue / costs",
+      "expect": null
+    },
+    {
+      "why": "And division by an explicit zero, in case an implementation special-cases the blank rather than the zero.",
+      "record": { "revenue": 100, "costs": 0 },
+      "expr": "revenue / costs",
+      "expect": null
+    },
+    {
+      "why": "Unknown SPREADS, which is the property a blank does not have. Adding one to something nobody knows still leaves nobody knowing it.",
+      "record": { "revenue": 100, "costs": 0 },
+      "expr": "revenue / costs + 1",
+      "expect": null
+    },
+    {
+      "why": "Through multiplication as well. Zero times unknown is not zero — the multiplication is not short-circuited, because the point is that the figure was never worked out.",
+      "record": { "revenue": 100, "costs": 0 },
+      "expr": "(revenue / costs) * 0",
+      "expect": null
+    },
+    {
+      "why": "Two INTEGER columns do decimal arithmetic. 100 / 8 is 12.5, not 12: truncating at each step would disagree with the platform, and would make the answer depend on how the author happened to split the expression.",
+      "record": { "done_tasks": 1, "total_tasks": 8 },
+      "expr": "done_tasks * 100 / total_tasks",
+      "expect": 12.5
+    },
+    {
+      "why": "Nothing done yet is nought per cent, not blank.",
+      "record": { "done_tasks": 0, "total_tasks": 5 },
+      "expr": "done_tasks * 100 / total_tasks",
+      "expect": 0
+    },
+    {
+      "why": "No tasks at all is not nought per cent — nobody knows what the progress is, and a project showing 0% because it is empty reads as a project in trouble.",
+      "record": { "done_tasks": 3, "total_tasks": 0 },
+      "expr": "done_tasks * 100 / total_tasks",
+      "expect": null
+    }
+  ]
+}

@@ -8,11 +8,6 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// The extractor/merger that step 2 (definition localization) rests on. The interesting cases are
-/// all about the boundary between DISPLAY text and MACHINE values — get that wrong and a translation
-/// silently rewrites the data model.
-/// </summary>
 public class DefinitionTextTests
 {
     private static JsonNode Sample() => JsonNode.Parse("""
@@ -61,8 +56,6 @@ public class DefinitionTextTests
     {
         var paths = DefinitionText.Extract(Sample()).Select(e => e.Path).ToHashSet();
 
-        // These are the values written into rows and compared against in filters and processes.
-        // A translation that reached them would change what the DATA means, not what it reads like.
         Assert.DoesNotContain("key", paths);
         Assert.DoesNotContain("entities/0/key", paths);
         Assert.DoesNotContain("entities/0/fields/1/options/0/value", paths);
@@ -74,8 +67,6 @@ public class DefinitionTextTests
     [Fact]
     public void Name_is_text_only_at_the_root()
     {
-        // `name` is the app's display name at the top level. Anywhere deeper it is an identifier —
-        // a connection's name, a parameter's name — and translating those breaks the reference.
         var doc = JsonNode.Parse("""
         { "name": "Sales CRM", "integrations": [ { "name": "primary-smtp", "type": "smtp" } ] }
         """)!;
@@ -98,10 +89,7 @@ public class DefinitionTextTests
         Assert.Equal(0, skipped);
         Assert.Equal("Geschäft", doc["entities"]![0]!["label"]!.GetValue<string>());
         Assert.Equal("Interessent", doc["entities"]![0]!["fields"]![1]!["options"]![0]!["label"]!.GetValue<string>());
-        // Untranslated paths keep the authoring language rather than emptying — a mixed page is
-        // readable, a blank one is not.
         Assert.Equal("Deals", doc["entities"]![0]!["labelPlural"]!.GetValue<string>());
-        // …and the stored code is untouched.
         Assert.Equal("lead", doc["entities"]![0]!["fields"]![1]!["options"]![0]!["value"]!.GetValue<string>());
     }
 
@@ -118,9 +106,9 @@ public class DefinitionTextTests
     {
         var (doc, applied, skipped) = DefinitionText.Apply(Sample(), new Dictionary<string, string>
         {
-            ["entities/9/label"] = "Nicht da",          // index past the end
-            ["entities/0/nonexistent"] = "Erfunden",    // property that does not exist
-            ["entities/0/fields"] = "Ein Satz",         // points at an ARRAY, not a string
+            ["entities/9/label"] = "Nicht da",
+            ["entities/0/nonexistent"] = "Erfunden",
+            ["entities/0/fields"] = "Ein Satz",
         });
 
         Assert.Equal(0, applied);
@@ -139,15 +127,13 @@ public class DefinitionTextTests
         };
         var sources = new Dictionary<string, string>
         {
-            ["entities/0/label"] = "Opportunity",   // what it said when it was translated
+            ["entities/0/label"] = "Opportunity",
         };
 
         var (missing, stale, orphaned) = DefinitionText.Diff(Sample(), bundle, sources);
 
         Assert.Contains("entities/0/labelPlural", missing);
         Assert.Contains("commands/0/successMessage", missing);
-        // The English moved from "Opportunity" to "Deal" — the German is now a translation of
-        // something that is no longer there.
         Assert.Contains("entities/0/label", stale);
         Assert.Contains("entities/0/gone", orphaned);
     }

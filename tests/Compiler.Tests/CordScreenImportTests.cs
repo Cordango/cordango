@@ -51,9 +51,6 @@ public class CordScreenImportTests
         Assert.Equal(DefinitionHash.Of(definition), DefinitionHash.Of(CordLower.Lower(imported)));
         Assert.True(CordFiles.Materialize(imported).Complete);
 
-        // The hosted import bootstrap needs no second source format or snapshot type. The imported
-        // model writes the same operation document `.cord` uses; storing that as baseline batch 1
-        // makes the ordinary journal replay the imported app exactly.
         var written = CordDocument.Write(imported);
         Assert.True(written.Complete, string.Join("\n", written.Unwritable));
         var identity = new CordApp(imported.Key, imported.Name, imported.Version, imported.Description);

@@ -9,15 +9,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Determinism.Tests;
 
-/// <summary>
-/// The runner owns the filesystem, and these are the properties that buys.
-///
-/// <para>Determinism is the promise the whole standalone story rests on — "same definition, same
-/// versions, same bytes" is what makes a generated repository reviewable in a diff instead of
-/// regenerated on faith. It is also the promise easiest to lose by accident, because nothing about
-/// a wrong answer here looks wrong: files appear, the app builds, and only a byte comparison two
-/// months later shows that two runs disagreed.</para>
-/// </summary>
 public sealed class WriterTests : IDisposable
 {
     private readonly string _root = Path.Combine(
@@ -26,7 +17,7 @@ public sealed class WriterTests : IDisposable
     public void Dispose()
     {
         try { Directory.Delete(_root, recursive: true); }
-        catch (IOException) { /* a leftover temp directory is not worth failing a green test over */ }
+        catch (IOException) { }
     }
 
     private string Out(string name) => Path.Combine(_root, name);
@@ -37,15 +28,6 @@ public sealed class WriterTests : IDisposable
     private static GenerateResult Files(params (string Path, string Content)[] files) =>
         GenerateResult.Produced([.. files.Select(f => new GeneratedFile(f.Path, f.Content))]);
 
-    // ---- determinism ---------------------------------------------------------------------------
-
-    /// <summary>
-    /// The headline property, checked the way a person would: generate twice, hash the trees.
-    ///
-    /// <para>Written with the files in a DIFFERENT order the second time, because a generator that
-    /// enumerates a dictionary has no order guarantee and the runner is what makes that not
-    /// matter.</para>
-    /// </summary>
     [Fact]
     public void Two_runs_produce_byte_identical_trees()
     {
@@ -58,9 +40,6 @@ public sealed class WriterTests : IDisposable
         Assert.Equal(Fingerprint(Out("one")), Fingerprint(Out("two")));
     }
 
-    /// <summary>Regenerating over yesterday's output is the ordinary case, and it has to land on the
-    /// same bytes as a fresh generation — otherwise "same inputs, same output" holds only for
-    /// directories nobody has used.</summary>
     [Fact]
     public void Regenerating_over_a_previous_build_matches_a_fresh_one()
     {
@@ -73,8 +52,6 @@ public sealed class WriterTests : IDisposable
         Assert.Equal(Fingerprint(Out("fresh")), Fingerprint(Out("again")));
     }
 
-    /// <summary>A generator that emits Windows line endings must not produce a different tree from
-    /// one that emits Unix endings. The repository is hashed on machines of both kinds.</summary>
     [Fact]
     public void Line_endings_are_normalised()
     {
@@ -84,8 +61,6 @@ public sealed class WriterTests : IDisposable
         Assert.Equal(Fingerprint(Out("lf")), Fingerprint(Out("crlf")));
     }
 
-    /// <summary>A byte-order mark would make generated files differ from what every other tool
-    /// writes, and would sit at the top of files a compiler has to read.</summary>
     [Fact]
     public void Files_are_written_without_a_byte_order_mark()
     {
@@ -95,16 +70,6 @@ public sealed class WriterTests : IDisposable
         Assert.Equal("x\n"u8.ToArray(), bytes);
     }
 
-    // ---- path safety ---------------------------------------------------------------------------
-
-    /// <summary>
-    /// The reason a generator is handed no directory at all.
-    ///
-    /// <para>Each of these is a string a generator could produce by mistake or on purpose, and the
-    /// consequence of accepting one is a write outside the directory the user named. They are
-    /// refused before ANY file is written, so a result containing one produces nothing rather than
-    /// a partial tree plus an escape.</para>
-    /// </summary>
     [Theory]
     [InlineData("../escaped.txt")]
     [InlineData("src/../../escaped.txt")]
@@ -132,14 +97,6 @@ public sealed class WriterTests : IDisposable
         Assert.Contains("two files claim", string.Join(" ", report.Errors.Select(e => e.Message)));
     }
 
-    // ---- what a regeneration owns ---------------------------------------------------------------
-
-    /// <summary>
-    /// A directory somebody else made is not ours to overwrite.
-    ///
-    /// <para>"Generate into an existing project" is a different feature with different rules, and
-    /// guessing which one was meant is how a person loses work they cannot get back.</para>
-    /// </summary>
     [Fact]
     public void A_non_empty_directory_without_build_metadata_is_refused()
     {
@@ -152,8 +109,6 @@ public sealed class WriterTests : IDisposable
         Assert.Equal("do not delete", File.ReadAllText(Path.Combine(Out("theirs"), "my-notes.md")));
     }
 
-    /// <summary>A file the generator no longer produces has to go, or the next build carries a
-    /// screen for an entity that was deleted three commits ago.</summary>
     [Fact]
     public void Regenerating_removes_files_the_generator_no_longer_produces()
     {
@@ -165,8 +120,6 @@ public sealed class WriterTests : IDisposable
         Assert.False(File.Exists(Path.Combine(Out("shrink"), "gone.txt")));
     }
 
-    /// <summary>And it removes ONLY those. Anything a person added — a test, a rewritten README,
-    /// their own module — is not the generator's to clean up.</summary>
     [Fact]
     public void Regenerating_leaves_files_the_generator_never_wrote()
     {
@@ -177,8 +130,6 @@ public sealed class WriterTests : IDisposable
 
         Assert.Equal("mine", File.ReadAllText(Path.Combine(Out("mine"), "hand-written.md")));
     }
-
-    // ---- the metadata --------------------------------------------------------------------------
 
     [Fact]
     public void The_build_metadata_records_a_hash_for_every_file()
@@ -195,13 +146,6 @@ public sealed class WriterTests : IDisposable
             files[0]!["sha256"]!.GetValue<string>());
     }
 
-    /// <summary>
-    /// A knowingly partial build says so in the artifact, permanently.
-    ///
-    /// <para>A warning printed once scrolls away. Six months later somebody inherits the repository
-    /// and has no way to tell a deliberate subset from a finished build — which is exactly when it
-    /// matters, because they are about to rely on a screen that was never generated.</para>
-    /// </summary>
     [Fact]
     public void A_partial_build_is_recorded_rather_than_only_warned_about()
     {
@@ -229,9 +173,6 @@ public sealed class WriterTests : IDisposable
         Assert.Empty(doc["unsupportedCapabilities"]!.AsArray());
     }
 
-    /// <summary>The metadata is written on every run and is the most tempting place to record
-    /// "generated at". A clock in there would end the determinism claim in the very file that
-    /// documents it.</summary>
     [Fact]
     public void The_build_metadata_carries_no_clock_and_no_machine()
     {
@@ -245,8 +186,6 @@ public sealed class WriterTests : IDisposable
         Assert.DoesNotContain(Path.GetTempPath(), text, StringComparison.OrdinalIgnoreCase);
     }
 
-    // ---- dry run -------------------------------------------------------------------------------
-
     [Fact]
     public void A_dry_run_reports_what_it_would_do_and_writes_nothing()
     {
@@ -258,8 +197,6 @@ public sealed class WriterTests : IDisposable
         Assert.False(Directory.Exists(Out("dry")));
     }
 
-    /// <summary>Relative path → sha256 of the bytes on disk, sorted. Two trees with the same
-    /// fingerprint are the same tree, including which files exist.</summary>
     private static string Fingerprint(string root)
     {
         var lines = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)

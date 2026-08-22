@@ -8,14 +8,8 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The design PLAN and per-SLICE gates: skeleton substitution must make stub roster
-/// documents valid by construction, attribute every error to the slice that caused it, and
-/// enforce the plan's key ownership so independently-generated screens cannot collide.</summary>
 public class PlanGateTests
 {
-    /// <summary>A staffing domain: schedule (primary), assignment (references schedule + platform
-    /// person), a subordinate note, and a settings singleton — enough shape for per-record
-    /// surfaces, ownership checks and the subordinate/settings bans.</summary>
     private static JsonObject Domain() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "1.0", "key": "staffing", "name": "Staffing", "version": "1.0.0",
@@ -57,8 +51,6 @@ public class PlanGateTests
     }
     """))!;
 
-    // ---- parsing --------------------------------------------------------------------------------
-
     [Fact]
     public void Parse_orders_home_first_and_settings_last()
     {
@@ -70,8 +62,6 @@ public class PlanGateTests
     [Fact]
     public void Parse_autoadds_a_detail_for_every_per_record_surface()
     {
-        // A per_record surface has to live in its entity's detail — if the planner forgot the
-        // details entry, the plan gains it deterministically instead of burning a repair round.
         var plan = DesignPlan.Parse(JsonNode.Parse("""
         {
           "pages": [ { "key": "home", "label": "Home", "role": "home", "views": [] } ],
@@ -90,11 +80,9 @@ public class PlanGateTests
         Assert.Null(DesignPlan.Parse(null));
         Assert.Null(DesignPlan.Parse(JsonNode.Parse(""" "not an object" """)));
         var junk = DesignPlan.Parse(JsonNode.Parse("""{ "parameter_name": " " }"""));
-        Assert.NotNull(junk);                          // an object parses…
-        Assert.Empty(junk!.Pages);                     // …to an empty plan the gate rejects as degenerate
+        Assert.NotNull(junk);
+        Assert.Empty(junk!.Pages);
     }
-
-    // ---- the plan gate ----------------------------------------------------------------------------
 
     [Fact]
     public void A_good_plan_validates_cleanly()
@@ -105,9 +93,6 @@ public class PlanGateTests
     [Fact]
     public void Stub_skeleton_is_valid_by_construction()
     {
-        // Every planned view becomes a stub TABLE view (no data-shape preconditions) and every
-        // planned page a text-block page — if a stub could fail the gate, slice errors would be
-        // unattributable.
         Assert.Empty(Gate.Validate(PlanGate.BuildSkeleton(Domain(), Plan())));
     }
 
@@ -122,13 +107,11 @@ public class PlanGateTests
     [Fact]
     public void Plan_invariants_are_enforced()
     {
-        // No home page.
         var noHome = DesignPlan.Parse(JsonNode.Parse("""
         { "pages": [ { "key": "a", "label": "A", "role": "workspace", "views": [] } ] }
         """))!;
         Assert.Contains(PlanGate.ValidatePlan(Domain(), noHome), e => e.Contains("role 'home'"));
 
-        // Duplicate view keys across pages.
         var dup = DesignPlan.Parse(JsonNode.Parse("""
         { "pages": [
             { "key": "home", "label": "H", "role": "home", "views": [
@@ -138,7 +121,6 @@ public class PlanGateTests
         """))!;
         Assert.Contains(PlanGate.ValidatePlan(Domain(), dup), e => e.Contains("duplicate view key 'v1'"));
 
-        // per_record without a scope entity; global without a placement page.
         var surfaces = DesignPlan.Parse(JsonNode.Parse("""
         { "pages": [ { "key": "home", "label": "H", "role": "home", "views": [] } ],
           "surfaces": [
@@ -149,7 +131,6 @@ public class PlanGateTests
         Assert.Contains(errors, e => e.Contains("names no scopeEntity"));
         Assert.Contains(errors, e => e.Contains("names no page"));
 
-        // A per_record surface placed in ANOTHER entity's detail — the one-big-matrix failure.
         var misplaced = DesignPlan.Parse(JsonNode.Parse("""
         { "pages": [ { "key": "home", "label": "H", "role": "home", "views": [] } ],
           "details": [ { "entity": "assignment" } ],
@@ -163,8 +144,6 @@ public class PlanGateTests
     [Fact]
     public void Skeleton_surfaces_the_subordinate_and_settings_bans()
     {
-        // Planning a view over a subordinate or settings entity is a PLAN mistake; the stub
-        // skeleton hands it to the existing DesignErrors rules.
         var plan = DesignPlan.Parse(JsonNode.Parse("""
         { "pages": [
             { "key": "home", "label": "H", "role": "home", "views": [
@@ -185,8 +164,6 @@ public class PlanGateTests
         """))!;
         Assert.Contains(PlanGate.ValidatePlan(Domain(), plan), e => e.Contains("ghost"));
     }
-
-    // ---- the slice gate ---------------------------------------------------------------------------
 
     private static SliceSpec Spec(DesignPlan plan, string id) =>
         PlanGate.Slices(plan).Single(s => s.Id == id);
@@ -220,8 +197,6 @@ public class PlanGateTests
     [Fact]
     public void Gate_errors_are_attributable_to_the_substituted_slice()
     {
-        // A ghost column in THIS slice's view config → error; the other slices are stubs and
-        // contribute nothing.
         var slice = JsonNode.Parse("""
         {
           "page": { "key": "schedules", "label": "Schedules", "blocks": [
@@ -295,9 +270,6 @@ public class PlanGateTests
     [Fact]
     public void The_per_record_machinery_validates_inside_a_detail()
     {
-        // The exact shape the planner exists to place: ONE schedule's board, composed inside the
-        // schedule detail — platform people as rows, a record-scoped repeat and an editable cell
-        // keyed on {{record.id}}. This pins that the runtime vocabulary accepts it.
         var plan = Plan();
         var slice = JsonNode.Parse("""
         {
@@ -330,6 +302,6 @@ public class PlanGateTests
         """);
         var errors = PlanGate.ValidateSlice(Domain(), plan, Spec(plan, "detail:schedule"), wrongEntity);
         Assert.Contains(errors, e => e.Contains("must target entity 'schedule'"));
-        Assert.Contains(errors, e => e.Contains("form"));   // the plan asked for one
+        Assert.Contains(errors, e => e.Contains("form"));
     }
 }

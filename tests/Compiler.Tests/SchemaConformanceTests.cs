@@ -8,25 +8,8 @@ using Cordango.TestCorpus;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The SAFETY NET for tightening the schema. Written before the block/effect
-/// discriminated unions land, and green on both sides of them.
-///
-/// <para>The union's whole risk is that a stricter shape rejects something real. The decisive
-/// property is per-object: <b>every block in the corpus must validate against the variant for its
-/// own kind</b>, and every effect against the variant for its own type. A hand scan of all 86
-/// blocks across 21 definitions found not one cross-kind property — this pins that permanently, so
-/// a variant that forgets a legitimate property fails here instead of in a live run.</para>
-///
-/// <para>Scope note: the 14 model-generated fixtures under <c>schema/examples/tests/generated</c>
-/// are a historical corpus and are NOT asserted gate-clean (ANALYSIS flagged them as partly stale
-/// — v1.0 shapes, pre-<c>role:'status'</c> kanbans). They ARE asserted structurally, because that
-/// is exactly the property the union must not break.</para></summary>
 public class SchemaConformanceTests
 {
-    // ---- corpus discovery ------------------------------------------------------------------
-    // Moved to Corpus.cs so the Cord and Runtime suites hold themselves against the same files
-    // rather than each keeping a private copy of "which files are the corpus". These stay as
-    // forwarders because [MemberData] names them by string.
 
     public static TheoryData<string> MaintainedDefinitions() => Corpus.MaintainedDefinitions();
 
@@ -34,18 +17,12 @@ public class SchemaConformanceTests
 
     private static JsonNode Load(string path) => JsonNode.Parse(File.ReadAllText(path))!;
 
-    // ---- the corpus is discoverable at all --------------------------------------------------
-
     [Fact]
     public void The_corpus_is_found_and_non_trivial()
     {
-        // A silently-empty TheoryData would make every [Theory] below vacuously pass — which is the
-        // one way this safety net could fail to protect anything.
         Assert.True(MaintainedDefinitions().Count >= 4, "expected the 3 reference apps + crm");
         Assert.True(AllDefinitions().Count >= 18, "expected the full example corpus");
     }
-
-    // ---- the maintained corpus stays fully valid --------------------------------------------
 
     [Theory]
     [MemberData(nameof(MaintainedDefinitions))]
@@ -56,9 +33,6 @@ public class SchemaConformanceTests
             $"{Path.GetFileName(path)} no longer passes the gate:\n  " + string.Join("\n  ", errors));
     }
 
-    // ---- the union safety net ----------------------------------------------------------------
-
-    /// <summary>A schema that validates ONE node against a named $def of the app-definition schema.</summary>
     private static JsonNode DefSchema(string defName)
     {
         var schema = JsonNode.Parse(Schemas.AppDefinitionSchemaJson)!;
@@ -109,13 +83,6 @@ public class SchemaConformanceTests
             $"{Path.GetFileName(path)}: effect(s) rejected by $defs/effect:\n  " + string.Join("\n  ", failures));
     }
 
-    // ---- the per-slice narrowing safety net ---------------------------------------------------
-    // Narrowing DELETES block variants from the tool schema, so a wrong `bindings` declaration would
-    // make a real shape unauthorable — and silently, since the model simply never sees it. The
-    // catalog's bindings were advisory until now (declared, emitted, enforced by nothing), so they
-    // get the same treatment as the union: prove them against every block the corpus actually
-    // authored, in the context it authored it in.
-
     [Theory]
     [MemberData(nameof(AllDefinitions))]
     public void Every_authored_block_is_binding_legal_where_it_was_authored(string path)
@@ -149,25 +116,17 @@ public class SchemaConformanceTests
     [Fact]
     public void Narrowing_only_ever_drops_what_the_catalog_positively_rules_out()
     {
-        // Three kinds (control/settings/timeline) have no catalog entry at all. The rule must treat
-        // "undeclared" as "legal everywhere" — otherwise adding a schema kind before its catalog
-        // entry would quietly remove it from the model's vocabulary.
         foreach (var undeclared in new[] { "control", "settings", "timeline" })
         {
             Assert.Null(ComponentCatalog.Find("block." + undeclared));
             Assert.True(ComponentCatalog.BlockIsLegalIn(undeclared, "page"));
             Assert.True(ComponentCatalog.BlockIsLegalIn(undeclared, "detail"));
         }
-        // An unknown context narrows nothing.
         Assert.True(ComponentCatalog.BlockIsLegalIn("hub", "some_future_slice_kind"));
-        // And the rule does bite where the catalog is explicit.
         Assert.False(ComponentCatalog.BlockIsLegalIn("hub", "page"));
         Assert.False(ComponentCatalog.BlockIsLegalIn("view", "detail"));
     }
 
-    // ---- view configs are published to the model ----------------------------------------------
-
-    /// <summary>A schema validating one node against a named $def of the AUTHORING schema.</summary>
     private static JsonNode AuthoringDefSchema(string defName)
     {
         var schema = Schemas.AuthoringSchema();
@@ -182,15 +141,6 @@ public class SchemaConformanceTests
     [MemberData(nameof(MaintainedDefinitions))]
     public void Every_view_config_in_the_corpus_satisfies_its_published_contract(string path)
     {
-        // The catalog's per-type config schemas were always enforced (Gate.DesignErrors); publishing
-        // them into the tool schema only makes them visible at authoring time. So this must be a
-        // no-op for real definitions — if it is not, the published contract and the enforced one
-        // have drifted, and the model would be guided into output the gate then rejects.
-        //
-        // MAINTAINED corpus only, for the reason in the class summary: the generated fixtures are a
-        // v1.0-era historical set that already fails the gate wholesale (workflow `actions`/
-        // `conditions`, kanban `config.columns` — the pre-`cardFields` spelling). They are asserted
-        // structurally, not semantically, and view config is a semantic contract.
         var viewSchema = AuthoringDefSchema("view");
         var failures = new List<string>();
         foreach (var v in Load(path)["views"] as JsonArray ?? [])
@@ -214,24 +164,19 @@ public class SchemaConformanceTests
         { "key":"board","label":"Board","type":"kanban","entity":"deal",
           "config":{"groupByField":"stage","cardFields":["name"]} }
         """));
-        // The review's complaint, made structural: a made-up key…
         Assert.NotEmpty(Check("""
         { "key":"board","label":"Board","type":"kanban","entity":"deal","config":{"banana":true} }
         """));
-        // …and, more usefully, ANOTHER view type's config on this one.
         Assert.NotEmpty(Check("""
         { "key":"board","label":"Board","type":"kanban","entity":"deal","config":{"dateField":"due_at"} }
         """));
         Assert.NotEmpty(Check("""
         { "key":"cal","label":"Cal","type":"calendar","entity":"deal","config":{"groupByField":"stage"} }
         """));
-        // The stored schema stays open on purpose — the catalog is the one source of these rules.
         Assert.Equal("object",
             JsonNode.Parse(Schemas.AppDefinitionSchemaJson)!["$defs"]!["view"]!["properties"]!["config"]!["type"]!
                 .GetValue<string>());
     }
-
-    // ---- the union actually bites -------------------------------------------------------------
 
     private static List<string> BlockErrors(string json) =>
         Gate.StructuralErrors(JsonNode.Parse(json)!, DefSchema("block"));
@@ -239,9 +184,6 @@ public class SchemaConformanceTests
     [Fact]
     public void A_block_carrying_another_kinds_properties_is_rejected()
     {
-        // The review's example: structurally valid under the old single-object block, semantically
-        // meaningless. Every one of these properties belongs to a different kind. `blocks` is kept
-        // VALID in both, so the foreign properties are the only possible reason the second fails.
         Assert.Empty(BlockErrors("""
         { "kind":"card", "blocks":[{"kind":"text","value":"x"}] }
         """));
@@ -261,17 +203,14 @@ public class SchemaConformanceTests
     }
 
     [Theory]
-    // The review's "under-validated kinds": each of these used to validate as a bare shell.
-    [InlineData("""{ "kind":"stat" }""")]                                   // needs field OR source
-    [InlineData("""{ "kind":"text" }""")]                                   // needs text OR value
-    [InlineData("""{ "kind":"chip" }""")]                                   // needs field OR value
-    [InlineData("""{ "kind":"chart","source":{"entity":"t"} }""")]          // needs chartType
-    [InlineData("""{ "kind":"control","control":"stepper","stateKey":"c" }""")]  // stepper needs step
+    [InlineData("""{ "kind":"stat" }""")]
+    [InlineData("""{ "kind":"text" }""")]
+    [InlineData("""{ "kind":"chip" }""")]
+    [InlineData("""{ "kind":"chart","source":{"entity":"t"} }""")]
+    [InlineData("""{ "kind":"control","control":"stepper","stateKey":"c" }""")]
     public void Under_specified_blocks_are_rejected(string json) => Assert.NotEmpty(BlockErrors(json));
 
     [Theory]
-    // A foreign property on a leaf is the single most likely model slip, and the one the old
-    // shape silently accepted.
     [InlineData("""{ "kind":"field","field":"name","rowBy":"owner" }""")]
     [InlineData("""{ "kind":"text","value":"hi","source":{"entity":"t"} }""")]
     [InlineData("""{ "kind":"view","view":"v","editable":true }""")]
@@ -282,35 +221,23 @@ public class SchemaConformanceTests
     public void An_unknown_kind_is_rejected()
         => Assert.NotEmpty(BlockErrors("""{ "kind":"totally_made_up" }"""));
 
-    // ---- "exactly one" stops being a comment ---------------------------------------------------
-    // Review item 6: filter, blockSource, condition, visibleWhen and the dates axis all DOCUMENTED
-    // an exactly-one rule in their description and enforced none of it. Each is now a `oneOf` over
-    // required-key groups. Verified against the corpus first: 78 filters, 44 sources, 12
-    // visibleWhens, 9 conditions and 2 date axes, zero violations — these rules describe what real
-    // definitions already do.
-
     private static List<string> ErrorsFor(string defName, string json) =>
         Gate.StructuralErrors(JsonNode.Parse(json)!, DefSchema(defName));
 
     [Theory]
-    // filter: address the value with field XOR path.
     [InlineData("filter", true, """{ "field":"status","operator":"eq","value":"open" }""")]
     [InlineData("filter", true, """{ "path":"room.tier","operator":"eq","value":"standard" }""")]
     [InlineData("filter", false, """{ "field":"status","path":"room.tier","operator":"eq","value":"x" }""")]
     [InlineData("filter", false, """{ "operator":"eq","value":"open" }""")]
-    // blockSource: exactly one origin. Two origins is not "both axes" — it is a coin toss.
     [InlineData("blockSource", true, """{ "entity":"task" }""")]
     [InlineData("blockSource", true, """{ "platform":"person" }""")]
     [InlineData("blockSource", false, """{ "entity":"task","platform":"person" }""")]
     [InlineData("blockSource", false, """{ "filters":[],"limit":10 }""")]
-    // condition: all XOR any XOR a leaf.
     [InlineData("condition", true, """{ "field":"status","operator":"eq","value":"open" }""")]
     [InlineData("condition", true, """{ "all":[{"field":"a","operator":"isEmpty"}] }""")]
     [InlineData("condition", false, """{ "all":[{"field":"a","operator":"isEmpty"}],"field":"b","operator":"eq","value":1 }""")]
     [InlineData("condition", false, """{ "all":[],"any":[] }""")]
     [InlineData("condition", false, """{ "value":"open" }""")]
-    // visibleWhen: with none of eq/neq/in, BlockRenderer.blockVisible returns true unconditionally —
-    // the guard reads as a rule and behaves as nothing.
     [InlineData("visibleWhen", true, """{ "value":"{{state.mode}}","eq":"week" }""")]
     [InlineData("visibleWhen", false, """{ "value":"{{state.mode}}" }""")]
     [InlineData("visibleWhen", false, """{ "value":"{{state.mode}}","eq":"week","neq":"day" }""")]
@@ -323,15 +250,11 @@ public class SchemaConformanceTests
     [Fact]
     public void A_dates_axis_must_be_bounded()
     {
-        // manifest.js dateAxis() falls back to `count ?? 366` as a hang guard, so an unbounded range
-        // does not fail — it renders a 366-column grid. That is a schema-shaped bug.
         Assert.Empty(ErrorsFor("blockSource", """{ "dates":{"from":"{{today}}","count":7} }"""));
         Assert.Empty(ErrorsFor("blockSource", """{ "dates":{"from":"2026-01-01","to":"2026-01-31"} }"""));
         Assert.NotEmpty(ErrorsFor("blockSource", """{ "dates":{"from":"{{today}}"} }"""));
         Assert.NotEmpty(ErrorsFor("blockSource", """{ "dates":{"from":"{{today}}","to":"2026-01-31","count":7} }"""));
     }
-
-    // ---- the effect union ----------------------------------------------------------------------
 
     private static List<string> EffectErrors(string json) =>
         Gate.StructuralErrors(JsonNode.Parse(json)!, DefSchema("effect"));
@@ -348,8 +271,6 @@ public class SchemaConformanceTests
     }
 
     [Theory]
-    // The review's item 8: typed but not discriminated, so every type's properties were legal on
-    // every other type. `{type:"notify", url:…, entity:…}` validated and then silently did nothing.
     [InlineData("""{ "type":"notify","message":"m","url":"https://x.example","entity":"task" }""")]
     [InlineData("""{ "type":"updateRecord","set":{"a":1},"entity":"task" }""")]
     [InlineData("""{ "type":"webhook","url":"https://x.example","message":"m" }""")]
@@ -359,21 +280,18 @@ public class SchemaConformanceTests
         => Assert.NotEmpty(EffectErrors(json));
 
     [Theory]
-    [InlineData("""{ "type":"updateRecord" }""")]                                  // needs set
-    [InlineData("""{ "type":"createRecord","set":{"a":1} }""")]                     // needs entity
-    [InlineData("""{ "type":"notify","title":"t" }""")]                             // needs message
-    [InlineData("""{ "type":"email","to":"a@b.c","subject":"s" }""")]               // needs body
-    [InlineData("""{ "type":"webhook","method":"POST" }""")]                        // needs url
-    [InlineData("""{ "set":{"a":1} }""")]                                           // needs a type
+    [InlineData("""{ "type":"updateRecord" }""")]
+    [InlineData("""{ "type":"createRecord","set":{"a":1} }""")]
+    [InlineData("""{ "type":"notify","title":"t" }""")]
+    [InlineData("""{ "type":"email","to":"a@b.c","subject":"s" }""")]
+    [InlineData("""{ "type":"webhook","method":"POST" }""")]
+    [InlineData("""{ "set":{"a":1} }""")]
     [InlineData("""{ "type":"totally_made_up" }""")]
     public void Under_specified_effects_are_rejected(string json) => Assert.NotEmpty(EffectErrors(json));
 
     [Fact]
     public void A_webhook_url_must_be_https_at_authoring_time()
     {
-        // WebhookEffectExecutor already refuses anything but https at runtime — so an http URL was a
-        // command that validated, shipped, and then quietly never fired. Same rule, moved to where
-        // the author can still see it.
         Assert.Empty(EffectErrors("""{ "type":"webhook","url":"https://example.com/hook" }"""));
         Assert.NotEmpty(EffectErrors("""{ "type":"webhook","url":"http://example.com/hook" }"""));
         Assert.NotEmpty(EffectErrors("""{ "type":"webhook","url":"example.com/hook" }"""));
@@ -382,11 +300,6 @@ public class SchemaConformanceTests
     [Fact]
     public void Shared_property_shapes_are_referenced_not_inlined()
     {
-        // `visibleWhen` is an 825-byte object that belongs on nearly every block. Inlined it was
-        // written out 31 times in the stored schema and 31 times AGAIN in each authoring variant —
-        // 33 KB of the schema file and over half the tool schema, all of it the same bytes. A $ref
-        // says exactly the same thing once. This is the shape of the whole cost problem: the union
-        // multiplies anything a variant inlines, so anything shared must live in $defs.
         var schema = JsonNode.Parse(Schemas.AppDefinitionSchemaJson)!;
         Assert.NotNull(schema["$defs"]!["visibleWhen"]);
 
@@ -407,13 +320,11 @@ public class SchemaConformanceTests
         Walk(schema["$defs"]);
         Assert.True(inlined == 0, $"{inlined} definition(s) still inline `visibleWhen` instead of $ref-ing it");
 
-        // And it still validates the same way it did inlined.
         Assert.Empty(BlockErrors("""{ "kind":"text","value":"x","visibleWhen":{"value":"{{state.mode}}","eq":"week"} }"""));
         Assert.NotEmpty(BlockErrors("""{ "kind":"text","value":"x","visibleWhen":{"eq":"week"} }"""));
         Assert.NotEmpty(BlockErrors("""{ "kind":"text","value":"x","visibleWhen":{"value":"v","banana":1} }"""));
     }
 
-    /// <summary>Every block in a definition, wherever blocks can live, with a readable location.</summary>
     private static IEnumerable<(JsonObject Block, string Where)> BlocksOf(JsonNode doc)
     {
         var hits = new List<(JsonObject, string)>();
@@ -439,7 +350,6 @@ public class SchemaConformanceTests
         foreach (var e in doc["entities"] as JsonArray ?? [])
         {
             Walk(e?["detail"]?["blocks"], $"entity '{e?["key"]}'.detail");
-            // form blocks validate against $defs/formBlock, not $defs/block — excluded here on purpose.
         }
         return hits;
     }

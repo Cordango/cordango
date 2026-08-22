@@ -8,8 +8,6 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>DesignAssembler: per-screen slice outputs stitch into ONE design document that the
-/// unchanged DesignMerge + Gate accept; refine can swap a single slice without touching the rest.</summary>
 public class DesignAssemblerTests
 {
     private static JsonObject Domain() => (JsonObject)JsonNode.Parse("""
@@ -88,7 +86,6 @@ public class DesignAssemblerTests
         Assert.Empty(mergeIssues);
         Assert.Empty(Gate.Validate(merged));
 
-        // Plan order IS the page order (which is the sidebar order — nav is never authored).
         Assert.Equal(["home", "tickets", "customers"],
             merged["pages"]!.AsArray().Select(p => p!["key"]!.GetValue<string>()));
         Assert.Null(merged["navigation"]);
@@ -105,7 +102,7 @@ public class DesignAssemblerTests
         var design = DesignAssembler.Assemble(Plan(), landed, out _);
 
         var merged = DesignMerge.Apply(Domain(), design, out _).AsObject();
-        Assert.Empty(Gate.Validate(merged));                 // still a valid app
+        Assert.Empty(Gate.Validate(merged));
         Assert.Equal(["home", "tickets"],
             merged["pages"]!.AsArray().Select(p => p!["key"]!.GetValue<string>()));
     }
@@ -137,8 +134,6 @@ public class DesignAssemblerTests
         var stripped = DesignAssembler.StripDesign(merged);
         Assert.Equal(Domain().ToJsonString(), stripped.ToJsonString());
     }
-
-    // ---- the refine path: derive the roster, swap one slice --------------------------------------
 
     [Fact]
     public void FromDefinition_derives_the_slice_roster_from_a_merged_app()
@@ -187,7 +182,6 @@ public class DesignAssemblerTests
         Assert.Empty(Gate.Validate(updated));
         Assert.Equal("Clients", updated["pages"]!.AsArray()
             .Single(p => p!["key"]!.GetValue<string>() == "customers")!["label"]!.GetValue<string>());
-        // Untouched slices are byte-identical.
         Assert.Equal(current["pages"]![0]!.ToJsonString(), updated["pages"]![0]!.ToJsonString());
         Assert.Equal(current["pages"]![1]!.ToJsonString(), updated["pages"]![1]!.ToJsonString());
         Assert.Equal(current["entities"]!.ToJsonString(), updated["entities"]!.ToJsonString());
@@ -229,7 +223,7 @@ public class DesignAssemblerTests
         Assert.Empty(Gate.Validate(updated));
         var ticket = updated["entities"]!.AsArray().Single(e => e!["key"]!.GetValue<string>() == "ticket")!;
         Assert.Single(ticket["detail"]!["blocks"]!.AsArray());
-        Assert.NotNull(ticket["form"]);                      // an unemitted form keeps the current one
+        Assert.NotNull(ticket["form"]);
         Assert.Equal(current["pages"]!.ToJsonString(), updated["pages"]!.ToJsonString());
     }
 }

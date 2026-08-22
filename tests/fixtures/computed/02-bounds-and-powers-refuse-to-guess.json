@@ -1,0 +1,83 @@
+{
+  "name": "min, max and pow return unknown rather than guessing at a side they could not work out",
+  "why": "`min` and `max` are how a row states a BOUND on one of its own figures — a usage charge capped at a plan's ceiling, a balance floored at zero. There is no conditional in this language and booleans do not coerce to numbers, so without them a cap simply cannot be written. That makes their null discipline load-bearing: returning the other side when one is unknown would silently un-cap a figure that was supposed to be capped, and the number would look reasonable.",
+  "fields": {
+    "usage": { "type": "decimal" },
+    "cap": { "type": "decimal" },
+    "balance": { "type": "decimal" },
+    "costs": { "type": "decimal" },
+    "months": { "type": "integer" }
+  },
+  "cases": [
+    {
+      "why": "A charge capped at the plan ceiling.",
+      "record": { "usage": 140, "cap": 100 },
+      "expr": "min(usage, cap)",
+      "expect": 100
+    },
+    {
+      "record": { "usage": 60, "cap": 100 },
+      "expr": "min(usage, cap)",
+      "expect": 60
+    },
+    {
+      "why": "A balance floored at zero. Nothing owed is nothing, not a negative.",
+      "record": { "balance": -25 },
+      "expr": "max(0, balance)",
+      "expect": 0
+    },
+    {
+      "record": { "balance": 25 },
+      "expr": "max(0, balance)",
+      "expect": 25
+    },
+    {
+      "why": "BOTH sides blank is ZERO, not unknown. This is the case that separates the two kinds of missing: a blank field reads as zero, so both bounds are genuinely known to be zero and the lower of them is zero.",
+      "record": {},
+      "expr": "min(usage, cap)",
+      "expect": 0
+    },
+    {
+      "why": "But a bound that could not be WORKED OUT takes the whole thing to unknown. Returning `usage` here would report an uncapped charge as though it had been capped, which is the failure this rule exists to stop.",
+      "record": { "usage": 140, "costs": 500, "months": 0 },
+      "expr": "min(usage, costs / months)",
+      "expect": null
+    },
+    {
+      "why": "Either side, not just the right one.",
+      "record": { "cap": 100, "costs": 500, "months": 0 },
+      "expr": "min(costs / months, cap)",
+      "expect": null
+    },
+    {
+      "why": "Same discipline for max, so a floor cannot be lost the way a cap cannot.",
+      "record": { "costs": 500, "months": 0 },
+      "expr": "max(0, costs / months)",
+      "expect": null
+    },
+    {
+      "why": "pow, for compound growth and annualised returns.",
+      "record": {},
+      "expr": "pow(2, 10)",
+      "expect": 1024
+    },
+    {
+      "why": "A power that overflows decimal is unknown, not an exception. An OverflowException from inside a total is a 500 on a page somebody was only reading.",
+      "record": {},
+      "expr": "pow(10, 1000)",
+      "expect": null
+    },
+    {
+      "why": "A negative base under a fractional exponent is NaN in double, and NaN is not a number anybody should see. Unknown.",
+      "record": {},
+      "expr": "pow(0 - 1, 0.5)",
+      "expect": null
+    },
+    {
+      "why": "min and max stay in decimal and are exact, unlike pow which goes through double. A cap must not move by a rounding error.",
+      "record": { "usage": 0.1, "cap": 0.3 },
+      "expr": "min(usage, cap) * 3",
+      "expect": 0.3
+    }
+  ]
+}

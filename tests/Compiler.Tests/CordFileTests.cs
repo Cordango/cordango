@@ -11,18 +11,6 @@ using Xunit.Abstractions;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// <b>RT-4 through FILES.</b> <see cref="CordDocumentTests"/> proves the model survives being written
-/// as one document; this proves it survives being written as the per-aggregate tree a repository
-/// actually holds — which is the shape GitHub sync will one day push and pull.
-///
-/// <para>The other half of the file is <see cref="CordFiles.Join"/>'s refusals. Reading files back is
-/// the one place where content nobody in this system wrote arrives: a hand edit, a merge, a pulled
-/// commit. A hash proves the bytes are unchanged and says nothing about what is inside them, so the
-/// reader checks that every operation belongs in the file carrying it — otherwise
-/// <c>views/hiring.cord</c> could delete an entity and the per-aggregate layout that makes review
-/// tractable would be the thing hiding it.</para>
-/// </summary>
 public class CordFileTests(ITestOutputHelper output)
 {
     private static JsonNode Baseline(string path)
@@ -51,8 +39,6 @@ public class CordFileTests(ITestOutputHelper output)
         return replay.Draft;
     }
 
-    // ---- the partition ---------------------------------------------------------------------------
-
     [Fact]
     public void One_aggregate_is_one_file()
     {
@@ -64,9 +50,6 @@ public class CordFileTests(ITestOutputHelper output)
              "views/hiring.cord", "views/costs.cord"],
             files.Files.Select(f => f.Path));
 
-        // Each file holds only its own aggregate's operations — the property Join later re-checks
-        // from the outside, asserted here from the inside so a splitter bug cannot hide behind a
-        // reader that tolerates it.
         foreach (var file in files.Files.Skip(1))
         {
             var ops = (JsonArray)JsonNode.Parse(file.Content)!["ops"]!;
@@ -77,9 +60,6 @@ public class CordFileTests(ITestOutputHelper output)
     [Fact]
     public void The_bytes_are_canonical()
     {
-        // Canonical formatting is part of the contract, not a nicety: two paths that produce the same
-        // application must produce the same bytes, or every diff is whitespace and "the files and the
-        // database agree" stops being checkable.
         var file = CordFiles.Materialize(TwoScreenApp()).Files.Single(f => f.Path == "views/hiring.cord");
 
         Assert.DoesNotContain('\r', file.Content);
@@ -87,20 +67,10 @@ public class CordFileTests(ITestOutputHelper output)
         Assert.Contains("\n  ", file.Content, StringComparison.Ordinal);
         Assert.Equal(DefinitionHash.OfText(file.Content), file.ContentHash);
 
-        // Deterministic: the same app materializes to the same bytes, every time.
         Assert.Equal(file.Content,
             CordFiles.Materialize(TwoScreenApp()).Files.Single(f => f.Path == "views/hiring.cord").Content);
     }
 
-    /// <summary>
-    /// <b>The assertion the whole per-aggregate layout exists for.</b> Accepting one screen rewrites
-    /// exactly one file, and every other file is byte-identical.
-    ///
-    /// <para>Without it "one aggregate at a time" would be a claim about the UI rather than a property
-    /// of the system: a materializer that renumbered keys, reordered arrays or reformatted siblings
-    /// would produce a commit touching six files for a change the user made to one — and a reviewer
-    /// reading that diff has no way to see what was actually accepted.</para>
-    /// </summary>
     [Fact]
     public void Accepting_one_screen_changes_exactly_one_file()
     {
@@ -160,8 +130,6 @@ public class CordFileTests(ITestOutputHelper output)
             DefinitionHash.Of(CordLower.Lower(replay.Next!)));
     }
 
-    // ---- the round trip --------------------------------------------------------------------------
-
     [Theory]
     [MemberData(nameof(Corpus.SemanticCorpus), MemberType = typeof(Corpus))]
     public void An_application_survives_the_trip_through_files(string path)
@@ -169,8 +137,6 @@ public class CordFileTests(ITestOutputHelper output)
         var app = CordImport.Import(Baseline(path));
         var files = CordFiles.Materialize(app);
 
-        // Same split as the document round trip: what the writer could not express is a measured gap,
-        // not a failure, and an incomplete document is not expected to read back.
         if (!files.Complete)
         {
             output.WriteLine($"{Path.GetFileName(path)}: {files.Unwritable.Count} unwritable");
@@ -186,8 +152,6 @@ public class CordFileTests(ITestOutputHelper output)
         var prepared = CordTransaction.Prepare(blank, doc["ops"]);
         Assert.Empty(prepared.Errors);
 
-        // The App Definition hash, not a comparison of the models: this is the same identity the gate
-        // and `finish` use, so passing it means the files ARE source rather than a lossy export.
         Assert.Equal(DefinitionHash.Of(CordLower.Lower(app)),
             DefinitionHash.Of(CordLower.Lower(prepared.Next!)));
     }
@@ -195,9 +159,6 @@ public class CordFileTests(ITestOutputHelper output)
     [Fact]
     public void The_file_order_is_recorded_so_a_tree_can_rebuild_it()
     {
-        // A set of files has no order, and a Git tree has none either — but array order is meaningful
-        // in an App Definition and DefinitionHash hashes it. So app.cord records the order and Join
-        // rebuilds by it; without that the round trip above would fail on nothing but ordering.
         var app = TwoScreenApp();
         var files = CordFiles.Materialize(app).Files;
 
@@ -212,15 +173,9 @@ public class CordFileTests(ITestOutputHelper output)
             DefinitionHash.Of(CordLower.Lower(prepared.Next!)));
     }
 
-    // ---- what Join refuses -----------------------------------------------------------------------
-
     [Fact]
     public void An_operation_in_the_wrong_file_is_refused_rather_than_replayed()
     {
-        // The defect this exists for: a screen's file carrying an entity removal. It would replay
-        // perfectly — the operation is well-formed and the entity is real — and one screen's file
-        // would have deleted the domain, with nothing in the diff of that file looking unusual to
-        // anyone reviewing "the hiring screen changed".
         var files = CordFiles.Materialize(TwoScreenApp()).Files.ToList();
         var screen = files.Single(f => f.Path == "views/hiring.cord");
 
@@ -232,15 +187,12 @@ public class CordFileTests(ITestOutputHelper output)
 
         var problem = Assert.Single(problems);
         Assert.Contains("belongs in entities/scenario.cord", problem, StringComparison.Ordinal);
-        // Refused, not merely reported: the operation is not in the document that gets replayed.
         Assert.DoesNotContain("\"remove\"", doc["ops"]!.ToJsonString(), StringComparison.Ordinal);
     }
 
     [Fact]
     public void Content_that_disagrees_with_its_hash_is_refused()
     {
-        // The row and the hash recorded against it have drifted, which means the store is not what it
-        // claims to be. Reading it anyway would replay content nobody accepted.
         var files = CordFiles.Materialize(TwoScreenApp()).Files.ToList();
         var entity = files.Single(f => f.Path == "entities/hire.cord");
         files[files.IndexOf(entity)] = entity with { Content = entity.Content.Replace("Team", "Squad") };
@@ -263,9 +215,6 @@ public class CordFileTests(ITestOutputHelper output)
     [Fact]
     public void A_file_the_identity_does_not_list_is_appended_rather_than_dropped()
     {
-        // A pulled tree may legitimately carry a file this app.cord has never heard of — somebody
-        // added an entity in their editor. Dropping it silently would make sync lose work; appending
-        // it in path order puts it in front of the same acceptance gate as anything else.
         var files = CordFiles.Materialize(TwoScreenApp()).Files.ToList();
         files.Add(CordFiles.FromContent("entities/team.cord", """
         {"ops":[{"op":"upsert_entity","entity":{"key":"team","label":"Team","fields":[

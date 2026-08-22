@@ -7,13 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The four composable surfaces added alongside the namespaced families:
-/// data.table, data.calendar, domain.form and layout.split. Each is a real canonical block kind,
-/// so each gets the same treatment as the rest: structural shape, semantic resolution of every key
-/// it names, and a lowering path from its authoring name.</summary>
 public class NewBlockKindsTests
 {
-    /// <summary>A 2-entity app: `booking` (dates + a select + a ref to `room`) and `room`.</summary>
     private static JsonObject App(params JsonNode[] pageBlocks)
     {
         var doc = (JsonObject)JsonNode.Parse("""
@@ -42,8 +37,6 @@ public class NewBlockKindsTests
 
     private static JsonNode B(string json) => JsonNode.Parse(json)!;
 
-    // ---- data.table -----------------------------------------------------------------------
-
     [Fact]
     public void Table_over_an_entity_source_validates()
     {
@@ -61,12 +54,9 @@ public class NewBlockKindsTests
     [Fact]
     public void Table_rejects_a_non_entity_axis()
     {
-        // A dates axis yields buckets, which have no columns to tabulate.
         var doc = App(B("""{ "kind":"table","source":{"dates":{"from":"{{today}}","count":7}} }"""));
         Assert.Contains(Gate.Validate(doc), e => e.Contains("table needs an ENTITY source"));
     }
-
-    // ---- data.calendar --------------------------------------------------------------------
 
     [Fact]
     public void Calendar_over_a_date_field_validates()
@@ -94,8 +84,6 @@ public class NewBlockKindsTests
         Assert.Contains(Gate.Validate(doc), e => e.Contains("calendar colorField") && e.Contains("must be a select field"));
     }
 
-    // ---- domain.form ----------------------------------------------------------------------
-
     [Fact]
     public void Form_over_a_known_entity_validates()
     {
@@ -110,13 +98,9 @@ public class NewBlockKindsTests
         Assert.Contains(Gate.Validate(doc), e => e.Contains("form entity 'ghost' is unknown"));
     }
 
-    // ---- layout.split ---------------------------------------------------------------------
-
     [Fact]
     public void Split_binds_its_detail_pane_to_the_selected_record()
     {
-        // The detail pane's leaves resolve against the LIST's entity — that is the whole point of
-        // the item binding, and the thing that would silently break if it were bound to the page.
         var doc = App(B("""
         { "kind":"split","source":{"entity":"booking"},"fields":["day"],
           "blocks":[ { "kind":"field","field":"purpose" } ] }
@@ -143,8 +127,6 @@ public class NewBlockKindsTests
         """));
         Assert.Empty(Gate.Validate(doc));
     }
-
-    // ---- authoring names ------------------------------------------------------------------
 
     [Fact]
     public void All_four_are_authorable_under_their_family()

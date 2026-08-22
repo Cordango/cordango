@@ -8,14 +8,8 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The three collection-level analytics shapes a single aggregate cannot express:
-/// a stat/tile that FOLDS two aggregates into one number (a ratio of sums), a stat that reads a
-/// SHARE of a denominator, and a chart drawing two SERIES on one axis. Each is a way to get a
-/// number wrong quietly, so the Gate rules here are about refusing to draw a comparison that
-/// silently isn't one.</summary>
 public class CombinedSourceGateTests
 {
-    /// <summary>One entity with two numeric fields, plus a page carrying whatever block is under test.</summary>
     private static JsonObject WithBlock(string blockJson) => (JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "app", "name": "App", "version": "1.0.0",
@@ -39,8 +33,6 @@ public class CombinedSourceGateTests
 
     private const string SumValue = """{ "entity": "holding", "aggregate": { "op": "sum", "field": "value" } }""";
     private const string SumCost = """{ "entity": "holding", "aggregate": { "op": "sum", "field": "cost" } }""";
-
-    // ---- ratio of sums -------------------------------------------------------------------------
 
     [Fact]
     public void A_ratio_of_two_sums_is_valid() =>
@@ -83,8 +75,6 @@ public class CombinedSourceGateTests
                        { "entity": "holding", "aggregate": { "op": "sum", "field": "cost" } } ] }
         """), e => e.Contains("source 1") && e.Contains("'ghost' is not a field"));
 
-    // ---- share of a denominator ----------------------------------------------------------------
-
     [Fact]
     public void A_share_of_a_collection_aggregate_is_valid_inside_a_repeat() =>
         Assert.Empty(Errors($$"""
@@ -106,8 +96,6 @@ public class CombinedSourceGateTests
         { "kind": "repeat", "as": "row", "source": { "entity": "holding" },
           "blocks": [ { "kind": "stat", "label": "Share", "field": "value", "max": "ghost" } ] }
         """), e => e.Contains("stat max 'ghost' is not a field"));
-
-    // ---- multi-series charts -------------------------------------------------------------------
 
     [Fact]
     public void Two_series_sharing_one_axis_are_valid() =>
@@ -136,9 +124,6 @@ public class CombinedSourceGateTests
             { "source": { "entity": "holding", "aggregate": { "op": "sum", "field": "value", "groupBy": "sector" } } } ] }
         """), e => e.Contains("draws one series"));
 
-    // ---- display units -------------------------------------------------------------------------
-
-    /// <summary>Minimal definition with one field carrying the given extra JSON.</summary>
     private static List<string> FieldErrors(string fieldJson) => Gate.Validate((JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "app", "name": "App", "version": "1.0.0",

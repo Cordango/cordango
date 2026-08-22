@@ -12,13 +12,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// The generic store: hooks, tracking fields, and what a partial update actually writes.
-///
-/// <para>Each of these pins a defect found in the prior art this design was assessed against, and
-/// each of those defects was silent — nothing threw, nothing logged, the columns were simply always
-/// null or the wrong rows were written. A test is the only place they show up.</para>
-/// </summary>
 public class RecordStoreTests
 {
     [Fact]
@@ -33,7 +26,6 @@ public class RecordStoreTests
         Assert.Equal("mara", created.CreatedBy);
         Assert.Null(created.LastModified);
 
-        // A different person, later. The creation stamp is a fact about the past and must survive.
         clock.UtcNow = clock.UtcNow.AddDays(3);
         world.User.UserId = "tim";
 
@@ -45,13 +37,6 @@ public class RecordStoreTests
         Assert.Equal("tim", updated.LastModifiedBy);
     }
 
-    /// <summary>
-    /// A row that already carries a creation stamp keeps it.
-    ///
-    /// <para>The runtime provides these values; it does not insist on them. A seeded dataset carries
-    /// its own dates, and overwriting them gives every demo record the same creation instant — which
-    /// makes "recently created" meaningless and a chart over creation dates a single bar.</para>
-    /// </summary>
     [Fact]
     public async Task An_already_stamped_row_keeps_its_own_creation_time()
     {
@@ -66,13 +51,6 @@ public class RecordStoreTests
         Assert.Equal("importer", created.CreatedBy);
     }
 
-    /// <summary>
-    /// A client sending one field changes one field.
-    ///
-    /// <para>The obvious implementation attaches the incoming entity and saves it, which writes
-    /// every property — including the twenty the client never mentioned, now at their default. The
-    /// symptom is a form that clears fields it does not show.</para>
-    /// </summary>
     [Fact]
     public async Task A_partial_update_touches_only_the_named_fields()
     {
@@ -87,8 +65,6 @@ public class RecordStoreTests
         Assert.Equal("keep me", updated.Note);
     }
 
-    /// <summary>A replace writes everything, including the fields the body left out. Both verbs
-    /// exist so that a caller can say which they mean.</summary>
     [Fact]
     public async Task A_replace_writes_every_field()
     {
@@ -104,13 +80,6 @@ public class RecordStoreTests
         Assert.Null(updated.Note);
     }
 
-    /// <summary>
-    /// A before-create hook runs, and it runs BEFORE the row exists.
-    ///
-    /// <para>The prior art's store declared these methods <c>async void</c>, so the controller's
-    /// save raced the hook. Refusing a write from a hook refused it after the write had happened,
-    /// and a hook that threw took the process down instead of answering the request.</para>
-    /// </summary>
     [Fact]
     public async Task Hooks_run_in_order_and_are_awaited()
     {
@@ -139,8 +108,6 @@ public class RecordStoreTests
         Assert.Null(await world.Store.FindAsync("w1", default));
     }
 
-    /// <summary>A before-update hook sees the row as it was and the row as it will be. Field-changed
-    /// workflows are built on that pair, and it cannot be reconstructed after the fact.</summary>
     [Fact]
     public async Task An_update_hook_sees_both_versions()
     {
@@ -180,7 +147,6 @@ public class RecordStoreTests
         var updated = await world.Store.UpdateAsync(
             created.Id, new Widget { Id = "somewhere-else", Name = "Second" }, ["name"], default);
 
-        // Otherwise every reference pointing at w1 would be left pointing at nothing.
         Assert.Equal("w1", updated.Id);
         Assert.NotNull(await world.Store.FindAsync("w1", default));
     }
@@ -197,8 +163,6 @@ public class RecordStoreTests
         var gone = await Assert.ThrowsAsync<RecordException>(() => world.Store.DeleteAsync("nope", default));
         Assert.Equal(404, gone.StatusCode);
     }
-
-    // ---- the small world these run in ---------------------------------------------------------
 
     private sealed class Widget : IRecord, IHasTrackingFields
     {
@@ -233,7 +197,6 @@ public class RecordStoreTests
         public bool IsAdministrator { get; set; }
     }
 
-    /// <summary>A database, a store and a place for hooks to write down that they ran.</summary>
     private sealed class World : IAsyncDisposable
     {
         public World(FixedClock? clock = null, FakeUser? user = null, List<string>? hooks = null)
@@ -244,8 +207,6 @@ public class RecordStoreTests
 
             var options = new DbContextOptionsBuilder<TestDb>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
-                // The in-memory provider warns that it cannot honour a transaction. True, and not
-                // what these tests are about.
                 .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.InMemoryEventId.TransactionIgnoredWarning))
                 .Options;
 
@@ -277,7 +238,6 @@ public class RecordStoreTests
         public ValueTask DisposeAsync() => Db.DisposeAsync();
     }
 
-    /// <summary>Registered first, so that hook ORDER is observable rather than assumed.</summary>
     private sealed class FirstCreateHook(World world) : IBeforeCreate<Widget>
     {
         public Task BeforeCreateAsync(Widget record, RecordContext context, CancellationToken ct)

@@ -7,8 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>DesignMerge: the design pass can ONLY author presentation-layer keys; the domain
-/// must come through byte-identical no matter what the design document contains.</summary>
 public class DesignMergeTests
 {
     private static JsonObject Domain() => (JsonObject)JsonNode.Parse("""
@@ -55,13 +53,6 @@ public class DesignMergeTests
     [Fact]
     public void A_design_that_authors_navigation_is_ignored_not_failed()
     {
-        // `navigation` no longer exists in the language — the sidebar is page order. A model trained
-        // on the old shape can still emit one, so the merge must DROP it silently rather than let it
-        // reach a document whose root is additionalProperties:false.
-        //
-        // The resilience this preserves was learned live 2026-07-15: glm authored nav items against
-        // PAGE keys, an otherwise-complete design failed the gate on exactly that, and the repair
-        // rounds then collapsed. Not copying the section at all is the same protection with no code.
         var design = Design();
         design["navigation"] = JsonNode.Parse("""
         { "type": "sidebar", "items": [
@@ -71,8 +62,8 @@ public class DesignMergeTests
         """);
         var merged = DesignMerge.Apply(Domain(), design, out var issues).AsObject();
 
-        Assert.Empty(issues);                    // silent — no repair round burned
-        Assert.Null(merged["navigation"]);       // never copied through
+        Assert.Empty(issues);
+        Assert.Null(merged["navigation"]);
         Assert.Empty(Gate.Validate(merged));
     }
 
@@ -99,8 +90,6 @@ public class DesignMergeTests
             workflows = domain["workflows"]!.ToJsonString(),
             key = domain["key"]!.GetValue<string>(),
         };
-        // A hostile design doc trying to smuggle domain edits: unknown top-level keys are ignored,
-        // details land only under `detail`.
         var design = Design();
         design["entities"] = JsonNode.Parse("""[{ "key": "evil", "label": "X", "fields": [] }]""");
         design["workflows"] = JsonNode.Parse("[]");
@@ -123,7 +112,6 @@ public class DesignMergeTests
     }
 }
 
-/// <summary>The design layer of the gate: component configs against the catalog contract.</summary>
 public class DesignGateTests
 {
     private static JsonObject App(string viewsJson, string? pagesJson = null) => (JsonObject)JsonNode.Parse($$"""
@@ -259,7 +247,7 @@ public class DesignGateTests
         Assert.Contains(errs, e => e.Contains("hub facts field 'ghost'"));
         Assert.Contains(errs, e => e.Contains("max 'nope' is not a field of 'asset'"));
         Assert.Contains(errs, e => e.Contains("tile 'Nothing'") && e.Contains("needs either 'field'"));
-        Assert.DoesNotContain(errs, e => e.Contains("status 'category'") && e.Contains("must be a 'select'")); // category IS select
+        Assert.DoesNotContain(errs, e => e.Contains("status 'category'") && e.Contains("must be a 'select'"));
     }
 
     [Fact]
@@ -335,8 +323,6 @@ public class DesignGateTests
     [Fact]
     public void Composed_home_from_primitives_passes_the_gate()
     {
-        // A leaderboard (card > repeat > row[...]) + a spotlight stat + a chart — the whole point of M2:
-        // a distinctive home composed from generic primitives, not a fixed widgets dashboard.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -386,15 +372,9 @@ public class DesignGateTests
         Assert.Contains(errs, e => e.Contains("chart groupBy 'purchase_value' must be a select/reference/date"));
     }
 
-    // ---- domain.create: the page-level "New <record>" button --------------------------------------
-
     [Fact]
     public void A_create_button_on_a_page_is_valid()
     {
-        // The affordance that did not exist before 2026-08-04. `action` cannot express it — that
-        // requires a `command` on the BOUND record, and there is no record yet when you are making
-        // one — so a page whose primary surface is a composed grid or a calendar had no way to say
-        // "New" at all. The MeetingPrep app shipped a display.text styled to look like a button.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -420,8 +400,6 @@ public class DesignGateTests
             """);
         Assert.Contains(Gate.Validate(doc), e => e.Contains("create targets unknown entity 'ghost'"));
 
-        // A record detail is already about ONE record; creating a sibling from there is a child
-        // block or a command, not this.
         var detail = App("""[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""");
         detail["entities"]![0]!["detail"] = JsonNode.Parse(
             """{ "blocks": [ { "kind": "create", "entity": "asset" } ] }""");
@@ -431,7 +409,6 @@ public class DesignGateTests
     [Fact]
     public void A_create_button_is_rejected_on_a_singleton_entity()
     {
-        // There is only ever one settings record, so "New one of these" is meaningless.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -447,10 +424,8 @@ public class DesignGateTests
             e => e.Contains("create targets 'app_settings'") && e.Contains("nothing to create"));
     }
 
-    // ---- impossible intervals + paired date axes --------------------------------------------------
-
     [Theory]
-    [InlineData("gte", "lt")]    // the 2026-08-02 MeetingPrep pair
+    [InlineData("gte", "lt")]
     [InlineData("gt", "lte")]
     [InlineData("gt", "lt")]
     public void Range_filters_that_can_never_both_hold_are_rejected(string lo, string hi)
@@ -471,7 +446,6 @@ public class DesignGateTests
     [Fact]
     public void A_closed_interval_on_one_value_is_allowed()
     {
-        // gte x + lte x is [x,x] — it legitimately matches exactly x, unlike the three above.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -488,7 +462,6 @@ public class DesignGateTests
     [Fact]
     public void A_half_open_day_bucket_against_the_next_bucket_is_allowed()
     {
-        // The shape {{day.next}} exists to make possible.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -508,8 +481,6 @@ public class DesignGateTests
     [Fact]
     public void Paired_date_repeats_in_one_container_must_share_a_direction()
     {
-        // The MeetingPrep week grid, reduced to its skeleton: a header strip running in a row above a
-        // body repeat that omits `direction` and therefore stacks. Both live under one container.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -532,8 +503,6 @@ public class DesignGateTests
     [Fact]
     public void Two_independent_date_repeats_at_the_page_root_are_not_paired()
     {
-        // A horizontal week schedule and an unrelated vertical date picker may share a range without
-        // being one surface. Pairing is a within-container claim, never a page-wide one.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -552,7 +521,6 @@ public class DesignGateTests
     [Fact]
     public void Block_chart_accepts_month_of_bucketing_over_a_date_field()
     {
-        // 'value by month' — the same dialect widgets and the aggregate endpoint already speak.
         var doc = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """
@@ -568,7 +536,6 @@ public class DesignGateTests
     [Fact]
     public void Deep_links_validate_page_and_filter_fields()
     {
-        // A linked stat + a linked chart on a dashboard page, pointing at a real list page.
         var ok = App(
             """[{ "key": "t", "label": "Assets", "type": "table", "entity": "asset" }]""",
             """

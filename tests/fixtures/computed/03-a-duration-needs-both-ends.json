@@ -1,0 +1,71 @@
+{
+  "name": "A duration is unknown unless both ends are known",
+  "why": "A ticket nobody has resolved has no resolution time. Not zero, and not the time since it was opened — unknown. An implementation that read the missing end as the epoch would report a duration in decades, and one that read it as zero would report every open ticket as resolved instantly, which is worse because it looks like a good number.",
+  "fields": {
+    "opened_at": { "type": "datetime" },
+    "resolved_at": { "type": "datetime" },
+    "first_reply_at": { "type": "datetime" },
+    "start_date": { "type": "date" },
+    "end_date": { "type": "date" }
+  },
+  "cases": [
+    {
+      "why": "Fractional, because a datetime carries a time. Two and a half days is two and a half days, not two and not three.",
+      "record": { "opened_at": "2026-03-01T00:00:00Z", "resolved_at": "2026-03-03T12:00:00Z" },
+      "expr": "days_between(opened_at, resolved_at)",
+      "expect": 2.5
+    },
+    {
+      "record": { "opened_at": "2026-03-01T00:00:00Z", "resolved_at": "2026-03-03T12:00:00Z" },
+      "expr": "hours_between(opened_at, resolved_at)",
+      "expect": 60
+    },
+    {
+      "record": { "opened_at": "2026-03-01T00:00:00Z", "resolved_at": "2026-03-03T12:00:00Z" },
+      "expr": "minutes_between(opened_at, resolved_at)",
+      "expect": 3600
+    },
+    {
+      "why": "The end not set. This is the whole file: an open ticket has an unknown resolution time.",
+      "record": { "opened_at": "2026-03-01T00:00:00Z" },
+      "expr": "days_between(opened_at, resolved_at)",
+      "expect": null
+    },
+    {
+      "why": "And the start not set, so neither end is privileged.",
+      "record": { "resolved_at": "2026-03-03T12:00:00Z" },
+      "expr": "days_between(opened_at, resolved_at)",
+      "expect": null
+    },
+    {
+      "why": "A blank DATE is not a zero the way a blank number is. There is no sensible zero for a date, and inventing one would make this read as decades rather than as unknown.",
+      "record": {},
+      "expr": "days_between(opened_at, resolved_at)",
+      "expect": null
+    },
+    {
+      "why": "Backwards is negative rather than an error. A record whose dates were entered the wrong way round should show an obviously wrong figure, not a plausible one.",
+      "record": { "opened_at": "2026-03-03T00:00:00Z", "resolved_at": "2026-03-01T00:00:00Z" },
+      "expr": "days_between(opened_at, resolved_at)",
+      "expect": -2
+    },
+    {
+      "why": "An unknown duration spreads through the arithmetic built on it, exactly like a division by zero.",
+      "record": { "opened_at": "2026-03-01T00:00:00Z" },
+      "expr": "days_between(opened_at, resolved_at) * 24",
+      "expect": null
+    },
+    {
+      "why": "A known one does not.",
+      "record": { "opened_at": "2026-03-01T00:00:00Z", "first_reply_at": "2026-03-01T06:00:00Z" },
+      "expr": "hours_between(opened_at, first_reply_at) / 24",
+      "expect": 0.25
+    },
+    {
+      "why": "A plain DATE names a whole day, so the difference between two of them is a whole number of days.",
+      "record": { "start_date": "2026-03-01", "end_date": "2026-03-04" },
+      "expr": "days_between(start_date, end_date)",
+      "expect": 3
+    }
+  ]
+}

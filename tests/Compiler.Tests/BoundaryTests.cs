@@ -9,36 +9,8 @@ using Cordango.TestCorpus;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// Rule 0, asserted rather than remembered.
-///
-/// <para><c>Cordango.Compiler</c> is the portable core, and it now genuinely lives in its own
-/// open-source repository. That property has a short half-life: it survives exactly as long as
-/// nobody needs "just one thing" from Platform. The failure is silent and cheap at the time — a
-/// <c>ProjectReference</c> is one line, and everything still builds — and it is only discovered when
-/// somebody tries to build the public repository on its own and finds it welded to a tenant
-/// store.</para>
-///
-/// <para>Restated on 2026-08-20 when Definition and Cord merged into one project. Two rules changed
-/// shape and neither was loosened: the csproj bar went from "exactly one project reference" to
-/// <b>zero</b>, because there is nothing left to reference; and the type tripwire is now scoped to
-/// the <c>Cordango.Cord</c> namespace, because "Blueprint" is a legitimate concern of
-/// <c>Cordango.Definition</c> and only ever an intruder in the source model.</para>
-///
-/// <para>Same argument, and the same shape, as
-/// <c>AppBuilder.Api.Tests/ServiceBoundaryTests.cs</c>, which keeps the worker from referencing the
-/// API. This one additionally checks the COMPILED assembly, because a csproj assertion alone can be
-/// satisfied while a transitive reference smuggles the dependency in anyway.</para>
-/// </summary>
 public class BoundaryTests
 {
-    /// <summary>What the compiler may be built on. Not a style preference — every entry here is
-    /// either the framework, the schema library the gate evaluates with, or something that library
-    /// already brought.</summary>
-    /// <remarks>The three Json* entries are ONE permitted package: JsonSchema.Net ships
-    /// Json.More.Net and JsonPointer.Net alongside it. They are listed by their real assembly names
-    /// because that is what the runtime reports, and because the csproj test below is the one that
-    /// counts packages — this list only has to explain what a reference is doing there.</remarks>
     private static readonly string[] Allowed =
     [
         "JsonSchema.Net",
@@ -48,8 +20,6 @@ public class BoundaryTests
         "System.Runtime",
     ];
 
-    /// <summary>The concerns that would end the extraction claim if any of them arrived. Named
-    /// explicitly so a failure says WHICH boundary was crossed instead of "unexpected reference".</summary>
     private static readonly string[] Forbidden =
     [
         "AppBuilder.Generator",
@@ -98,28 +68,14 @@ public class BoundaryTests
         var csproj = File.ReadAllText(Path.Combine(
             Corpus.RepoRoot(), "src", "Cordango.Compiler", "Cordango.Compiler.csproj"));
 
-        // Zero, not "few". The whole claim of the public repository is that this project builds with
-        // nothing of ours underneath it.
         var references = csproj.Split("<ProjectReference").Length - 1;
         Assert.True(references == 0, $"expected no ProjectReference, found {references}");
 
-        // Counted, not merely inspected for presence: a package here is a dependency every OSS
-        // consumer and every generated application inherits, so the bar is not "is it useful" but
-        // "would we ship it".
         var packages = csproj.Split("<PackageReference").Length - 1;
         Assert.True(packages == 1, $"expected exactly one PackageReference, found {packages}");
         Assert.Contains("JsonSchema.Net", csproj);
     }
 
-    /// <summary>
-    /// A tripwire for the concerns most likely to leak in as a TYPE rather than as a reference.
-    ///
-    /// <para>The reference checks catch a csproj edit. They do not catch someone hand-rolling an
-    /// <c>AnthropicToolDefinition</c> record inside the compiler with no new dependency at all —
-    /// which is the realistic version of this mistake, because the provider shape is just JSON and
-    /// copying it looks harmless. The compiler may describe an application; naming a vendor, a
-    /// tenant or a transport is where the boundary is.</para>
-    /// </summary>
     [Theory]
     [InlineData("Anthropic")]
     [InlineData("Tenant")]
@@ -139,15 +95,6 @@ public class BoundaryTests
             + "Tool and provider shapes are an adapter in AppBuilder.Generator.");
     }
 
-    /// <summary>
-    /// The same tripwire, one namespace tighter.
-    ///
-    /// <para>Cord is the model authored source is written in. A blueprint is what a person approved
-    /// and a tool shape is how a model was asked — both are real concerns of the layers ABOVE, and
-    /// both are exactly the sort of thing that gets copied into the source model because it was
-    /// convenient once. <c>Cordango.Definition.Blueprints</c> is where blueprints legitimately
-    /// live, which is why this is scoped rather than assembly-wide.</para>
-    /// </summary>
     [Theory]
     [InlineData("Blueprint")]
     [InlineData("Tool")]

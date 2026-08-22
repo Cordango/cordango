@@ -8,12 +8,6 @@ using Cordango.Definition;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>The hand-authored Pipedrive-style sales CRM reference app (exploration/reference/
-/// sales-crm.appdef.json, gaps in CRM-GAPS.md). Its load-bearing modelling decision: a deal's
-/// pipeline STAGE (a plain select the board groups and drags by) is orthogonal to its STATUS
-/// (the role:'status' open/won/lost process behind the Won/Lost/Reopen header buttons) — exactly
-/// Pipedrive's split, and the only way to keep Won/Lost off the board without losing the process.
-/// Pinning it clean keeps later runtime changes from silently breaking the pipeline archetype.</summary>
 public class CrmReferenceTests
 {
     private static JsonNode Reference() =>
@@ -33,11 +27,9 @@ public class CrmReferenceTests
         var deal = doc["entities"]!.AsArray().First(e => e!["key"]!.GetValue<string>() == "deal")!.AsObject();
         var fields = deal["fields"]!.AsArray().Cast<JsonObject>().ToDictionary(f => f!["key"]!.GetValue<string>());
 
-        // stage: a PLAIN select (no role) — the board's drag-to-move axis, free of process legality.
         Assert.Equal("select", fields["stage"]!["type"]!.GetValue<string>());
         Assert.Null(fields["stage"]!["role"]);
 
-        // status: the role:'status' field the deal_flow process governs (open/won/lost + reopen).
         Assert.Equal("status", fields["status"]!["role"]!.GetValue<string>());
         var flow = doc["processes"]!.AsArray().First(p => p!["entity"]!.GetValue<string>() == "deal")!.AsObject();
         Assert.Equal("status", flow["stateField"]!.GetValue<string>());
@@ -48,8 +40,6 @@ public class CrmReferenceTests
     [Fact]
     public void Deals_board_shows_only_open_deals_grouped_by_stage()
     {
-        // The merged Deals page carries a `board` block (Board|List toggle). It groups by stage and
-        // its source filters to status == open, so Won/Lost never appear as pipeline columns.
         var doc = (JsonObject)Reference();
         var page = doc["pages"]!.AsArray().First(p => p!["key"]!.GetValue<string>() == "deals")!.AsObject();
         var boards = new List<JsonObject>();
@@ -63,9 +53,6 @@ public class CrmReferenceTests
     [Fact]
     public void Deals_board_sums_value_per_column_for_the_pipeline_funnel()
     {
-        // Pipedrive's per-column "€12,250 · 3 deals" header. Instead of a separate funnel strip, the
-        // board block names a `sumField` and the renderer totals the visible cards per column — so the
-        // funnel honors the shared search + facets automatically.
         var doc = (JsonObject)Reference();
         var page = doc["pages"]!.AsArray().First(p => p!["key"]!.GetValue<string>() == "deals")!.AsObject();
         var boards = new List<JsonObject>();
@@ -77,8 +64,6 @@ public class CrmReferenceTests
     [Fact]
     public void Deals_board_and_list_share_one_search_and_owner_facet()
     {
-        // The merged page's filterbar writes screen state (q, owner) that BOTH the board and the list
-        // read — the board via its `search` + an `optional` owner filter, the list the same way.
         var doc = (JsonObject)Reference();
         var page = doc["pages"]!.AsArray().First(p => p!["key"]!.GetValue<string>() == "deals")!.AsObject();
 
@@ -115,8 +100,6 @@ public class CrmReferenceTests
     [Fact]
     public void Stage_probability_stays_in_sync_via_field_changed_workflows()
     {
-        // One workflow per stage: field.changed(deal.stage) guarded on the new stage value writes the
-        // matching probability — the runtime idiom for Pipedrive's per-stage deal probability.
         var doc = (JsonObject)Reference();
         var stageWorkflows = doc["workflows"]!.AsArray().Cast<JsonObject>()
             .Where(w => w!["trigger"]!["field"]?.GetValue<string>() == "stage").ToList();

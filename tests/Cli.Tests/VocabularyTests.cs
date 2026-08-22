@@ -8,14 +8,6 @@ using Cordango.Cli.Commands;
 
 namespace Cordango.Cli.Tests;
 
-/// <summary>
-/// The command exists because an agent went without it.
-///
-/// <para>Working in a real cord workspace, it wanted the setting names a calendar view accepts,
-/// found no way to ask, and scraped strings out of the 78 MB <c>cord.exe</c> to recover the embedded
-/// schema — heading for the whole 143 KB document next. These tests hold the two properties that
-/// make the honest route better than that one: it ANSWERS, and it stays SMALL.</para>
-/// </summary>
 public class VocabularyTests
 {
     [Fact]
@@ -34,8 +26,6 @@ public class VocabularyTests
     [Fact]
     public void One_answer_is_a_fraction_of_the_schema_it_replaces()
     {
-        // 143 KB is the document CordyOSS §8.3 forbids handing over. A single block kind is ~5 KB,
-        // and holding that ratio is the whole reason references are named rather than inlined.
         using var sandbox = new Sandbox();
 
         var (_, payload) = sandbox.RunJson("vocabulary", "block", "calendar");
@@ -46,8 +36,6 @@ public class VocabularyTests
     [Fact]
     public void References_are_named_rather_than_inlined()
     {
-        // Inlining is how a 5 KB answer becomes the entire schema in three hops. Naming keeps the
-        // answer small AND teaches the loop: each reference is its own question.
         using var sandbox = new Sandbox();
 
         var (_, payload) = sandbox.RunJson("vocabulary", "block", "calendar");
@@ -69,15 +57,12 @@ public class VocabularyTests
         Assert.NotNull(cord);
         Assert.Contains("sectionKinds", cord!.Select(p => p.Key));
 
-        // And the App Definition blocks are listed too, because views/ files are still block trees.
         Assert.Contains("calendar", (payload["blocks"] as JsonArray ?? []).Select(b => (string?)b));
     }
 
     [Fact]
     public void It_works_outside_a_workspace()
     {
-        // Vocabulary is a property of the TOOL, not of an app. An agent that has not created a
-        // workspace yet — or is reading before writing — must still be able to ask.
         using var sandbox = new Sandbox();
 
         Assert.Equal(ExitCodes.Ok, sandbox.Run("vocabulary"));
@@ -91,8 +76,6 @@ public class VocabularyTests
 
         var exit = sandbox.Run("vocabulary", "calendar");
 
-        // `calendar` alone is not an entry — `block_calendar` is. A bare refusal would send the
-        // agent back to the binary, which is the behaviour this command exists to replace.
         Assert.Equal(ExitCodes.Failed, exit);
         Assert.Contains("block_calendar", sandbox.Error, StringComparison.Ordinal);
     }

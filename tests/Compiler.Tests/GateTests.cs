@@ -13,7 +13,6 @@ public class GateTests
     private static JsonNode Fixture(string name) =>
         JsonNode.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "fixtures", name)))!;
 
-    // Smallest valid definition — reused as a base for negative cases.
     private static JsonObject Minimal() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "1.0", "key": "app", "name": "App", "version": "1.0.0",
@@ -54,9 +53,6 @@ public class GateTests
         Assert.Contains(errs, e => e.StartsWith("STRUCTURAL") && e.Contains("scheduling") && e.Contains("approval"));
     }
 
-    // ---- phantom-error pruning: only INVALID branches may report ---------------------------------
-
-    /// <summary>Minimal + a command whose effect target is the (valid) string "self".</summary>
     private static JsonObject WithSelfTargetCommand()
     {
         var doc = Minimal();
@@ -70,26 +66,19 @@ public class GateTests
     [Fact]
     public void A_real_error_does_not_flood_phantom_oneOf_branch_errors()
     {
-        // Live 2026-07-16 (VC run): ONE bad enum value made the gate report every failed
-        // oneOf/anyOf branch in the whole document — a perfectly valid effect target:"self" came
-        // back as 'Value is "string" but should be "object"'. 5 of the 6 errors in the screen's
-        // repair prompt were phantoms; the model burned its repair round on them and the screen
-        // was skipped. Errors under a node that is itself VALID must never be reported.
         var doc = WithSelfTargetCommand();
-        Assert.Empty(Gate.Validate(doc));                       // target:"self" is genuinely valid
+        Assert.Empty(Gate.Validate(doc));
 
         doc["entities"]![0]!["fields"]!.AsArray().Add(JsonNode.Parse(
-            """{ "key": "amount", "label": "Amount", "type": "number" }"""));   // the ONE real error
+            """{ "key": "amount", "label": "Amount", "type": "number" }"""));
         var errs = Gate.Validate(doc);
         Assert.Contains(errs, e => e.Contains("/fields/1/type"));
-        Assert.DoesNotContain(errs, e => e.Contains("target"));  // no phantom oneOf-branch noise
+        Assert.DoesNotContain(errs, e => e.Contains("target"));
     }
 
     [Fact]
     public void A_value_matching_no_oneOf_branch_still_reports_its_errors()
     {
-        // Pruning must not swallow REAL oneOf failures: when no branch matches, the node itself
-        // is invalid, so its branches' specific errors come through.
         var doc = WithSelfTargetCommand();
         doc["commands"]![0]!["effects"]![0]!["target"] = JsonNode.Parse("""{ "bogus": true }""");
         var errs = Gate.Validate(doc);
@@ -101,9 +90,9 @@ public class GateTests
     {
         var errs = Gate.Validate(Fixture("broken.appdef.json"));
         Assert.NotEmpty(errs);
-        Assert.All(errs, e => Assert.StartsWith("STRUCTURAL", e));  // fails at the structural stage
-        Assert.Contains(errs, e => e.Contains("fields/2"));         // bad field type location
-        Assert.Contains(errs, e => e.Contains("fields/3"));         // bad identifier location
+        Assert.All(errs, e => Assert.StartsWith("STRUCTURAL", e));
+        Assert.Contains(errs, e => e.Contains("fields/2"));
+        Assert.Contains(errs, e => e.Contains("fields/3"));
     }
 
     [Fact]
@@ -135,7 +124,6 @@ public class GateTests
     [Fact]
     public void A_business_field_named_status_is_allowed()
     {
-        // The lifecycle base field is 'record_state', so 'status' is free for a business field.
         var doc = Minimal();
         ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
             """{ "key": "status", "label": "Status", "type": "text" }"""));
@@ -145,8 +133,6 @@ public class GateTests
     [Fact]
     public void Workflow_when_guard_requires_a_condition_language()
     {
-        // A schedule workflow now carries an entity (schema-required) and a typed effect; the `when`
-        // guard validates as a condition against the trigger entity.
         var doc = Minimal();
         doc["workflows"] = JsonNode.Parse("""
         [{ "key": "wf", "name": "WF",
@@ -184,11 +170,6 @@ public class GateTests
         Assert.Empty(Gate.SemanticErrors(doc));
     }
 
-    // ---- references into a CORE app ---------------------------------------------------------------
-    // A core app ships with the platform, so unlike an arbitrary targetApp its entity list is known
-    // right here and a reference into one is checked like any other — without the gate reaching for a
-    // database, which would make validity depend on which environment ran it.
-
     [Fact]
     public void Reference_to_core_app_entity_resolves()
     {
@@ -217,9 +198,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("'thing.customer'"));
     }
 
-    // Subordination nests rows inside a parent record and deletes them with it. None of that survives
-    // the link pointing into another app's table, so it is rejected outright rather than producing an
-    // entity with no way in.
     [Fact]
     public void OwnedBy_via_a_cross_app_reference_rejected()
     {
@@ -265,9 +243,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("multiple role:'status' fields"));
     }
 
-    // --- role:'unconfirmed' -----------------------------------------------------------------------
-
-    /// <summary>It holds a LIST of field keys, so anything but json cannot carry it.</summary>
     [Fact]
     public void Unconfirmed_role_on_a_non_json_field_is_rejected()
     {
@@ -278,8 +253,6 @@ public class GateTests
             e => e.Contains("role 'unconfirmed'") && e.Contains("'json' field"));
     }
 
-    /// <summary>Two markers on one entity means two answers to "is this value checked", and the
-    /// runtime clears exactly one of them.</summary>
     [Fact]
     public void Multiple_unconfirmed_role_fields_on_one_entity_are_rejected()
     {
@@ -290,8 +263,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("multiple role:'unconfirmed' fields"));
     }
 
-    /// <summary>A computed marker is recalculated on every write, which erases the mark it exists to
-    /// carry — and the feature would then be dead with nothing failing.</summary>
     [Fact]
     public void A_computed_unconfirmed_marker_is_rejected()
     {
@@ -313,10 +284,6 @@ public class GateTests
         Assert.Empty(Gate.SemanticErrors(doc));
     }
 
-    // --- role:'differs' ---------------------------------------------------------------------------
-
-    /// <summary>It holds a MAP of field key to the value the system found, so anything but json cannot
-    /// carry it — the same rule as its companion mark, for the same reason.</summary>
     [Fact]
     public void Differs_role_on_a_non_json_field_is_rejected()
     {
@@ -349,9 +316,6 @@ public class GateTests
             e => e.Contains("role 'differs'") && e.Contains("computed"));
     }
 
-    /// <summary>The two marks answer different questions — "the system filled this" and "the system
-    /// disagrees with what you filled" — so one entity carrying both is the ordinary case, not a
-    /// conflict. If the cardinality checks ever shared a counter, this is what would fail.</summary>
     [Fact]
     public void Both_marks_on_one_entity_are_accepted()
     {
@@ -362,10 +326,6 @@ public class GateTests
         Assert.Empty(Gate.SemanticErrors(doc));
     }
 
-    // --- relatedApps ------------------------------------------------------------------------------
-
-    /// <summary>It answers "which apps point at THIS row", so on a collection there is no row to ask
-    /// about — not a rendering quirk, an unanswerable question.</summary>
     [Fact]
     public void RelatedApps_on_a_collection_surface_is_rejected()
     {
@@ -377,9 +337,6 @@ public class GateTests
             e => e.Contains("'relatedApps'") && e.Contains("record"));
     }
 
-    /// <summary>On a record detail it needs nothing else — no app named, no entity, no config. That is
-    /// the design: the server derives the answer from other apps' reference fields, so a block that
-    /// took parameters would be letting an author claim a view over apps they know nothing about.</summary>
     [Fact]
     public void RelatedApps_on_a_record_detail_needs_no_configuration()
     {
@@ -391,8 +348,6 @@ public class GateTests
         Assert.Empty(Gate.SemanticErrors(doc));
     }
 
-    /// <summary>Withheld from the model-facing vocabulary: it is a view ACROSS apps rendered inside
-    /// one, which a generated app has no standing to author.</summary>
     [Fact]
     public void RelatedApps_is_not_offered_to_the_generator()
     {
@@ -400,12 +355,9 @@ public class GateTests
         Assert.DoesNotContain(BlockKinds.All, k => k.Canonical == "relatedApps");
     }
 
-    // --- externalEmbed ----------------------------------------------------------------------------
-
     private const string Embed1 = """{ "kind": "externalEmbed", "key": "share_price", "provider": "tradingview_mini" }""";
     private const string Embed2 = """{ "kind": "externalEmbed", "key": "peer_chart", "provider": "tradingview_mini" }""";
 
-    /// <summary>`Minimal()` has neither a detail nor pages; each case builds only what it needs.</summary>
     private static JsonObject WithDetail(string blocksJson)
     {
         var doc = Minimal();
@@ -413,8 +365,6 @@ public class GateTests
         return doc;
     }
 
-    /// <summary>Its subject is derived from the record, so on a collection there is nothing to derive
-    /// it from.</summary>
     [Fact]
     public void An_external_embed_on_a_page_is_rejected()
     {
@@ -427,15 +377,6 @@ public class GateTests
             e => e.Contains("externalEmbed") && e.Contains("record detail"));
     }
 
-    /// <summary>
-    /// Two embeds sharing a key make the route ambiguous.
-    ///
-    /// <para>The endpoint addresses a block BY key — blocks are otherwise identified by their position
-    /// in the tree, and a position is not a stable API identity: reordering a tab would silently
-    /// repoint a live panel at a different provider. They sit in DIFFERENT tabs here on purpose,
-    /// because that is the arrangement a per-call local would miss — `ValidateBlocks` recurses, so the
-    /// seen-set has to live on the context.</para>
-    /// </summary>
     [Fact]
     public void Two_external_embeds_on_one_entity_may_not_share_a_key()
     {
@@ -453,8 +394,6 @@ public class GateTests
     {
         Assert.Empty(Gate.SemanticErrors(WithDetail($"{Embed1}, {Embed2}")));
     }
-
-    // --- role:'start'/'due' semantic dates + option/state phase ----------------------------------
 
     [Fact]
     public void Start_and_due_roles_on_date_fields_are_valid()
@@ -508,14 +447,10 @@ public class GateTests
             """{ "key": "effort", "label": "Effort", "type": "decimal", "treeAggregate": "sum" }"""));
         Assert.Empty(Gate.Validate(doc));
 
-        doc["entities"]![0]!["fields"]![0]!["treeAggregate"] = "sum";   // the text 'name' field
+        doc["entities"]![0]!["fields"]![0]!["treeAggregate"] = "sum";
         Assert.Contains(Gate.Validate(doc), e => e.Contains("treeAggregate") && e.Contains("'integer'/'decimal'/'money'"));
     }
 
-    // --- filterBar (shared shape: child tables, table blocks, table-view configs) ----------------
-
-    /// <summary>Minimal + a child entity ("item" referencing "thing", with a "bucket" group entity)
-    /// and a thing detail with a child table — the base for filterBar/fields/groupBy checks.</summary>
     private static JsonObject WithChildTable()
     {
         var doc = Minimal();
@@ -575,8 +510,6 @@ public class GateTests
         Assert.Contains(Gate.Validate(doc), e => e.Contains("child column 'bogus'"));
     }
 
-    // --- groupBy (shared shape: child tables, table blocks) --------------------------------------
-
     private static JsonObject ChildGroupBy(JsonObject doc) =>
         (JsonObject)doc["entities"]![0]!["detail"]!["blocks"]![0]!.AsObject()!;
 
@@ -614,8 +547,6 @@ public class GateTests
         ChildGroupBy(doc)["groupBy"] = JsonNode.Parse("""{ "field": "bucket", "orderBy": "rank" }""");
         Assert.Contains(Gate.Validate(doc), e => e.Contains("groupBy orderBy 'rank'") && e.Contains("'bucket'"));
     }
-
-    // --- orderField (manual row order on child/table surfaces) -----------------------------------
 
     [Fact]
     public void Child_orderField_on_numeric_field_is_valid()
@@ -669,12 +600,9 @@ public class GateTests
         Assert.Empty(Gate.Validate(doc));
     }
 
-    // --- board + gantt (composed kanban / timeline surfaces, scoped to the bound record via `via`) ---
-
     private static JsonObject WithBoardAndGantt()
     {
         var doc = WithChildTable();
-        // item needs date fields for the gantt bars.
         var item = ((JsonArray)doc["entities"]!).OfType<JsonObject>().First(e => (string?)e["key"] == "item");
         ((JsonArray)item["fields"]!).Add(JsonNode.Parse("""{ "key": "starts", "label": "Starts", "type": "date" }"""));
         ((JsonArray)item["fields"]!).Add(JsonNode.Parse("""{ "key": "ends", "label": "Ends", "type": "date" }"""));
@@ -687,7 +615,6 @@ public class GateTests
               "milestones": { "source": { "entity": "bucket" }, "dateField": "when", "labelField": "name" } }
         ] }
         """);
-        // the milestone source (bucket) needs the date field the gantt milestones read.
         var bucket = ((JsonArray)doc["entities"]!).OfType<JsonObject>().First(e => (string?)e["key"] == "bucket");
         ((JsonArray)bucket["fields"]!).Add(JsonNode.Parse("""{ "key": "when", "label": "When", "type": "date" }"""));
         return doc;
@@ -701,7 +628,7 @@ public class GateTests
     public void Board_groupField_must_be_select_or_reference()
     {
         var doc = WithBoardAndGantt();
-        doc["entities"]![0]!["detail"]!["blocks"]![0]!["groupField"] = "title";   // a text field
+        doc["entities"]![0]!["detail"]!["blocks"]![0]!["groupField"] = "title";
         Assert.Contains(Gate.Validate(doc), e => e.Contains("board groupField 'title'") && e.Contains("select or reference"));
     }
 
@@ -709,7 +636,7 @@ public class GateTests
     public void Board_via_must_reference_the_bound_entity()
     {
         var doc = WithBoardAndGantt();
-        doc["entities"]![0]!["detail"]!["blocks"]![0]!["source"]!["via"] = "bucket";   // ref to bucket, not thing
+        doc["entities"]![0]!["detail"]!["blocks"]![0]!["source"]!["via"] = "bucket";
         Assert.Contains(Gate.Validate(doc), e => e.Contains("via 'item.bucket' must be a reference to 'thing'"));
     }
 
@@ -717,7 +644,7 @@ public class GateTests
     public void Gantt_startField_must_be_a_date()
     {
         var doc = WithBoardAndGantt();
-        doc["entities"]![0]!["detail"]!["blocks"]![1]!["startField"] = "title";   // a text field
+        doc["entities"]![0]!["detail"]!["blocks"]![1]!["startField"] = "title";
         Assert.Contains(Gate.Validate(doc), e => e.Contains("gantt startField 'title'") && e.Contains("date field"));
     }
 
@@ -725,13 +652,10 @@ public class GateTests
     public void Gantt_milestones_dateField_must_be_a_date()
     {
         var doc = WithBoardAndGantt();
-        doc["entities"]![0]!["detail"]!["blocks"]![1]!["milestones"]!["dateField"] = "name";   // text
+        doc["entities"]![0]!["detail"]!["blocks"]![1]!["milestones"]!["dateField"] = "name";
         Assert.Contains(Gate.Validate(doc), e => e.Contains("gantt milestones dateField must be a date field"));
     }
 
-    // --- commands + processes (the behavior layer) ---
-
-    // A process-governed entity with two transition-bound commands — the canonical valid shape.
     private static JsonObject ProcessDoc() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion":"2.0","key":"app","name":"App","version":"1.0.0",
@@ -762,17 +686,9 @@ public class GateTests
     [Fact]
     public void Process_and_commands_are_valid() => Assert.Empty(Gate.Validate(ProcessDoc()));
 
-    // --- state reachability -----------------------------------------------------------------------
-
     [Fact]
     public void A_state_nothing_transitions_into_is_rejected()
     {
-        // The `action_item_lifecycle` process VERBATIM from the app shipped 2026-08-02 (MeetingPrep,
-        // appdata/runtime/f6066db1…/app.json). 'closed' is terminal, so the model could not write
-        // the reopen it wanted as closed -> open; it invented a 'reopened' state instead and hung
-        // the transition off THAT, leaving nothing that reaches it. A closed action item could never
-        // be reopened. The domain critic reported it as medium, the pipeline dropped the finding,
-        // and it shipped. This is the rule earning its place.
         var doc = ProcessDoc();
         doc["entities"]![0]!["fields"] = JsonNode.Parse("""
             [{"key":"title","label":"Title","type":"text"},
@@ -794,15 +710,12 @@ public class GateTests
         var errs = Gate.SemanticErrors(doc);
         Assert.Contains(errs, e => e.Contains("state 'reopened' can never be reached"));
         Assert.Contains(errs, e => e.Contains("transition 'reopen_action_item' can never fire"));
-        // 'close_action_item' still fires — 'open' is reachable, so only the dead edge is reported.
         Assert.DoesNotContain(errs, e => e.Contains("transition 'close_action_item'"));
     }
 
     [Fact]
     public void A_disconnected_cycle_is_rejected_even_though_each_state_has_an_incoming_transition()
     {
-        // The reason this is a graph closure and not an incoming-edge check: both ghost states ARE
-        // some transition's `to`, so "has an edge into it" passes them while neither can be entered.
         var doc = ProcessDoc();
         var states = (JsonArray)doc["processes"]![0]!["states"]!;
         states.Add(JsonNode.Parse("""{"key":"ghost_a","label":"Ghost A"}"""));
@@ -819,9 +732,6 @@ public class GateTests
     [Fact]
     public void A_conditional_initial_state_counts_as_an_entry()
     {
-        // room-booking's booking_flow enters at 'approved' by rule and 'pending' by fallback. A
-        // naive "initialState is one string" reading flags whichever one it isn't — 1 false positive
-        // on the corpus, which is why both forms are collected.
         var doc = ProcessDoc();
         var p = (JsonObject)doc["processes"]![0]!;
         ((JsonArray)p["states"]!).Add(JsonNode.Parse("""{"key":"auto","label":"Auto"}"""));
@@ -836,8 +746,6 @@ public class GateTests
     [Fact]
     public void Reachability_is_not_reported_on_top_of_a_broken_entry()
     {
-        // An unusable initialState already errors. Adding "and every state is unreachable" turns one
-        // fixable finding into a wall of noise, so the closure only runs once entry is sound.
         var doc = ProcessDoc();
         doc["processes"]![0]!["initialState"] = "nonexistent";
 
@@ -865,10 +773,6 @@ public class GateTests
     [Fact]
     public void A_process_governed_field_must_not_also_author_its_options()
     {
-        // The states ARE the options — AppCompiler.CanonicalizeProcesses writes them from the states
-        // and throws away whatever the field declared. So the old rule ("they must match") asked the
-        // author to maintain two copies of the same list and then discarded one. Declaring it at all
-        // is the error now.
         var doc = ProcessDoc();
         ((JsonObject)doc["entities"]![0]!["fields"]![2]!)["options"] = JsonNode.Parse(
             """[{"value":"draft","label":"Draft"},{"value":"submitted","label":"Submitted"},{"value":"approved","label":"Approved"}]""");
@@ -878,8 +782,6 @@ public class GateTests
     [Fact]
     public void A_process_governed_field_must_not_author_initial_rules()
     {
-        // Review item 10: `initial` on a governed field is business logic hidden on the field, in a
-        // second place, in a shape the process cannot see. Conditional ENTRY replaces it.
         var doc = ProcessDoc();
         ((JsonObject)doc["entities"]![0]!["fields"]![2]!)["initial"] = JsonNode.Parse(
             """[{"when":{"field":"title","operator":"isNotEmpty"},"value":"submitted"}]""");
@@ -897,17 +799,14 @@ public class GateTests
         """);
         Assert.Empty(Gate.Validate(doc));
 
-        // Every state entry can land on must be a real state — fallback…
         process["initialState"]!["fallback"] = "ghost";
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("initialState fallback 'ghost' is not one of its states"));
         process["initialState"]!["fallback"] = "draft";
 
-        // …and each rule's target.
         process["initialState"]!["rules"]![0]!["state"] = "ghost";
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("initialState rule[0] state 'ghost' is not one of its states"));
         process["initialState"]!["rules"]![0]!["state"] = "submitted";
 
-        // And the guard resolves against the entity, exactly like a `filter` anywhere else.
         process["initialState"]!["rules"]![0]!["when"] = JsonNode.Parse("""{"field":"nope","operator":"eq","value":1}""");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("initialState rule[0] guard field 'nope' is not a field of 'expense'"));
     }
@@ -916,15 +815,13 @@ public class GateTests
     public void A_process_governed_field_must_not_also_author_its_default()
     {
         var doc = ProcessDoc();
-        ((JsonObject)doc["entities"]![0]!["fields"]![2]!)["default"] = "draft";   // == initialState, still duplication
+        ((JsonObject)doc["entities"]![0]!["fields"]![2]!)["default"] = "draft";
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("remove the field's 'default'"));
     }
 
     [Fact]
     public void An_ungoverned_select_still_needs_its_options()
     {
-        // Relaxing `options` structurally must not open a hole: a select nobody governs has no other
-        // source for its values, and the structural layer can't see `processes` to tell them apart.
         var doc = ProcessDoc();
         ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
             """{"key":"category","label":"Category","type":"select"}"""));
@@ -934,8 +831,6 @@ public class GateTests
     [Fact]
     public void A_governed_fields_states_are_valid_values_everywhere_options_would_be()
     {
-        // Everything that asks "is this a legal value for that select?" — effect `set`, `initial`
-        // rules — has to find the states now that the field carries no options.
         var doc = ProcessDoc();
         ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
         { "key":"force_approve","label":"Force","entity":"expense",
@@ -954,7 +849,7 @@ public class GateTests
     public void Process_stateField_must_be_the_status_role_field()
     {
         var doc = ProcessDoc();
-        ((JsonObject)doc["entities"]![0]!["fields"]![2]!).Remove("role");   // stage no longer role:'status'
+        ((JsonObject)doc["entities"]![0]!["fields"]![2]!).Remove("role");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("no role:'status' field"));
     }
 
@@ -1000,16 +895,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("webhook url must be https"));
     }
 
-    /// <summary>
-    /// A webhook to a host that cannot exist is refused.
-    ///
-    /// <para>The failure this is really about: a model that meets a capability gap invents
-    /// infrastructure to cover it. Asked to roll pricing plans and cost lines up into period rows, a
-    /// generated budget app wrote a "Recalculate Plan" command that POSTed to
-    /// <c>automation.internal.invalid</c> and reported "Recalculation queued — period figures and
-    /// runway will refresh". Nothing was queued. Every figure on the page stayed at zero while the app
-    /// insisted it had worked (live 2026-08-05). A button that lies is worse than a missing one.</para>
-    /// </summary>
     [Theory]
     [InlineData("https://automation.internal.invalid/budget_planner/recalculate")]
     [InlineData("https://hooks.example.com/recalculate")]
@@ -1025,8 +910,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("not a real service"));
     }
 
-    /// <summary>A host that could be somebody's real endpoint is left alone — the rule is about
-    /// fabrication, not about approving integrations, which is the runtime allow-list's job.</summary>
     [Fact]
     public void A_webhook_to_a_plausible_host_is_allowed_through()
     {
@@ -1040,15 +923,12 @@ public class GateTests
     [Fact]
     public void CreateRecord_effect_must_cover_required_target_fields()
     {
-        // title is required on expense; a createRecord that omits it is flagged.
         var doc = ProcessDoc();
         ((JsonArray)doc["entities"]![0]!["fields"]!)[0]!["required"] = true;
         ((JsonArray)doc["commands"]![1]!["effects"]!).Add(JsonNode.Parse(
             """{ "type":"createRecord","entity":"expense","set":{"reason":"copy"} }"""));
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("does not set required field 'title'"));
     }
-
-    // --- catalog-driven view preconditions ---
 
     private static JsonObject WithStatusField()
     {
@@ -1061,7 +941,7 @@ public class GateTests
     [Fact]
     public void Kanban_without_any_groupable_field_is_rejected()
     {
-        var doc = Minimal(); // 'thing' has only a text field — nothing with discrete columns
+        var doc = Minimal();
         doc["views"] = JsonNode.Parse(
             """[{ "key": "board", "label": "Board", "type": "kanban", "entity": "thing", "config": { "groupByField": "name" } }]""");
         var errs = Gate.SemanticErrors(doc);
@@ -1081,8 +961,6 @@ public class GateTests
     [Fact]
     public void Kanban_may_group_by_a_non_status_field_assignment_board()
     {
-        // An ASSIGNMENT board (staff a station, move an account to an office) groups by a plain select
-        // or reference and a drag reassigns it. This must NOT be rejected just because it isn't a status.
         var doc = WithStatusField();
         ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
             """{ "key": "kind", "label": "Kind", "type": "select", "options": [{ "value": "x", "label": "X" }] }"""));
@@ -1094,7 +972,6 @@ public class GateTests
     [Fact]
     public void Kanban_grouped_by_a_reference_is_valid()
     {
-        // Columns = the referenced entity's records (stations/offices/owners).
         var doc = WithStatusField();
         ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
             """{ "key": "station", "label": "Station", "type": "reference", "targetEntity": "station" }"""));
@@ -1119,13 +996,11 @@ public class GateTests
     [Fact]
     public void Calendar_without_a_date_field_is_rejected()
     {
-        var doc = Minimal(); // no date/datetime field
+        var doc = Minimal();
         doc["views"] = JsonNode.Parse(
             """[{ "key": "cal", "label": "Cal", "type": "calendar", "entity": "thing", "config": { "dateField": "name" } }]""");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("(calendar) requires"));
     }
-
-    // --- authored pages (schema v1.1 layout) ---
 
     private static JsonObject WithTableView()
     {
@@ -1143,7 +1018,7 @@ public class GateTests
              "blocks": [{ "kind": "tabs", "tabs": [
                 { "label": "All", "blocks": [{ "kind": "view", "view": "things_table" }] } ] }] }]
           """);
-        Assert.Empty(Gate.Validate(doc)); // structural (new schema) + semantic both clean
+        Assert.Empty(Gate.Validate(doc));
     }
 
     [Fact]
@@ -1177,8 +1052,6 @@ public class GateTests
           """);
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("page 'p' references unknown view 'ghost'"));
     }
-
-    // --- Forms archetype coherence (module: forms) ---
 
     private static JsonObject FormsApp() => (JsonObject)JsonNode.Parse("""
     {
@@ -1214,7 +1087,7 @@ public class GateTests
     public void Forms_app_without_a_formField_is_rejected()
     {
         var doc = FormsApp();
-        ((JsonArray)doc["entities"]!)[1]!.AsObject().Remove("role"); // 'question' loses its formField role
+        ((JsonArray)doc["entities"]!)[1]!.AsObject().Remove("role");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("no entity has role 'formField'"));
     }
 
@@ -1222,7 +1095,7 @@ public class GateTests
     public void Forms_app_without_a_formResponse_is_rejected()
     {
         var doc = FormsApp();
-        ((JsonArray)doc["entities"]!)[2]!.AsObject().Remove("role"); // 'response' loses its formResponse role
+        ((JsonArray)doc["entities"]!)[2]!.AsObject().Remove("role");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("no entity has role 'formResponse'"));
     }
 
@@ -1230,7 +1103,7 @@ public class GateTests
     public void Forms_app_without_a_formAnswer_is_rejected()
     {
         var doc = FormsApp();
-        ((JsonArray)doc["entities"]!)[3]!.AsObject().Remove("role"); // 'answer' loses its formAnswer role
+        ((JsonArray)doc["entities"]!)[3]!.AsObject().Remove("role");
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("no entity has role 'formAnswer'"));
     }
 
@@ -1252,9 +1125,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("formAnswer 'answer' must have a field with role 'answerValue'"));
     }
 
-    // --- entity subordination (ownedBy) ---
-
-    // 'thing' (parent) + 'note' child that references it and declares ownedBy.
     private static JsonObject WithChild()
     {
         var doc = Minimal();
@@ -1282,7 +1152,7 @@ public class GateTests
     public void OwnedBy_via_not_a_reference_to_parent_is_rejected()
     {
         var doc = WithChild();
-        ((JsonArray)doc["entities"]!)[1]!["ownedBy"]!["via"] = "body"; // longtext, not a ref to 'thing'
+        ((JsonArray)doc["entities"]!)[1]!["ownedBy"]!["via"] = "body";
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("ownedBy.via 'body' must be a reference to the parent 'thing'"));
     }
 
@@ -1294,9 +1164,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("entity 'note' cannot be ownedBy itself"));
     }
 
-    // A relation may point from/to a PLATFORM entity (person/department/group): an app legitimately
-    // relates to platform people (the FK lives on the app entity's reference). Regression: a leave app
-    // modelling "a person has many requests" as a relation from 'person' must not fail the gate.
     [Fact]
     public void Relation_from_a_platform_entity_is_valid()
     {
@@ -1316,13 +1183,6 @@ public class GateTests
         Assert.Empty(Gate.Validate(doc));
     }
 
-    // ---- Composed 2-D surfaces (G1 axis sources / G2 scopes / G3 path filters / G5 texture) ----
-    // The renderer composes a staffing board out of repeat/row/stack/field — no 'scheduler' component.
-    // For the AI to author one, the vocabulary has to admit: a non-record axis (a date range), a named
-    // scope a cell reads BOTH axes from ({{row.id}} + {{col.date}}), and a filter/leaf that HOPS a
-    // relation (an assignment knows its shift, but the DATE lives on the shift).
-
-    /// <summary>staff / shift / assignment — the smallest domain a real board needs.</summary>
     private static JsonObject Scheduling() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "1.0", "key": "sched", "name": "Sched", "version": "1.0.0",
@@ -1340,7 +1200,6 @@ public class GateTests
     }
     """)!;
 
-    /// <summary>The S0 spike's board, as the design pass would have to emit it.</summary>
     private static JsonNode BoardPage() => JsonNode.Parse("""
     [{ "key": "board", "label": "Board", "blocks": [
       { "kind": "row", "gap": "none", "blocks": [
@@ -1366,10 +1225,6 @@ public class GateTests
         ]}]}
     ]}]
     """)!;
-
-    // ---- cell: the one record at these keys, created on first write ----------------------------
-    // A read-only grid of joins plus a "New" button that re-asks for the row and column the grid already
-    // knows is how a generated app ends up factually correct and unusable. `cell` is the verb.
 
     private static JsonObject Matrix() => (JsonObject)JsonNode.Parse("""
     {
@@ -1419,7 +1274,6 @@ public class GateTests
     public void A_cell_needs_keys_because_without_them_it_identifies_no_record()
     {
         var doc = Matrix();
-        // Schema-level: `keys` is required for kind 'cell'.
         Page(doc, """{ "kind":"cell","entity":"assessment","field":"level" }""");
         Assert.Contains(Gate.Validate(doc), e => e.StartsWith("STRUCTURAL") && e.Contains("keys"));
     }
@@ -1445,9 +1299,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("cell field 'ghost'"));
     }
 
-    // An editable cell writes STRAIGHT THROUGH, so it may only target a field the runtime would accept.
-    // At gate time only the BASE fields are knowable — system/readOnly/auto/governedBy are stamped by the
-    // compiler, which downgrades `editable` itself (see CompilerTests).
     [Fact]
     public void A_runtime_owned_base_field_cannot_be_made_editable()
     {
@@ -1458,7 +1309,6 @@ public class GateTests
         """);
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("base field") && e.Contains("created_at"));
 
-        // …but the same field is fine to DISPLAY.
         var ok = Matrix();
         Page(ok, """
         { "kind":"cell","entity":"assessment","field":"created_at",
@@ -1536,8 +1386,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("needs one origin"));
     }
 
-    // A dotted path is the ONLY way a cell can be keyed by a fact that lives one relation away.
-    // Both hops must resolve, or a board silently selects the wrong records.
     [Fact]
     public void Path_filter_hopping_an_unknown_relation_is_rejected()
     {
@@ -1576,8 +1424,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("'nope'"));
     }
 
-    // G3b, discovered in the spike: a hop that LANDS ON A REFERENCE prints a raw GUID. The second hop
-    // (shift.store.name) is not supported, so the gate must reject the shape rather than ship a GUID.
     [Fact]
     public void Leaf_field_hop_landing_on_a_reference_is_rejected()
     {
@@ -1600,10 +1446,6 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(bad), e => e.Contains("shift.store") && e.Contains("reference"));
     }
 
-    // ---- field `initial` rules (create-time conditional value, one-hop cross-record) --------------
-
-    /// <summary>A room + a booking whose status carries the given `initial` rule array (JSON). status is
-    /// a plain select here — the primitive doesn't require a process.</summary>
     private static JsonObject WithInitial(string initialJson) => (JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "rb", "name": "RB", "version": "1.0.0",
@@ -1652,13 +1494,10 @@ public class GateTests
                 """[ { "when": { "path": "room.tier", "operator": "eq", "value": "standard" }, "value": "confirmed" } ]""")),
             e => e.Contains("not an option"));
 
-    // ---- `timeline` block (scheduling/gantt surface: lanes of multi-day spanning bars) -----------
-
     [Fact]
     public void Time_off_reference_is_fully_valid() =>
         Assert.Empty(Gate.Validate(Fixture("time-off.appdef.json")));
 
-    /// <summary>A leave entity + a page holding the given timeline block (JSON).</summary>
     private static JsonObject WithTimeline(string timelineJson) => (JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "t", "name": "T", "version": "1.0.0",
@@ -1694,13 +1533,10 @@ public class GateTests
                 """{ "kind": "timeline", "entity": "leave", "rowBy": "who", "startField": "who", "axis": { "from": "{{today}}", "count": 14 } }""")),
             e => e.Contains("startField") && e.Contains("date field"));
 
-    // ---- navSource: records-as-nav (a page listing an entity's records in the sidebar) --------------
-
     [Fact]
     public void Task_manager_reference_is_fully_valid() =>
         Assert.Empty(Gate.Validate(Fixture("task-manager.appdef.json")));
 
-    /// <summary>Minimal + a page with the given navSource JSON over a 'thing' entity.</summary>
     private static JsonObject WithNavSource(string navJson)
     {
         var doc = Minimal();
@@ -1722,9 +1558,6 @@ public class GateTests
             Gate.SemanticErrors(WithNavSource("""{ "labelField": "nonesuch" }""")),
             e => e.Contains("navSource") && e.Contains("nonesuch"));
 
-    // ---- computed fields (expr over own numeric fields + rollup over referencing records) --------
-
-    /// <summary>Invoice/line pair; the extras are appended raw into each entity's field list.</summary>
     private static JsonObject WithComputed(string invoiceExtra = "", string lineExtra = "") => (JsonObject)JsonNode.Parse($$"""
     {
       "schemaVersion": "2.0", "key": "inv", "name": "Inv", "version": "1.0.0",
@@ -1880,13 +1713,6 @@ public class GateTests
                 """)),
             e => e.Contains("rollup filter field 'nonesuch'"));
 
-    // ---- recordHeader commands must be reachable ------------------------------------------------
-    // The hub renders exactly its `actions` list; `placements: ["recordHeader"]` adds nothing to it.
-    // So the two can disagree and the result is a command with no surface at all — no error, no
-    // button, and a role grant that suggests otherwise. That cost a real defect in core_organizations
-    // (`enrich_now` shipped with a Research tab and no way to start the research).
-
-    /// <summary>An entity whose detail has a hub, plus one command that is NOT process-bound.</summary>
     private static JsonObject HubDoc(string actions, string placements = """["recordHeader"]""") =>
         (JsonObject)JsonNode.Parse($$"""
         {
@@ -1917,21 +1743,15 @@ public class GateTests
     public void A_command_that_asks_for_no_header_placement_needs_no_hub_action() =>
         Assert.Empty(Gate.Validate(HubDoc("""["edit","delete"]""", """["tableRow"]""")));
 
-    /// <summary>A process-bound command is reachable through the stepper and the inline status cell,
-    /// so the hub need not repeat it. Without this exemption the rule would fire on helpdesk's
-    /// `mark_waiting`, which is a legitimately reachable command.</summary>
     [Fact]
     public void A_transition_bound_command_is_exempt_from_the_hub_actions_rule()
     {
         var doc = ProcessDoc();
         ((JsonObject)doc["entities"]![0]!)["detail"] = JsonNode.Parse(
             """{"blocks":[{"kind":"hub","title":"title","actions":["submit_expense","edit","delete"]}]}""");
-        // approve_expense is transition-bound and absent from the actions — legal.
         Assert.Empty(Gate.Validate(doc));
     }
 
-    /// <summary>An entity with no hub composes its detail some other way; the rule must not invent a
-    /// requirement there.</summary>
     [Fact]
     public void An_entity_with_no_hub_is_not_held_to_the_rule() =>
         Assert.Empty(Gate.Validate(WithSelfTargetCommand()));

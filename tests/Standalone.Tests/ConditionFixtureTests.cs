@@ -10,15 +10,6 @@ using Cordango.Standalone.Conditions;
 
 namespace Cordango.Standalone.Tests;
 
-/// <summary>
-/// The standalone condition language, checked against the decision fixtures that Cordango Platform's
-/// own suite also checks its implementation against.
-///
-/// <para>Same arrangement as the permission fixtures: two implementations that must agree, pinned to
-/// one set of hand-written decisions, with no shared code between them. If a case here fails, the
-/// interesting question is which side moved — run the platform's <c>ConditionFixtureTests</c> too.
-/// Both failing means the fixture is wrong; one failing means an implementation is.</para>
-/// </summary>
 public class ConditionFixtureTests
 {
     public static TheoryData<string> Fixtures()
@@ -62,20 +53,6 @@ public class ConditionFixtureTests
         }
     }
 
-    /// <summary>
-    /// Every shape the fixtures use, the generator either writes or refuses — never drops.
-    ///
-    /// <para>The fixtures pin the two EVALUATORS against each other. They cannot pin the emitter,
-    /// because a generated application never sees this JSON — the emitter turns it into C# at build
-    /// time. This closes the gap from the other side. A condition the emitter quietly rendered as
-    /// <c>null</c> would evaluate correctly in every test above and be ABSENT from every generated
-    /// application, which for a guard means the command runs when the definition said it must not.
-    /// That is the one bug a person cannot find by reading the application they were given.</para>
-    ///
-    /// <para>A handful of cases are marked <c>generatorRefuses</c>: shapes so malformed there is
-    /// nothing to write. Those must fail to emit, so the build stops instead of shipping the
-    /// permissive version.</para>
-    /// </summary>
     [Theory]
     [MemberData(nameof(Fixtures))]
     public void The_generator_writes_or_refuses_every_shape_the_fixtures_use(string fileName)
@@ -100,12 +77,6 @@ public class ConditionFixtureTests
         }
     }
 
-    /// <summary>
-    /// The fixture's JSON as the runtime's own shape.
-    ///
-    /// <para>Deliberately a separate reader from <see cref="ConditionEmitter"/>, and deliberately
-    /// dumb. Sharing one would make this test assert that the emitter agrees with itself.</para>
-    /// </summary>
     private static Condition? Read(JsonNode? node)
     {
         if (node is not JsonObject leaf) return null;
@@ -119,10 +90,6 @@ public class ConditionFixtureTests
         if (leaf["not"] is JsonObject not)
             return Read(not) is { } child ? new Condition(Not: child) : null;
 
-        // A leaf with no operator, or with neither a field nor a path, is READ rather than dropped.
-        // Dropping it would hand the evaluator a null, which means "no condition" and evaluates to
-        // TRUE — so a malformed guard would test as permissive here while the fixture says it must
-        // be refused. The typed shape can hold the malformed leaf; the evaluator is what says no.
         var op = leaf["operator"]?.GetValue<string>();
         var field = leaf["field"]?.GetValue<string>();
         var path = leaf["path"]?.GetValue<string>();

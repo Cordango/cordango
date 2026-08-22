@@ -7,16 +7,8 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Compiler.Tests;
 
-/// <summary>
-/// Expression plane, wave 1b, at AUTHOR time: the gate accepts exactly the token grammar
-/// <see cref="ExprTokens"/> can resolve, and the new operators only in a shape the evaluator can act
-/// on. A token that validates but cannot resolve is the failure mode worth pinning — it reads as
-/// "the model produced something valid" and then silently matches nothing.
-/// </summary>
 public class ExpressionPlaneGateTests
 {
-    /// <summary>A booking app: its own date range, plus a reference whose target carries the fact a
-    /// cross-record guard wants to test.</summary>
     private static JsonObject Bookings() => (JsonObject)JsonNode.Parse("""
     {
       "schemaVersion": "1.0", "key": "book", "name": "Bookings", "version": "1.0.0",
@@ -47,8 +39,6 @@ public class ExpressionPlaneGateTests
     }
 
     private static List<string> Errors(string whenJson) => Gate.Validate(WithCommandWhen(whenJson));
-
-    // ---- tokens ----
 
     [Theory]
     [InlineData("\"{{today}}\"")]
@@ -91,13 +81,11 @@ public class ExpressionPlaneGateTests
         Assert.Contains(errs, e => e.Contains("next_week"));
     }
 
-    // ---- operator shape ----
-
     [Fact]
     public void Between_needs_a_pair()
     {
         var errs = Errors("""{ "field": "starts", "operator": "between", "value": "{{today}}" }""");
-        Assert.Empty(errs);   // a single token may itself carry the pair (a screen-state facet)
+        Assert.Empty(errs);
         errs = Errors("""{ "field": "starts", "operator": "between", "value": ["{{today}}"] }""");
         Assert.Contains(errs, e => e.Contains("two-element") && e.Contains("[lo, hi]"));
     }
@@ -125,8 +113,6 @@ public class ExpressionPlaneGateTests
         Assert.Contains(errs, e => e.Contains("only means something with operator 'overlaps'"));
     }
 
-    // ---- the one-relation hop ----
-
     [Fact]
     public void A_condition_may_hop_one_same_app_reference()
     {
@@ -141,21 +127,18 @@ public class ExpressionPlaneGateTests
     public void A_hop_the_engine_cannot_follow_is_rejected_at_author_time()
     {
         Assert.Contains(Errors("""{ "path": "owner.email", "operator": "eq", "value": "x" }"""),
-            e => e.Contains("another app's data"));                            // platform directory
+            e => e.Contains("another app's data"));
         Assert.Contains(Errors("""{ "path": "title.name", "operator": "eq", "value": "x" }"""),
-            e => e.Contains("only a reference can be hopped through"));        // not a reference
+            e => e.Contains("only a reference can be hopped through"));
         Assert.Contains(Errors("""{ "path": "room.colour", "operator": "eq", "value": "x" }"""),
-            e => e.Contains("'colour', which is not a field of 'room'"));      // unknown target field
+            e => e.Contains("'colour', which is not a field of 'room'"));
         Assert.Contains(Errors("""{ "path": "roomonly", "operator": "eq", "value": "x" }"""),
-            e => e.Contains("<reference field>.<field on the target>"));       // not a path at all
+            e => e.Contains("<reference field>.<field on the target>"));
     }
 
     [Fact]
     public void A_leaf_must_address_its_value_exactly_once()
     {
-        // The schema's oneOf catches both shapes structurally, before semantics run — which is the
-        // layer that should own it. The semantic messages behind these remain as the backstop for
-        // any caller that reaches the gate without the schema pass.
         Assert.Contains(Errors("""{ "field": "state", "path": "room.requires_approval", "operator": "eq", "value": true }"""),
             e => e.StartsWith("STRUCTURAL") && e.Contains("/commands/0/when"));
         Assert.Contains(Errors("""{ "operator": "eq", "value": true }"""),
@@ -166,9 +149,6 @@ public class ExpressionPlaneGateTests
     public void The_baseline_app_is_valid_so_the_negatives_above_mean_something() =>
         Assert.Empty(Gate.Validate(Bookings()));
 
-    // ---- wave 2: the history block ----
-
-    /// <summary>The record detail is authored on the ENTITY; a page's blocks are collection-bound.</summary>
     private static JsonObject WithBlocks(string? detailBlocks, string pageBlocks)
     {
         var doc = Bookings();
@@ -193,7 +173,6 @@ public class ExpressionPlaneGateTests
     [Fact]
     public void A_history_block_outside_a_record_detail_is_rejected()
     {
-        // It is ONE record's activity feed; on a collection page there is no record for it to be about.
         Assert.Contains(
             Gate.Validate(WithBlocks(null, """[ { "kind": "history" } ]""")),
             e => e.Contains("'history' is only valid in a record detail"));

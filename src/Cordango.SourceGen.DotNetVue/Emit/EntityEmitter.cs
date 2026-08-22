@@ -21,6 +21,11 @@ namespace Cordango.SourceGen.DotNetVue.Emit;
 /// property would be more idiomatic EF and would make the generated model disagree with the language
 /// it came from — a query would return an object where the definition, the API and the front end all
 /// say string.</para>
+///
+/// <para><b>Written as a template rather than as a sequence of appends.</b> The emitted file is
+/// visible here as the shape it will have: the braces balance by eye, the indentation is the
+/// indentation, and there is no open/close bookkeeping to get wrong. What varies is spliced in
+/// through <see cref="Code.Block"/>.</para>
 /// </summary>
 public static class EntityEmitter
 {
@@ -29,56 +34,64 @@ public static class EntityEmitter
         ArgumentNullException.ThrowIfNull(app);
         ArgumentNullException.ThrowIfNull(entity);
 
-        var source = new Source();
-        source.Line("using System.Text.Json;");
-        source.Line("using System.Text.Json.Serialization;");
-        source.Line("using Cordango.Standalone.Records;");
-        source.Line();
-        source.Line($"namespace {app.Namespace}.Entities;");
-        source.Line();
-
-        source.Line("/// <summary>");
-        source.Lines(Doc.Summary(entity.Label, entity.Json["description"]?.GetValue<string>()));
-        source.Line("/// </summary>");
-
         var interfaces = entity.HasTracking ? "IRecord, IHasTrackingFields" : "IRecord";
-        source.Open($"public sealed class {entity.TypeName} : {interfaces}");
 
-        source.Line("/// <summary>The record's identity. A string, because a Cordango id may be a");
-        source.Line("/// generated key or a handle somebody typed.</summary>");
-        source.Line("[JsonPropertyName(\"id\")] public string Id { get; set; } = \"\";");
-
-        foreach (var field in entity.Fields)
+        // The identity, then one property per authored field. Built as a list and spliced as one
+        // block so that an entity with no fields of its own does not leave a stray blank line.
+        var members = new List<string>
         {
-            if (field.Key == "id") continue;
+            """
+            /// <summary>The record's identity. A string, because a Cordango id may be a
+            /// generated key or a handle somebody typed.</summary>
+            [JsonPropertyName("id")] public string Id { get; set; } = "";
+            """,
+        };
 
-            source.Line();
-            EmitField(source, entity, field);
-        }
+        members.AddRange(entity.Fields.Where(f => f.Key != "id").Select(Property));
 
-        source.Close();
-        return new GeneratedFile($"api/Entities/{entity.TypeName}.cs", source.ToString());
+        var source = $$"""
+            using System.Text.Json;
+            using System.Text.Json.Serialization;
+            using Cordango.Standalone.Records;
+
+            namespace {{app.Namespace}}.Entities;
+
+            /// <summary>
+            {{Doc.Summary(entity.Label, entity.Json["description"]?.GetValue<string>())}}
+            /// </summary>
+            public sealed class {{entity.TypeName}} : {{interfaces}}
+            {
+            {{Code.Block(members, indent: 4)}}
+            }
+
+            """;
+
+        return new GeneratedFile($"api/Entities/{entity.TypeName}.cs", source);
     }
 
-    private static void EmitField(Source source, EntityModel entity, FieldModel field)
+    /// <summary>One property, with whatever the definition can say about it above.</summary>
+    private static string Property(FieldModel field)
     {
-        var comment = Doc.Field(field);
-        if (comment is not null)
-        {
-            source.Line("/// <summary>");
-            source.Lines(comment);
-            source.Line("/// </summary>");
-        }
-
         // The four audit columns implement IHasTrackingFields, so their PROPERTY names are the
         // interface's and their JSON and column names stay the definition's. The runtime finds them
         // through the interface; everything a user sees still says created_at.
-        var property = TrackingProperty(field.Key) ?? field.PropertyName;
-        var declared = TrackingProperty(field.Key) is null ? field.DeclaredType : TrackingType(field.Key);
-        var initialiser = TrackingProperty(field.Key) is null ? field.Initialiser : null;
-
+        var tracking = TrackingProperty(field.Key);
+        var property = tracking ?? field.PropertyName;
+        var declared = tracking is null ? field.DeclaredType : TrackingType(field.Key);
+        var initialiser = tracking is null ? field.Initialiser : null;
         var suffix = initialiser is null ? "" : $" = {initialiser};";
-        source.Line($"[JsonPropertyName({Naming.Literal(field.Key)})] public {declared} {property} {{ get; set; }}{suffix}");
+
+        var declaration =
+            $"[JsonPropertyName({Naming.Literal(field.Key)})] public {declared} {property} {{ get; set; }}{suffix}";
+
+        return Doc.Field(field) is not { } comment
+            ? declaration
+            : $$"""
+                /// <summary>
+                {{comment}}
+                /// </summary>
+                {{declaration}}
+                """;
     }
 
     /// <summary>The interface property an audit column is exposed as, or null for an ordinary
