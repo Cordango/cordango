@@ -157,6 +157,40 @@ public class WorkflowRunnerTests
         Assert.Equal("seen:", after!.Name);
     }
 
+    /// <summary>
+    /// A date range laid out as records — twelve months of a plan — and laid out ONCE.
+    ///
+    /// <para>The second save is the whole point. A record gets written more than once in its life,
+    /// and a grid builder without a key would lay the months out again on top of themselves: a plan
+    /// asked for three months would quietly end up with six, and nobody would see an error.</para>
+    /// </summary>
+    [Fact]
+    public async Task A_range_lays_out_one_record_per_step_and_only_once()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "months", "Lay out the months", "widget", WorkflowEvent.RecordCreated,
+            Effects:
+            [
+                new CreateForEachEffect("widget",
+                    new RangeSource("2026-01-01", "3", "month"),
+                    Key: ["name"],
+                    Set: [new EffectSet("name", "month-{{source.index}}"), new EffectSet("note", "{{source.date}}")]),
+            ]));
+
+        await world.Store.CreateAsync(new Widget { Name = "plan", Amount = 1 }, default);
+
+        var laid = world.Store.Query().Where(w => w.Name!.StartsWith("month-")).OrderBy(w => w.Name).ToList();
+
+        Assert.Equal(3, laid.Count);
+        Assert.Equal(["month-1", "month-2", "month-3"], laid.Select(w => w.Name));
+        Assert.Equal(["2026-01-01", "2026-02-01", "2026-03-01"], laid.Select(w => w.Note));
+
+        // Trigger it again. The key says these rows exist, so nothing is created.
+        await world.Store.CreateAsync(new Widget { Name = "plan again", Amount = 2 }, default);
+
+        Assert.Equal(3, world.Store.Query().Count(w => w.Name!.StartsWith("month-")));
+    }
+
     private sealed class World : IAsyncDisposable
     {
         public World(params WorkflowDefinition[] workflows)

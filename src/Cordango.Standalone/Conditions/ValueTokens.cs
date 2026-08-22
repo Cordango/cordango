@@ -36,7 +36,16 @@ public static class ValueTokens
     /// <summary>Every token inside a longer string: <c>"Due {{today+7}}, raised by {{actor.id}}"</c>.
     /// A token nothing answers is left as written rather than blanked, so a mistyped one is visible
     /// in the output instead of turning into a silent gap.</summary>
-    public static string? Fill(string? template, string? actorId, string? userId, DateTimeOffset now, Func<string, string?>? record = null)
+    /// <param name="record">Reads a field of the record a rule is about, for <c>{{record.x}}</c>.</param>
+    /// <param name="source">Reads a field of the row being iterated, for <c>{{source.x}}</c> — the
+    /// month of a plan, the lifecycle step of a grid. Absent outside a <c>createForEach</c>.</param>
+    public static string? Fill(
+        string? template,
+        string? actorId,
+        string? userId,
+        DateTimeOffset now,
+        Func<string, string?>? record = null,
+        Func<string, string?>? source = null)
     {
         if (template is null) return null;
 
@@ -46,6 +55,9 @@ public static class ValueTokens
 
             if (record is not null && token.StartsWith("record.", StringComparison.Ordinal))
                 return record(token["record.".Length..]) ?? "";
+
+            if (source is not null && token.StartsWith("source.", StringComparison.Ordinal))
+                return source(token["source.".Length..]) ?? "";
 
             return Token(token, actorId, userId, now) ?? match.Value;
         });

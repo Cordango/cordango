@@ -26,12 +26,14 @@ public static class WorkflowEmitter
     /// <summary>Effect types this emitter writes. Anything else is reported as CORD2303 and the
     /// build refuses without <c>--allow-incomplete</c>.</summary>
     public static readonly IReadOnlySet<string> Emitted =
-        new HashSet<string>(StringComparer.Ordinal) { "notify", "updateRecord", "createRecord" };
+        new HashSet<string>(StringComparer.Ordinal)
+        { "notify", "updateRecord", "createRecord", "createForEach" };
 
     /// <summary>Trigger events this emitter wires. <c>schedule</c> needs a timer and a host that is
     /// awake, which is a different piece of machinery.</summary>
     public static readonly IReadOnlySet<string> Triggers =
-        new HashSet<string>(StringComparer.Ordinal) { "record.created", "record.updated", "field.changed" };
+        new HashSet<string>(StringComparer.Ordinal)
+        { "record.created", "record.updated", "field.changed", "schedule" };
 
     public static GeneratedFile Workflows(AppModel app)
     {
@@ -64,6 +66,11 @@ public static class WorkflowEmitter
 
             if (@event is null || entity is null || !Triggers.Contains(@event)) continue;
 
+            // A schedule nobody can read is a schedule that never fires. Reported rather than
+            // emitted, so the build says so instead of the application quietly doing nothing.
+            var cron = AppModel.Str(trigger?["cron"]);
+            if (@event == "schedule" && !LooksLikeCron(cron)) continue;
+
             var key = AppModel.Str(workflow["key"]) ?? "workflow";
             var name = AppModel.Str(workflow["name"]) ?? key;
             var field = AppModel.Str(trigger?["field"]);
@@ -78,6 +85,8 @@ public static class WorkflowEmitter
 
             ConditionEmitter.TryEmit(workflow["when"], out var when);
             source.Line($"When: {when},");
+
+            if (cron is not null) source.Line($"Cron: {Naming.Literal(cron)},");
 
             source.Line("Effects:");
             source.Line("[");
@@ -95,6 +104,24 @@ public static class WorkflowEmitter
 
         return new GeneratedFile("api/Workflows/AppWorkflows.cs", source.ToString());
     }
+
+    /// <summary>
+    /// Five fields separated by spaces, and nothing more.
+    ///
+    /// <para>Deliberately shallow. The authority on what a cron expression means is
+    /// <c>CronSchedule</c> in the runtime, and this project does not reference the runtime — it
+    /// EMBEDS its source, which is the boundary that lets a generated application carry the runtime
+    /// without carrying the generator. Duplicating the full parser here to check a build-time
+    /// question would be two implementations of a notation, which is exactly the trade that is worth
+    /// refusing.</para>
+    ///
+    /// <para>So this catches the mistake that actually happens — a field missing, or something that
+    /// is not cron at all — and the runtime refuses an expression it cannot read, matching nothing
+    /// rather than everything.</para>
+    /// </summary>
+    private static bool LooksLikeCron(string? expression) =>
+        expression is { Length: > 0 }
+        && expression.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Length == 5;
 
     /// <summary>The constant name rather than the string, so a typo in a trigger is a compile error
     /// in the generated application rather than a workflow that never fires.</summary>
@@ -128,8 +155,50 @@ public static class WorkflowEmitter
 
             "updateRecord" => Update(app, entity, effect),
 
+            "createForEach" => ForEach(effect),
+
             _ => null,
         };
+
+    /// <summary>
+    /// A grid, laid out once.
+    ///
+    /// <para>The source is either a date sequence — twelve months from a plan's start — or the rows
+    /// of another entity. The <c>key</c> is what makes it once: without it a second save of the same
+    /// record lays the grid out again on top of itself, and a plan asked for twelve months ends up
+    /// with twenty-four.</para>
+    /// </summary>
+    private static string? ForEach(JsonObject effect)
+    {
+        if (AppModel.Str(effect["entity"]) is not { Length: > 0 } target) return null;
+        if (effect["source"] is not JsonObject source) return null;
+
+        var rows = source["range"] is JsonObject range
+            ? $"new RangeSource({Naming.Literal(AppModel.Str(range["from"]))}, "
+                + $"{Naming.Literal(AppModel.Str(range["count"]))}, "
+                + $"{Naming.Literal(AppModel.Str(range["step"]) ?? "month")})"
+            : AppModel.Str(source["entity"]) is { Length: > 0 } from
+                ? $"new EntitySource({Naming.Literal(from)}, [{Filters(source["filters"])}])"
+                : null;
+
+        if (rows is null) return null;
+
+        var key = string.Join(", ", AppModel.Arr(effect["key"])
+            .Select(k => AppModel.Str(k))
+            .Where(k => k is not null)
+            .Select(k => Naming.Literal(k!)));
+
+        return $"new CreateForEachEffect({Naming.Literal(target)}, {rows}, [{key}], [{Sets(effect["set"])}])";
+    }
+
+    /// <summary>A flat list of field comparisons, ANDed. Deliberately not the condition tree: these
+    /// go to the database, and the shapes the corpus uses are all flat.</summary>
+    private static string Filters(JsonNode? filters) =>
+        string.Join(", ", AppModel.Arr(filters).OfType<JsonObject>()
+            .Where(f => AppModel.Str(f["field"]) is { Length: > 0 } && AppModel.Str(f["operator"]) is { Length: > 0 })
+            .Select(f => $"new EffectFilter({Naming.Literal(AppModel.Str(f["field"])!)}, "
+                + $"{Naming.Literal(AppModel.Str(f["operator"])!)}, "
+                + $"{Naming.Literal(Scalar(f["value"]))})"));
 
     /// <summary>
     /// An update effect, and the one piece of resolution the runtime cannot do for itself.
@@ -165,10 +234,16 @@ public static class WorkflowEmitter
     }
 
     private static string Sets(JsonNode? set) =>
-        set is not JsonObject fields
-            ? ""
-            : string.Join(", ", fields.Select(pair =>
-                $"new EffectSet({Naming.Literal(pair.Key)}, {Naming.Literal(Scalar(pair.Value))})"));
+        set is not JsonObject fields ? "" : string.Join(", ", fields.Select(pair => Set(pair.Key, pair.Value)));
+
+    /// <summary>One field an effect writes. Usually a template; sometimes a lookup — "the revenue
+    /// plan for this scenario whose tier is flex" — which resolves to that record's id.</summary>
+    private static string Set(string field, JsonNode? value) =>
+        value is JsonObject { } wrapper && wrapper["pick"] is JsonObject pick
+            && AppModel.Str(pick["entity"]) is { Length: > 0 } entity
+            ? $"new EffectSet({Naming.Literal(field)}, null, "
+                + $"new PickValue({Naming.Literal(entity)}, [{Filters(pick["filters"])}]))"
+            : $"new EffectSet({Naming.Literal(field)}, {Naming.Literal(Scalar(value))})";
 
     private static string Lower(bool value) => value ? "true" : "false";
 

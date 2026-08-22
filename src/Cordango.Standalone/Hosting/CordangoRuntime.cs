@@ -61,6 +61,10 @@ public static class CordangoRuntime
         // into the next and start refusing workflows on an idle server.
         services.TryAddScoped<Workflows.WorkflowDepth>();
 
+        // The clock-triggered half. Returns immediately in an application with no schedules, so
+        // registering it unconditionally costs nothing.
+        services.AddHostedService<Workflows.WorkflowScheduler>();
+
         services.AddAntiforgery(o =>
         {
             o.HeaderName = AntiforgeryHeader;

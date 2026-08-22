@@ -6,6 +6,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.Standalone.Data;
+using Microsoft.EntityFrameworkCore;
 using Cordango.Standalone.Records;
 
 namespace Cordango.Standalone.Workflows;
@@ -40,6 +41,16 @@ public interface IEntityWriter
 
     /// <summary>Write only the named fields onto an existing record.</summary>
     Task<JsonObject?> UpdateAsync(string id, JsonObject values, IReadOnlyCollection<string> fields, CancellationToken ct);
+
+    /// <summary>
+    /// The records matching a flat list of field comparisons, ANDed.
+    ///
+    /// <para>Deliberately not the full condition language. These filters go to the DATABASE — the
+    /// same expression builder a list request uses — and a workflow laying out a grid may read a few
+    /// hundred rows to build it. Evaluating a condition tree in memory would mean loading the table
+    /// first, which is the difference between a query and an outage.</para>
+    /// </summary>
+    Task<IReadOnlyList<JsonObject>> WhereAsync(IReadOnlyList<RecordFilter> filters, CancellationToken ct);
 }
 
 /// <summary>The one implementation, generic over the entity. Registered per entity by
@@ -61,6 +72,18 @@ public sealed class EntityWriter<T> : IEntityWriter where T : class, IRecord, ne
 
         var incoming = Materialise(values, out _);
         return Snapshot(await _store.CreateAsync(incoming, ct));
+    }
+
+    public async Task<IReadOnlyList<JsonObject>> WhereAsync(
+        IReadOnlyList<RecordFilter> filters, CancellationToken ct)
+    {
+        var query = RecordQuery.Narrow(_store.Query(), _store.Descriptor, filters ?? []);
+
+        // Ordered by id, so a grid built twice from the same rows comes out in the same order. A
+        // database is free to return rows however it likes, and "however it likes" changes between
+        // runs on the same data.
+        var rows = await query.OrderBy(r => r.Id).ToListAsync(ct);
+        return [.. rows.Select(Snapshot)];
     }
 
     public async Task<JsonObject?> UpdateAsync(

@@ -7,6 +7,8 @@ using System.Text.Json.Nodes;
 using Cordango.Compile;
 using Cordango.SourceGen;
 using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNetVue.Emit;
+using Cordango.SourceGen.DotNetVue.Model;
 
 namespace Cordango.Standalone.Tests;
 
@@ -81,24 +83,66 @@ public class WorkflowEmitTests
     }
 
     /// <summary>
-    /// A trigger this target does not wire is still reported.
+    /// <c>crm</c> reminds an owner about a deal nobody has touched, at eight every morning.
     ///
-    /// <para><c>crm</c> has a scheduled reminder, which needs a host that is awake and a timer to
-    /// wake it. The build says so rather than producing an application whose reminder never
-    /// arrives.</para>
+    /// <para>The condition is what makes a schedule useful: the workflow runs over every deal and
+    /// the condition decides which ones it is actually about. Neither half means anything
+    /// alone.</para>
     /// </summary>
     [Fact]
-    public void A_scheduled_workflow_is_reported()
+    public void A_scheduled_workflow_carries_its_cron()
     {
-        var reported = Build("crm", corpus: "").Warnings;
+        var catalogue = Generated("crm", corpus: "");
 
-        Assert.Contains(reported, w => w.Code == "CORD2302" && w.Message.Contains("schedule", StringComparison.Ordinal));
+        Assert.Contains("WorkflowEvent.Schedule", catalogue, StringComparison.Ordinal);
+        Assert.Contains("Cron: \"0 8 * * *\"", catalogue, StringComparison.Ordinal);
+        Assert.DoesNotContain(Build("crm", corpus: "").Warnings, w => w.Code == "CORD2302");
     }
 
-    private static string Generated(string key) =>
-        Build(key).Files.Single(f => f.RelativePath == "api/Workflows/AppWorkflows.cs").Content;
+    /// <summary>
+    /// Budget Planner lays its months out from a date range and its grids by crossing one entity
+    /// with another — the two shapes of <c>createForEach</c>, and the reason the effect exists.
+    /// </summary>
+    [Fact]
+    public void A_grid_is_laid_out_from_a_date_range_and_from_another_entity()
+    {
+        var catalogue = Generated("budget-planner", corpus: "");
 
-    private static GenerateResult Build(string key, string corpus = "reference")
+        // Twelve months from the plan's start, both read off the record that triggered it.
+        Assert.Contains(
+            "new RangeSource(\"{{record.plan_start}}\", \"{{record.plan_months}}\", \"month\")",
+            catalogue, StringComparison.Ordinal);
+
+        // And a grid: one lifecycle step per adoption point of the same scenario.
+        Assert.Contains("new EntitySource(\"adoption_point\"", catalogue, StringComparison.Ordinal);
+        Assert.Contains(
+            "new EffectFilter(\"scenario\", \"eq\", \"{{record.scenario}}\")",
+            catalogue, StringComparison.Ordinal);
+
+        // The key is what stops a second save laying the grid out on top of itself.
+        Assert.Contains("[\"scenario\", \"sequence\"]", catalogue, StringComparison.Ordinal);
+
+        // A looked-up value: the revenue plan for this scenario whose tier is flex.
+        Assert.Contains("new PickValue(\"revenue_plan\"", catalogue, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The workflow catalogue, from the emitter rather than from a whole build.
+    ///
+    /// <para>Budget Planner cannot be generated standalone at all — it places two <c>history</c>
+    /// blocks, and record history is a platform capability rather than an unfinished emitter, so the
+    /// build is REFUSED rather than merely partial. Its workflows are still the richest in the
+    /// corpus and worth pinning, so this asks the emitter directly.</para>
+    /// </summary>
+    private static string Generated(string key, string corpus = "reference") =>
+        WorkflowEmitter.Workflows(AppModel.From(Artifact(key, corpus))).Content;
+
+    private static GenerateResult Build(string key, string corpus = "reference") =>
+        new DotNetVueGenerator().Generate(new GenerateRequest(
+            Artifact(key, corpus),
+            new JsonObject { ["allowIncomplete"] = true, ["seed"] = 42 }));
+
+    private static CompiledAppArtifact Artifact(string key, string corpus)
     {
         var path = corpus.Length == 0
             ? Path.Combine(TestPaths.RepoRoot(), "tests", "corpus", key + ".appdef.json")
@@ -109,9 +153,7 @@ public class WorkflowEmitTests
         var outcome = CandidateValidator.Run(definition, key, new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero));
         Assert.True(outcome.Manifest is not null, $"{key} did not compile.");
 
-        return new DotNetVueGenerator().Generate(new GenerateRequest(
-            new CompiledAppArtifact(outcome.Definition!.AsObject(), outcome.Manifest!, outcome.Hash ?? "unhashed",
-                new CompilerInfo("test", "1")),
-            new JsonObject { ["allowIncomplete"] = true, ["seed"] = 42 }));
+        return new CompiledAppArtifact(outcome.Definition!.AsObject(), outcome.Manifest!,
+            outcome.Hash ?? "unhashed", new CompilerInfo("test", "1"));
     }
 }

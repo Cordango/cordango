@@ -3,9 +3,11 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.Standalone.Conditions;
+using Cordango.Standalone.Data;
 using Cordango.Standalone.Notifications;
 using Cordango.Standalone.Records;
 using Microsoft.Extensions.Logging;
@@ -27,6 +29,22 @@ public sealed class WorkflowDepth
     public const int Limit = 8;
 
     public int Value { get; set; }
+
+    /// <summary>
+    /// The grid rows laid out so far in this request, as <c>entity + key</c>.
+    ///
+    /// <para><b>Shared across nesting, which is the whole reason it lives here.</b> A
+    /// <c>createForEach</c> reads the rows that already exist once, before its loop — one query
+    /// rather than one per row. But creating a row fires that row's own workflows, and if one of
+    /// THOSE lays out the same grid it starts from its own snapshot, creates the rows the outer loop
+    /// has not reached yet, and then the outer loop creates them a second time. A plan asked for
+    /// three months ends up with six.</para>
+    ///
+    /// <para>Keeping the set on the request rather than on the loop makes every layer of that
+    /// nesting see the same "already done" list, so the key means what it says however the calls
+    /// interleave.</para>
+    /// </summary>
+    public HashSet<string> LaidOut { get; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>
@@ -87,6 +105,33 @@ public sealed class WorkflowRunner
     /// only way to tell a field that CHANGED from one that was merely written.</summary>
     public Task UpdatedAsync(string entity, JsonObject record, JsonObject before, CancellationToken ct) =>
         RunAsync(entity, record, before, ct);
+
+    /// <summary>
+    /// One record, one scheduled workflow, because the clock said so.
+    ///
+    /// <para>Its own entry point rather than a fake write: there is no trigger to match — the
+    /// scheduler has already decided this minute is one of the workflow's — and no <c>before</c> to
+    /// compare against. Everything after the condition is the ordinary path, so a scheduled
+    /// workflow's effects, cycle guard and logging are the ones every other workflow gets.</para>
+    /// </summary>
+    public async Task ScheduledAsync(WorkflowDefinition workflow, JsonObject record, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+        ArgumentNullException.ThrowIfNull(record);
+
+        if (!ConditionEvaluator.Evaluate(workflow.When, record, _user.PersonId, _clock.UtcNow)) return;
+
+        _depth.Value++;
+        try
+        {
+            foreach (var effect in workflow.Effects)
+                await ApplyAsync(workflow, effect, workflow.Entity, record, ct);
+        }
+        finally
+        {
+            _depth.Value--;
+        }
+    }
 
     private async Task RunAsync(string entity, JsonObject record, JsonObject? before, CancellationToken ct)
     {
@@ -179,11 +224,15 @@ public sealed class WorkflowRunner
                         break;
                     }
 
-                    await inserter.CreateAsync(Values(create.Set, record), ct);
+                    await inserter.CreateAsync(await ValuesAsync(create.Set, record, null, ct), ct);
                     break;
 
                 case UpdateRecordEffect update:
                     await UpdateAsync(workflow, update, entity, record, ct);
+                    break;
+
+                case CreateForEachEffect forEach:
+                    await ForEachAsync(workflow, forEach, record, ct);
                     break;
             }
         }
@@ -239,6 +288,157 @@ public sealed class WorkflowRunner
         await writer.UpdateAsync(targetId, values, fields, ct);
     }
 
+    /// <summary>
+    /// One created record per source row, skipping the ones already there.
+    ///
+    /// <para>This is how a plan lays out its months and how a grid crosses a segment with each of its
+    /// lifecycle steps. Two things make it safe to run more than once: the key, which identifies a
+    /// row that already exists, and the fact that existing rows are read ONCE before the loop rather
+    /// than asked about per row.</para>
+    /// </summary>
+    private async Task ForEachAsync(
+        WorkflowDefinition workflow, CreateForEachEffect effect, JsonObject record, CancellationToken ct)
+    {
+        if (Writer(effect.Entity) is not { } writer)
+        {
+            Missing(workflow, effect.Entity);
+            return;
+        }
+
+        var rows = await SourceRowsAsync(workflow, effect.Source, record, ct);
+        if (rows.Count == 0) return;
+
+        // Every row that already exists, in one query, keyed by the fields the definition says
+        // identify it. Asking per row would be one round trip per month of a plan.
+        //
+        // Merged into the REQUEST's set rather than kept local: see WorkflowDepth.LaidOut for why a
+        // local one lays some rows out twice.
+        if (effect.Key.Count > 0)
+            foreach (var row in await writer.WhereAsync([], ct))
+                _depth.LaidOut.Add(effect.Entity + '' + KeyOf(row, effect.Key));
+
+        foreach (var row in rows)
+        {
+            var values = await ValuesAsync(effect.Set, record, row, ct);
+
+            if (effect.Key.Count > 0
+                && !_depth.LaidOut.Add(effect.Entity + '' + KeyOf(values, effect.Key)))
+                continue;
+
+            await writer.CreateAsync(values, ct);
+        }
+    }
+
+    /// <summary>
+    /// A key that identifies one row of a grid: the named fields, in the order the definition lists
+    /// them, joined by a separator no id contains.
+    /// </summary>
+    private static string KeyOf(JsonObject record, IReadOnlyList<string> fields) =>
+        string.Join('', fields.Select(f => Text(record[f])));
+
+    private async Task<IReadOnlyList<JsonObject>> SourceRowsAsync(
+        WorkflowDefinition workflow, ForEachSource source, JsonObject record, CancellationToken ct)
+    {
+        switch (source)
+        {
+            case EntitySource entity:
+                if (Writer(entity.Entity) is not { } reader)
+                {
+                    Missing(workflow, entity.Entity);
+                    return [];
+                }
+
+                return await reader.WhereAsync(Filters(entity.Filters, record), ct);
+
+            case RangeSource range:
+                return Dates(range, record);
+
+            default:
+                return [];
+        }
+    }
+
+    /// <summary>
+    /// A sequence of dates as source rows.
+    ///
+    /// <para>Each row carries <c>index</c> (1-based, because a person counting months starts at
+    /// one), <c>date</c> and <c>end</c> — the last day before the next step begins, which is what
+    /// makes a month row cover a whole month rather than a single day.</para>
+    /// </summary>
+    private static IReadOnlyList<JsonObject> Dates(RangeSource range, JsonObject record)
+    {
+        var from = ValueTokens.Fill(range.From, null, null, default, field => Text(record[field]));
+        var countText = ValueTokens.Fill(range.Count, null, null, default, field => Text(record[field]));
+
+        if (!DateOnly.TryParse(from, CultureInfo.InvariantCulture, out var start)) return [];
+        if (!int.TryParse(countText, CultureInfo.InvariantCulture, out var count)) return [];
+
+        // A guard rather than a configuration knob. A definition asking for a million rows is a
+        // mistake, and the honest failure is a short grid somebody notices rather than a request
+        // that never returns.
+        count = Math.Clamp(count, 0, 1000);
+
+        var rows = new List<JsonObject>(count);
+        for (var i = 0; i < count; i++)
+        {
+            var at = Advance(start, range.Step, i);
+            var next = Advance(start, range.Step, i + 1);
+
+            rows.Add(new JsonObject
+            {
+                ["index"] = i + 1,
+                ["date"] = at.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["end"] = next.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            });
+        }
+
+        return rows;
+    }
+
+    private static DateOnly Advance(DateOnly start, string step, int times) => step switch
+    {
+        "day" => start.AddDays(times),
+        "week" => start.AddDays(7 * times),
+        "year" => start.AddYears(times),
+        _ => start.AddMonths(times),
+    };
+
+    /// <summary>The effect's fields, filled from the triggering record and — for a
+    /// <c>createForEach</c> — the source row, with any looked-up values resolved.</summary>
+    private async Task<JsonObject> ValuesAsync(
+        IReadOnlyList<EffectSet> sets, JsonObject record, JsonObject? source, CancellationToken ct)
+    {
+        var values = new JsonObject();
+
+        foreach (var set in sets)
+        {
+            if (set.Pick is { } pick)
+            {
+                values[set.Field] = await PickAsync(pick, record, source, ct) is { } id ? JsonValue.Create(id) : null;
+                continue;
+            }
+
+            var filled = Fill(set.Value, record, source);
+            values[set.Field] = filled is null ? null : JsonValue.Create(filled);
+        }
+
+        return values;
+    }
+
+    /// <summary>One looked-up id, or null when nothing matches — a reference to a row that does not
+    /// exist is worse than a blank.</summary>
+    private async Task<string?> PickAsync(PickValue pick, JsonObject record, JsonObject? source, CancellationToken ct)
+    {
+        if (Writer(pick.Entity) is not { } reader) return null;
+
+        var matches = await reader.WhereAsync(Filters(pick.Filters, record, source), ct);
+        return matches.Count == 0 ? null : Text(matches[0]["id"]);
+    }
+
+    private IReadOnlyList<RecordFilter> Filters(
+        IReadOnlyList<EffectFilter> filters, JsonObject record, JsonObject? source = null) =>
+        [.. filters.Select(f => new RecordFilter(f.Field, f.Operator, Fill(f.Value, record, source)))];
+
     private IEntityWriter? Writer(string entity) =>
         _writers.FirstOrDefault(w => string.Equals(w.Entity, entity, StringComparison.Ordinal));
 
@@ -258,8 +458,10 @@ public sealed class WorkflowRunner
         return values;
     }
 
-    private string? Fill(string? template, JsonObject record) =>
-        ValueTokens.Fill(template, _user.PersonId, _user.UserId, _clock.UtcNow, field => Text(record[field]));
+    private string? Fill(string? template, JsonObject record, JsonObject? source = null) =>
+        ValueTokens.Fill(template, _user.PersonId, _user.UserId, _clock.UtcNow,
+            field => Text(record[field]),
+            source is null ? null : field => Text(source[field]));
 
     private static string Id(JsonObject record) => Text(record["id"]);
 

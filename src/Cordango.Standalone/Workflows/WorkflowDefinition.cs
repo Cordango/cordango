@@ -56,9 +56,53 @@ public sealed record CreateRecordEffect(string Entity, IReadOnlyList<EffectSet> 
 public sealed record NotifyEffect(string To, string Title, string? Message = null, string? Link = null)
     : WorkflowEffect;
 
+/// <summary>Where the rows of a <see cref="CreateForEachEffect"/> come from.</summary>
+public abstract record ForEachSource;
+
+/// <summary>
+/// A sequence of dates: twelve months from a plan's start.
+///
+/// <para><paramref name="From"/> and <paramref name="Count"/> are templates rather than values,
+/// because both come off the record that triggered the workflow — a scenario knows its own start
+/// date and how many months it plans.</para>
+/// </summary>
+/// <param name="Step">day, week, month or year.</param>
+public sealed record RangeSource(string From, string Count, string Step) : ForEachSource;
+
+/// <summary>Every record of another entity that matches, one created record per source row. This is
+/// how a grid is laid out: a segment crossed with each adoption point.</summary>
+public sealed record EntitySource(string Entity, IReadOnlyList<EffectFilter> Filters) : ForEachSource;
+
+/// <summary>One field comparison in a source or pick filter, ANDed with the rest. Values may carry
+/// the same tokens an effect's <c>set</c> does.</summary>
+public sealed record EffectFilter(string Field, string Operator, string? Value);
+
+/// <summary>
+/// Create one record per source row, once.
+///
+/// <para><b><paramref name="Key"/> is what makes it once.</b> The fields named there identify a row
+/// uniquely, and a row that already exists is skipped. Without it, re-running the workflow — which a
+/// second save of the same record does — would lay the grid out again on top of itself, and the
+/// symptom is a plan with twenty-four months where twelve were asked for.</para>
+/// </summary>
+public sealed record CreateForEachEffect(
+    string Entity,
+    ForEachSource Source,
+    IReadOnlyList<string> Key,
+    IReadOnlyList<EffectSet> Set) : WorkflowEffect;
+
+/// <summary>
+/// A value looked up rather than written: "the revenue plan for this scenario whose tier is flex".
+///
+/// <para>Resolves to that record's id, or to nothing when no record matches — a reference to a row
+/// that does not exist is worse than a blank.</para>
+/// </summary>
+public sealed record PickValue(string Entity, IReadOnlyList<EffectFilter> Filters);
+
 /// <summary>One field an effect writes, and the value it writes. The value may be a literal or carry
-/// <c>{{record.field}}</c>, <c>{{actor.id}}</c>, <c>{{today}}</c> and the date offsets.</summary>
-public sealed record EffectSet(string Field, string? Value);
+/// <c>{{record.field}}</c>, <c>{{source.field}}</c>, <c>{{actor.id}}</c>, <c>{{today}}</c> and the
+/// date offsets — or, instead of a value, a <paramref name="Pick"/> that looks one up.</summary>
+public sealed record EffectSet(string Field, string? Value, PickValue? Pick = null);
 
 /// <summary>
 /// One workflow: when it runs, whether it should, and what it does.
@@ -75,6 +119,9 @@ public sealed record EffectSet(string Field, string? Value);
 /// <param name="Field">Which field, for <c>field.changed</c>.</param>
 /// <param name="When">An optional condition on the record, evaluated AFTER the trigger matches.</param>
 /// <param name="Effects">What to do, in the order the definition lists them.</param>
+/// <param name="Cron">Five-field cron, for <c>schedule</c>. In UTC — a generated application has no
+/// timezone at the scheduler level, and "8am" meaning two different things in June and December is a
+/// surprise nobody asked for.</param>
 public sealed record WorkflowDefinition(
     string Key,
     string Name,
@@ -82,7 +129,8 @@ public sealed record WorkflowDefinition(
     string Event,
     string? Field = null,
     Condition? When = null,
-    IReadOnlyList<WorkflowEffect>? Effects = null)
+    IReadOnlyList<WorkflowEffect>? Effects = null,
+    string? Cron = null)
 {
     public IReadOnlyList<WorkflowEffect> Effects { get; init; } = Effects ?? [];
 }
