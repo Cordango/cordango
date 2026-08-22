@@ -29,15 +29,34 @@ public class GeneratedApplicationTests
 {
     private static bool Skipped => Environment.GetEnvironmentVariable("CORDANGO_SKIP_SDK_TESTS") == "1";
 
-    [Fact]
-    public async Task The_generated_application_compiles()
+    /// <summary>
+    /// EVERY reference application compiles, not just the one that happened to be the test subject.
+    ///
+    /// <para>This was a <c>[Fact]</c> over <c>expenses</c> alone, and it stayed green through three
+    /// defects that each stopped a different application from building: an entity named <c>task</c>
+    /// is ambiguous with <c>System.Threading.Tasks.Task</c>; an entity whose name matches the
+    /// application's own namespace resolves to the NAMESPACE at every use site; and an application
+    /// where no entity has an auto-filled field has no <c>Hooks</c> namespace for
+    /// <c>AppSetup.cs</c> to import. None of them is exotic — "task" is the most ordinary noun in
+    /// project management — and none was visible in the one application being compiled.</para>
+    ///
+    /// <para>Six compiles, a couple of seconds each. That is the price of knowing.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("expenses")]
+    [InlineData("time-off")]
+    [InlineData("task-manager")]
+    [InlineData("room-booking")]
+    [InlineData("helpdesk")]
+    [InlineData("sales-crm")]
+    public async Task The_generated_application_compiles(string key)
     {
         if (Skipped) return;
 
-        using var app = Generate("expenses");
+        using var app = Generate(key);
 
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
-        Assert.True(build.ExitCode == 0, "The generated application does not compile.\n\n" + build.Output);
+        Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
     }
 
     /// <summary>
@@ -51,16 +70,24 @@ public class GeneratedApplicationTests
     /// <para>It found two real ones while it was being written: the snapshot spelled a nullable
     /// <c>DateTimeOffset?</c> as <c>DateTimeOffset</c>, and the directory tables described here had
     /// drifted from the ones <c>Cordango.Standalone</c> configures. Neither is visible by reading.</para>
+    ///
+    /// <para>Asked of several applications rather than one, because what the snapshot has to spell
+    /// correctly depends on which field TYPES an application uses — a json column, a multiselect, a
+    /// nullable date. One application exercises a handful of them.</para>
     /// </summary>
-    [Fact]
-    public async Task The_model_snapshot_matches_the_model()
+    [Theory]
+    [InlineData("expenses")]
+    [InlineData("helpdesk")]
+    [InlineData("task-manager")]
+    [InlineData("room-booking")]
+    public async Task The_model_snapshot_matches_the_model(string key)
     {
         if (Skipped) return;
 
-        using var app = Generate("expenses");
+        using var app = Generate(key);
 
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
-        Assert.True(build.ExitCode == 0, "The generated application does not compile.\n\n" + build.Output);
+        Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
 
         var scaffold = await Run("dotnet",
             ["ef", "migrations", "add", "SnapshotCheck", "--project", "api", "--no-build", "--context", "AppDbContext"],

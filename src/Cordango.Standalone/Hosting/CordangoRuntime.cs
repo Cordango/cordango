@@ -52,6 +52,15 @@ public static class CordangoRuntime
         services.TryAddSingleton(Commands.AppCommandCatalogue.Empty);
         services.TryAddScoped<Notifications.NotificationService>();
 
+        // An application with no workflows registers the empty catalogue and pays nothing: the
+        // dispatch hook asks for the workflows watching an entity, gets none, and returns.
+        services.TryAddSingleton(Workflows.AppWorkflowCatalogue.Empty);
+        services.TryAddScoped<Workflows.WorkflowRunner>();
+
+        // Scoped, so the cascade depth is per REQUEST. A singleton would carry one request's depth
+        // into the next and start refusing workflows on an idle server.
+        services.TryAddScoped<Workflows.WorkflowDepth>();
+
         services.AddAntiforgery(o =>
         {
             o.HeaderName = AntiforgeryHeader;
@@ -105,6 +114,18 @@ public static class CordangoRuntime
         // Every entity can be seeded, including the directory. Registered as a collection so the
         // seed runner can ask for "all of them" without a registry to keep in step.
         services.AddScoped<ISeedTarget, SeedTarget<T>>();
+
+        // And every entity can be written by another entity's workflow. Same collection pattern,
+        // for the same reason: a workflow names its target with a STRING from the definition, and
+        // there is no type parameter that can carry that.
+        services.AddScoped<Workflows.IEntityWriter, Workflows.EntityWriter<T>>();
+
+        // The workflow dispatch, once per entity, generic. Registered here rather than emitted so
+        // that adding an entity cannot forget it — a silently unwatched entity is a workflow that
+        // never runs and nothing to see.
+        services.AddScoped<IAfterCreate<T>, Workflows.WorkflowHook<T>>();
+        services.AddScoped<IAfterUpdate<T>, Workflows.WorkflowHook<T>>();
+
         return services;
     }
 

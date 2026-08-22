@@ -2,6 +2,7 @@ using Cordango.Standalone.Hosting;
 using Cordango.Standalone.Http;
 using Cordango.Standalone.Media;
 using Cordango.Standalone.Directory;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -60,6 +61,29 @@ builder.Services.AddSingleton<IFileStore>(new LocalFileStore(
     builder.Configuration["Storage:Path"] is { Length: > 0 } storage
         ? storage
         : Path.Combine(builder.Environment.ContentRootPath, "..", "appdata", "media")));
+
+// The key ring that protects the session and antiforgery cookies, kept where a redeployment cannot
+// take it with it.
+//
+// ASP.NET Core's default is the user's home directory, which in a container is INSIDE the container
+// and is replaced every time the image is rebuilt. The symptom is easy to misread as an application
+// bug: after `docker compose up` everybody is signed out, and the first POST from a tab that was
+// already open is refused with "your session token is out of date". Nothing logs an error, because
+// nothing went wrong — the keys those cookies were written with simply no longer exist.
+//
+// The application NAME is pinned too. It is part of the purpose string every value is protected
+// with, and it defaults to the content root path — so moving the application, or running it from a
+// different directory, would invalidate every cookie for no reason a person could see.
+var keyRing = builder.Configuration["Storage:Keys"] is { Length: > 0 } keys
+    ? keys
+    : Path.Combine(builder.Environment.ContentRootPath, "..", "appdata", "keys");
+
+// Fully qualified: `using Cordango.Standalone.Directory` (people, departments) shadows System.IO.
+System.IO.Directory.CreateDirectory(keyRing);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keyRing))
+    .SetApplicationName("{{AppKey}}");
 
 builder.Services.AddSingleton<IApiMessages>(services => new JsonApiMessages(
     services.GetRequiredService<IHttpContextAccessor>(),

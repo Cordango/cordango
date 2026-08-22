@@ -41,7 +41,7 @@ public sealed class ErrorHandlingMiddleware
         }
         catch (RecordException ex)
         {
-            await Write(context, ex.StatusCode, ex.ToApiError(Translate(context, ex.Code, ex.Message)));
+            await Write(context, ex.StatusCode, ex.ToApiError(ControllerErrors.Translate(context, ex.Code, ex.Message)));
         }
         catch (AntiforgeryValidationException ex)
         {
@@ -62,17 +62,8 @@ public sealed class ErrorHandlingMiddleware
         }
     }
 
-    /// <summary>Resolved per request, not per application: which language to answer in is a fact
-    /// about the caller. Optional, so an application that has not set up translations still gets its
-    /// English fallback rather than a missing-service exception thrown from the error handler
-    /// itself.</summary>
-    private static string Translate(HttpContext context, string code, string fallback) =>
-        context.RequestServices.GetService(typeof(IApiMessages)) is IApiMessages messages
-            ? messages.Translate(code, fallback)
-            : fallback;
-
     private static ApiError Error(HttpContext context, string code, string fallback) =>
-        new(code, Translate(context, code, fallback));
+        new(code, ControllerErrors.Translate(context, code, fallback));
 
     private static async Task Write(HttpContext context, int status, ApiError body)
     {

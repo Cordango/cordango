@@ -82,7 +82,7 @@ public sealed class TableSettingsController : ControllerBase
     [HttpGet("{handle}/{tableKey}")]
     public async Task<IActionResult> Get(string handle, string tableKey, CancellationToken ct)
     {
-        if (_user.UserId is not { } userId) return Unauthorized(new ApiError("auth.required", "Sign in first."));
+        if (_user.UserId is not { } userId) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         var row = await _db.Set<TableSetting>()
             .AsNoTracking()
@@ -96,7 +96,7 @@ public sealed class TableSettingsController : ControllerBase
     [HttpPut("{handle}/{tableKey}")]
     public async Task<IActionResult> Put(string handle, string tableKey, [FromBody] System.Text.Json.JsonElement payload, CancellationToken ct)
     {
-        if (_user.UserId is not { } userId) return Unauthorized(new ApiError("auth.required", "Sign in first."));
+        if (_user.UserId is not { } userId) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         var json = payload.GetRawText();
         if (json.Length > MaxPayload)
@@ -120,7 +120,7 @@ public sealed class TableSettingsController : ControllerBase
     [HttpDelete("{handle}/{tableKey}")]
     public async Task<IActionResult> Delete(string handle, string tableKey, CancellationToken ct)
     {
-        if (_user.UserId is not { } userId) return Unauthorized(new ApiError("auth.required", "Sign in first."));
+        if (_user.UserId is not { } userId) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         await _db.Set<TableSetting>()
             .Where(s => s.UserId == userId && s.Handle == handle && s.TableKey == tableKey)

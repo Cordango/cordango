@@ -168,6 +168,12 @@ public static class MigrationEmitter
         Model(source, app, tables,
             header:
             [
+                // Unconditionally, the way `dotnet ef` writes them itself: the model may mention
+                // List<string> for a multiselect and JsonDocument for a json field, and a snapshot
+                // whose usings depend on which field types an application happens to have is one
+                // that compiles for five applications and not the sixth. helpdesk was the sixth.
+                "using System.Collections.Generic;",
+                "using System.Text.Json;",
                 "using Microsoft.EntityFrameworkCore;",
                 "using Microsoft.EntityFrameworkCore.Infrastructure;",
                 "using Microsoft.EntityFrameworkCore.Migrations;",
@@ -194,6 +200,12 @@ public static class MigrationEmitter
         Model(source, app, tables,
             header:
             [
+                // Unconditionally, the way `dotnet ef` writes them itself: the model may mention
+                // List<string> for a multiselect and JsonDocument for a json field, and a snapshot
+                // whose usings depend on which field types an application happens to have is one
+                // that compiles for five applications and not the sixth. helpdesk was the sixth.
+                "using System.Collections.Generic;",
+                "using System.Text.Json;",
                 "using Microsoft.EntityFrameworkCore;",
                 "using Microsoft.EntityFrameworkCore.Infrastructure;",
                 "using Microsoft.EntityFrameworkCore.Storage.ValueConversion;",

@@ -1,0 +1,99 @@
+{
+  "name": "all, any, and the value tokens",
+  "why": "Composition is what makes a guard more than one comparison, and the tokens are what let one written condition mean something different tomorrow. Both are places where an implementation can be subtly generous — an empty `all` that answers false, a token nobody resolves that compares as the literal text `{{today}}` and matches nothing.",
+  "now": "2026-03-15T10:00:00Z",
+  "actorId": "person-001",
+  "cases": [
+    {
+      "record": { "runway_months": 4 },
+      "condition": {
+        "all": [
+          { "field": "runway_months", "operator": "lt", "value": 6 },
+          { "field": "runway_months", "operator": "isNotEmpty" }
+        ]
+      },
+      "expect": true
+    },
+    {
+      "why": "One child failing fails the whole conjunction, which is the guard's job on a record nobody has computed yet.",
+      "record": { "runway_months": null },
+      "condition": {
+        "all": [
+          { "field": "runway_months", "operator": "lt", "value": 6 },
+          { "field": "runway_months", "operator": "isNotEmpty" }
+        ]
+      },
+      "expect": false
+    },
+    {
+      "record": { "stage": "won", "value": 500 },
+      "condition": {
+        "any": [
+          { "field": "stage", "operator": "eq", "value": "won" },
+          { "field": "value", "operator": "gt", "value": 10000 }
+        ]
+      },
+      "expect": true
+    },
+    {
+      "record": { "stage": "lead", "value": 500 },
+      "condition": {
+        "any": [
+          { "field": "stage", "operator": "eq", "value": "won" },
+          { "field": "value", "operator": "gt", "value": 10000 }
+        ]
+      },
+      "expect": false
+    },
+    {
+      "why": "Nesting, because a real guard is usually \"this state AND (this or that)\".",
+      "record": { "stage": "proposal", "value": 20000, "owner": "person-001" },
+      "condition": {
+        "all": [
+          { "field": "stage", "operator": "in", "value": ["proposal", "negotiation"] },
+          {
+            "any": [
+              { "field": "value", "operator": "gt", "value": 10000 },
+              { "field": "owner", "operator": "eq", "value": "{{actor.id}}" }
+            ]
+          }
+        ]
+      },
+      "expect": true
+    },
+    {
+      "why": "{{actor.id}} is whoever is asking. The same stored condition answers differently for two people, which is the whole reason it is a token and not a value.",
+      "record": { "owner": "person-001" },
+      "condition": { "field": "owner", "operator": "eq", "value": "{{actor.id}}" },
+      "expect": true
+    },
+    {
+      "record": { "owner": "person-999" },
+      "condition": { "field": "owner", "operator": "eq", "value": "{{actor.id}}" },
+      "expect": false
+    },
+    {
+      "why": "{{today}} is a date, not an instant, and it comes from the clock the caller passed rather than from the machine.",
+      "record": { "due_on": "2026-03-15" },
+      "condition": { "field": "due_on", "operator": "eq", "value": "{{today}}" },
+      "expect": true
+    },
+    {
+      "why": "Offsets are in days. \"Due within a week\" is the commonest condition anybody writes.",
+      "record": { "due_on": "2026-03-20" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["{{today}}", "{{today+7}}"] },
+      "expect": true
+    },
+    {
+      "record": { "due_on": "2026-03-25" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["{{today}}", "{{today+7}}"] },
+      "expect": false
+    },
+    {
+      "why": "Backwards too, for \"not touched in the last 30 days\".",
+      "record": { "last_activity": "2026-03-01" },
+      "condition": { "field": "last_activity", "operator": "lt", "value": "{{today-7}}" },
+      "expect": true
+    }
+  ]
+}

@@ -46,15 +46,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # The image already ships a non-root `app` user, and creating a second one fails the build. All this
-# needs is somewhere writable for uploads: a web process has no business being able to write to its
-# own binaries.
-RUN mkdir -p /appdata/media && chown -R app /appdata
+# needs is somewhere writable for the two things it must not lose — uploaded files and the data
+# protection key ring — outside its own binaries, which a web process has no business writing to.
+RUN mkdir -p /appdata/media /appdata/keys && chown -R app /appdata
 USER app
 
 COPY --from=api /app .
 
 ENV ASPNETCORE_HTTP_PORTS=8080 \
-    Storage__Path=/appdata/media
+    Storage__Path=/appdata/media \
+    Storage__Keys=/appdata/keys
 EXPOSE 8080
 
 # The endpoint asks the database, so an instance that cannot answer a query reports unhealthy rather

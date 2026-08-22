@@ -1,6 +1,6 @@
 # Everything {{AppName}} needs to run, on one machine.
 #
-# Two services and one volume. The database version is pinned rather than floating on `latest`,
+# Two services and two volumes. The database version is pinned rather than floating on `latest`,
 # because a Postgres major upgrade is a decision to make deliberately on a Tuesday morning and not
 # one to discover after a `docker compose pull`.
 
@@ -50,8 +50,14 @@ services:
     ports:
       - "${PORT:-8080}:8080"
     volumes:
-      - media:/appdata/media
+      # Everything this application must not lose when the container is replaced: uploaded files,
+      # and the key ring that its session and antiforgery cookies are protected with. The whole
+      # directory rather than just the uploads, because a container REBUILDS its own filesystem —
+      # keys written inside it are gone on the next `docker compose up`, and the symptom is that
+      # everybody is signed out and the first POST from an already-open tab is refused as a stale
+      # token.
+      - data:/appdata
 
 volumes:
   db:
-  media:
+  data:

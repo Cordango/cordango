@@ -22,6 +22,9 @@
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <PackageId>Cordango.Standalone</PackageId>
+    <!-- A default for local builds only. THE RELEASED VERSION COMES FROM THE GIT TAG:
+         .github/workflows/publish.yml packs with -p:Version=<tag minus its leading v>, so this
+         number never has to be kept in step with a release and cannot contradict one. -->
     <Version>0.1.0-alpha</Version>
     <Authors>Cordango</Authors>
     <Description>The runtime a Cordango-generated standalone application runs on: typed records, lifecycle hooks, definition-driven permissions, filtering and aggregates, the built-in people-and-organizations directory, and the {code, error} wire.</Description>

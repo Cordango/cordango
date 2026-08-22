@@ -146,7 +146,7 @@ public abstract class RecordsController<T> : ControllerBase where T : class, IRe
         // would tell somebody the payroll of a column they are not allowed to see — an aggregate is
         // a slower way to read a field, not a different kind of access.
         if (field is not null && !Access.CanReadField(field))
-            return StatusCode(403, new ApiError("record.read_denied", $"Your role may not read {field}."));
+            return StatusCode(403, this.Refuse("record.read_denied", $"Your role may not read {field}.", [field]));
 
         if (groupBy is not null)
         {
@@ -155,7 +155,7 @@ public abstract class RecordsController<T> : ControllerBase where T : class, IRe
                 : groupBy;
 
             if (!Access.CanReadField(grouped))
-                return StatusCode(403, new ApiError("record.read_denied", $"Your role may not read {grouped}."));
+                return StatusCode(403, this.Refuse("record.read_denied", $"Your role may not read {grouped}.", [grouped]));
         }
 
         var query = RecordQuery.Narrow(_store.Query(), Descriptor, RecordQuery.ParseFilters(filter));
@@ -297,7 +297,7 @@ public abstract class RecordsController<T> : ControllerBase where T : class, IRe
     /// <summary>403 rather than 404. Hiding an entity's existence from somebody who already knows
     /// its route buys nothing here — every route is in the application's own generated client.</summary>
     protected IActionResult Denied(string operation) =>
-        StatusCode(403, new ApiError(
+        StatusCode(403, this.Refuse(
             $"record.{operation}_denied",
             $"Your role may not {operation} {Descriptor.Label}."));
 

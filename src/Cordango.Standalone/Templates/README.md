@@ -27,6 +27,9 @@ There is deliberately no default password. A fixed one would mean every applicat
 produces ships with the same credentials, and a generated one can only be delivered by printing it to
 a log — which is not an answer for anybody who arrived through a browser.
 
+Uploads and the key ring that protects the session and antiforgery cookies both live on the
+`/appdata` volume, so rebuilding the image does not sign everybody out.
+
 `DB_PASSWORD` has a local-only default so the above works with nothing configured. That is safe here
 and only here: the database service publishes no port, so nothing outside the compose network can
 reach it. Set a real one before this runs anywhere but your machine.

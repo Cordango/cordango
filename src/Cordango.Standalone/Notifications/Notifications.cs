@@ -141,7 +141,7 @@ public sealed class NotificationsController : ControllerBase
     public async Task<IActionResult> Read(string id, CancellationToken ct)
     {
         if (_user.PersonId is not { Length: > 0 } person)
-            return Unauthorized(new ApiError("auth.required", "Sign in first."));
+            return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         // Scoped to the caller in the WHERE clause rather than checked afterwards: a notification
         // that is not theirs simply matches nothing.
@@ -156,7 +156,7 @@ public sealed class NotificationsController : ControllerBase
     public async Task<IActionResult> ReadAll(CancellationToken ct)
     {
         if (_user.PersonId is not { Length: > 0 } person)
-            return Unauthorized(new ApiError("auth.required", "Sign in first."));
+            return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         await _db.Set<Notification>()
             .Where(n => n.Person == person && n.ReadAt == null)

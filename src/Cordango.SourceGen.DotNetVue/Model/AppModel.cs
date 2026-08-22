@@ -34,7 +34,7 @@ public sealed class AppModel
         Description = Str(manifest["description"]);
         Namespace = Naming.Pascal(Key);
 
-        Entities = [.. Arr(manifest["entities"]).OfType<JsonObject>().Select(e => new EntityModel(e))];
+        Entities = [.. Arr(manifest["entities"]).OfType<JsonObject>().Select(e => new EntityModel(e, Namespace))];
         Views = [.. Arr(manifest["views"]).OfType<JsonObject>().Select(v => new ViewModel(v))];
         Pages = [.. Arr(manifest["pages"]).OfType<JsonObject>().Select(p => new PageModel(p))];
         Roles = [.. Arr(manifest["roles"]).OfType<JsonObject>()];
@@ -96,9 +96,14 @@ public sealed class AppModel
 /// <summary>One entity: what it stores, what it is called, and how one record is laid out.</summary>
 public sealed class EntityModel
 {
-    public EntityModel(JsonObject json)
+    /// <param name="json">The entity, as the manifest gives it.</param>
+    /// <param name="appNamespace">The application's root namespace. Needed here and not derivable
+    /// here, because whether this entity's class name is available depends on what else is in scope
+    /// in the files that will use it — see <see cref="Naming.Type"/>.</param>
+    public EntityModel(JsonObject json, string? appNamespace = null)
     {
         Json = json;
+        TypeName = Naming.Type(AppModel.Str(json["key"]) ?? "entity", appNamespace);
         Key = AppModel.Str(json["key"]) ?? "entity";
         Label = AppModel.Str(json["label"]) ?? Key;
         LabelPlural = AppModel.Str(json["labelPlural"]) ?? Label + "s";
@@ -136,8 +141,14 @@ public sealed class EntityModel
     public JsonObject? Peek { get; }
     public JsonObject? Form { get; }
 
-    /// <summary>The C# type name for this entity's records.</summary>
-    public string TypeName => Naming.Pascal(Key);
+    /// <summary>The C# class name for this entity's records. Usually <c>Pascal(key)</c>, and
+    /// suffixed when that name is already taken by a namespace or a framework type.</summary>
+    public string TypeName { get; }
+
+    /// <summary>The key, Pascal-cased, with no collision handling — the front end has no C# scope to
+    /// clash with, and a Vue component called <c>TaskRecordRecordPage</c> would be the C# problem
+    /// leaking somewhere it does not exist.</summary>
+    public string PascalKey => Naming.Pascal(Key);
 
     public string Table => Naming.Table(Key);
 

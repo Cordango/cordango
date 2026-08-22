@@ -34,7 +34,7 @@ public sealed class MediaController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Upload(IFormFile? file, CancellationToken ct)
     {
-        if (_user.UserId is null) return Unauthorized(new ApiError("auth.required", "Sign in to upload files."));
+        if (_user.UserId is null) return Unauthorized(this.Refuse("auth.required", "Sign in to upload files."));
         if (file is null || file.Length == 0)
             throw new RecordException("media.empty", "No file was sent.");
 
@@ -46,7 +46,7 @@ public sealed class MediaController : ControllerBase
     [HttpGet("{reference}")]
     public async Task<IActionResult> Download(string reference, CancellationToken ct)
     {
-        if (_user.UserId is null) return Unauthorized(new ApiError("auth.required", "Sign in to fetch files."));
+        if (_user.UserId is null) return Unauthorized(this.Refuse("auth.required", "Sign in to fetch files."));
 
         var found = await _files.OpenAsync(reference, ct);
         if (found is not var (meta, content) || content is null)
@@ -63,7 +63,7 @@ public sealed class MediaController : ControllerBase
     public async Task<IActionResult> Delete(string reference, CancellationToken ct)
     {
         if (!_user.IsAdministrator)
-            return StatusCode(403, new ApiError("media.delete_denied", "Only an administrator may delete files."));
+            return StatusCode(403, this.Refuse("media.delete_denied", "Only an administrator may delete files."));
 
         // Content addressing means one file can be the target of many records' fields. Deleting it
         // is therefore an administrative act with consequences the caller cannot see from here, and

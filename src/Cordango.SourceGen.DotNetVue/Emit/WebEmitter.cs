@@ -162,7 +162,7 @@ public static class WebEmitter
             foreach (var block in blocks) Block(body, block, context, unsupported);
         }
 
-        var name = entity.TypeName + "RecordPage";
+        var name = entity.PascalKey + "RecordPage";
         return Component(
             path: $"web/src/pages/{name}.vue",
             imports: context.Imports,
@@ -564,7 +564,7 @@ public static class WebEmitter
             source.Line($"import {page.ComponentName} from './pages/{page.ComponentName}.vue'");
 
         foreach (var entity in app.Entities)
-            source.Line($"import {entity.TypeName}RecordPage from './pages/{entity.TypeName}RecordPage.vue'");
+            source.Line($"import {entity.PascalKey}RecordPage from './pages/{entity.PascalKey}RecordPage.vue'");
 
         source.Line();
         source.Line("// The definition's screens, then the record pages behind them. Routes you add");
@@ -580,7 +580,7 @@ public static class WebEmitter
             source.Line($"{{ path: '{page.Route}', name: '{page.Key}', component: {page.ComponentName} }},");
 
         foreach (var entity in app.Entities)
-            source.Line($"{{ path: '/record/{entity.Key}/:id', name: '{entity.Key}_record', component: {entity.TypeName}RecordPage }},");
+            source.Line($"{{ path: '/record/{entity.Key}/:id', name: '{entity.Key}_record', component: {entity.PascalKey}RecordPage }},");
 
         source.Outdent();
         source.Line("]");

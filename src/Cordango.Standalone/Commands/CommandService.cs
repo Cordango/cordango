@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Text.Json;
+using Cordango.Standalone.Conditions;
 using Cordango.Standalone.Data;
 using Cordango.Standalone.Http;
 using Cordango.Standalone.Records;
@@ -47,6 +48,11 @@ public sealed record CommandNotification(string To, string Title, string? Messag
 /// <param name="RequiredInputFields">Which of those may not be left blank.</param>
 /// <param name="Sets">Fields the command writes itself.</param>
 /// <param name="SuccessMessage">What to tell the person afterwards.</param>
+/// <param name="Notifications">Who to tell that it ran.</param>
+/// <param name="When">An extra condition the record must satisfy — a guard. Separate from the
+/// transition: a transition says which STATES a command may run from, and a guard says everything
+/// else. "Do not offboard somebody who already left" is not a state machine, it is one question
+/// about one field.</param>
 public sealed record CommandDefinition(
     string Key,
     string Label,
@@ -58,7 +64,8 @@ public sealed record CommandDefinition(
     IReadOnlyList<string>? RequiredInputFields = null,
     IReadOnlyList<CommandSet>? Sets = null,
     string? SuccessMessage = null,
-    IReadOnlyList<CommandNotification>? Notifications = null)
+    IReadOnlyList<CommandNotification>? Notifications = null,
+    Conditions.Condition? When = null)
 {
     public IReadOnlyList<CommandNotification> Notifications { get; init; } = Notifications ?? [];
 
@@ -157,6 +164,20 @@ public sealed class CommandService<T> where T : class, IRecord, new()
                 throw new RecordException("command.illegal_transition",
                     $"'{command.Label}' cannot run on a record that is '{current}'.", 409);
         }
+
+        // The guard, after the transition and before anything is read from the caller.
+        //
+        // After the transition, because "this claim is already reimbursed" is a better answer than
+        // "this claim does not qualify" and the state is the more specific fact. Before the input,
+        // because a command that will not run should not be telling the caller which fields it would
+        // have wanted.
+        //
+        // The message stays general on purpose. A guard may read a field the caller's role cannot,
+        // and naming it in a refusal would be a way to read it.
+        if (command.When is { } guard
+            && !ConditionEvaluator.Evaluate(guard, Snapshot(record), _user.PersonId, _clock.UtcNow))
+            throw new RecordException("command.not_applicable",
+                $"'{command.Label}' cannot run on this record.", 409);
 
         foreach (var field in command.InputFields)
         {
@@ -271,6 +292,15 @@ public sealed class CommandService<T> where T : class, IRecord, new()
         var node = JsonSerializer.SerializeToNode(record, Json)?.AsObject();
         return node?[field]?.ToString() ?? "";
     }
+
+    /// <summary>The whole record as JSON, which is what a condition reads.
+    ///
+    /// <para>The FULL record, not the caller's projection. A guard is the application's rule, not the
+    /// caller's — one that reads a field this role cannot see must still get the true answer, or the
+    /// same command would be legal for one person and not another for reasons the definition never
+    /// stated.</para></summary>
+    private static System.Text.Json.Nodes.JsonObject Snapshot(T record) =>
+        JsonSerializer.SerializeToNode(record, Json)?.AsObject() ?? [];
 
     private static string? Text(JsonElement value) => value.ValueKind switch
     {

@@ -62,18 +62,18 @@ public sealed class AccountController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         if (string.IsNullOrWhiteSpace(request?.Email) || string.IsNullOrWhiteSpace(request.Password))
-            return BadRequest(new ApiError("auth.credentials_required", "Enter an email address and a password."));
+            return BadRequest(this.Refuse("auth.credentials_required", "Enter an email address and a password."));
 
         var result = await _signIn.PasswordSignInAsync(
             request.Email, request.Password, request.RememberMe, lockoutOnFailure: true);
 
         if (result.IsLockedOut)
-            return StatusCode(423, new ApiError("auth.locked_out", "Too many attempts. Try again in a few minutes."));
+            return StatusCode(423, this.Refuse("auth.locked_out", "Too many attempts. Try again in a few minutes."));
 
         // One answer for "no such account" and for "wrong password", deliberately. Two different
         // answers turn the login form into a way to find out who has an account here.
         if (!result.Succeeded)
-            return Unauthorized(new ApiError("auth.invalid_credentials", "That email address and password do not match."));
+            return Unauthorized(this.Refuse("auth.invalid_credentials", "That email address and password do not match."));
 
         var user = await _users.FindByNameAsync(request.Email);
         return Ok(await Describe(user!));
@@ -101,13 +101,13 @@ public sealed class AccountController : ControllerBase
         var email = request?.Email?.Trim();
 
         if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(request?.Password))
-            return BadRequest(new ApiError("auth.credentials_required", "Enter an email address and a password."));
+            return BadRequest(this.Refuse("auth.credentials_required", "Enter an email address and a password."));
 
         await SetupGate.WaitAsync(HttpContext.RequestAborted);
         try
         {
             if (await IdentitySetup.AdministratorExistsAsync(_identity))
-                return Conflict(new ApiError("setup.completed",
+                return Conflict(this.Refuse("setup.completed",
                     "This application already has an administrator. Sign in instead."));
 
             var created = await IdentitySetup.CreateAdministratorAsync(
@@ -116,8 +116,9 @@ public sealed class AccountController : ControllerBase
             if (!created.Succeeded)
                 // Identity's own words, which name the rule that was broken — "Passwords must be at
                 // least 12 characters" is something a person can act on, and a generic "invalid" is
-                // not.
-                return BadRequest(new ApiError("setup.rejected",
+                // not. `setup.rejected` is deliberately ABSENT from Resources/messages.*.json for
+                // exactly that reason: a code with no entry keeps the sentence written here.
+                return BadRequest(this.Refuse("setup.rejected",
                     string.Join(" ", created.Errors.Select(e => e.Description))));
         }
         finally
@@ -167,14 +168,14 @@ public sealed class AccountController : ControllerBase
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
     {
         if (string.IsNullOrWhiteSpace(request?.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword))
-            return BadRequest(new ApiError("auth.password_required", "Enter your current password and a new one."));
+            return BadRequest(this.Refuse("auth.password_required", "Enter your current password and a new one."));
 
         var user = await _users.GetUserAsync(User);
-        if (user is null) return Unauthorized(new ApiError("auth.required", "Sign in first."));
+        if (user is null) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
 
         var result = await _users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
         if (!result.Succeeded)
-            return BadRequest(new ApiError("auth.password_rejected",
+            return BadRequest(this.Refuse("auth.password_rejected",
                 string.Join(" ", result.Errors.Select(e => e.Description))));
 
         // The old cookie was minted against the old password stamp. Refreshing it here keeps the

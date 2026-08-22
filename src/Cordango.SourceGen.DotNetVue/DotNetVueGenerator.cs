@@ -3,6 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using System.Text.Json.Nodes;
 using Cordango.SourceGen.DotNetVue.Emit;
 using Cordango.SourceGen.DotNetVue.Model;
 
@@ -174,6 +175,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         Add(BackendEmitter.Setup(app));
         Add(BackendEmitter.Permissions(app));
         Add(BackendEmitter.Commands(app));
+        Add(WorkflowEmitter.Workflows(app));
 
         foreach (var entity in app.Entities)
         {
@@ -238,10 +240,45 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
     {
         for (var i = 0; i < app.Workflows.Count; i++)
         {
-            var key = app.Workflows[i]["key"]?.GetValue<string>() ?? i.ToString(System.Globalization.CultureInfo.InvariantCulture);
-            yield return new Diagnostic("CORD2302",
-                $"the workflow '{key}' is not generated yet, so nothing will run when its trigger fires.",
-                $"$.workflows[{i}]");
+            var workflow = app.Workflows[i];
+            var key = Model.AppModel.Str(workflow["key"])
+                ?? i.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+            var trigger = workflow["trigger"] as JsonObject;
+            var @event = Model.AppModel.Str(trigger?["event"]);
+
+            // A trigger this target does not wire. `schedule` needs a host that is awake and a timer
+            // to wake it, which is a different piece of machinery from a hook on a write.
+            if (@event is null || !Emit.WorkflowEmitter.Triggers.Contains(@event))
+            {
+                yield return new Diagnostic("CORD2302",
+                    $"the workflow '{key}' triggers on '{@event ?? "nothing"}', which is not wired yet, "
+                    + "so nothing will run.",
+                    $"$.workflows[{i}].trigger");
+                continue;
+            }
+
+            // A guard that cannot be written would make the workflow fire in cases the definition
+            // excludes — the same hazard as a command's guard, and louder here because a workflow
+            // runs without anybody watching.
+            if (!Emit.ConditionEmitter.TryEmit(workflow["when"], out _))
+                yield return new Diagnostic("CORD2306",
+                    $"the workflow '{key}' has a condition this generator cannot write, so it would "
+                    + "run in cases the definition excludes.",
+                    $"$.workflows[{i}].when");
+
+            var unwritten = Model.AppModel.Arr(workflow["effects"]).OfType<JsonObject>()
+                .Select(e => Model.AppModel.Str(e["type"]))
+                .Where(type => type is null || !Emit.WorkflowEmitter.Emitted.Contains(type))
+                .Select(type => type ?? "an unnamed effect")
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            if (unwritten.Count > 0)
+                yield return new Diagnostic("CORD2303",
+                    $"the workflow '{key}' declares {string.Join(" and ", unwritten)} effect(s), which are "
+                    + "not generated yet. Its trigger fires and its other effects run; these do not.",
+                    $"$.workflows[{i}].effects");
         }
 
         foreach (var command in app.Commands)
@@ -262,10 +299,13 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                     + "Its notify effects DO.",
                     $"$.commands[?(@.key=='{command.Key}')].effects");
 
-            if (command.Json["when"] is not null)
-                yield return new Diagnostic("CORD2304",
-                    $"'{command.Label}' has a guard, which is not enforced yet. Its permission and its "
-                    + "transition ARE enforced; the extra condition is not.",
+            // A guard the emitter cannot write must not become an application without one. The
+            // command would run, look correct, and be more permissive than the definition — the
+            // only kind of generator bug that is invisible in the output.
+            if (!Emit.ConditionEmitter.TryEmit(command.Json["when"], out _))
+                yield return new Diagnostic("CORD2306",
+                    $"'{command.Label}' has a guard this generator cannot write, so the command would "
+                    + "be generated WITHOUT it and would run in cases the definition refuses.",
                     $"$.commands[?(@.key=='{command.Key}')].when");
         }
 

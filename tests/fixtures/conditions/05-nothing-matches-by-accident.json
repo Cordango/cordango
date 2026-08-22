@@ -1,0 +1,46 @@
+{
+  "name": "A condition nobody can answer is false, never true",
+  "why": "Every one of these is a shape that should not reach a running application, because the gate rejects it at author time. They are pinned anyway, because the safe reading of \"I do not understand this guard\" is that the guarded thing does not happen — and an implementation that defaults the other way turns a typo into an approval.",
+  "now": "2026-03-15T10:00:00Z",
+  "actorId": "person-001",
+  "cases": [
+    {
+      "why": "No operator. The generator cannot write this one at all, and says so (CORD2306) rather than emitting an application with the guard missing.",
+      "generatorRefuses": true,
+      "record": { "stage": "lead" },
+      "condition": { "field": "stage", "value": "lead" },
+      "expect": false
+    },
+    {
+      "why": "An operator nothing implements.",
+      "record": { "stage": "lead" },
+      "condition": { "field": "stage", "operator": "soundsLike", "value": "lead" },
+      "expect": false
+    },
+    {
+      "why": "Neither a field nor a path, so there is nothing to read. Without this rule the leaf would compare null against null and answer TRUE, which is the worst possible default for a guard. The generator refuses this one too.",
+      "generatorRefuses": true,
+      "record": { "stage": "lead" },
+      "condition": { "operator": "isEmpty" },
+      "expect": false
+    },
+    {
+      "why": "A path with no hop available — a standalone application resolving a reference it was not given a way to follow.",
+      "record": { "room": "room-1" },
+      "condition": { "path": "room.requires_approval", "operator": "eq", "value": true },
+      "expect": false
+    },
+    {
+      "why": "between wants exactly two endpoints.",
+      "record": { "due_on": "2026-03-15" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["2026-03-15"] },
+      "expect": false
+    },
+    {
+      "why": "in with an empty list matches nothing. It is not a wildcard.",
+      "record": { "stage": "lead" },
+      "condition": { "field": "stage", "operator": "in", "value": [] },
+      "expect": false
+    }
+  ]
+}

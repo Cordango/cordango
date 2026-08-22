@@ -1,0 +1,55 @@
+{
+  "name": "Equality compares numbers as numbers and everything else as text",
+  "why": "The definition writes a value as JSON and the record holds it as a typed column. A guard reading `value gt 10000` against a decimal column, and one reading `stage eq \"lead\"` against text, both have to work — so the comparison picks its rule from the operands rather than from a declared type nobody wrote down.",
+  "now": "2026-03-15T10:00:00Z",
+  "actorId": "person-001",
+  "cases": [
+    {
+      "record": { "stage": "lead", "value": 12000, "owner": "person-002" },
+      "condition": { "field": "stage", "operator": "eq", "value": "lead" },
+      "expect": true
+    },
+    {
+      "record": { "stage": "lead", "value": 12000 },
+      "condition": { "field": "stage", "operator": "neq", "value": "lead" },
+      "expect": false
+    },
+    {
+      "record": { "stage": "lead", "value": 12000 },
+      "condition": { "field": "value", "operator": "gt", "value": 10000 },
+      "expect": true
+    },
+    {
+      "record": { "stage": "lead", "value": 12000 },
+      "condition": { "field": "value", "operator": "lt", "value": 10000 },
+      "expect": false
+    },
+    {
+      "why": "A number written as a string in the definition still compares as a number. 9 is not greater than 10 in text, and a guard that got that wrong would fire on exactly the records it was meant to skip.",
+      "record": { "value": 9 },
+      "condition": { "field": "value", "operator": "gt", "value": "10" },
+      "expect": false
+    },
+    {
+      "record": { "value": 100 },
+      "condition": { "field": "value", "operator": "gte", "value": 100 },
+      "expect": true
+    },
+    {
+      "record": { "value": 100 },
+      "condition": { "field": "value", "operator": "lte", "value": 100 },
+      "expect": true
+    },
+    {
+      "why": "A boolean field, which the record holds as a real JSON boolean.",
+      "record": { "approved": true },
+      "condition": { "field": "approved", "operator": "eq", "value": true },
+      "expect": true
+    },
+    {
+      "record": { "approved": false },
+      "condition": { "field": "approved", "operator": "eq", "value": true },
+      "expect": false
+    }
+  ]
+}

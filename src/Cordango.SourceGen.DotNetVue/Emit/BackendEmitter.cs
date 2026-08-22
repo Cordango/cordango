@@ -130,6 +130,11 @@ public static class BackendEmitter
     {
         ArgumentNullException.ThrowIfNull(app);
 
+        // Only the entities that actually need one get a hook, so an application where none does
+        // has no Hooks namespace to import — and importing a namespace that does not exist is a
+        // compile error, not a harmless line. task-manager was that application.
+        var hooked = app.Entities.Any(e => AutoFields(app, e) is not null);
+
         var source = new Source();
         source.Line("using Cordango.Standalone.Commands;");
         source.Line("using Cordango.Standalone.Hooks;");
@@ -137,9 +142,10 @@ public static class BackendEmitter
         source.Line("using Cordango.Standalone.Security;");
         source.Line($"using {app.Namespace}.Commands;");
         source.Line($"using {app.Namespace}.Entities;");
-        source.Line($"using {app.Namespace}.Hooks;");
+        if (hooked) source.Line($"using {app.Namespace}.Hooks;");
         source.Line($"using {app.Namespace}.Data;");
         source.Line($"using {app.Namespace}.Security;");
+        source.Line($"using {app.Namespace}.Workflows;");
         source.Line();
         source.Line($"namespace {app.Namespace};");
         source.Line();
@@ -152,9 +158,10 @@ public static class BackendEmitter
         source.Line("/// </summary>");
         source.Open("public static class AppSetup");
         source.Open("public static IServiceCollection AddApp(this IServiceCollection services)");
-        source.Line("// The definition's roles and commands, compiled in.");
+        source.Line("// The definition's roles, commands and workflows, compiled in.");
         source.Line("services.AddSingleton(AppRoles.Rules);");
         source.Line("services.AddSingleton(AppCommands.Catalogue);");
+        source.Line("services.AddSingleton(AppWorkflows.Catalogue);");
         source.Line();
 
         foreach (var entity in app.Entities)
@@ -186,6 +193,7 @@ public static class BackendEmitter
 
         var source = new Source();
         source.Line("using Cordango.Standalone.Commands;");
+        source.Line("using Cordango.Standalone.Conditions;");
         source.Line();
         source.Line($"namespace {app.Namespace}.Commands;");
         source.Line();
@@ -233,7 +241,12 @@ public static class BackendEmitter
                     + $"{Naming.Literal(AppModel.Str(e["message"]))}, "
                     + $"{Naming.Literal(AppModel.Str(e["link"]))})");
 
-            source.Line($"Notifications: [{string.Join(", ", notifications)}]),");
+            source.Line($"Notifications: [{string.Join(", ", notifications)}],");
+
+            // The guard, as the last argument, because it is the one a reader most often wants to
+            // find: everything above it is what the command DOES, and this is when it may.
+            ConditionEmitter.TryEmit(command.Json["when"], out var guard);
+            source.Line($"When: {guard}),");
             source.Outdent();
         }
 

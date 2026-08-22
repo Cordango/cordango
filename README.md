@@ -57,6 +57,33 @@ Cordango Platform     Standalone generator
                       deploy anywhere
 ```
 
+## Generating an application
+
+```
+cordango new expenses            # a workspace, with one application in it
+cd expenses
+cordango check                   # parse, lower and validate. No model, no database.
+cordango targets                 # what can be generated, and what each target supports
+
+cordango build --target standalone --out ../expenses-app
+cd ../expenses-app
+docker compose up --build
+```
+
+That last command is the whole deployment: no `.env` to write first, no migration step, no password
+to look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
+account.
+
+What comes out is an ordinary repository — `api/` (ASP.NET Core, EF Core, migrations you can read),
+`web/` (Vue 3 and Vuetify, one component per screen), a Dockerfile and a compose file. Delete the
+toolchain afterwards and it still builds.
+
+**A build refuses rather than quietly shipping less than the definition asks for.** Anything this
+target cannot do is reported with a code and the path in the definition that caused it, and the build
+stops. `--allow-incomplete` says you know: the application is generated, the gaps are listed in the
+generated README, and `cordango.build.json` carries them permanently so a partial build can never
+pass for a complete one later.
+
 ## Determinism
 
 The generator is deterministic. The same App Definition, generator version, scaffold version and
@@ -77,7 +104,10 @@ dotnet build Cordango.slnx
 dotnet test Cordango.slnx
 ```
 
-The test suite needs no database, no containers and no network.
+No database and no containers. Some of the standalone tests do generate an application and run the
+real .NET SDK over it — compiling it, and asking EF to certify the model snapshot against its own
+model — which reaches the package feed. `CORDANGO_SKIP_SDK_TESTS=1` skips those; the rest of the
+suite runs offline.
 
 ## License
 

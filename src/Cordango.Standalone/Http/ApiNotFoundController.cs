@@ -25,5 +25,5 @@ public sealed class ApiNotFoundController : ControllerBase
 {
     [HttpGet, HttpPost, HttpPut, HttpPatch, HttpDelete]
     public IActionResult Missing(string? path) =>
-        NotFound(new ApiError("route.not_found", $"No API endpoint at /api/{path}."));
+        NotFound(this.Refuse("route.not_found", $"No API endpoint at /api/{path}."));
 }

@@ -1,0 +1,64 @@
+{
+  "name": "A blank value is not greater, not less, and not equal to anything except another blank",
+  "why": "This is the rule that decides whether a guard fires on a record somebody has not filled in yet, and it is the one every naive implementation gets wrong. Treating a missing number as zero makes `amount lt 100` true for every unfilled record, and a workflow built on it fires on rows nobody has touched.",
+  "now": "2026-03-15T10:00:00Z",
+  "actorId": "person-001",
+  "cases": [
+    {
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "lt", "value": 100 },
+      "expect": false
+    },
+    {
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "gt", "value": 100 },
+      "expect": false
+    },
+    {
+      "why": "Both false, and deliberately. `lt` and `gt` are not each other's negation once a blank is involved.",
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "eq", "value": 100 },
+      "expect": false
+    },
+    {
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "isEmpty" },
+      "expect": true
+    },
+    {
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "isNotEmpty" },
+      "expect": false
+    },
+    {
+      "why": "An empty string is blank. A text field cleared in a form arrives as \"\", not as null.",
+      "record": { "note": "" },
+      "condition": { "field": "note", "operator": "isEmpty" },
+      "expect": true
+    },
+    {
+      "why": "So is an empty list. A multiselect with nothing chosen is not the same as one nobody has looked at, but for a guard it is.",
+      "record": { "tags": [] },
+      "condition": { "field": "tags", "operator": "isEmpty" },
+      "expect": true
+    },
+    {
+      "why": "A field the record does not have at all reads as blank rather than throwing.",
+      "record": { "amount": 5 },
+      "condition": { "field": "nothing_named_this", "operator": "isEmpty" },
+      "expect": true
+    },
+    {
+      "why": "Two blanks are equal. `neq` against a blank is therefore false, which is what makes \"changed to something\" expressible.",
+      "record": { "amount": null },
+      "condition": { "field": "amount", "operator": "eq", "value": "" },
+      "expect": true
+    },
+    {
+      "why": "A blank is not in the list, so notIn is TRUE for a record nobody has filled in. Debatable, and settled here: `in` and `notIn` are exact negations of each other, which is the property somebody writing a pair of workflows depends on.",
+      "record": { "stage": null },
+      "condition": { "field": "stage", "operator": "notIn", "value": ["won", "lost"] },
+      "expect": true
+    }
+  ]
+}

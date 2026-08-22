@@ -1,0 +1,73 @@
+{
+  "name": "in, notIn, contains, between and overlaps",
+  "why": "The operators whose expected side is a list. `between` and `overlaps` are the two that carry a boundary rule, and a boundary rule that differs between the two products is the kind of bug that shows up as one booking system allowing a double booking and the other refusing it.",
+  "now": "2026-03-15T10:00:00Z",
+  "actorId": "person-001",
+  "cases": [
+    {
+      "record": { "stage": "proposal" },
+      "condition": { "field": "stage", "operator": "in", "value": ["lead", "qualified", "proposal"] },
+      "expect": true
+    },
+    {
+      "record": { "stage": "won" },
+      "condition": { "field": "stage", "operator": "in", "value": ["lead", "qualified", "proposal"] },
+      "expect": false
+    },
+    {
+      "record": { "stage": "won" },
+      "condition": { "field": "stage", "operator": "notIn", "value": ["lead", "qualified", "proposal"] },
+      "expect": true
+    },
+    {
+      "why": "contains is case-insensitive, because it exists for searching text a person typed.",
+      "record": { "subject": "Printer on floor 3 is jammed" },
+      "condition": { "field": "subject", "operator": "contains", "value": "PRINTER" },
+      "expect": true
+    },
+    {
+      "record": { "subject": "Printer on floor 3 is jammed" },
+      "condition": { "field": "subject", "operator": "contains", "value": "scanner" },
+      "expect": false
+    },
+    {
+      "why": "between is inclusive at both ends. \"Due in the next 7 days\" has to include today and the seventh day, or the two obvious readings of it disagree.",
+      "record": { "due_on": "2026-03-15" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["2026-03-15", "2026-03-22"] },
+      "expect": true
+    },
+    {
+      "record": { "due_on": "2026-03-22" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["2026-03-15", "2026-03-22"] },
+      "expect": true
+    },
+    {
+      "record": { "due_on": "2026-03-23" },
+      "condition": { "field": "due_on", "operator": "between", "value": ["2026-03-15", "2026-03-22"] },
+      "expect": false
+    },
+    {
+      "why": "A DATE names a whole day, so a range ending on the day a window starts does overlap it.",
+      "record": { "starts_on": "2026-03-10", "ends_on": "2026-03-15" },
+      "condition": { "field": "starts_on", "endField": "ends_on", "operator": "overlaps", "value": ["2026-03-15", "2026-03-20"] },
+      "expect": true
+    },
+    {
+      "why": "Anything carrying a TIME is half-open, and this is the entire point of a conflict check: a meeting ending at 10:00 does not collide with one starting at 10:00.",
+      "record": { "starts_at": "2026-03-15T09:00:00Z", "ends_at": "2026-03-15T10:00:00Z" },
+      "condition": { "field": "starts_at", "endField": "ends_at", "operator": "overlaps", "value": ["2026-03-15T10:00:00Z", "2026-03-15T11:00:00Z"] },
+      "expect": false
+    },
+    {
+      "record": { "starts_at": "2026-03-15T09:00:00Z", "ends_at": "2026-03-15T10:30:00Z" },
+      "condition": { "field": "starts_at", "endField": "ends_at", "operator": "overlaps", "value": ["2026-03-15T10:00:00Z", "2026-03-15T11:00:00Z"] },
+      "expect": true
+    },
+    {
+      "why": "overlaps without an endField cannot be answered, and an unanswerable condition is false rather than a crash.",
+      "record": { "starts_on": "2026-03-10", "ends_on": "2026-03-20" },
+      "condition": { "field": "starts_on", "operator": "overlaps", "value": ["2026-03-15", "2026-03-16"] },
+      "expect": false
+    }
+  ]
+}
