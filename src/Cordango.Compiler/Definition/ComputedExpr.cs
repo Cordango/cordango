@@ -167,15 +167,64 @@ public static class ComputedExpr
         return result;
     }
 
-    private abstract record Node(ComputedValueKind Kind);
-    private sealed record NumberNode(decimal Value) : Node(ComputedValueKind.Number);
-    private sealed record BooleanNode(bool Value) : Node(ComputedValueKind.Boolean);
-    private sealed record FieldNode(string Key, ComputedValueKind FieldKind) : Node(FieldKind);
-    private sealed record UnaryNode(string Op, Node Operand, ComputedValueKind ResultKind) : Node(ResultKind);
-    private sealed record BinaryNode(string Op, Node Left, Node Right, ComputedValueKind ResultKind) : Node(ResultKind);
-    private sealed record FunctionNode(string Name, Node Left, Node Right) : Node(ComputedValueKind.Number);
-    private sealed record DurationNode(string Name, string From, string To) : Node(ComputedValueKind.Number);
-    private sealed record PrevNode(string Field, Node? Seed) : Node(ComputedValueKind.Number);
+    /// <summary>
+    /// The parsed expression, for a caller that needs to TRANSLATE it rather than evaluate it.
+    ///
+    /// <para>The standalone generator turns each computed field into a C# method, so that a
+    /// generated application computes a total with arithmetic a person can read and step through
+    /// rather than by carrying an expression interpreter. Doing that needs the tree.</para>
+    ///
+    /// <para>Returns null when the expression does not parse. Validation stays the authority on
+    /// WHY — this is for callers who have already asked <see cref="Validate"/> and got an answer
+    /// they were happy with.</para>
+    /// </summary>
+    /// <param name="fieldKind">What type each identifier has, so the tree carries the same static
+    /// typing the evaluator relies on: <c>a == b</c> means something different for two dates than
+    /// for two numbers, and the answer is decided here rather than at every use.</param>
+    public static Node? Parse(string? expr, Func<string, ComputedValueKind?> fieldKind)
+    {
+        var parser = new Parser(expr, fieldKind, _ => null, _ => null, _ => null);
+        var node = parser.Parse();
+        return parser.Error is null ? node : null;
+    }
+
+    /// <summary>
+    /// One node of a parsed expression.
+    ///
+    /// <para>Public so it can be translated, and deliberately a closed set of records rather than a
+    /// visitor interface: a caller pattern-matches over eight shapes and the compiler tells them
+    /// when one is missed. A visitor would need a method per shape and would make adding one a
+    /// breaking change for every implementor rather than a new case they can choose to handle.</para>
+    ///
+    /// <para>There is ONE parser. Everything that reads this language — the gate, the platform
+    /// evaluator, the standalone generator — goes through it, because a second implementation of an
+    /// expression language is a second set of answers to <c>1 / 0</c>.</para>
+    /// </summary>
+    public abstract record Node(ComputedValueKind Kind);
+
+    /// <summary>A literal.</summary>
+    public sealed record NumberNode(decimal Value) : Node(ComputedValueKind.Number);
+
+    public sealed record BooleanNode(bool Value) : Node(ComputedValueKind.Boolean);
+
+    /// <summary>A reference to a field: this record's own, or <c>reference.field</c> for one hop.</summary>
+    public sealed record FieldNode(string Key, ComputedValueKind FieldKind) : Node(FieldKind);
+
+    /// <summary><c>-x</c> or <c>not x</c>.</summary>
+    public sealed record UnaryNode(string Op, Node Operand, ComputedValueKind ResultKind) : Node(ResultKind);
+
+    public sealed record BinaryNode(string Op, Node Left, Node Right, ComputedValueKind ResultKind) : Node(ResultKind);
+
+    /// <summary><c>pow</c>, <c>min</c> or <c>max</c> — two arbitrary sub-expressions.</summary>
+    public sealed record FunctionNode(string Name, Node Left, Node Right) : Node(ComputedValueKind.Number);
+
+    /// <summary><c>days_between(a, b)</c> and its siblings, whose arguments are bare date field
+    /// names rather than expressions.</summary>
+    public sealed record DurationNode(string Name, string From, string To) : Node(ComputedValueKind.Number);
+
+    /// <summary><c>prev(field)</c> or <c>prev(field, seed)</c> — the previous row of an ordered
+    /// series, and what to use when there is not one.</summary>
+    public sealed record PrevNode(string Field, Node? Seed) : Node(ComputedValueKind.Number);
 
     private static ComputedValue Eval(Node node,
         Func<string, decimal?> numberValue,

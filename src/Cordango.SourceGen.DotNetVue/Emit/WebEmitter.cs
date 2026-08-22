@@ -32,9 +32,15 @@ public sealed record WebResult(
 /// </summary>
 public static class WebEmitter
 {
-    public static WebResult Emit(AppModel app, bool allowPartial)
+    /// <param name="capabilities">What this target can do at all, as opposed to what its emitters
+    /// have got round to. A block the target will NEVER render — record history, which needs an audit
+    /// trail this product does not keep — must not be reported as "not yet": somebody reading that
+    /// would reasonably wait for a release that is never coming.</param>
+    public static WebResult Emit(AppModel app, bool allowPartial, GeneratorCapabilities? capabilities = null)
     {
         ArgumentNullException.ThrowIfNull(app);
+
+        Capabilities = capabilities;
 
         var files = new List<GeneratedFile>();
         var unsupported = new List<Diagnostic>();
@@ -277,6 +283,40 @@ public static class WebEmitter
 
     /// <summary>What an emitting page has learned so far: which block components it needs, and what
     /// it is a page ABOUT.</summary>
+    /// <summary>
+    /// Why this block is a card saying so rather than the thing it asked for.
+    ///
+    /// <para>Two different answers, and the difference matters to whoever reads it. A block the
+    /// emitters have not got to yet will appear in a later release. A block this TARGET cannot do —
+    /// record history needs a field-level audit trail a standalone application does not keep, and
+    /// related-apps needs other applications to be related to — will not, ever, and saying "not yet"
+    /// would leave somebody waiting for a release that is never coming.</para>
+    /// </summary>
+    private static Diagnostic Unrenderable(string? kind, BlockContext context)
+    {
+        var name = kind ?? "?";
+
+        if (Capabilities is { } caps && !caps.Blocks.Allows(name))
+            return new Diagnostic(
+                name switch
+                {
+                    "history" => DiagnosticCodes.HistoryBlock,
+                    "relatedApps" => DiagnosticCodes.RelatedAppsBlock,
+                    _ => DiagnosticCodes.UnsupportedBlock,
+                },
+                $"'{name}' block: {caps.Blocks.Explain(name)}.",
+                context.Path);
+
+        return new Diagnostic("CORD2301",
+            $"the dotnet-vue generator does not emit '{name}' blocks yet.", context.Path);
+    }
+
+    /// <summary>What the target can do, for the length of one emit. Set by <see cref="Emit"/>; the
+    /// block walk is a deep recursion and threading one more argument through every level of it
+    /// would cost more clarity than it buys.</summary>
+    [ThreadStatic]
+    private static GeneratorCapabilities? Capabilities;
+
     private sealed record BlockContext(AppModel App, string? Entity, bool Record, string Path)
     {
         public HashSet<string> Imports { get; } = Record ? [] : ["PageShell"];
@@ -426,9 +466,8 @@ public static class WebEmitter
 
             default:
                 context.Imports.Add("UnsupportedBlock");
-                var reason = $"the dotnet-vue generator does not emit '{kind}' blocks yet.";
                 source.Line($"<UnsupportedBlock kind=\"{kind}\" />");
-                unsupported.Add(new Diagnostic("CORD2301", reason, context.Path));
+                unsupported.Add(Unrenderable(kind, context));
                 break;
         }
     }

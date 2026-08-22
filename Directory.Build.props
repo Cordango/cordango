@@ -35,6 +35,54 @@
   </PropertyGroup>
 
   <!--
+    WHAT EVERY PUBLISHED PACKAGE SAYS ABOUT ITSELF.
+
+    Here rather than repeated in each csproj, because the licence, the URLs and the author are facts
+    about the repository rather than about any one package.
+
+    PACKING IS OFF BY DEFAULT and the two published projects turn it on. That is the opposite of the
+    SDK's default, which packs every library — and the SDK's default is exactly how the compiler and
+    the generator SDK came to produce packages nobody meant to publish, versioned 1.0.0 because they
+    had no <Version> of their own to take. Two published packages is the whole set:
+
+      Cordango.Cli         the tool. Contains the compiler, the generator SDK and the dotnet-vue
+                           generator as FILES, and declares no dependencies at all.
+      Cordango.Standalone  the runtime a generated application references.
+
+    THE RELEASED VERSION COMES FROM THE GIT TAG, overriding the default below.
+  -->
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      ONE VERSION FOR EVERY ASSEMBLY IN THIS REPOSITORY, packed or not.
+
+      Not just the two packages: the generator stamps its own assembly version into every generated
+      application's build metadata, and it writes the Cordango.Standalone version into the project
+      file it emits. Left to the SDK's default those assemblies are 1.0.0, so a locally built
+      generator would tell a user to reference a runtime version that does not exist — which is the
+      bug this whole arrangement exists to prevent, reintroduced one level down.
+
+      The release workflow passes -p:Version=<tag> on the command line, which is a global property
+      and therefore applies to every project in the build graph, packed or merely referenced. So a
+      released build and a local build differ in the NUMBER and never in where it came from.
+    -->
+    <Version>0.3.0-alpha</Version>
+
+    <Authors>Cordango</Authors>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/cordango/cordango</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/cordango/cordango</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+
+    <!-- Records the commit in the package so a released artifact can be traced back to the source
+         that produced it. Set by the workflow; harmless locally. -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+  </PropertyGroup>
+
+  <!--
     DO NOT set CORDANGO_BUILD_ROOT to run TESTS. It is for app hosts only.
 
     `Corpus.RepoRoot()` finds the repository by walking up from the test assembly's location, so an

@@ -1,4 +1,4 @@
-# PUBLISHING Cordango.Standalone TO NUGET.ORG, WITHOUT AN API KEY ANYWHERE.
+# PUBLISHING THE CORDANGO PACKAGES TO NUGET.ORG, WITHOUT AN API KEY ANYWHERE.
 #
 # There is no secret holding a nuget.org key, and there is deliberately no place to put one. The job
 # asks GitHub for a short-lived OIDC token, hands it to nuget.org, and gets back an API key that is
@@ -68,15 +68,28 @@ jobs:
       - name: Test
         run: dotnet test Cordango.slnx -c Release
 
-      # Only Cordango.Standalone. Packing the solution would also pack the compiler, the CLI and the
-      # generators, none of which are meant to be consumed as libraries.
+      # TWO PACKAGES, ONE VERSION, ONE TAG.
+      #
+      #   Cordango.Cli         the `cordango` command, as a .NET tool
+      #   Cordango.Standalone  the runtime a GENERATED application references
+      #
+      # And that is the whole set. The compiler, the generator SDK and the dotnet-vue generator are
+      # NOT published: a .NET tool package contains its full publish output, so all three ship inside
+      # Cordango.Cli as files and it declares no dependencies at all. `cordango` installs with
+      # nothing else to restore.
+      #
+      # The two share a version because a generated application pins the runtime at the version of
+      # the generator that wrote its project file. Publishing them apart would let somebody restore a
+      # runtime the generator has never seen.
+      #
+      # Packing by name rather than packing the solution is belt and braces: Directory.Build.props
+      # already turns packing off by default, and naming the two makes a third one impossible to add
+      # by accident.
       - name: Pack
-        run: >
-          dotnet pack src/Cordango.Standalone/Cordango.Standalone.csproj
-          -c Release
-          -p:Version=${{ steps.version.outputs.version }}
-          -p:ContinuousIntegrationBuild=true
-          -o artifacts
+        run: |
+          for project in Cordango.Standalone Cordango.Cli; do
+            dotnet pack "src/$project/$project.csproj"               -c Release               -p:Version=${{ steps.version.outputs.version }}               -p:ContinuousIntegrationBuild=true               -o artifacts
+          done
 
       # Immediately before the push, never earlier. The key expires in an hour and each OIDC token
       # buys exactly one key, so a login stranded behind a slow build is a login that has to be

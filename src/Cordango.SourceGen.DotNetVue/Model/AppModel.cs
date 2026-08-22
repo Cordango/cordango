@@ -234,7 +234,28 @@ public sealed class FieldModel
     public bool IsBase => BaseKeys.Contains(Key);
     public bool IsReference => Type == "reference";
 
-    public string PropertyName => Naming.Property(Key, EntityKey);
+    /// <summary>
+    /// The C# property this field maps to.
+    ///
+    /// <para>Usually the key in Pascal case. The AUDIT columns are the exception: the runtime
+    /// declares them on <c>IHasTrackingFields</c> under names of its own, so <c>updated_at</c> is
+    /// <c>LastModified</c> and no entity has a property called <c>UpdatedAt</c> to read. Anything
+    /// that assumed otherwise produced code that did not compile — which is how this was found, from
+    /// <c>days_between(created_at, resolved_at)</c> in a computed field.</para>
+    ///
+    /// <para>The same four-line mapping also appears in the entity, configuration and schema
+    /// emitters, keyed on the field key rather than on this. Worth collapsing onto this property one
+    /// day; not worth doing in the middle of another change.</para>
+    /// </summary>
+    public string PropertyName => Key switch
+    {
+        "created_at" => "Created",
+        "created_by" => "CreatedBy",
+        "updated_at" => "LastModified",
+        "updated_by" => "LastModifiedBy",
+        "id" => "Id",
+        _ => Naming.Property(Key, EntityKey),
+    };
     public string Column => Naming.Column(Key);
 
     /// <summary>

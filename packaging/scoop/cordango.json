@@ -1,0 +1,51 @@
+{
+    "##": [
+        "The Cordango command line, as a Scoop manifest.",
+        "",
+        "THIS FILE BELONGS IN `cordango/scoop-bucket`, at `bucket/cordango.json`. It is kept here so",
+        "the canonical copy sits beside the workflow that produces the assets it points at.",
+        "",
+        "`checkver` and `autoupdate` mean it maintains itself: the bucket's own scheduled job asks",
+        "GitHub for the latest release, rewrites the version and the two hashes, and commits. A",
+        "manifest updated by hand is a manifest that is a release behind, and that is worse than",
+        "having no channel — somebody installs it and reports a bug that was fixed a month ago.",
+        "",
+        "No dependency on .NET. The binary is self-contained and carries its own runtime."
+    ],
+
+    "version": "0.4.0",
+    "description": "Compile an App Definition into a complete application you own: ASP.NET Core, EF Core, PostgreSQL, Vue 3.",
+    "homepage": "https://github.com/cordango/cordango",
+    "license": "Apache-2.0",
+
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-x64.zip",
+            "hash": "REPLACE_WITH_THE_WIN_X64_SHA256"
+        },
+        "arm64": {
+            "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-arm64.zip",
+            "hash": "REPLACE_WITH_THE_WIN_ARM64_SHA256"
+        }
+    },
+
+    "bin": "cordango.exe",
+
+    "checkver": {
+        "github": "https://github.com/cordango/cordango"
+    },
+
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/cordango/cordango/releases/download/v$version/cordango-$version-win-x64.zip"
+            },
+            "arm64": {
+                "url": "https://github.com/cordango/cordango/releases/download/v$version/cordango-$version-win-arm64.zip"
+            }
+        },
+        "hash": {
+            "url": "https://github.com/cordango/cordango/releases/download/v$version/SHA256SUMS"
+        }
+    }
+}

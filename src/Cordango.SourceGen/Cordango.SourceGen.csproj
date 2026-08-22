@@ -24,4 +24,21 @@
     <ProjectReference Include="..\Cordango.Compiler\Cordango.Compiler.csproj" />
   </ItemGroup>
 
+
+  <!--
+    NOT PUBLISHED YET, deliberately.
+
+    This is the contract a third-party generator implements, so it is the obvious candidate — and it
+    is exactly the wrong moment to freeze it. There is one generator. An interface designed against a
+    single implementation fits that implementation and fights the next one, and a NuGet version
+    cannot be taken back once it is out.
+
+    Nothing is blocked in the meantime. The other extension point is a PROCESS: a generator describes
+    itself on stdout and takes a request on stdin, which asks nothing of this assembly and works for a
+    generator written in any language. When a second target exists and has opinions about this
+    surface, publishing it is one property.
+
+    It ships inside Cordango.Cli today, as a file rather than a dependency.
+  -->
+
 </Project>

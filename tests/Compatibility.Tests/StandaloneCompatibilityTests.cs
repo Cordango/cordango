@@ -35,12 +35,18 @@ public class StandaloneCompatibilityTests
     private static readonly GeneratorCapabilities Standalone = new DotNetVueGenerator().Capabilities;
 
     /// <summary>
-    /// The two applications that place an audit block, and the only reason any corpus app is
-    /// refused.
+    /// The two applications that place an audit block, and the only capability any corpus app asks
+    /// for that this target does not have.
     ///
     /// <para>Record history is a platform capability rather than a missing emitter, so this is a
     /// commercial line and not a backlog item. Worth a named list because the day a third app
     /// appears here, somebody should have to notice.</para>
+    ///
+    /// <para><b>Reported here, not refused by a build.</b> This suite is what
+    /// <c>cordango check --target standalone</c> answers: "can this target build all of it?" — and
+    /// for these two the honest answer is no. A BUILD generates them anyway, leaves a card where the
+    /// block was, and records the gap; one card on one screen is no reason to withhold an entire
+    /// application. See <c>PartialBuildTests</c>.</para>
     /// </summary>
     private static readonly IReadOnlySet<string> PlaceAnAuditBlock =
         new HashSet<string>(StringComparer.Ordinal)

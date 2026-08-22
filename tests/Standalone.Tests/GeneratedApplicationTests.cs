@@ -49,11 +49,20 @@ public class GeneratedApplicationTests
     [InlineData("room-booking")]
     [InlineData("helpdesk")]
     [InlineData("sales-crm")]
+    // The two that place a `history` block. They used to be REFUSED outright — one card on one
+    // screen stopped an entire application from being generated. Now the block becomes a card
+    // saying so, the gap is written into the README and the build metadata, and the other ninety
+    // per cent of the application is there. These two being here is the proof of that.
+    [InlineData("ventures")]
+    // And the largest specimen there is: 73 computed fields, 8 workflows, two of which lay out
+    // grids. It is the acceptance case for the calculation work, and until the capability gate
+    // stopped refusing it, it could not be generated at all.
+    [InlineData("budget-planner")]
     public async Task The_generated_application_compiles(string key)
     {
         if (Skipped) return;
 
-        using var app = Generate(key);
+        using var app = Materialise(key);
 
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
         Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
@@ -84,7 +93,7 @@ public class GeneratedApplicationTests
     {
         if (Skipped) return;
 
-        using var app = Generate(key);
+        using var app = Materialise(key);
 
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
         Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
@@ -133,8 +142,8 @@ public class GeneratedApplicationTests
     [Fact]
     public void Two_builds_of_the_same_definition_are_identical()
     {
-        using var first = Generate("expenses");
-        using var second = Generate("expenses");
+        using var first = Materialise("expenses");
+        using var second = Materialise("expenses");
 
         var a = Files(first.Root);
         var b = Files(second.Root);
@@ -197,7 +206,12 @@ public class GeneratedApplicationTests
 
     private static GenerateResult Build(string key, bool allowPartial)
     {
-        var path = Path.Combine(TestPaths.RepoRoot(), "tests", "corpus", "reference", key + ".appdef.json");
+        // The reference apps live in one directory and the two larger specimens — crm and
+        // budget-planner — sit beside it. Falling back rather than taking a second argument keeps
+        // every call site reading as just the application's name.
+        var corpus = Path.Combine(TestPaths.RepoRoot(), "tests", "corpus");
+        var path = Path.Combine(corpus, "reference", key + ".appdef.json");
+        if (!File.Exists(path)) path = Path.Combine(corpus, key + ".appdef.json");
         var definition = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
 
         // A fixed build time, so nothing in the artifact depends on when the test ran.
@@ -219,7 +233,7 @@ public class GeneratedApplicationTests
     }
 
     /// <summary>A generated application on disk, cleaned up afterwards.</summary>
-    private sealed class Materialised : IDisposable
+    internal sealed class Materialised : IDisposable
     {
         public required string Root { get; init; }
 
@@ -236,7 +250,7 @@ public class GeneratedApplicationTests
         }
     }
 
-    private static Materialised Generate(string key)
+    internal static Materialised Materialise(string key)
     {
         var result = Build(key, allowPartial: true);
         Assert.True(result.Ok, string.Join("\n", result.Errors.Select(e => e.Code + ": " + e.Message)));
@@ -259,6 +273,17 @@ public class GeneratedApplicationTests
                 p => Path.GetRelativePath(root, p).Replace('\\', '/'),
                 File.ReadAllBytes,
                 StringComparer.Ordinal);
+
+    /// <summary>Build a materialised application in Release, so a test that then LOADS it gets the
+    /// same output the release channel would produce. Fails loudly rather than returning a code
+    /// nobody checks.</summary>
+    internal static async Task Build(Materialised app)
+    {
+        var build = await Run("dotnet",
+            ["build", Path.Combine(app.Root, "api"), "-c", "Release", "--nologo", "-v", "q"], app.Root);
+
+        Assert.True(build.ExitCode == 0, "The generated application does not compile.\n\n" + build.Output);
+    }
 
     private static async Task<(int ExitCode, string Output)> Run(string file, string[] arguments, string workingDirectory)
     {

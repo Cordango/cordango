@@ -10,9 +10,71 @@
     <AssemblyName>cordango</AssemblyName>
     <RootNamespace>Cordango.Cli</RootNamespace>
 
-    <!-- Published as one self-contained file per platform later. Declared here so the packaging
-         slice inherits the intent rather than rediscovering it. -->
-    <PublishSingleFile>true</PublishSingleFile>
+  </PropertyGroup>
+
+  <!--
+    THE SHAPE OF A RELEASED BINARY: one file, no .NET on the machine, nothing beside it.
+
+    This is the PRIMARY distribution channel and the tool package is the convenience one. Cordango is
+    an application language, not a .NET product: somebody authoring a definition to generate a Go or
+    React target should never be asked to install a .NET SDK to do it, and the first-party target
+    being .NET is an accident of which generator was written first.
+
+    Every property here is a decision:
+
+      PublishSingleFile          one file to download, one file to put on PATH. The schemas and the
+                                 whole scaffold are embedded resources and survive bundling — proven
+                                 by generating an application with the published binary, not assumed.
+
+      EnableCompressionInSingleFile  39 MB instead of about 75. Costs a few tens of milliseconds of
+                                 decompression at startup, once.
+
+      InvariantGlobalization     no libicu on the target machine. A self-contained .NET application
+                                 otherwise refuses to start on Alpine and on slim images, with an
+                                 error naming a library nobody installed on purpose. Safe here
+                                 because this codebase compares Ordinal and formats InvariantCulture
+                                 throughout — verified rather than assumed: the same definition built
+                                 with and without ICU produces byte-identical output.
+
+      DebugType none             the release asset is the binary and nothing else. Symbols for a
+                                 stack trace come from the .snupkg the NuGet channel publishes.
+
+    Not here, deliberately: PublishTrimmed and PublishAot. Both would cut the size a lot and both
+    break reflection, and JsonSchema.Net is exactly the kind of dependency that fails at RUN time
+    rather than at publish. Worth trying behind the compile-every-corpus-app test, later, on purpose.
+  -->
+  <PropertyGroup Condition="'$(PublishSingleFile)' == 'true'">
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <!--
+    THIS IS A .NET TOOL: `dotnet tool install -g Cordango.Cli`, then the command is `cordango`.
+
+    The first distribution channel, and the cheapest by a distance — the same pack-and-push the other
+    packages already use, no signing, no notarization, no tap or bucket repository to maintain. It
+    needs the .NET SDK on the machine, which for this audience is close to free: somebody generating a
+    standalone application gets an ASP.NET Core project out, and is going to need the SDK to work
+    on it.
+
+    It is not the LAST channel. A self-contained binary per platform, behind Homebrew on macOS, Scoop
+    on Windows and an install script on Linux, is what reaches everybody else, and this project file
+    already carries the PublishSingleFile intent for it.
+
+    THE THREE PROJECT REFERENCES SHIP INSIDE THIS PACKAGE, not as dependencies on it. A tool package
+    contains its whole publish output, which is why the compiler, the generator SDK and the
+    dotnet-vue generator are all in here as files — and why `cordango` works without a single
+    package restore beyond itself.
+  -->
+  <PropertyGroup>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>cordango</ToolCommandName>
+    <PackageId>Cordango.Cli</PackageId>
+    <Description>The Cordango command line: compile an App Definition, check it against a target, and generate a complete standalone application you own — ASP.NET Core, EF Core, PostgreSQL, Vue 3.</Description>
+    <PackageTags>cordango;cli;dotnet-tool;codegen;scaffolding</PackageTags>
   </PropertyGroup>
 
   <!--

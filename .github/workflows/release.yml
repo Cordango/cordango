@@ -1,0 +1,135 @@
+# THE BINARIES. One self-contained file per platform, attached to the GitHub Release.
+#
+# This is the channel that reaches everybody. `dotnet tool install` reaches people who already have
+# the .NET SDK, and Cordango is an application language rather than a .NET product — somebody
+# generating a Go or React target should never be asked to install a .NET SDK to run the compiler.
+#
+# THE SAME TAG DRIVES BOTH. Pushing `v0.4.0` runs this and publish.yml: this attaches the binaries to
+# a GitHub Release, that pushes Cordango.Cli and Cordango.Standalone to nuget.org. One tag, one
+# version, every channel — and Homebrew and Scoop just point at the assets this job uploads.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # One platform failing must not delete the others' work — the job that succeeded still has an
+      # artifact worth keeping while somebody works out what happened to the one that did not.
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            archive: tar
+          - rid: linux-arm64
+            archive: tar
+          - rid: osx-x64
+            archive: tar
+          - rid: osx-arm64
+            archive: tar
+          - rid: win-x64
+            archive: zip
+          - rid: win-arm64
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Version from the tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # ALL SIX BUILT ON LINUX. A self-contained publish is a copy of the right runtime plus this
+      # application's IL — no native compilation — so the host platform does not have to match the
+      # target. Building them on one runner keeps six jobs from producing six subtly different
+      # binaries, and keeps the whole matrix on the cheapest runner.
+      #
+      # It would stop being true the day PublishAot is turned on, which needs a native toolchain for
+      # the target. Worth knowing before somebody enables it and wonders why osx-arm64 fails.
+      - name: Publish
+        run: >
+          dotnet publish src/Cordango.Cli/Cordango.Cli.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained
+          -p:PublishSingleFile=true
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+          -o out/${{ matrix.rid }}
+
+      # Set explicitly rather than trusted. Publishing a unix target from a unix host does mark the
+      # apphost executable, but a tar that lost the bit produces "permission denied" from a file the
+      # user can see — the least helpful error there is.
+      - name: Package
+        id: package
+        run: |
+          set -euo pipefail
+          version="${{ steps.version.outputs.version }}"
+          name="cordango-$version-${{ matrix.rid }}"
+
+          cd "out/${{ matrix.rid }}"
+          if [ "${{ matrix.archive }}" = "zip" ]; then
+            zip -q -9 "../../$name.zip" cordango.exe
+            echo "asset=$name.zip" >> "$GITHUB_OUTPUT"
+          else
+            chmod +x cordango
+            tar -czf "../../$name.tar.gz" cordango
+            echo "asset=$name.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.rid }}
+          path: ${{ steps.package.outputs.asset }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      # The one job that writes. Creating a release and attaching assets is the whole grant.
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: assets
+          merge-multiple: true
+
+      # ONE CHECKSUM FILE, and the install script verifies against it. Without this an interrupted
+      # download is a corrupt binary that fails somewhere unrelated, and a tampered one is not
+      # noticed at all.
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          cd assets
+          sha256sum ./*.tar.gz ./*.zip | sed 's| \./| |' > SHA256SUMS
+          cat SHA256SUMS
+
+      # `gh` rather than a third-party action: it ships on the runner, it is the same tool a person
+      # would use by hand, and a release job is a poor place to trust somebody else's code.
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME"
+          --title "$GITHUB_REF_NAME"
+          --generate-notes
+          --verify-tag
+          assets/*

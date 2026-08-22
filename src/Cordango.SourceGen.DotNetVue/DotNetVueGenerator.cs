@@ -30,7 +30,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
     /// <summary>Zero major: the emitters are not written. The version is in the build metadata of
     /// everything this produces, so it starts honest rather than starting at 1.0.</summary>
-    public string Version => "0.1.0-alpha";
+    public string Version => BuildVersion.Current;
 
     public GeneratorCapabilities Capabilities { get; } = new(
         // Every screen the language has, except the two that are ABOUT other applications. A
@@ -157,10 +157,28 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         var allowIncomplete = request.Options?["allowIncomplete"]?.GetValue<bool>() ?? false;
         var runtimeAsPackage = request.Options?["runtimeAsPackage"]?.GetValue<bool>() ?? false;
 
-        // The capability gate first, and separately from emission: an application this target cannot
-        // build is refused with the reason, not attempted and abandoned half way.
-        var refusals = TargetValidator.Validate(request.App.Definition, Capabilities);
-        if (refusals.Count > 0) return GenerateResult.Failed([.. refusals]);
+        // The capability gate, and it does NOT stop the build.
+        //
+        // It used to. One `history` block on one screen refused an entire application — every entity,
+        // every workflow, every screen — because of a card on one page. That ratio is indefensible:
+        // the definition is valid, the ninety per cent this target CAN build is worth having, and the
+        // person can decide whether the missing tenth matters to them.
+        //
+        // So a capability this target lacks is reported and the thing is left out: a block becomes a
+        // card saying so, an effect does not fire, a reference to another application's record stays
+        // an unresolved id. Nothing is silently dropped, and the build still refuses by default —
+        // `--allow-incomplete` is how somebody says they know — but what they are refusing is now a
+        // list they can read rather than a wall.
+        //
+        // Block kinds are dropped from this list because the web emitter reports them itself, with
+        // the same codes and a path pointing at the page it actually rendered. Two entries for one
+        // card, one of them saying "not yet" about something that will never come, is worse than
+        // either alone.
+        var unsupported = TargetValidator.Validate(request.App.Definition, Capabilities)
+            .Where(d => d.Code is not (DiagnosticCodes.HistoryBlock
+                or DiagnosticCodes.RelatedAppsBlock
+                or DiagnosticCodes.UnsupportedBlock))
+            .ToList();
 
         var files = new Dictionary<string, GeneratedFile>(StringComparer.Ordinal);
         var warnings = new List<Diagnostic>();
@@ -187,22 +205,25 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         foreach (var file in MigrationEmitter.Emit(app)) Add(file);
 
         foreach (var entity in app.Entities)
-            if (BackendEmitter.AutoFields(app, entity) is { } hook)
-                Add(hook);
+        {
+            if (BackendEmitter.AutoFields(app, entity) is { } hook) Add(hook);
+            if (BackendEmitter.Computed(app, entity) is { } computed) Add(computed);
+            if (BackendEmitter.ComputedHook(app, entity) is { } recompute) Add(recompute);
+        }
 
         // A dataset to open the application on. Derived from the seed alone, so two builds of the
         // same definition produce the same rows.
         Add(SeedEmitter.Emit(app, request.Options?["seed"]?.GetValue<int>() ?? 42));
 
-        var web = WebEmitter.Emit(app, allowIncomplete);
+        var web = WebEmitter.Emit(app, allowIncomplete, Capabilities);
         foreach (var file in web.Files) Add(file);
         warnings.AddRange(web.Warnings);
 
-        // Everything this build could not do, in one list: screens the emitters do not render yet
-        // AND behaviour they do not execute yet. One list because the difference does not matter to
-        // whoever inherits the application — what matters is that the definition asked for something
-        // and the build did not deliver it.
-        var incomplete = new List<Diagnostic>([.. web.Unsupported, .. NotYetEmitted(app)]);
+        // Everything this build could not do: what the target will never do, what the emitters have
+        // not got to yet, and the screens that fall into either. One list to decide whether the build
+        // needs permission; two lists in the README, because "not supported" and "not yet" are
+        // different news for whoever inherits the application.
+        var incomplete = new List<Diagnostic>([.. unsupported, .. web.Unsupported, .. NotYetEmitted(app)]);
 
         if (!allowIncomplete && incomplete.Count > 0)
             return GenerateResult.Failed([.. incomplete]);
@@ -311,10 +332,21 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
         foreach (var entity in app.Entities)
             foreach (var field in entity.AuthoredFields.Where(f => f.Computed is not null))
+            {
+                // An expression the emitter wrote needs no diagnostic. What is left is a ROLLUP —
+                // which counts or sums other records and needs the cascade that keeps a parent's
+                // total right when a child changes — and the expressions that read one: a hop into
+                // another record, or prev() over an ordered series.
+                if (Emit.ComputedEmitter.Expression(entity, field) is not null) continue;
+
+                var why = field.Computed?["rollup"] is not null
+                    ? "is a rollup over other records, and the aggregate is not generated yet"
+                    : "is computed from something outside its own record, which is not generated yet";
+
                 yield return new Diagnostic("CORD2305",
-                    $"'{entity.Label}.{field.Label}' is computed, and the calculation is not generated yet. "
-                    + "The column exists and stays empty.",
+                    $"'{entity.Label}.{field.Label}' {why}. The column exists and stays empty.",
                     $"$.entities[?(@.key=='{entity.Key}')].fields[?(@.key=='{field.Key}')].computed");
+            }
     }
 
     /// <summary>
@@ -326,26 +358,67 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
     /// </summary>
     private static string PartialBuildSection(IReadOnlyList<Diagnostic> unsupported)
     {
+        // CORD21xx is "this target cannot", CORD23xx is "these emitters do not yet". Separated
+        // because they are different news: one is a decision somebody should make about which
+        // product they want, and the other goes away on its own in a later release. Merged into one
+        // list, a reader treats the whole thing as a to-do and waits for releases that will not come.
+        var never = unsupported.Where(d => d.Code.StartsWith("CORD21", StringComparison.Ordinal)).ToList();
+        var notYet = unsupported.Except(never).ToList();
+
         var lines = new List<string>
         {
             "",
             "## Partial build",
             "",
             "**This application was generated with `--allow-incomplete`, and parts of it are missing.**",
-            "Where a screen used something the generator cannot render yet, the page shows a card saying so",
-            "instead of the content. Where BEHAVIOUR is missing — an effect, a workflow, a computed field —",
-            "there is nothing to see at all, which is why every gap is listed here by name.",
+            "Nothing was dropped silently: every gap is listed below, and the same list is in",
+            "`cordango.build.json`, so a partial build can never pass for a complete one later.",
+            "",
+            "Where a SCREEN asked for something that could not be drawn, the page shows a card saying so",
+            "in its place. Where BEHAVIOUR is missing — an effect, a workflow, a computed field — there is",
+            "nothing to see at all, which is why it is written down here.",
             "",
             "The data model, the API, the permissions and the commands are complete.",
             "",
         };
 
-        foreach (var diagnostic in unsupported.OrderBy(d => d.JsonPath ?? "", StringComparer.Ordinal))
-            lines.Add($"- `{diagnostic.Code}` at `{diagnostic.JsonPath}` — {diagnostic.Message}");
+        if (never.Count > 0)
+        {
+            lines.Add("### Not supported by this target");
+            lines.Add("");
+            lines.Add("These need Cordango Platform — record history needs a field-level audit trail a");
+            lines.Add("standalone application does not keep, and cross-application references need the other");
+            lines.Add("applications to be there. They will not appear in a later release of this generator.");
+            lines.Add("Remove them from the definition, or run the application on the platform.");
+            lines.Add("");
 
-        lines.Add("");
+            foreach (var diagnostic in Ordered(never)) lines.Add(Entry(diagnostic));
+            lines.Add("");
+        }
+
+        if (notYet.Count > 0)
+        {
+            lines.Add("### Not generated yet");
+            lines.Add("");
+            lines.Add("The definition is fine and this target intends to support all of it. These are the");
+            lines.Add("emitters catching up, and a later release will produce them with no change to your");
+            lines.Add("definition.");
+            lines.Add("");
+
+            foreach (var diagnostic in Ordered(notYet)) lines.Add(Entry(diagnostic));
+            lines.Add("");
+        }
+
         lines.Add("Rebuilding without `--allow-incomplete` will refuse until these are resolved.");
         lines.Add("");
         return string.Join('\n', lines);
+
+        static IEnumerable<Diagnostic> Ordered(IEnumerable<Diagnostic> diagnostics) =>
+            diagnostics
+                .OrderBy(d => d.JsonPath ?? "", StringComparer.Ordinal)
+                .ThenBy(d => d.Code, StringComparer.Ordinal);
+
+        static string Entry(Diagnostic diagnostic) =>
+            $"- `{diagnostic.Code}` at `{diagnostic.JsonPath}` — {diagnostic.Message}";
     }
 }

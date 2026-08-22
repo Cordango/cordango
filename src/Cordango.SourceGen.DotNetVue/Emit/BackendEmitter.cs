@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Text.Json.Nodes;
+using Cordango.Definition;
 using Cordango.SourceGen.DotNetVue.Model;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
@@ -133,7 +134,7 @@ public static class BackendEmitter
         // Only the entities that actually need one get a hook, so an application where none does
         // has no Hooks namespace to import — and importing a namespace that does not exist is a
         // compile error, not a harmless line. task-manager was that application.
-        var hooked = app.Entities.Any(e => AutoFields(app, e) is not null);
+        var hooked = app.Entities.Any(e => AutoFields(app, e) is not null || Computed(app, e) is not null);
 
         var source = new Source();
         source.Line("using Cordango.Standalone.Commands;");
@@ -170,6 +171,12 @@ public static class BackendEmitter
 
             if (AutoFields(app, entity) is not null)
                 source.Line($"services.AddScoped<IBeforeCreate<{entity.TypeName}>, {entity.TypeName}AutoFields>();");
+
+            if (Computed(app, entity) is not null)
+            {
+                source.Line($"services.AddScoped<IBeforeCreate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
+                source.Line($"services.AddScoped<IBeforeUpdate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
+            }
         }
 
         source.Line();
@@ -316,6 +323,175 @@ public static class BackendEmitter
         source.Close();
 
         return new GeneratedFile($"api/Hooks/{entity.TypeName}AutoFields.cs", source.ToString());
+    }
+
+    /// <summary>
+    /// One entity's computed fields, as methods, plus the order to run them in.
+    ///
+    /// <para>Emitted only when the entity has some. A file full of nothing is a file somebody has to
+    /// open to discover it says nothing.</para>
+    /// </summary>
+    public static GeneratedFile? Computed(AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        var ordered = Ordered(entity).ToList();
+        if (ordered.Count == 0) return null;
+
+        var source = new Source();
+        source.Line("using Cordango.Standalone.Records;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Computed;");
+        source.Line();
+        source.Line("/// <summary>");
+        source.Lines(Doc.Summary($"The {entity.Label} figures the application works out for itself.", null));
+        source.Line("///");
+        source.Line("/// <para>One method per computed field, and <c>Apply</c> runs them in the order their");
+        source.Line("/// dependencies require — a total before the percentage that divides by it. Read them; they are");
+        source.Line("/// ordinary arithmetic, and a wrong figure is a breakpoint away rather than an expression");
+        source.Line("/// string somewhere in a table.</para>");
+        source.Line("///");
+        source.Line("/// <para>Regenerating replaces this file. A figure the definition does not describe belongs in a");
+        source.Line("/// hook of your own beside it.</para>");
+        source.Line("/// </summary>");
+        source.Open($"public static class {entity.TypeName}Computed");
+
+        foreach (var (field, expression) in ordered)
+        {
+            source.Line($"/// <summary>{Xml(field.Label)}: <c>{Xml(AppModel.Str(field.Computed?["expr"]) ?? "")}</c></summary>");
+            source.Line($"public static {Result(field)} {Naming.Pascal(field.Key)}({entity.TypeName} r) =>");
+            source.Indent();
+            source.Line(expression + ";");
+            source.Outdent();
+            source.Line();
+        }
+
+        source.Line("/// <summary>Every computed field on this record, in dependency order.</summary>");
+        source.Open($"public static void Apply({entity.TypeName} r)");
+
+        foreach (var (field, _) in ordered)
+            source.Line($"r.{field.PropertyName} = {Cast(field)}{Naming.Pascal(field.Key)}(r);");
+
+        source.Close();
+        source.Close();
+
+        return new GeneratedFile($"api/Computed/{entity.TypeName}Computed.cs", source.ToString());
+    }
+
+    /// <summary>What a computed method returns. Numbers are worked out as <c>decimal?</c> whatever
+    /// the column holds — an average of integers is not an integer, and rounding on the way through
+    /// every intermediate step would make the answer depend on how the author happened to split the
+    /// expression.</summary>
+    private static string Result(FieldModel field) =>
+        field.Type == "boolean" ? "bool?" : "decimal?";
+
+    /// <summary>The narrowing back to the column's own type, once, at the end. Explicit rather than
+    /// implicit because <c>decimal</c> to <c>long</c> loses the fraction and that has to be a
+    /// decision somebody can see in the generated line.</summary>
+    private static string Cast(FieldModel field) =>
+        field.ClrType switch
+        {
+            "decimal" => "",
+            "bool" => "",
+            _ => $"({field.ClrType}?)",
+        };
+
+    /// <summary>
+    /// The computed fields, in an order where nothing is worked out before what it reads.
+    ///
+    /// <para>A depth-first walk over each field's own dependencies. <c>progress</c> divides by
+    /// <c>total_tasks</c>, so <c>total_tasks</c> has to have a value first; run them in declaration
+    /// order instead and a percentage computes against the previous save's total, which is the kind
+    /// of wrong that looks right until somebody checks.</para>
+    ///
+    /// <para>A cycle drops out rather than looping — the gate refuses one at author time, and a
+    /// generator that hung on a definition would be a worse way to find out.</para>
+    /// </summary>
+    private static IEnumerable<(FieldModel Field, string Expression)> Ordered(EntityModel entity)
+    {
+        var computed = entity.AuthoredFields
+            .Where(f => f.Computed?["expr"] is not null)
+            .ToDictionary(f => f.Key, f => f, StringComparer.Ordinal);
+
+        var done = new HashSet<string>(StringComparer.Ordinal);
+        var visiting = new HashSet<string>(StringComparer.Ordinal);
+        var order = new List<FieldModel>();
+
+        foreach (var key in computed.Keys.OrderBy(k => k, StringComparer.Ordinal)) Visit(key);
+
+        foreach (var field in order)
+            if (ComputedEmitter.Expression(entity, field) is { } expression)
+                yield return (field, expression);
+
+        void Visit(string key)
+        {
+            if (done.Contains(key) || !visiting.Add(key)) return;
+
+            foreach (var dependency in ComputedExpr
+                         .LocalIdentifiers(AppModel.Str(computed[key].Computed?["expr"]))
+                         .Where(computed.ContainsKey)
+                         .OrderBy(k => k, StringComparer.Ordinal))
+                Visit(dependency);
+
+            visiting.Remove(key);
+            if (done.Add(key)) order.Add(computed[key]);
+        }
+    }
+
+    /// <summary>A label or an expression inside a doc comment. <c>a &lt; b</c> in an expression is
+    /// an unclosed tag to the XML documentation compiler, and a warning on every generated
+    /// build.</summary>
+    private static string Xml(string text) => text
+        .Replace("&", "&amp;", StringComparison.Ordinal)
+        .Replace("<", "&lt;", StringComparison.Ordinal)
+        .Replace(">", "&gt;", StringComparison.Ordinal);
+
+    /// <summary>
+    /// The hook that keeps an entity's computed fields up to date.
+    ///
+    /// <para>Before the write rather than after, so the row that is saved already carries its own
+    /// figures — one write instead of two, and no window in which the record exists with a total
+    /// that has not been worked out. A client that reads it back immediately gets the right
+    /// number.</para>
+    ///
+    /// <para>Both create and update: a total on a new record is as real as one on an edited record,
+    /// and forgetting create is how a list ends up with blanks in the first row only.</para>
+    /// </summary>
+    public static GeneratedFile? ComputedHook(AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        if (Computed(app, entity) is null) return null;
+
+        var source = new Source();
+        source.Line("using Cordango.Standalone.Hooks;");
+        source.Line($"using {app.Namespace}.Computed;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Hooks;");
+        source.Line();
+        source.Line($"/// <summary>Works out {entity.Label}'s own figures before every write.</summary>");
+        source.Open($"public sealed class {entity.TypeName}ComputedFields "
+            + $": IBeforeCreate<{entity.TypeName}>, IBeforeUpdate<{entity.TypeName}>");
+
+        source.Open($"public Task BeforeCreateAsync({entity.TypeName} record, RecordContext context, CancellationToken ct)");
+        source.Line($"{entity.TypeName}Computed.Apply(record);");
+        source.Line("return Task.CompletedTask;");
+        source.Close();
+        source.Line();
+
+        source.Open($"public Task BeforeUpdateAsync({entity.TypeName} record, {entity.TypeName} before, "
+            + "RecordContext context, CancellationToken ct)");
+        source.Line($"{entity.TypeName}Computed.Apply(record);");
+        source.Line("return Task.CompletedTask;");
+        source.Close();
+
+        source.Close();
+
+        return new GeneratedFile($"api/Hooks/{entity.TypeName}ComputedFields.cs", source.ToString());
     }
 
     /// <summary>One controller per entity. Six lines each, and they are six lines you can read,

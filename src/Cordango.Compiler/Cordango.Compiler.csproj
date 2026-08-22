@@ -73,4 +73,20 @@
        needs to reach inside is testing something that should have been public or should not have
        been tested directly. -->
 
+
+  <!--
+    NOT PUBLISHED, and the reason is worth writing down because it looks like an omission.
+
+    This assembly ships INSIDE Cordango.Cli. A .NET tool package contains its whole publish output,
+    so the compiler, the generator SDK and the dotnet-vue generator are all files in that package and
+    it declares no dependencies at all — `cordango` installs and runs with nothing else to restore.
+
+    The one thing that would force publishing it is another PACKAGE depending on it, which is what
+    briefly happened when Cordango.SourceGen was made packable: a package cannot depend on a project
+    nobody can restore. That was the tail wagging the dog. Publishing an API to an immutable feed
+    before there is a second generator to validate the shape against commits us to a surface we have
+    not learned yet — so neither is published, and both can be when a second target exists and has
+    something to say about them.
+  -->
+
 </Project>

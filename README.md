@@ -57,6 +57,63 @@ Cordango Platform     Standalone generator
                       deploy anywhere
 ```
 
+## Installing
+
+**macOS and Linux**
+
+```
+curl -fsSL https://cordango.com/install.sh | sh
+```
+
+**macOS and Linux, with Homebrew**
+
+```
+brew install cordango/tap/cordango
+```
+
+**Windows**
+
+```
+scoop bucket add cordango https://github.com/cordango/scoop-bucket
+scoop install cordango
+```
+
+One self-contained binary, about 39 MB, carrying its own runtime. **It does not need .NET
+installed** — not the SDK, not the runtime, not ICU. Uninstalling is deleting the file.
+
+**If you already have the .NET SDK**, there is a shorter way in:
+
+```
+dotnet tool install -g Cordango.Cli
+```
+
+Same command, same version, published from the same tag. It is a convenience rather than the main
+route: Cordango is an application language, and generating a Go or React target should not require a
+.NET SDK just to run the compiler.
+
+### The packages
+
+There are two, and both have somebody who actually references them.
+
+| Package | Who references it |
+| --- | --- |
+| `Cordango.Cli` | Nobody — it is the tool. Installed, not referenced. |
+| `Cordango.Standalone` | A GENERATED application. Records, hooks, permissions, queries, the directory, the wire. |
+
+Both are published from one git tag and share a version, because a generated application pins the
+runtime at the version of the generator that wrote its project file.
+
+The compiler, the generator SDK and the `dotnet-vue` generator are **not** published. A .NET tool
+package contains its whole publish output, so all three ship inside `Cordango.Cli` as files and it
+declares no dependencies — `cordango` installs with nothing else to restore.
+
+Writing a generator for another target does not need them either. The extension point is a process:
+it describes itself on stdout and takes a request on stdin, so a generator written in Go or Python
+is as welcome as one written in .NET. `Cordango.SourceGen` will be published when a second target
+exists and has something to say about the shape of that contract — freezing an interface on an
+immutable feed with one implementation to learn from is how you get an interface that fits one
+implementation and fights the next.
+
 ## Generating an application
 
 ```

@@ -68,11 +68,12 @@ public static class Scaffold
     /// <summary>
     /// The version of <c>Cordango.Standalone</c> a generated application is built against.
     ///
-    /// <para>One constant, used by the emitted project file, by the PackageReference the emitted
-    /// project file explains how to switch to, and by the build metadata. Three places that have to
-    /// agree, agreeing by construction.</para>
+    /// <para>THE SAME NUMBER AS THIS GENERATOR, because they are published from one tag and cannot
+    /// be installed apart. It was a hand-maintained constant and it was already wrong — it named
+    /// 0.1.0-alpha after the package had moved on, so a generated project file referenced a version
+    /// that does not exist on the feed and would have failed to restore.</para>
     /// </summary>
-    public const string RuntimeVersion = "0.1.0-alpha";
+    public static string RuntimeVersion => BuildVersion.Current;
 
     /// <summary>What the application's project file says about the runtime, in each of the two
     /// shapes. Written here rather than as two template files, because the rest of the project file
