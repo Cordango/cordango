@@ -1,0 +1,100 @@
+# PUBLISHING Cordango.Standalone TO NUGET.ORG, WITHOUT AN API KEY ANYWHERE.
+#
+# There is no secret holding a nuget.org key, and there is deliberately no place to put one. The job
+# asks GitHub for a short-lived OIDC token, hands it to nuget.org, and gets back an API key that is
+# valid for one hour and was minted for this run. Nothing to rotate, nothing to leak, and a stolen
+# repository secret buys an attacker no publishing rights.
+#
+# THE OTHER HALF OF THIS FILE LIVES ON NUGET.ORG. A trusted publishing policy there names the
+# repository owner, the repository, and THE FILE NAME OF THIS WORKFLOW. nuget.org will only exchange
+# a token whose claims match that policy, which is why renaming this file breaks publishing until the
+# policy is updated to match — the file name is part of the credential, not just a label.
+#
+#     Repository Owner:  cordango
+#     Repository:        cordango
+#     Workflow File:     publish.yml        <- this file's name, no path
+#     Environment:       nuget              <- must equal the `environment:` below, or be left empty
+#
+# See https://learn.microsoft.com/nuget/nuget-org/trusted-publishing.
+
+name: Publish
+
+# A TAG IS THE RELEASE. Pushing `v0.2.0` publishes 0.2.0 and nothing else does; there is no manual
+# trigger, because a button that publishes an arbitrary version to an immutable feed is a footgun.
+# NuGet versions cannot be replaced or deleted, only unlisted, so the irreversible act is bound to
+# the one thing that is already a permanent record.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # An approval gate, and the name nuget.org's policy may pin the token to. It only actually gates
+    # once a required reviewer is configured under Settings -> Environments -> nuget; until then it
+    # is just a name. Configure the reviewer — the point is that a compromised tag push still cannot
+    # publish on its own.
+    environment: nuget
+
+    permissions:
+      # Without this the OIDC token is never issued and NuGet/login has nothing to exchange. It is a
+      # job-level grant on purpose: the top of the file drops everything to read, and only this job
+      # gets the ability to prove who it is.
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      # THE TAG IS THE VERSION, and the csproj's <Version> is only a default for local builds. The
+      # alternative — keeping the number in the csproj and tagging to match — has two sources of
+      # truth and eventually publishes a version nobody meant.
+      - name: Version from the tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # The extraction test the solution file promises: a plain clone, no database, no containers,
+      # no platform. It runs BEFORE the push because a NuGet version is permanent — there is no
+      # taking one back after the fact, only publishing another one.
+      - name: Test
+        run: dotnet test Cordango.slnx -c Release
+
+      # Only Cordango.Standalone. Packing the solution would also pack the compiler, the CLI and the
+      # generators, none of which are meant to be consumed as libraries.
+      - name: Pack
+        run: >
+          dotnet pack src/Cordango.Standalone/Cordango.Standalone.csproj
+          -c Release
+          -p:Version=${{ steps.version.outputs.version }}
+          -p:ContinuousIntegrationBuild=true
+          -o artifacts
+
+      # Immediately before the push, never earlier. The key expires in an hour and each OIDC token
+      # buys exactly one key, so a login stranded behind a slow build is a login that has to be
+      # redone rather than retried.
+      - name: NuGet login
+        uses: NuGet/login@v1
+        id: login
+        with:
+          # The nuget.org PROFILE NAME that owns the trusted publishing policy — not an email
+          # address. A repository secret rather than a literal only so the account name is not
+          # advertised in a public repository; it is not a credential.
+          user: ${{ secrets.NUGET_USER }}
+
+      # The .snupkg beside it goes up in the same call. --skip-duplicate so re-running a job that
+      # died between the two uploads finishes the release instead of failing on the half that landed.
+      - name: Push
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
