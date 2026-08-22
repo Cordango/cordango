@@ -81,15 +81,11 @@ jobs:
       # Immediately before the push, never earlier. The key expires in an hour and each OIDC token
       # buys exactly one key, so a login stranded behind a slow build is a login that has to be
       # redone rather than retried.
-      - name: NuGet login
+      - name: NuGet login (trusted publishing via OIDC)
         uses: NuGet/login@v1
         id: login
         with:
-          # The nuget.org PROFILE NAME that owns the trusted publishing policy — not an email
-          # address. A repository secret rather than a literal only so the account name is not
-          # advertised in a public repository; it is not a credential.
-          user: ${{ secrets.NUGET_USER }}
-
+          user: WeAreDotnet
       # The .snupkg beside it goes up in the same call. --skip-duplicate so re-running a job that
       # died between the two uploads finishes the release instead of failing on the half that landed.
       - name: Push
