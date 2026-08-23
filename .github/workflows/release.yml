@@ -4,9 +4,9 @@
 # the .NET SDK, and Cordango is an application language rather than a .NET product — somebody
 # generating a Go or React target should never be asked to install a .NET SDK to run the compiler.
 #
-# THE SAME TAG DRIVES BOTH. Pushing `v0.4.0` runs this and publish.yml: this attaches the binaries to
-# a GitHub Release, that pushes Cordango.Cli and Cordango.Standalone to nuget.org. One tag, one
-# version, every channel — and Homebrew and Scoop just point at the assets this job uploads.
+# THE SAME TAG DRIVES BOTH. Pushing `v0.5.1-alpha` runs this and publish.yml: this attaches the
+# binaries to a GitHub Release, that pushes Cordango.Cli and Cordango.Standalone to nuget.org. One
+# tag, one version, every channel — and Homebrew and Scoop just point at the assets this job uploads.
 
 name: Release
 
@@ -122,6 +122,17 @@ jobs:
           sha256sum ./*.tar.gz ./*.zip | sed 's| \./| |' > SHA256SUMS
           cat SHA256SUMS
 
+      # THE HOMEBREW FORMULA AND THE SCOOP MANIFEST, FINISHED. Both carry the SHA-256 of every asset
+      # they download, so neither can be written before the assets exist — which is why the copies in
+      # the repository carry zeros. Rendering them here and attaching them means the release itself
+      # holds a correct pair to drop into the tap and the bucket, instead of a person reading
+      # SHA256SUMS and retyping six checksums.
+      - name: Packaging manifests
+        run: |
+          set -euo pipefail
+          packaging/render.sh "${GITHUB_REF_NAME#v}" assets/SHA256SUMS
+          cp packaging/homebrew/cordango.rb packaging/scoop/cordango.json assets/
+
       # `gh` rather than a third-party action: it ships on the runner, it is the same tool a person
       # would use by hand, and a release job is a poor place to trust somebody else's code.
       - name: Release
@@ -132,7 +143,7 @@ jobs:
 
           # A hyphen in the tag means a pre-release. Without this, `v0.5.0-alpha` becomes the release
           # GitHub calls "Latest" and every download button on the repository points an alpha at
-          # people who wanted 0.4.0.
+          # people who wanted the last stable release.
           case "$GITHUB_REF_NAME" in
             *-*) prerelease=--prerelease ;;
             *)   prerelease= ;;

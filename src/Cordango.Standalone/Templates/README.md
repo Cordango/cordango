@@ -96,9 +96,7 @@ api/                  the ASP.NET Core application
   Seed/               the demo dataset — generated
   Identity/           sign-in, accounts, access keys, the first administrator
   Resources/          messages.en.json, messages.de.json
-runtime/              the Cordango runtime — a library, not your code (Apache-2.0).
-                      Checked in until the NuGet package is public; api/*.csproj says how to swap it
-web/                  the Vue application
+{{RuntimeLayout}}web/                  the Vue application
   src/app.js          your definition, as the screens read it — generated
   src/pages/          one component per screen and per record — generated
   src/blocks/         the building blocks those pages are made of
@@ -178,7 +176,4 @@ was built completely is one you can trust to be complete.
 
 The application, its definition and everything generated from it are yours, unencumbered.
 
-`runtime/` is the Cordango runtime: our code, licensed under Apache-2.0, with its own file headers
-and its own project file. It is a library that happens to be checked in rather than restored, because
-the package is not public yet — `api/{{AppNamespace}}.Api.csproj` carries the one line that swaps it
-for a `PackageReference`. Keep it, change it, or replace it. Nothing outside `runtime/` is ours.
+{{RuntimeLicence}}

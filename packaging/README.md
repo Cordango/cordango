@@ -42,7 +42,7 @@ Both files carry the version and the SHA-256 of each asset, so both change on ev
 checksums are in the `SHA256SUMS` file the release job publishes beside the binaries:
 
 ```
-curl -fsSL https://github.com/cordango/cordango/releases/download/v0.4.0/SHA256SUMS
+curl -fsSL https://github.com/cordango/cordango/releases/download/v0.5.1-alpha/SHA256SUMS
 ```
 
 Scoop can do it by itself — the manifest carries `checkver` and `autoupdate`, and

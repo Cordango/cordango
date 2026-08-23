@@ -32,6 +32,7 @@ public class GeneratedApplicationTests
 
         using var app = Materialise(key);
 
+        RuntimeFeed.PointAt(app.Root);
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
         Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
     }
@@ -47,6 +48,7 @@ public class GeneratedApplicationTests
 
         using var app = Materialise(key);
 
+        RuntimeFeed.PointAt(app.Root);
         var build = await Run("dotnet", ["build", Path.Combine(app.Root, "api"), "--nologo", "-v", "q"], app.Root);
         Assert.True(build.ExitCode == 0, $"The application generated from '{key}' does not compile.\n\n" + build.Output);
 
@@ -196,6 +198,7 @@ public class GeneratedApplicationTests
 
     internal static async Task Build(Materialised app)
     {
+        RuntimeFeed.PointAt(app.Root);
         var build = await Run("dotnet",
             ["build", Path.Combine(app.Root, "api"), "-c", "Release", "--nologo", "-v", "q"], app.Root);
 

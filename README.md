@@ -159,7 +159,6 @@ An ordinary repository you own. From `dotnet-vue`:
 ```
 api/        ASP.NET Core, MVC controllers, EF Core, migrations you can read
 web/        Vue 3 and Vuetify, one component per screen
-runtime/    the Cordango runtime as source, or a package reference, your choice
 Dockerfile
 docker-compose.yml
 ```

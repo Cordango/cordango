@@ -19,7 +19,7 @@
 
 name: Publish
 
-# A TAG IS THE RELEASE. Pushing `v0.2.0` publishes 0.2.0 and nothing else does; there is no manual
+# A TAG IS THE RELEASE. Pushing `v0.5.1-alpha` publishes 0.5.1-alpha and nothing else does; there is no manual
 # trigger, because a button that publishes an arbitrary version to an immutable feed is a footgun.
 # NuGet versions cannot be replaced or deleted, only unlisted, so the irreversible act is bound to
 # the one thing that is already a permanent record.

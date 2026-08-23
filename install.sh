@@ -6,7 +6,7 @@
 #
 # Or, for a specific version or somewhere other than ~/.local/bin:
 #
-#     curl -fsSL https://cordango.com/install.sh | sh -s -- --version 0.4.0
+#     curl -fsSL https://cordango.com/install.sh | sh -s -- --version 0.5.1-alpha
 #     curl -fsSL https://cordango.com/install.sh | CORDANGO_INSTALL_DIR=/usr/local/bin sh
 #
 # What it does: works out which binary this machine wants, downloads it from the GitHub release,
@@ -25,7 +25,7 @@ INSTALL_DIR="${CORDANGO_INSTALL_DIR:-$HOME/.local/bin}"
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --version) VERSION="${2:?--version needs a version, for example 0.4.0}"; shift 2 ;;
+        --version) VERSION="${2:?--version needs a version, for example 0.5.1-alpha}"; shift 2 ;;
         --dir)     INSTALL_DIR="${2:?--dir needs a directory}"; shift 2 ;;
         -h|--help)
             sed -n '3,20p' "$0" | sed 's/^# \{0,1\}//'

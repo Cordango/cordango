@@ -27,6 +27,8 @@ public class ScaffoldInstantiationTests
             Assert.True(File.Exists(Path.Combine(api, "ExpenseClaims.Api.csproj")),
                 "The scaffold did not emit a project file at the expected path.");
 
+            RuntimeFeed.PointAt(root);
+
             var build = await Run("dotnet", ["build", api, "--nologo", "-v", "q"], root);
 
             Assert.True(build.ExitCode == 0,

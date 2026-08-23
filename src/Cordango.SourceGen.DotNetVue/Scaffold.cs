@@ -16,28 +16,29 @@ namespace Cordango.SourceGen.DotNetVue;
 /// <param name="PartialBuildSection">Markdown injected near the top of the generated README when a
 /// build was knowingly incomplete. Empty otherwise, and empty is the only honest default: a README
 /// that says nothing about being partial must mean the build was not.</param>
-/// <param name="RuntimeAsPackage">Reference <c>Cordango.Standalone</c> from a feed instead of
-/// checking its source in as a sibling project. The cleaner shape, and it needs the package to be
-/// restorable — which it is not until it is published.</param>
+/// <param name="RuntimeAsPackage">Reference <c>Cordango.Standalone</c> from a feed, which is the
+/// default. Turn it off to check the runtime's source in as a sibling project instead — useful for
+/// working on the runtime itself, or for building against a version no feed has yet.</param>
 public sealed record ScaffoldOptions(
     string AppName,
     string AppKey,
     string AppNamespace,
     string PartialBuildSection = "",
-    bool RuntimeAsPackage = false);
+    bool RuntimeAsPackage = true);
 
 /// <summary>
 /// Every file a generated application has before a single entity is generated into it: the host, the
-/// sign-in stack, the built-in directory, the Docker packaging, the Vue shell — and the Cordango
-/// runtime itself, as source.
+/// sign-in stack, the built-in directory, the Docker packaging, and the Vue shell.
 ///
-/// <para><b>The runtime is a package, and it arrives as source until that package is public.</b>
-/// <c>Cordango.Standalone</c> packs and is meant to be referenced, because it is a library rather
-/// than part of anybody's application. Until it can be restored, the same source is emitted as a
-/// SIBLING project — <c>runtime/</c>, next to <c>api/</c>, never inside it — so the application
-/// directory holds the application and nothing else. The emitted project file carries the one line
-/// that swaps it, and <c>--runtime package</c> emits that shape today for anyone whose feed already
-/// has it.</para>
+/// <para><b>The runtime is a package.</b> <c>Cordango.Standalone</c> is a library rather than part of
+/// anybody's application, so a generated repository references it and contains only the user's own
+/// code. It was emitted as source while the package was unpublished, which put twenty files of
+/// framework code in front of somebody looking for their own.</para>
+///
+/// <para><c>--runtime source</c> still emits it, as a SIBLING project — <c>runtime/</c>, beside
+/// <c>api/</c>, never inside it. That is the shape for working on the runtime itself, for building
+/// against a version no feed has yet, and for anyone who would rather own the code than restore it.
+/// The licence does not change either way.</para>
 /// </summary>
 public static class Scaffold
 {
@@ -81,12 +82,13 @@ public static class Scaffold
     private const string ProjectReference =
         """
           <!--
-            The Cordango runtime. Checked in as a sibling project because the package is not public
-            yet; when it is, delete ../runtime/ and put this in its place:
+            The Cordango runtime, built from the source in ../runtime/ rather than restored. This is
+            what `--runtime source` asks for; the ordinary shape is
 
                 <PackageReference Include="Cordango.Standalone" Version="{{RuntimeVersion}}" />
 
-            Same code, restored instead of compiled.
+            Same code, restored instead of compiled. Swapping back is deleting ../runtime/ and this
+            ItemGroup.
           -->
           <ItemGroup>
             <ProjectReference Include="..\runtime\Cordango.Standalone.csproj" />
@@ -101,6 +103,7 @@ public static class Scaffold
         "{{AppName}}", "{{AppKey}}", "{{AppSlug}}", "{{AppNamespace}}",
         "{{PartialBuildSection}}", "{{RuntimeVersion}}", "{{RuntimeReference}}",
         "{{RuntimeProjectCopy}}", "{{RuntimeSourceCopy}}",
+        "{{RuntimeLayout}}", "{{RuntimeLicence}}",
     ];
 
     /// <summary>
@@ -126,6 +129,33 @@ public static class Scaffold
 
         """;
 
+    /// <summary>The generated README describes a directory listing, so a directory that is not there
+    /// must not be in it. Both halves live here rather than in two README templates, because the rest
+    /// of that file is long, identical, and would drift.</summary>
+    private const string RuntimeLayoutSource =
+        """
+        runtime/              the Cordango runtime — a library, not your code (Apache-2.0).
+                              Source rather than a package, because you asked for --runtime source
+
+        """;
+
+    private const string RuntimeLicenceSource =
+        """
+        `runtime/` is the Cordango runtime: our code, licensed under Apache-2.0, with its own file
+        headers and its own project file. It is here as source because this application was built
+        with `--runtime source`; `api/{{AppNamespace}}.Api.csproj` carries the one line that swaps it
+        back for a `PackageReference`. Keep it, change it, or replace it. Nothing outside `runtime/`
+        is ours.
+        """;
+
+    private const string RuntimeLicencePackage =
+        """
+        The one dependency that is ours is `Cordango.Standalone`, the runtime, under Apache-2.0. It
+        is a NuGet package like any other and its source is public, so you can read it, fork it or
+        replace it: https://github.com/cordango/cordango. Build with `--runtime source` and it
+        arrives as a project in this repository instead. Nothing else here is ours.
+        """;
+
     /// <summary>The scaffold, cut for this application. Ordinal by path, so the caller receives the
     /// same sequence on every machine.</summary>
     public static IReadOnlyList<GeneratedFile> Files(ScaffoldOptions options)
@@ -144,6 +174,8 @@ public static class Scaffold
             // not exist fails the build.
             ("{{RuntimeProjectCopy}}", options.RuntimeAsPackage ? "" : "COPY runtime/*.csproj ./runtime/\n"),
             ("{{RuntimeSourceCopy}}", options.RuntimeAsPackage ? "" : "COPY runtime/ ./runtime/\n"),
+            ("{{RuntimeLayout}}", options.RuntimeAsPackage ? "" : RuntimeLayoutSource),
+            ("{{RuntimeLicence}}", options.RuntimeAsPackage ? RuntimeLicencePackage : RuntimeLicenceSource),
 
             ("{{AppNamespace}}", options.AppNamespace),
             ("{{AppName}}", options.AppName),

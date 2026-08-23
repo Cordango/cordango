@@ -155,7 +155,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
         var app = AppModel.From(request.App);
         var allowIncomplete = request.Options?["allowIncomplete"]?.GetValue<bool>() ?? false;
-        var runtimeAsPackage = request.Options?["runtimeAsPackage"]?.GetValue<bool>() ?? false;
+        var runtimeAsPackage = request.Options?["runtimeAsPackage"]?.GetValue<bool>() ?? true;
 
         // The capability gate, and it does NOT stop the build.
         //

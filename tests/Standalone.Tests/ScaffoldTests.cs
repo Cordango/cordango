@@ -11,6 +11,8 @@ public class ScaffoldTests
 {
     private static readonly ScaffoldOptions Expenses = new("Expense Claims", "expense-claims", "ExpenseClaims");
 
+    private static readonly ScaffoldOptions Vendored = Expenses with { RuntimeAsPackage = false };
+
     /// <summary>
     /// Two generated applications do not collide on one machine.
     ///
@@ -36,7 +38,7 @@ public class ScaffoldTests
     }
 
     [Fact]
-    public void It_has_a_host_a_front_end_and_the_runtime()
+    public void It_has_a_host_and_a_front_end()
     {
         var paths = Scaffold.Files(Expenses).Select(f => f.RelativePath).ToHashSet(StringComparer.Ordinal);
 
@@ -48,10 +50,6 @@ public class ScaffoldTests
         Assert.Contains("Dockerfile", paths);
         Assert.Contains("docker-compose.yml", paths);
         Assert.Contains("README.md", paths);
-
-        Assert.Contains("runtime/Security/PermissionResolver.cs", paths);
-        Assert.Contains("runtime/Http/RecordsController.cs", paths);
-        Assert.Contains("runtime/Directory/Entities.cs", paths);
     }
 
     [Fact]
@@ -118,7 +116,7 @@ public class ScaffoldTests
     {
         const string marker = "SPDX-License-Identifier: Apache-2.0";
 
-        foreach (var file in Scaffold.Files(Expenses))
+        foreach (var file in Scaffold.Files(Vendored))
         {
             var head = string.Join('\n', file.Content.Split('\n').Take(6));
             var isRuntime = file.RelativePath.StartsWith("runtime/", StringComparison.Ordinal)
@@ -134,12 +132,14 @@ public class ScaffoldTests
     }
 
     [Fact]
-    public void The_runtime_is_beside_the_application_and_not_inside_it()
+    public void The_vendored_runtime_is_beside_the_application_and_not_inside_it()
     {
-        var files = Scaffold.Files(Expenses);
+        var files = Scaffold.Files(Vendored);
 
         Assert.DoesNotContain(files, f => f.RelativePath.StartsWith("api/Cordango/", StringComparison.Ordinal));
         Assert.Contains(files, f => f.RelativePath == "runtime/Cordango.Standalone.csproj");
+        Assert.Contains(files, f => f.RelativePath == "runtime/Security/PermissionResolver.cs");
+        Assert.Contains(files, f => f.RelativePath == "runtime/Http/RecordsController.cs");
 
         var project = files.Single(f => f.RelativePath == "api/ExpenseClaims.Api.csproj").Content;
         Assert.Contains(@"<ProjectReference Include=""..\runtime\Cordango.Standalone.csproj"" />",
@@ -174,9 +174,9 @@ public class ScaffoldTests
     }
 
     [Fact]
-    public void Referencing_the_runtime_as_a_package_leaves_nothing_to_check_in()
+    public void The_runtime_is_a_package_by_default_and_leaves_nothing_to_check_in()
     {
-        var files = Scaffold.Files(Expenses with { RuntimeAsPackage = true });
+        var files = Scaffold.Files(Expenses);
 
         Assert.DoesNotContain(files, f => f.RelativePath.StartsWith("runtime/", StringComparison.Ordinal));
 
@@ -208,7 +208,8 @@ public class ScaffoldTests
             $"Only {files.Count} scaffold files were embedded. The glob in Cordango.SourceGen.DotNetVue.csproj "
             + "has probably stopped matching.");
 
-        Assert.True(files.Count(f => f.RelativePath.StartsWith("runtime/", StringComparison.Ordinal)) >= 12,
+        Assert.True(Scaffold.Files(Vendored).Count(f =>
+                f.RelativePath.StartsWith("runtime/", StringComparison.Ordinal)) >= 12,
             "The runtime source did not come along.");
     }
 
@@ -224,7 +225,7 @@ public class ScaffoldTests
             .OrderBy(p => p, StringComparer.Ordinal)
             .ToList();
 
-        var embedded = Scaffold.Files(Expenses)
+        var embedded = Scaffold.Files(Vendored)
             .Where(f => f.RelativePath.StartsWith("runtime/", StringComparison.Ordinal)
                 && f.RelativePath.EndsWith(".cs", StringComparison.Ordinal))
             .Select(f => f.RelativePath["runtime/".Length..])

@@ -47,7 +47,7 @@ body:
     attributes:
       label: Version
       description: "`cordango version`. If the problem is in a generated application, the `generator` field from its `cordango.build.json` instead."
-      placeholder: cordango 0.4.0
+      placeholder: cordango 0.5.1-alpha
     validations:
       required: true
 

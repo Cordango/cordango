@@ -152,10 +152,11 @@ public static class BuildCommand
             ["allowIncomplete"] = args.Has("allow-incomplete") || args.Has("allow-partial-ui"),
             ["seed"] = int.TryParse(args.Value("seed"), out var seed) ? seed : 42,
 
-            // `--runtime package` references Cordango.Standalone from a feed instead of checking its
-            // source in. The cleaner shape, and it needs the package to be restorable — which it is
-            // not until it is published, so source is the default.
-            ["runtimeAsPackage"] = string.Equals(args.Value("runtime"), "package", StringComparison.OrdinalIgnoreCase),
+            // Cordango.Standalone is restored from a feed like any other dependency, so a generated
+            // repository holds the user's application and nothing else. `--runtime source` checks
+            // its source in as a sibling project instead — for working on the runtime, or for
+            // building against a version no feed has yet.
+            ["runtimeAsPackage"] = !string.Equals(args.Value("runtime"), "source", StringComparison.OrdinalIgnoreCase),
         };
 
         var result = target.Generate(new GenerateRequest(artifact, options));

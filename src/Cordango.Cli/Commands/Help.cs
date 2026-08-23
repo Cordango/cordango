@@ -26,8 +26,8 @@ public static class Help
         ("build --app <key> --target <id> --out <dir>",
             "Generate a whole application into a directory you own. Add --seed <n> for a different "
             + "dataset, --allow-incomplete to accept a build the generator cannot finish, and "
-            + "--runtime package to reference Cordango.Standalone from a feed instead of checking "
-            + "its source in."),
+            + "--runtime source to check the Cordango.Standalone source in as a sibling project "
+            + "instead of restoring the package."),
         ("inspect [path] [--app <key>]", "Describe the workspace, one app, or one aggregate."),
         ("vocabulary [<name>]", "What may be written: Cord's words, or one construct's schema."),
         ("apply <ops.json> --app <key> --scope <kind[:key]>",

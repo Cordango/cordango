@@ -10,22 +10,26 @@
         "manifest updated by hand is a manifest that is a release behind, and that is worse than",
         "having no channel — somebody installs it and reports a bug that was fixed a month ago.",
         "",
+        "The hashes below are zeros on purpose: they are of files that do not exist until the",
+        "release is built. `release.yml` runs `packaging/render.sh` over the real SHA256SUMS and",
+        "attaches the finished manifest to the release, and the bucket's job rewrites them anyway.",
+        "",
         "No dependency on .NET. The binary is self-contained and carries its own runtime."
     ],
 
-    "version": "0.4.0",
+    "version": "0.5.1-alpha",
     "description": "Compile an App Definition into a complete application you own: ASP.NET Core, EF Core, PostgreSQL, Vue 3.",
     "homepage": "https://github.com/cordango/cordango",
     "license": "Apache-2.0",
 
     "architecture": {
         "64bit": {
-            "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-x64.zip",
-            "hash": "059b0a554b1a366b9ac3670480dab4add12ffc456ea280d8c2e38eb624a8de24"
+            "url": "https://github.com/cordango/cordango/releases/download/v0.5.1-alpha/cordango-0.5.1-alpha-win-x64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         },
         "arm64": {
-            "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-arm64.zip",
-            "hash": "6a8d5216026ff0e4458bb0dfedbd01ff2b33a8f9b0744d3bc3dbd3be2e61f67b"
+            "url": "https://github.com/cordango/cordango/releases/download/v0.5.1-alpha/cordango-0.5.1-alpha-win-arm64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
         }
     },
 
