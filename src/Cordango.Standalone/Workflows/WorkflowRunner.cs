@@ -125,7 +125,7 @@ public sealed class WorkflowRunner
         try
         {
             foreach (var effect in workflow.Effects)
-                await ApplyAsync(workflow, effect, workflow.Entity, record, ct);
+                await ApplyAsync($"Workflow '{workflow.Key}'", effect, workflow.Entity, record, ct);
         }
         finally
         {
@@ -156,7 +156,7 @@ public sealed class WorkflowRunner
         {
             foreach (var workflow in matched)
                 foreach (var effect in workflow.Effects)
-                    await ApplyAsync(workflow, effect, entity, record, ct);
+                    await ApplyAsync($"Workflow '{workflow.Key}'", effect, entity, record, ct);
         }
         finally
         {
@@ -201,8 +201,28 @@ public sealed class WorkflowRunner
         : node.GetValueKind() == JsonValueKind.String ? node.GetValue<string>()
         : node.ToJsonString();
 
+    /// <summary>
+    /// Effects belonging to something that is not a workflow — a command.
+    ///
+    /// <para>A command's <c>createRecord</c> and a workflow's are the same effect and must behave
+    /// the same way: the same token filling, the same depth guard against two rules that stamp each
+    /// other, the same decision not to undo the write when an effect fails. A second implementation
+    /// on the command side would be a second set of answers to all of that, so commands run through
+    /// this one.</para>
+    /// </summary>
+    /// <param name="source">What to name in the log if an effect cannot run — "Command 'approve'".</param>
+    public async Task RunEffectsAsync(
+        IReadOnlyList<WorkflowEffect> effects, string source, string entity, JsonObject record,
+        CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(effects);
+
+        foreach (var effect in effects)
+            await ApplyAsync(source, effect, entity, record, ct);
+    }
+
     private async Task ApplyAsync(
-        WorkflowDefinition workflow, WorkflowEffect effect, string entity, JsonObject record, CancellationToken ct)
+        string source, WorkflowEffect effect, string entity, JsonObject record, CancellationToken ct)
     {
         try
         {
@@ -220,7 +240,7 @@ public sealed class WorkflowRunner
                 case CreateRecordEffect create:
                     if (Writer(create.Entity) is not { } inserter)
                     {
-                        Missing(workflow, create.Entity);
+                        Missing(source, create.Entity);
                         break;
                     }
 
@@ -228,11 +248,11 @@ public sealed class WorkflowRunner
                     break;
 
                 case UpdateRecordEffect update:
-                    await UpdateAsync(workflow, update, entity, record, ct);
+                    await UpdateAsync(source, update, entity, record, ct);
                     break;
 
                 case CreateForEachEffect forEach:
-                    await ForEachAsync(workflow, forEach, record, ct);
+                    await ForEachAsync(source, forEach, record, ct);
                     break;
             }
         }
@@ -240,14 +260,14 @@ public sealed class WorkflowRunner
         {
             // The write already happened and is not being undone. See the class summary.
             _log.LogError(failure,
-                "Workflow '{Workflow}' on '{Entity}' could not apply a {Effect}. The record was saved; "
+                "{Source} on '{Entity}' could not apply a {Effect}. The record was saved; "
                 + "this effect did not run.",
-                workflow.Key, entity, effect.GetType().Name);
+                source, entity, effect.GetType().Name);
         }
     }
 
     private async Task UpdateAsync(
-        WorkflowDefinition workflow, UpdateRecordEffect update, string entity, JsonObject record, CancellationToken ct)
+        string source, UpdateRecordEffect update, string entity, JsonObject record, CancellationToken ct)
     {
         // No target field means the record that triggered this. With one, the write lands on
         // whatever that REFERENCE points at — a message stamping its ticket.
@@ -258,7 +278,7 @@ public sealed class WorkflowRunner
 
         if (Writer(targetEntity) is not { } writer)
         {
-            Missing(workflow, targetEntity);
+            Missing(source, targetEntity);
             return;
         }
 
@@ -297,15 +317,15 @@ public sealed class WorkflowRunner
     /// than asked about per row.</para>
     /// </summary>
     private async Task ForEachAsync(
-        WorkflowDefinition workflow, CreateForEachEffect effect, JsonObject record, CancellationToken ct)
+        string source, CreateForEachEffect effect, JsonObject record, CancellationToken ct)
     {
         if (Writer(effect.Entity) is not { } writer)
         {
-            Missing(workflow, effect.Entity);
+            Missing(source, effect.Entity);
             return;
         }
 
-        var rows = await SourceRowsAsync(workflow, effect.Source, record, ct);
+        var rows = await SourceRowsAsync(source, effect.Source, record, ct);
         if (rows.Count == 0) return;
 
         // Every row that already exists, in one query, keyed by the fields the definition says
@@ -337,14 +357,14 @@ public sealed class WorkflowRunner
         string.Join('', fields.Select(f => Text(record[f])));
 
     private async Task<IReadOnlyList<JsonObject>> SourceRowsAsync(
-        WorkflowDefinition workflow, ForEachSource source, JsonObject record, CancellationToken ct)
+        string origin, ForEachSource source, JsonObject record, CancellationToken ct)
     {
         switch (source)
         {
             case EntitySource entity:
                 if (Writer(entity.Entity) is not { } reader)
                 {
-                    Missing(workflow, entity.Entity);
+                    Missing(origin, entity.Entity);
                     return [];
                 }
 
@@ -442,12 +462,12 @@ public sealed class WorkflowRunner
     private IEntityWriter? Writer(string entity) =>
         _writers.FirstOrDefault(w => string.Equals(w.Entity, entity, StringComparison.Ordinal));
 
-    private void Missing(WorkflowDefinition workflow, string entity) =>
+    private void Missing(string source, string entity) =>
         _log.LogError(
-            "Workflow '{Workflow}' writes to '{Entity}', which this application has no writer for. "
+            "{Source} writes to '{Entity}', which this application has no writer for. "
             + "That should be impossible in a generated application and means the catalogue and the "
             + "registrations disagree.",
-            workflow.Key, entity);
+            source, entity);
 
     /// <summary>The effect's fields, with every token filled from the record that triggered it.</summary>
     private JsonObject Values(IReadOnlyList<EffectSet> sets, JsonObject record)

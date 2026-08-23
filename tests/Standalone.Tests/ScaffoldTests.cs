@@ -11,6 +11,30 @@ public class ScaffoldTests
 {
     private static readonly ScaffoldOptions Expenses = new("Expense Claims", "expense-claims", "ExpenseClaims");
 
+    /// <summary>
+    /// Two generated applications do not collide on one machine.
+    ///
+    /// <para>Compose names the project after the directory it runs in, and every application this
+    /// generator produces is built into one somebody called <c>generated</c>. So two of them were
+    /// both the project <c>generated</c>: same containers, same network, and the same
+    /// <c>generated_db</c> volume — the second `docker compose up` attached to the first one's
+    /// database rather than starting anything. The file names the project itself.</para>
+    /// </summary>
+    [Fact]
+    public void Compose_names_the_project_and_its_containers_after_the_application()
+    {
+        var compose = Scaffold.Files(new ScaffoldOptions("Budget Planner", "budget_planner", "BudgetPlanner"))
+            .Single(f => f.RelativePath == "docker-compose.yml").Content;
+
+        // Underscores are legal in a Compose project name and wrong in a hostname, and the key is
+        // the only place a definition can put one.
+        Assert.Contains("\nname: budget-planner\n", compose, StringComparison.Ordinal);
+        Assert.Contains("container_name: budget-planner-db", compose, StringComparison.Ordinal);
+        Assert.Contains("container_name: budget-planner-app", compose, StringComparison.Ordinal);
+
+        Assert.DoesNotContain("name: budget_planner", compose, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void It_has_a_host_a_front_end_and_the_runtime()
     {

@@ -142,7 +142,14 @@ public static class WorkflowEmitter
         }
     }
 
-    private static string? Effect(AppModel app, string entity, JsonObject effect) =>
+    /// <summary>
+    /// One effect as the runtime's own type, or null when this generator cannot write it.
+    ///
+    /// <para>Public because COMMANDS carry the same effects and must produce the same code. A
+    /// command's <c>createRecord</c> written by a second emitter would be a second answer to what
+    /// <c>{{record.owner}}</c> means.</para>
+    /// </summary>
+    public static string? Effect(AppModel app, string entity, JsonObject effect) =>
         AppModel.Str(effect["type"]) switch
         {
             "notify" => $"new NotifyEffect({Naming.Literal(AppModel.Str(effect["to"]) ?? "")}, "

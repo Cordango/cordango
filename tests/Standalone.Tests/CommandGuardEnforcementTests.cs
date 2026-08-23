@@ -13,6 +13,8 @@ using Cordango.Standalone.Http;
 using Cordango.Standalone.Notifications;
 using Cordango.Standalone.Records;
 using Cordango.Standalone.Security;
+using Cordango.Standalone.Workflows;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cordango.Standalone.Tests;
@@ -106,8 +108,17 @@ public class CommandGuardEnforcementTests
                     When: guard),
             ]);
 
-            Commands = new CommandService<Widget>(Store, catalogue, user, clock,
-                new NotificationService(Db, clock, ids));
+            // This suite is about GUARDS, and none of its commands carries an effect — but the
+            // service takes the runner rather than making it optional, because an effect that
+            // silently does not run is the failure the whole CORD2303 apparatus exists to prevent.
+            var notifications = new NotificationService(Db, clock, ids);
+            var effects = new WorkflowRunner(
+                new AppWorkflowCatalogue([]),
+                [new EntityWriter<Widget>(Store)],
+                notifications, user, clock, new WorkflowDepth(),
+                NullLogger<WorkflowRunner>.Instance);
+
+            Commands = new CommandService<Widget>(Store, catalogue, user, clock, notifications, effects);
         }
 
         public TestDb Db { get; }

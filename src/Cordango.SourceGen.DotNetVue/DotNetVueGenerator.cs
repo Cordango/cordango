@@ -209,7 +209,17 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             if (BackendEmitter.AutoFields(app, entity) is { } hook) Add(hook);
             if (BackendEmitter.Computed(app, entity) is { } computed) Add(computed);
             if (BackendEmitter.ComputedHook(app, entity) is { } recompute) Add(recompute);
+
+            // Figures counted from OTHER records, and the hook that keeps them right when those
+            // records change. Emitted together because neither is any use without the other.
+            if (BackendEmitter.Rollups(app, entity) is { } rollups) Add(rollups);
+            if (BackendEmitter.Series(app, entity) is { } series) Add(series);
+            if (BackendEmitter.RollupHook(app, entity) is { } cascade) Add(cascade);
         }
+
+        // The chain itself: one file naming every recompute, in the order the definition's own
+        // rollup graph requires.
+        if (BackendEmitter.RollupCascade(app) is { } chain) Add(chain);
 
         // A dataset to open the application on. Derived from the seed alone, so two builds of the
         // same definition produce the same rows.
@@ -259,6 +269,17 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
     /// </summary>
     private static IEnumerable<Diagnostic> NotYetEmitted(AppModel app)
     {
+        // A total that is an input to itself has no answer to compute towards, and the chain that
+        // kept them right would recurse until the stack ran out. Nothing in any application anybody
+        // has written does this; it is checked because the emitted code would be the thing that
+        // failed, at run time, in production.
+        if (Emit.RollupGraph.IsCyclic(app))
+            yield return new Diagnostic("CORD2307",
+                "the rollups in this application count each other in a circle, so no order works "
+                + "them out. Break the loop — one of the totals has to be worked out from something "
+                + "other than a figure that counts it.",
+                "$.entities");
+
         for (var i = 0; i < app.Workflows.Count; i++)
         {
             var workflow = app.Workflows[i];
@@ -304,12 +325,14 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
         foreach (var command in app.Commands)
         {
-            // `notify` IS generated — it writes an in-app notification, which needs no mail server
-            // and no outbound network. The rest do, and an application that silently sent nothing
-            // would look like one whose emails were being swallowed.
+            // A command's effects are the workflow emitter's, run by the workflow runner — so what
+            // it can write here is exactly what it can write there. `email` and `webhook` are the
+            // ones left: both need something outbound, and an application that silently sent
+            // nothing would look like one whose mail was being swallowed.
             var unsent = command.Effects
-                .Select(e => Model.AppModel.Str(e["type"]))
-                .Where(type => type is not null and not "notify")
+                .Where(e => Model.AppModel.Str(e["type"]) is not "notify")
+                .Where(e => Emit.WorkflowEmitter.Effect(app, command.Entity, e) is null)
+                .Select(e => Model.AppModel.Str(e["type"]) ?? "an unnamed effect")
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
@@ -317,7 +340,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                 yield return new Diagnostic("CORD2303",
                     $"'{command.Label}' declares {string.Join(" and ", unsent)} effect(s), which are not "
                     + "generated yet. The command runs and moves the record; those effects do not fire. "
-                    + "Its notify effects DO.",
+                    + "Its other effects DO.",
                     $"$.commands[?(@.key=='{command.Key}')].effects");
 
             // A guard the emitter cannot write must not become an application without one. The
@@ -333,14 +356,16 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         foreach (var entity in app.Entities)
             foreach (var field in entity.AuthoredFields.Where(f => f.Computed is not null))
             {
-                // An expression the emitter wrote needs no diagnostic. What is left is a ROLLUP —
-                // which counts or sums other records and needs the cascade that keeps a parent's
-                // total right when a child changes — and the expressions that read one: a hop into
-                // another record, or prev() over an ordered series.
-                if (Emit.ComputedEmitter.Expression(entity, field) is not null) continue;
+                // Anything the emitters wrote needs no diagnostic — an expression, or a rollup that
+                // became a query. What is left is what neither could write.
+                if (Emit.ComputedEmitter.Expression(app, entity, field) is not null) continue;
+                if (Emit.RollupEmitter.Query(app, entity, field) is not null) continue;
+                if (Emit.ComputedEmitter.ReadsPrevious(field)
+                    && Emit.ComputedEmitter.Expression(app, entity, field, inSeries: true) is not null) continue;
 
                 var why = field.Computed?["rollup"] is not null
-                    ? "is a rollup over other records, and the aggregate is not generated yet"
+                    ? "is a rollup this generator cannot write — an operation or a filter outside "
+                        + "sum, count and simple comparisons"
                     : "is computed from something outside its own record, which is not generated yet";
 
                 yield return new Diagnostic("CORD2305",

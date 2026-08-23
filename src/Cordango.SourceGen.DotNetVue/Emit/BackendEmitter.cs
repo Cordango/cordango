@@ -134,7 +134,8 @@ public static class BackendEmitter
         // Only the entities that actually need one get a hook, so an application where none does
         // has no Hooks namespace to import — and importing a namespace that does not exist is a
         // compile error, not a harmless line. task-manager was that application.
-        var hooked = app.Entities.Any(e => AutoFields(app, e) is not null || Computed(app, e) is not null);
+        var hooked = app.Entities.Any(e =>
+            AutoFields(app, e) is not null || Computed(app, e) is not null || RollupHook(app, e) is not null);
 
         var source = new Source();
         source.Line("using Cordango.Standalone.Commands;");
@@ -177,6 +178,15 @@ public static class BackendEmitter
                 source.Line($"services.AddScoped<IBeforeCreate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
                 source.Line($"services.AddScoped<IBeforeUpdate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
             }
+
+            // AFTER, on all three: a total counts what is in the database, so it is worked out once
+            // the write is there — including a delete, whose parent must stop counting it.
+            if (RollupHook(app, entity) is not null)
+            {
+                source.Line($"services.AddScoped<IAfterCreate<{entity.TypeName}>, {entity.TypeName}RollupCascade>();");
+                source.Line($"services.AddScoped<IAfterUpdate<{entity.TypeName}>, {entity.TypeName}RollupCascade>();");
+                source.Line($"services.AddScoped<IAfterDelete<{entity.TypeName}>, {entity.TypeName}RollupCascade>();");
+            }
         }
 
         source.Line();
@@ -201,6 +211,7 @@ public static class BackendEmitter
         var source = new Source();
         source.Line("using Cordango.Standalone.Commands;");
         source.Line("using Cordango.Standalone.Conditions;");
+        source.Line("using Cordango.Standalone.Workflows;");
         source.Line();
         source.Line($"namespace {app.Namespace}.Commands;");
         source.Line();
@@ -250,10 +261,21 @@ public static class BackendEmitter
 
             source.Line($"Notifications: [{string.Join(", ", notifications)}],");
 
-            // The guard, as the last argument, because it is the one a reader most often wants to
-            // find: everything above it is what the command DOES, and this is when it may.
+            // The guard, because it is the one a reader most often wants to find: everything around
+            // it is what the command DOES, and this is when it may.
             ConditionEmitter.TryEmit(command.Json["when"], out var guard);
-            source.Line($"When: {guard}),");
+            source.Line($"When: {guard},");
+
+            // Everything else the command does — creating a record, stamping another one. Written
+            // by the WORKFLOW emitter and run by the workflow runner, because these are the same
+            // effects with the same token filling and the same failure discipline. Anything it
+            // cannot write comes back null and is reported as CORD2303 rather than dropped.
+            var effects = command.Effects
+                .Where(e => AppModel.Str(e["type"]) is not "notify")
+                .Select(e => WorkflowEmitter.Effect(app, command.Entity, e))
+                .Where(e => e is not null);
+
+            source.Line($"Effects: [{string.Join(", ", effects)}]),");
             source.Outdent();
         }
 
@@ -336,11 +358,19 @@ public static class BackendEmitter
         ArgumentNullException.ThrowIfNull(app);
         ArgumentNullException.ThrowIfNull(entity);
 
-        var ordered = Ordered(entity).ToList();
+        var ordered = Ordered(app, entity).ToList();
         if (ordered.Count == 0) return null;
 
+        // References this entity's figures read ACROSS. When there are none the methods keep their
+        // one-argument shape — most entities compute from their own columns, and giving all of them
+        // an empty holder to carry would be ceremony for the sake of uniformity.
+        var references = ComputedEmitter.References(app, entity);
+        var takes = references.Count == 0 ? "" : ", Refs refs";
+
         var source = new Source();
+        source.Line("using Cordango.Standalone.Hooks;");
         source.Line("using Cordango.Standalone.Records;");
+        source.Line("using Microsoft.EntityFrameworkCore;");
         source.Line($"using {app.Namespace}.Entities;");
         source.Line();
         source.Line($"namespace {app.Namespace}.Computed;");
@@ -361,7 +391,7 @@ public static class BackendEmitter
         foreach (var (field, expression) in ordered)
         {
             source.Line($"/// <summary>{Xml(field.Label)}: <c>{Xml(AppModel.Str(field.Computed?["expr"]) ?? "")}</c></summary>");
-            source.Line($"public static {Result(field)} {Naming.Pascal(field.Key)}({entity.TypeName} r) =>");
+            source.Line($"public static {Result(field)} {Naming.Pascal(field.Key)}({entity.TypeName} r{takes}) =>");
             source.Indent();
             source.Line(expression + ";");
             source.Outdent();
@@ -369,15 +399,359 @@ public static class BackendEmitter
         }
 
         source.Line("/// <summary>Every computed field on this record, in dependency order.</summary>");
-        source.Open($"public static void Apply({entity.TypeName} r)");
+        source.Open($"public static void Apply({entity.TypeName} r{takes})");
 
         foreach (var (field, _) in ordered)
-            source.Line($"r.{field.PropertyName} = {Cast(field)}{Naming.Pascal(field.Key)}(r);");
+            source.Line($"r.{field.PropertyName} = {Cast(field)}{Naming.Pascal(field.Key)}(r{(references.Count == 0 ? "" : ", refs")});");
 
         source.Close();
+
+        if (references.Count > 0)
+        {
+            source.Line();
+            source.Line("/// <summary>");
+            source.Line("/// The records this one's figures read across, loaded once.");
+            source.Line("///");
+            source.Line("/// <para>Handed to the methods rather than fetched inside them, so each stays a pure");
+            source.Line("/// function of what it is given: a total that comes out wrong is a breakpoint on a value,");
+            source.Line("/// not a database call somewhere in the middle of an expression.</para>");
+            source.Line("/// </summary>");
+            source.Open("public sealed class Refs");
+            foreach (var (reference, target) in references)
+                source.Line($"public {target.TypeName}? {Naming.Pascal(reference.Key)} {{ get; init; }}");
+            source.Close();
+
+            source.Line();
+            source.Line("/// <summary>Fetches them. A reference nobody has filled in stays null, and every figure");
+            source.Line("/// that reads through it falls back the way a blank column does.</summary>");
+            source.Open($"public static async Task<Refs> LoadAsync({entity.TypeName} r, DbContext db, "
+                + "CancellationToken ct)");
+            source.Line("ArgumentNullException.ThrowIfNull(r);");
+            source.Line("ArgumentNullException.ThrowIfNull(db);");
+            source.Line();
+            source.Open("return new Refs");
+            foreach (var (reference, target) in references)
+                source.Line($"{Naming.Pascal(reference.Key)} = r.{reference.PropertyName} is null ? null "
+                    + $": await db.Set<{target.TypeName}>()"
+                    + $".FirstOrDefaultAsync(x => x.Id == r.{reference.PropertyName}, ct),");
+            source.Close(";");
+            source.Close();
+        }
+
         source.Close();
 
         return new GeneratedFile($"api/Computed/{entity.TypeName}Computed.cs", source.ToString());
+    }
+
+
+    /// <summary>
+    /// The figures this entity works out from OTHER records, and the expressions that read them.
+    ///
+    /// <para>Rollups first, then <c>Apply</c>: a scenario's net result is an expression over its
+    /// total revenue and its total costs, and both of those are sums over its periods. Running them
+    /// the other way round would compute the net result from whatever the totals held before.</para>
+    /// </summary>
+    public static GeneratedFile? Rollups(AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        var rollups = RollupEmitter.Rollups(app, entity);
+        if (rollups.Count == 0) return null;
+
+        var expressions = Computed(app, entity) is not null;
+        var references = ComputedEmitter.References(app, entity);
+
+        var source = new Source();
+        source.Line("using Microsoft.EntityFrameworkCore;");
+        source.Line($"using {app.Namespace}.Data;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Computed;");
+        source.Line();
+        source.Line("/// <summary>");
+        source.Lines(Doc.Summary($"The {entity.Label} figures that count OTHER records.", null));
+        source.Line("///");
+        source.Line("/// <para>One query each. They are ordinary LINQ against the same DbContext the request is");
+        source.Line("/// already using, so a total that looks wrong can be read, stepped through, and run by hand");
+        source.Line("/// against the database.</para>");
+        source.Line("/// </summary>");
+        source.Open($"public static class {entity.TypeName}Rollups");
+
+        source.Line("/// <summary>Works every one of them out and writes them onto the record. Does NOT save —");
+        source.Line("/// the caller decides when, because the caller knows how many of these it is doing.</summary>");
+        source.Open($"public static async Task ApplyAsync({entity.TypeName} r, AppDbContext db, "
+            + "CancellationToken ct)");
+        source.Line("ArgumentNullException.ThrowIfNull(r);");
+        source.Line("ArgumentNullException.ThrowIfNull(db);");
+        source.Line();
+
+        foreach (var (field, query) in rollups)
+        {
+            source.Line($"// {Xml(field.Label)}");
+            source.Line($"r.{field.PropertyName} = {query};");
+        }
+
+        if (expressions)
+        {
+            source.Line();
+            source.Line("// The expressions that read them, now that they hold this write's figures.");
+            source.Line(references.Count == 0
+                ? $"{entity.TypeName}Computed.Apply(r);"
+                : $"{entity.TypeName}Computed.Apply(r, await {entity.TypeName}Computed.LoadAsync(r, db, ct));");
+        }
+
+        source.Close();
+        source.Close();
+
+        return new GeneratedFile($"api/Computed/{entity.TypeName}Rollups.cs", source.ToString());
+    }
+
+
+    /// <summary>
+    /// What has to be worked out again when a record changes, as one file naming every step.
+    ///
+    /// <para><b>A call chain, not a cascade engine.</b> The rollup graph is in the definition, so the
+    /// order is decided here and written down: a hiring line changes, every period of its scenario is
+    /// recomputed, and then the scenario over them. Nothing at run time works out what depends on
+    /// what.</para>
+    ///
+    /// <para><b>Saved between levels, and that is not optional.</b> A scenario's total is a SUM over
+    /// its periods and the sum is a query — so the periods have to be in the database before it runs,
+    /// not merely changed in memory. Skipping the save totals the values the periods held before this
+    /// write.</para>
+    ///
+    /// <para>Deduplicated by level rather than followed per record: sixty periods of one scenario
+    /// recompute that scenario once.</para>
+    /// </summary>
+    public static GeneratedFile? RollupCascade(AppModel app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var aggregated = app.Entities.Where(e => RollupGraph.Parents(app, e).Count > 0).ToList();
+        if (aggregated.Count == 0) return null;
+
+        var source = new Source();
+        source.Line("using Microsoft.EntityFrameworkCore;");
+        source.Line($"using {app.Namespace}.Computed;");
+        source.Line($"using {app.Namespace}.Data;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Computed;");
+        source.Line();
+        source.Line("/// <summary>");
+        source.Lines(Doc.Summary($"Keeping {app.Name}'s totals right when the records under them change.", null));
+        source.Line("///");
+        source.Line("/// <para>One method per entity that something counts. Each finds the records whose figures");
+        source.Line("/// this write disturbs, works them out again, saves, and then does the same for whatever");
+        source.Line("/// counts THOSE — the order is the definition's own and was decided when this was generated.</para>");
+        source.Line("/// </summary>");
+        source.Open("public static class AppRollups");
+
+        var first = true;
+        foreach (var child in aggregated)
+        {
+            if (!first) source.Line();
+            first = false;
+
+            source.Line($"/// <summary>A {Xml(child.Label)} changed.</summary>");
+            source.Open($"public static async Task After{child.TypeName}Async({child.TypeName} record, "
+                + "AppDbContext db, CancellationToken ct)");
+            source.Line("ArgumentNullException.ThrowIfNull(record);");
+            source.Line("ArgumentNullException.ThrowIfNull(db);");
+
+            foreach (var parent in RollupGraph.Parents(app, child))
+            {
+                if (RollupGraph.Affected(app, parent, child) is not { } predicate) continue;
+
+                var rows = Naming.Camel(parent.Key) + "Rows";
+                source.Line();
+                source.Line($"var {rows} = await db.Set<{parent.TypeName}>().Where({predicate}).ToListAsync(ct);");
+                source.Line($"await Recompute{parent.TypeName}Async({rows}, db, ct);");
+            }
+
+            source.Close();
+        }
+
+        // One recompute per aggregating entity, so every path into it goes through the same steps.
+        foreach (var parent in app.Entities.Where(e => RollupEmitter.Rollups(app, e).Count > 0))
+        {
+            source.Line();
+            source.Line($"/// <summary>These {Xml(parent.LabelPlural)}, and everything above them.</summary>");
+            source.Open($"public static async Task Recompute{parent.TypeName}Async("
+                + $"IReadOnlyList<{parent.TypeName}> rows, AppDbContext db, CancellationToken ct)");
+            source.Line("if (rows.Count == 0) return;");
+            source.Line();
+            source.Line($"foreach (var row in rows) await {parent.TypeName}Rollups.ApplyAsync(row, db, ct);");
+            source.Line();
+            source.Line("// Before anything counts THEM. A total over these rows is a query, and a query reads");
+            source.Line("// the database rather than what is sitting unsaved in the change tracker.");
+            source.Line("await db.SaveChangesAsync(ct);");
+
+            if (Series(app, parent) is not null
+                && parent.Field(AppModel.Str(parent.Json["series"]?["partition"])) is { } part)
+            {
+                source.Line();
+                source.Line("// Then the figures that carry down the series. After the rollups, because they read");
+                source.Line("// them; over the whole partition, because an edit part-way moves every row below it.");
+                source.Open($"foreach (var partition in rows.Select(x => x.{part.PropertyName}).Distinct())");
+                source.Line($"await {parent.TypeName}Series.ApplyAsync(partition, db, ct);");
+                source.Close();
+                source.Line("await db.SaveChangesAsync(ct);");
+            }
+
+            if (RollupGraph.Parents(app, parent).Count > 0)
+            {
+                source.Line();
+                source.Line($"foreach (var row in rows) await After{parent.TypeName}Async(row, db, ct);");
+            }
+
+            source.Close();
+        }
+
+        source.Close();
+        return new GeneratedFile("api/Computed/AppRollups.cs", source.ToString());
+    }
+
+    /// <summary>The hook that calls it: after the write, because a total counts what is there.</summary>
+    public static GeneratedFile? RollupHook(AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        var counted = RollupGraph.Parents(app, entity).Count > 0;
+        var counts = RollupEmitter.Rollups(app, entity).Count > 0;
+        if (!counted && !counts) return null;
+
+        // A record's OWN totals are worked out here too, and that is easy to miss: the before-write
+        // hook cannot do it, because a sum over children of a record that does not exist yet is a
+        // query with no id to match on. So the entity that COUNTS gets the same after-write
+        // treatment as the entities it counts.
+        //
+        // `Recompute` already walks upward when it finishes, so an entity that both counts and is
+        // counted needs only the one call.
+        var onWrite = counts
+            ? $"AppRollups.Recompute{entity.TypeName}Async([record], (AppDbContext)context.Db, ct)"
+            : $"AppRollups.After{entity.TypeName}Async(record, (AppDbContext)context.Db, ct)";
+
+        // On DELETE the record is gone, so there is nothing of its own left to total — only the
+        // records that were counting it.
+        var onDelete = counted
+            ? $"AppRollups.After{entity.TypeName}Async(record, (AppDbContext)context.Db, ct)"
+            : "Task.CompletedTask";
+
+        var source = new Source();
+        source.Line("using Cordango.Standalone.Hooks;");
+        source.Line($"using {app.Namespace}.Computed;");
+        source.Line($"using {app.Namespace}.Data;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Hooks;");
+        source.Line();
+        source.Line($"/// <summary>Keeps the totals that count {Xml(entity.LabelPlural)} right.</summary>");
+        source.Open($"public sealed class {entity.TypeName}RollupCascade "
+            + $": IAfterCreate<{entity.TypeName}>, IAfterUpdate<{entity.TypeName}>, IAfterDelete<{entity.TypeName}>");
+
+        // Expression-bodied, so `Line` and an indent rather than `Open` — `Open` writes a brace, and
+        // a brace after `=>` is not a method body.
+        source.Line($"public Task AfterCreateAsync({entity.TypeName} record, RecordContext context, "
+            + "CancellationToken ct) =>");
+        source.Indent().Line($"{onWrite};").Outdent();
+        source.Line();
+
+        source.Line($"public Task AfterUpdateAsync({entity.TypeName} record, {entity.TypeName} before, "
+            + "RecordContext context, CancellationToken ct) =>");
+        source.Indent().Line($"{onWrite};").Outdent();
+        source.Line();
+
+        source.Line("// A deleted row still had a parent, and its total has to stop counting it.");
+        source.Line($"public Task AfterDeleteAsync({entity.TypeName} record, RecordContext context, "
+            + "CancellationToken ct) =>");
+        source.Indent().Line($"{onDelete};").Outdent();
+
+        source.Close();
+        return new GeneratedFile($"api/Hooks/{entity.TypeName}RollupCascade.cs", source.ToString());
+    }
+
+
+    /// <summary>
+    /// The figures that carry from one row to the next, worked out by walking the partition in order.
+    ///
+    /// <para>A running cash balance is <c>prev(cash_end, scenario.starting_cash) +
+    /// net_cash_movement</c>: the recurrence a spreadsheet writes as <c>=B26+C24-C25</c>, and the one
+    /// thing on this target that cannot be a query. Each row needs the row before it, so the whole
+    /// partition is loaded in order and folded once.</para>
+    ///
+    /// <para><b>The whole partition, not the rows that changed.</b> Editing month three moves every
+    /// month after it — a balance that stopped being recomputed at the edit would be right at the top
+    /// and wrong for the rest of the year.</para>
+    /// </summary>
+    public static GeneratedFile? Series(AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        if (entity.Json["series"] is not JsonObject series) return null;
+        if (entity.Field(AppModel.Str(series["partition"])) is not { } partition) return null;
+        if (entity.Field(AppModel.Str(series["order"])) is not { } order) return null;
+
+        var carried = entity.AuthoredFields
+            .Where(ComputedEmitter.ReadsPrevious)
+            .Select(f => (Field: f, Code: ComputedEmitter.Expression(app, entity, f, inSeries: true)))
+            .Where(p => p.Code is not null)
+            .ToList();
+
+        if (carried.Count == 0) return null;
+
+        var references = ComputedEmitter.References(app, entity);
+
+        var source = new Source();
+        source.Line("using Microsoft.EntityFrameworkCore;");
+        source.Line($"using {app.Namespace}.Data;");
+        source.Line($"using {app.Namespace}.Entities;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Computed;");
+        source.Line();
+        source.Line("/// <summary>");
+        source.Lines(Doc.Summary($"The {entity.Label} figures that carry from one row to the next.", null));
+        source.Line("///");
+        source.Line($"/// <para>Ordered by {Xml(order.Label)} within one {Xml(partition.Label)}, and folded in that");
+        source.Line("/// order — each row reads the one before it. Read it as a loop, because that is what it is.</para>");
+        source.Line("/// </summary>");
+        source.Open($"public static class {entity.TypeName}Series");
+
+        source.Line("/// <summary>Recomputes one whole partition. Does NOT save.</summary>");
+        source.Open($"public static async Task ApplyAsync(string? partition, AppDbContext db, "
+            + "CancellationToken ct)");
+        source.Line("ArgumentNullException.ThrowIfNull(db);");
+        source.Line("if (partition is null) return;");
+        source.Line();
+        source.Line($"var rows = await db.Set<{entity.TypeName}>()");
+        source.Indent();
+        source.Line($".Where(x => x.{partition.PropertyName} == partition)");
+        source.Line($".OrderBy(x => x.{order.PropertyName})");
+        source.Line(".ToListAsync(ct);");
+        source.Outdent();
+        source.Line();
+        source.Line($"{entity.TypeName}? previous = null;");
+        source.Open("foreach (var r in rows)");
+
+        if (references.Count > 0)
+            source.Line($"var refs = await {entity.TypeName}Computed.LoadAsync(r, db, ct);");
+
+        foreach (var (field, code) in carried)
+        {
+            source.Line($"// {Xml(field.Label)}");
+            source.Line($"r.{field.PropertyName} = {Cast(field)}({code});");
+        }
+
+        source.Line();
+        source.Line("previous = r;");
+        source.Close();
+        source.Close();
+        source.Close();
+
+        return new GeneratedFile($"api/Computed/{entity.TypeName}Series.cs", source.ToString());
     }
 
     /// <summary>What a computed method returns. Numbers are worked out as <c>decimal?</c> whatever
@@ -409,7 +783,7 @@ public static class BackendEmitter
     /// <para>A cycle drops out rather than looping — the gate refuses one at author time, and a
     /// generator that hung on a definition would be a worse way to find out.</para>
     /// </summary>
-    private static IEnumerable<(FieldModel Field, string Expression)> Ordered(EntityModel entity)
+    private static IEnumerable<(FieldModel Field, string Expression)> Ordered(AppModel app, EntityModel entity)
     {
         var computed = entity.AuthoredFields
             .Where(f => f.Computed?["expr"] is not null)
@@ -422,7 +796,7 @@ public static class BackendEmitter
         foreach (var key in computed.Keys.OrderBy(k => k, StringComparer.Ordinal)) Visit(key);
 
         foreach (var field in order)
-            if (ComputedEmitter.Expression(entity, field) is { } expression)
+            if (ComputedEmitter.Expression(app, entity, field) is { } expression)
                 yield return (field, expression);
 
         void Visit(string key)
@@ -466,6 +840,11 @@ public static class BackendEmitter
 
         if (Computed(app, entity) is null) return null;
 
+        // With a reference to read across, the hook has to fetch it before the arithmetic can run —
+        // which is what makes these two methods async rather than a completed task.
+        var references = ComputedEmitter.References(app, entity);
+        var loads = references.Count > 0;
+
         var source = new Source();
         source.Line("using Cordango.Standalone.Hooks;");
         source.Line($"using {app.Namespace}.Computed;");
@@ -477,17 +856,35 @@ public static class BackendEmitter
         source.Open($"public sealed class {entity.TypeName}ComputedFields "
             + $": IBeforeCreate<{entity.TypeName}>, IBeforeUpdate<{entity.TypeName}>");
 
-        source.Open($"public Task BeforeCreateAsync({entity.TypeName} record, RecordContext context, CancellationToken ct)");
-        source.Line($"{entity.TypeName}Computed.Apply(record);");
-        source.Line("return Task.CompletedTask;");
-        source.Close();
-        source.Line();
+        if (loads)
+        {
+            source.Open($"public async Task BeforeCreateAsync({entity.TypeName} record, RecordContext context, "
+                + "CancellationToken ct)");
+            source.Line($"{entity.TypeName}Computed.Apply(record, "
+                + $"await {entity.TypeName}Computed.LoadAsync(record, context.Db, ct));");
+            source.Close();
+            source.Line();
 
-        source.Open($"public Task BeforeUpdateAsync({entity.TypeName} record, {entity.TypeName} before, "
-            + "RecordContext context, CancellationToken ct)");
-        source.Line($"{entity.TypeName}Computed.Apply(record);");
-        source.Line("return Task.CompletedTask;");
-        source.Close();
+            source.Open($"public async Task BeforeUpdateAsync({entity.TypeName} record, {entity.TypeName} before, "
+                + "RecordContext context, CancellationToken ct)");
+            source.Line($"{entity.TypeName}Computed.Apply(record, "
+                + $"await {entity.TypeName}Computed.LoadAsync(record, context.Db, ct));");
+            source.Close();
+        }
+        else
+        {
+            source.Open($"public Task BeforeCreateAsync({entity.TypeName} record, RecordContext context, CancellationToken ct)");
+            source.Line($"{entity.TypeName}Computed.Apply(record);");
+            source.Line("return Task.CompletedTask;");
+            source.Close();
+            source.Line();
+
+            source.Open($"public Task BeforeUpdateAsync({entity.TypeName} record, {entity.TypeName} before, "
+                + "RecordContext context, CancellationToken ct)");
+            source.Line($"{entity.TypeName}Computed.Apply(record);");
+            source.Line("return Task.CompletedTask;");
+            source.Close();
+        }
 
         source.Close();
 

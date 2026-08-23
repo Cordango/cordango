@@ -7,6 +7,7 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.Definition;
+using Cordango.SourceGen;
 using Cordango.SourceGen.DotNetVue.Emit;
 using Cordango.SourceGen.DotNetVue.Model;
 
@@ -28,14 +29,14 @@ public class ComputedFixtureTests
     public void The_generator_writes_or_refuses_every_shape_the_fixtures_use(string fileName)
     {
         var fixture = Load(fileName);
-        var entity = Entity(fixture["fields"]!.AsObject());
+        var (app, entity) = Application(fixture["fields"]!.AsObject());
 
         foreach (var scenario in fixture["cases"]!.AsArray().OfType<JsonObject>())
         {
             var expr = scenario["expr"]!.GetValue<string>();
             var refuses = scenario["generatorRefuses"]?.GetValue<bool>() ?? false;
 
-            var written = ComputedEmitter.Expression(entity, Computed(expr));
+            var written = ComputedEmitter.Expression(app, entity, Computed(expr));
 
             if (refuses)
                 Assert.True(written is null,
@@ -59,7 +60,15 @@ public class ComputedFixtureTests
             + "and a total that differs between them is the worst failure this project has.");
     }
 
-    private static EntityModel Entity(JsonObject fields)
+    /// <summary>
+    /// The fixture's fields as a one-entity application.
+    ///
+    /// <para>The emitter takes the whole application now, not just the entity, because an identifier
+    /// may read ACROSS a reference and resolving it needs the entity on the other side. Nothing in
+    /// these fixtures hops — but handing it a real model rather than a stub is what keeps that true
+    /// by construction rather than by nobody having tried.</para>
+    /// </summary>
+    private static (AppModel App, EntityModel Entity) Application(JsonObject fields)
     {
         var declared = new JsonArray();
         foreach (var (key, spec) in fields)
@@ -75,9 +84,19 @@ public class ComputedFixtureTests
 
         declared.Add(new JsonObject { ["key"] = ResultKey, ["label"] = "Result", ["type"] = "decimal" });
 
-        return new EntityModel(
-            new JsonObject { ["key"] = "row", ["label"] = "Row", ["fields"] = declared },
-            "Fixture");
+        var entity = new JsonObject { ["key"] = "row", ["label"] = "Row", ["fields"] = declared };
+
+        var manifest = new JsonObject
+        {
+            ["key"] = "fixture",
+            ["name"] = "Fixture",
+            ["entities"] = new JsonArray(entity.DeepClone()),
+        };
+
+        var app = AppModel.From(new CompiledAppArtifact(
+            manifest, manifest, "unhashed", new CompilerInfo("test", "1")));
+
+        return (app, new EntityModel(entity, "Fixture"));
     }
 
     private static FieldModel Computed(string expr) => new(new JsonObject

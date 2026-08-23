@@ -27,7 +27,9 @@ public class CommandGuardTests
     [Fact]
     public void A_command_with_no_guard_carries_none()
     {
-        Assert.Contains("When: null)", Generated("expenses", "api/Commands/AppCommands.cs"), StringComparison.Ordinal);
+        // `When: null,` rather than `When: null)` — the guard stopped being the last argument when
+        // commands gained effects, and the trailing bracket was never the thing under test.
+        Assert.Contains("When: null,", Generated("expenses", "api/Commands/AppCommands.cs"), StringComparison.Ordinal);
     }
 
     [Theory]

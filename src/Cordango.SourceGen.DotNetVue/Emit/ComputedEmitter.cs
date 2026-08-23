@@ -43,16 +43,79 @@ public static class ComputedEmitter
     /// <para>Null is never "emit nothing and carry on". The caller reports it, because a computed
     /// column that silently stays empty looks exactly like one whose inputs are empty.</para>
     /// </summary>
-    public static string? Expression(EntityModel entity, FieldModel field)
+    public static string? Expression(AppModel app, EntityModel entity, FieldModel field, bool inSeries = false)
     {
+        ArgumentNullException.ThrowIfNull(app);
         ArgumentNullException.ThrowIfNull(entity);
         ArgumentNullException.ThrowIfNull(field);
 
         var expr = AppModel.Str(field.Computed?["expr"]);
         if (expr is null) return null;
 
-        var node = ComputedExpr.Parse(expr, key => Kind(entity, key));
-        return node is null ? null : Render(entity, node);
+        var scope = new Scope(app, entity, inSeries);
+        var node = ComputedExpr.Parse(expr, key => Kind(scope, key));
+        return node is null ? null : Render(scope, node);
+    }
+
+    /// <summary>Whether this field needs the series pass — i.e. whether it reads the row before
+    /// it.</summary>
+    public static bool ReadsPrevious(FieldModel field)
+    {
+        ArgumentNullException.ThrowIfNull(field);
+        return AppModel.Str(field.Computed?["expr"])?.Contains("prev(", StringComparison.Ordinal) == true;
+    }
+
+    /// <summary>
+    /// Every reference this entity's computed fields read ACROSS, and what it points at.
+    ///
+    /// <para>A step's charge is <c>segment.mature_active_users * point.user_adoption</c>: two hops
+    /// into two other records. The generated method cannot go and fetch them — it is a pure function
+    /// of what it is handed — so the hook loads them first and passes them in, and this is the list
+    /// it loads. Ordered, so the emitted class does not move between builds.</para>
+    /// </summary>
+    public static IReadOnlyList<(FieldModel Reference, EntityModel Target)> References(
+        AppModel app, EntityModel entity)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        ArgumentNullException.ThrowIfNull(entity);
+
+        var scope = new Scope(app, entity);
+        var found = new Dictionary<string, (FieldModel, EntityModel)>(StringComparer.Ordinal);
+
+        foreach (var field in entity.AuthoredFields.Where(f => f.Computed?["expr"] is not null))
+            foreach (var identifier in ComputedExpr.Identifiers(AppModel.Str(field.Computed?["expr"])))
+                if (Hop(scope, identifier) is { } hop)
+                    found[hop.Reference.Key] = (hop.Reference, hop.Target);
+
+        return [.. found.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => p.Value)];
+    }
+
+    /// <summary>The entity an expression is written against, and the application it sits in — the
+    /// second is only needed to follow a reference, and only a hop does that.</summary>
+    /// <param name="InSeries">Rendering into the pass that walks an ordered partition, where a
+    /// variable called <c>previous</c> holds the row before this one. Only there can
+    /// <c>prev()</c> mean anything — everywhere else it has nothing to point at.</param>
+    private sealed record Scope(AppModel App, EntityModel Entity, bool InSeries = false);
+
+    /// <summary>
+    /// An identifier that reads ACROSS a reference: <c>segment.mature_active_users</c>.
+    ///
+    /// <para>Null for an ordinary field, for a reference that does not name a target this
+    /// application has, and for a target field that does not exist — each of which is a thing the
+    /// caller must report rather than emit something plausible for.</para>
+    /// </summary>
+    private static (FieldModel Reference, EntityModel Target, FieldModel Field)? Hop(Scope scope, string identifier)
+    {
+        if (ComputedExpr.Hop(identifier) is not { } parts) return null;
+        if (scope.Entity.Field(parts.Reference) is not { IsReference: true } reference) return null;
+
+        // A reference into ANOTHER application resolves to nothing here — there is no second
+        // application in a standalone build for it to point at.
+        if (reference.TargetApp is not null) return null;
+        if (scope.App.Entity(reference.TargetEntity) is not { } target) return null;
+        if (target.Field(parts.Field) is not { } field) return null;
+
+        return (reference, target, field);
     }
 
     /// <summary>
@@ -63,15 +126,15 @@ public static class ComputedEmitter
     /// here that is not on the entity is a hop into another record, and those are numbers until
     /// hops are generated.</para>
     /// </summary>
-    private static ComputedValueKind Kind(EntityModel entity, string key) =>
-        entity.Field(key)?.Type switch
+    private static ComputedValueKind Kind(Scope scope, string key) =>
+        (scope.Entity.Field(key)?.Type ?? Hop(scope, key)?.Field.Type) switch
         {
             "boolean" => ComputedValueKind.Boolean,
             "date" or "datetime" => ComputedValueKind.Date,
             _ => ComputedValueKind.Number,
         };
 
-    private static string? Render(EntityModel entity, ComputedExpr.Node node) => node switch
+    private static string? Render(Scope scope, ComputedExpr.Node node) => node switch
     {
         // `1` rather than `1M`: the suffix is only needed where the literal stands alone, and every
         // literal here is in arithmetic with a decimal. Written invariantly, so a machine with a
@@ -80,12 +143,12 @@ public static class ComputedEmitter
 
         ComputedExpr.BooleanNode b => b.Value ? "true" : "false",
 
-        ComputedExpr.FieldNode f => Field(entity, f),
+        ComputedExpr.FieldNode f => Field(scope, f),
 
-        ComputedExpr.UnaryNode { Op: "-" } u => Render(entity, u.Operand) is { } operand ? $"-{operand}" : null,
-        ComputedExpr.UnaryNode u => Render(entity, u.Operand) is { } operand ? $"!{operand}" : null,
+        ComputedExpr.UnaryNode { Op: "-" } u => Render(scope, u.Operand) is { } operand ? $"-{operand}" : null,
+        ComputedExpr.UnaryNode u => Render(scope, u.Operand) is { } operand ? $"!{operand}" : null,
 
-        ComputedExpr.BinaryNode b => Binary(entity, b),
+        ComputedExpr.BinaryNode b => Binary(scope, b),
 
         // Helpers rather than inline expressions, because each carries a rule that would have to be
         // repeated — and would eventually be repeated WRONG — at every use.
@@ -95,25 +158,43 @@ public static class ComputedEmitter
         // not — an application that did not compile, from an expression the definition was entitled
         // to write. Half an expression is never worth emitting: the caller reports it and the column
         // stays empty, which is a gap somebody can see.
-        ComputedExpr.FunctionNode f => Pair(entity, f.Left, f.Right) is (
+        ComputedExpr.FunctionNode f => Pair(scope, f.Left, f.Right) is (
                 { } functionLeft, { } functionRight)
             ? $"Calc.{f.Name switch { "pow" => "Power", "min" => "Min", _ => "Max" }}({functionLeft}, {functionRight})"
             : null,
 
-        ComputedExpr.DurationNode d => Read(entity, d.From) is { } from && Read(entity, d.To) is { } to
+        ComputedExpr.DurationNode d => Read(scope, d.From) is { } from && Read(scope, d.To) is { } to
             ? $"Calc.{d.Name switch { "minutes_between" => "Minutes", "hours_between" => "Hours", _ => "Days" }}({from}, {to})"
             : null,
 
-        // prev() reads the row before this one in an ordered series, which needs the series. Not
-        // written yet, and reported rather than guessed at.
+        // The row before this one. Only expressible inside the pass that walks the partition in
+        // order — outside it there is no "before", and rendering something that compiled would be
+        // an answer to a question nobody asked.
+        //
+        // The seed is what the FIRST row reads instead: an opening cash balance, or zero. Without
+        // it row one silently starts from nothing and every row after it is wrong by that amount.
+        ComputedExpr.PrevNode p when scope.InSeries =>
+            Previous(scope, p) is { } previous ? previous : null,
+
         ComputedExpr.PrevNode => null,
 
         _ => null,
     };
 
-    private static string? Binary(EntityModel entity, ComputedExpr.BinaryNode node)
+    /// <summary>The previous row's value, or the seed on the first row.</summary>
+    private static string? Previous(Scope scope, ComputedExpr.PrevNode node)
     {
-        var (left, right) = Pair(entity, node.Left, node.Right);
+        if (scope.Entity.Field(node.Field) is not { } field) return null;
+
+        var seed = node.Seed is null ? "0m" : Render(scope, node.Seed);
+        if (seed is null) return null;
+
+        return $"((decimal?)previous?.{field.PropertyName} ?? {seed})";
+    }
+
+    private static string? Binary(Scope scope, ComputedExpr.BinaryNode node)
+    {
+        var (left, right) = Pair(scope, node.Left, node.Right);
         if (left is null || right is null) return null;
 
         return node.Op switch
@@ -168,9 +249,21 @@ public static class ComputedEmitter
     /// there so the arithmetic is the definition's arithmetic, and it is only emitted where it
     /// changes something.</para>
     /// </summary>
-    private static string? Field(EntityModel entity, ComputedExpr.FieldNode node)
+    private static string? Field(Scope scope, ComputedExpr.FieldNode node)
     {
-        if (entity.Field(node.Key) is not { } field || Read(entity, node.Key) is not { } read) return null;
+        if (Read(scope, node.Key) is not { } read) return null;
+
+        // A HOP is nullable however the target field is declared: the reference itself may be empty,
+        // and `refs.Segment?.Heads` is null for a step nobody has pointed at a segment yet. The cast
+        // is what makes one form serve every target type — `long?` does not take `?? 0m` on its own,
+        // and a step's charge must not depend on whether somebody typed the column as an integer.
+        if (scope.Entity.Field(node.Key) is not { } field)
+            return node.FieldKind switch
+            {
+                ComputedValueKind.Number => $"((decimal?){read} ?? 0m)",
+                ComputedValueKind.Boolean => $"({read} ?? false)",
+                _ => read,
+            };
 
         return (node.FieldKind, field.Required) switch
         {
@@ -184,24 +277,31 @@ public static class ComputedEmitter
         };
     }
 
-    private static (string? Left, string? Right) Pair(EntityModel entity, ComputedExpr.Node left, ComputedExpr.Node right) =>
-        (Render(entity, left), Render(entity, right));
+    private static (string? Left, string? Right) Pair(Scope scope, ComputedExpr.Node left, ComputedExpr.Node right) =>
+        (Render(scope, left), Render(scope, right));
 
     /// <summary>
-    /// Reading one field off the record.
+    /// Reading one field, off this record or off one it points at.
     ///
-    /// <para>Null when the entity does not have it — a hop into another record, which is a later
-    /// slice. Reported by the caller rather than emitted as something that compiles and is
-    /// wrong.</para>
+    /// <para>Null when neither resolves — a reference into another application, or a target field
+    /// that is not there. Reported by the caller rather than emitted as something that compiles and
+    /// is wrong.</para>
     /// </summary>
-    private static string? Read(EntityModel entity, string key) =>
-        entity.Field(key) is { } field ? "r." + field.PropertyName : null;
+    private static string? Read(Scope scope, string key)
+    {
+        if (scope.Entity.Field(key) is { } own) return "r." + own.PropertyName;
+
+        // `refs`, not a lookup: the method stays a pure function of what it is handed, so a wrong
+        // total is a breakpoint away rather than a database call somewhere inside an expression.
+        return Hop(scope, key) is { } hop
+            ? $"refs.{Naming.Pascal(hop.Reference.Key)}?.{hop.Field.PropertyName}"
+            : null;
+    }
 
     /// <summary>Invariant, and always with a decimal point, so the emitted arithmetic is decimal
     /// arithmetic rather than integer division dressed up as it.</summary>
     private static string Literal(decimal value)
     {
-        var text = value.ToString(CultureInfo.InvariantCulture);
-        return text.Contains('.', StringComparison.Ordinal) ? text + "m" : text + "m";
+        return value.ToString(CultureInfo.InvariantCulture) + "m";
     }
 }

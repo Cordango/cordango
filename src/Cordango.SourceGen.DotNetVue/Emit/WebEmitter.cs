@@ -464,12 +464,98 @@ public static class WebEmitter
                 source.Line($"<RecordProcess entity=\"{context.Entity}\" :record=\"record\" />");
                 break;
 
+            case "create":
+                context.Imports.Add("CreateButton");
+                Self(source, "CreateButton", Attributes(
+                    ("entity", AppModel.Str(block["entity"]) ?? context.Entity),
+                    ("label", AppModel.Str(block["label"])),
+                    ("icon", AppModel.Str(block["icon"])),
+                    ("style", AppModel.Str(block["style"]))), "");
+                break;
+
+            case "chip":
+                context.Imports.Add("BlockChip");
+                source.Line(
+                    $"<BlockChip entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" "
+                    + $"field=\"{AppModel.Str(block["field"])}\" :record=\"record\" />");
+                break;
+
+            case "action":
+                context.Imports.Add("ActionButton");
+                source.Line(
+                    $"<ActionButton entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" "
+                    + $"command=\"{AppModel.Str(block["command"])}\" :record=\"record\" />");
+                break;
+
+            case "tiles":
+                context.Imports.Add("TilesBlock");
+                source.Line(
+                    $"<TilesBlock entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" "
+                    + $":record=\"record\" :tiles=\"{JsArray(block["tiles"])}\" />");
+                break;
+
+            // A settings entity holds ONE row rather than a list, so the block is the row itself.
+            // It loads and saves on its own — there is nothing to pick between and no table to open.
+            case "settings":
+                context.Imports.Add("SettingsBlock");
+                source.Line($"<SettingsBlock entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" />");
+                break;
+
+            case "repeat":
+                Repeat(source, block, context, unsupported);
+                break;
+
             default:
                 context.Imports.Add("UnsupportedBlock");
                 source.Line($"<UnsupportedBlock kind=\"{kind}\" />");
                 unsupported.Add(Unrenderable(kind, context));
                 break;
         }
+    }
+
+    /// <summary>
+    /// The same layout, once per record.
+    ///
+    /// <para>The children are emitted inside a scoped slot, so <c>record</c> inside a repeat is the
+    /// REPEATED record rather than whatever the page was already showing. That is what makes the
+    /// children ordinary blocks: a <c>field</c> in here and a <c>field</c> on a detail page are the
+    /// same block reading the same name, and neither has to know which it is.</para>
+    ///
+    /// <para>Which means the children are emitted with a record context even on a page that has
+    /// none — the one place on this target where those two things come apart.</para>
+    /// </summary>
+    private static void Repeat(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        context.Imports.Add("RepeatBlock");
+
+        var entity = AppModel.Str(block["source"]?["entity"]) ?? context.Entity;
+
+        source.Line("<RepeatBlock");
+        source.Indent();
+        if (entity is not null) source.Line($"entity=\"{entity}\"");
+        source.Line($":source=\"{Js(block["source"] ?? new JsonObject())}\"");
+        if (AppModel.Str(block["emptyText"]) is { } empty) source.Line($"empty-text={Quote(empty)}");
+        if (AppModel.Str(block["gap"]) is { } gap) source.Line($"gap=\"{gap}\"");
+        source.Line("v-slot=\"{ record }\"");
+        source.Outdent();
+        source.Line(">");
+        source.Indent();
+
+        // Inside the slot there IS a record, whatever was true outside it. Imports are shared with
+        // the outer context rather than copied, so a component only the repeated children use is
+        // still imported at the top of the page.
+        var inner = context with { Entity = entity, Record = true };
+
+        foreach (var child in AppModel.Arr(block["blocks"]).OfType<JsonObject>())
+            Block(source, child, inner, unsupported);
+
+        source.Outdent();
+        source.Line("</RepeatBlock>");
+
+        // `with` copies the mutable flag by value, so a conditional child inside the repeat would
+        // otherwise not import the evaluator the page needs.
+        if (inner.Conditional) context.Conditional = true;
     }
 
     private static void Container(

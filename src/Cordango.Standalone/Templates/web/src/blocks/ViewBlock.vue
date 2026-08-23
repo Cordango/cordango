@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { viewOf, entityOf, loadView, commandsOf } from '../records.js'
+import { viewOf, entityOf, loadView, commandsOf, onRecordsChanged, recordsChanged } from '../records.js'
 import { session } from '../session.js'
 import FieldValue from './FieldValue.vue'
 import RecordDialog from './RecordDialog.vue'
@@ -51,7 +51,14 @@ async function load() {
   }
 }
 
-onMounted(load)
+// A create button three blocks away has no way to tell this list it added a row, so the two ends
+// meet on one window event instead of threading a callback through every container between them.
+let stop
+onMounted(() => {
+  load()
+  stop = onRecordsChanged(definition.value?.entity, load)
+})
+onUnmounted(() => stop?.())
 watch(() => props.extraFilters, load, { deep: true })
 
 const open = (row) => router.push(`/record/${definition.value.entity}/${encodeURIComponent(row.id)}`)
@@ -105,7 +112,7 @@ const open = (row) => router.push(`/record/${definition.value.entity}/${encodeUR
       :entity="definition.entity"
       :record="editing"
       @close="editing = null"
-      @saved="editing = null; load()"
+      @saved="editing = null; load(); recordsChanged(definition.entity)"
     />
   </v-card>
 </template>

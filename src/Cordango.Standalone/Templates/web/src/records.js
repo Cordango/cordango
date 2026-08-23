@@ -203,3 +203,22 @@ export const optionColor = (field, value) =>
 /** The label a select option carries. */
 export const optionLabel = (field, value) =>
   field?.options?.find((o) => o.value === value)?.label ?? String(value ?? '')
+
+/**
+ * A record of `entityKey` was created, changed or deleted somewhere on this page.
+ *
+ * Lists load themselves and have no way of knowing that a button three blocks away just added a
+ * row. Rather than thread a refresh callback through every container between them, the two ends
+ * meet on one window event: whoever writes says so, whoever is showing that entity reloads.
+ */
+export const recordsChanged = (entityKey) =>
+  window.dispatchEvent(new CustomEvent('cordango:records-changed', { detail: entityKey }))
+
+/** Listen for the above. Returns the unsubscribe, for onUnmounted. */
+export function onRecordsChanged(matches, handler) {
+  const listener = (event) => {
+    if (!matches || event.detail === matches) handler(event.detail)
+  }
+  window.addEventListener('cordango:records-changed', listener)
+  return () => window.removeEventListener('cordango:records-changed', listener)
+}

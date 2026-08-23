@@ -98,10 +98,24 @@ public static class Scaffold
     /// survives into the output rather than keeping its own list that drifts.</summary>
     public static readonly IReadOnlyList<string> Tokens =
     [
-        "{{AppName}}", "{{AppKey}}", "{{AppNamespace}}",
+        "{{AppName}}", "{{AppKey}}", "{{AppSlug}}", "{{AppNamespace}}",
         "{{PartialBuildSection}}", "{{RuntimeVersion}}", "{{RuntimeReference}}",
         "{{RuntimeProjectCopy}}", "{{RuntimeSourceCopy}}",
     ];
+
+    /// <summary>
+    /// The application's key as Docker will accept it: lower case, hyphens rather than underscores.
+    ///
+    /// <para>It names the COMPOSE PROJECT, and that is not cosmetic. Compose takes the project name
+    /// from the directory it is run in unless the file says otherwise — and every application this
+    /// generator produces is built into a directory somebody called <c>generated</c>. So two
+    /// applications on one machine were both the project <c>generated</c>: the same container names,
+    /// the same network, and — the one that loses data — the same <c>generated_db</c> volume. The
+    /// second `docker compose up` did not start a second application. It adopted the first one's
+    /// database.</para>
+    /// </summary>
+    private static string Slug(string appKey) =>
+        appKey.Replace('_', '-').ToLowerInvariant();
 
     private const string PackageReference =
         """
@@ -133,6 +147,7 @@ public static class Scaffold
 
             ("{{AppNamespace}}", options.AppNamespace),
             ("{{AppName}}", options.AppName),
+            ("{{AppSlug}}", Slug(options.AppKey)),
             ("{{AppKey}}", options.AppKey),
             ("{{PartialBuildSection}}", options.PartialBuildSection),
             ("{{RuntimeVersion}}", RuntimeVersion),

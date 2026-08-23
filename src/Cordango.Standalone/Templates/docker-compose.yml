@@ -4,9 +4,23 @@
 # because a Postgres major upgrade is a decision to make deliberately on a Tuesday morning and not
 # one to discover after a `docker compose pull`.
 
+# THE PROJECT NAME, and it is load-bearing rather than decorative.
+#
+# Compose names the project after the directory it is run in unless the file says otherwise — and
+# every application this generator produces is built into a directory somebody called `generated`.
+# So two applications on one machine were both the project `generated`: the same container names,
+# the same network, and the same `generated_db` VOLUME. The second `docker compose up` did not start
+# a second application; it attached to the first one's database.
+#
+# Naming it after the application makes them independent. Rename it if you run two copies of THIS
+# application side by side — a staging one and a scratch one — and give the second a different PORT.
+name: {{AppSlug}}
+
 services:
   db:
     image: postgres:17.5-alpine
+    # Named explicitly so `docker logs {{AppSlug}}-db` works without looking the container up first.
+    container_name: {{AppSlug}}-db
     environment:
       POSTGRES_DB: {{AppKey}}
       POSTGRES_USER: {{AppKey}}
@@ -25,6 +39,7 @@ services:
 
   app:
     build: .
+    container_name: {{AppSlug}}-app
     depends_on:
       # The application migrates its own schema at startup, so it needs a database that is ready to
       # answer rather than merely a container that has been created.

@@ -65,9 +65,21 @@ public sealed record CommandDefinition(
     IReadOnlyList<CommandSet>? Sets = null,
     string? SuccessMessage = null,
     IReadOnlyList<CommandNotification>? Notifications = null,
-    Conditions.Condition? When = null)
+    Conditions.Condition? When = null,
+    IReadOnlyList<Workflows.WorkflowEffect>? Effects = null)
 {
     public IReadOnlyList<CommandNotification> Notifications { get; init; } = Notifications ?? [];
+
+    /// <summary>
+    /// What else the command does, beyond moving the record and setting its own fields.
+    /// </summary>
+    /// <remarks>
+    /// The SAME effect type a workflow carries, run by the same runner. A command that creates a
+    /// record and a workflow that creates one are one behaviour written once — the alternative is
+    /// two implementations of token filling, of the depth guard, and of what happens when an effect
+    /// fails after the write has already landed.
+    /// </remarks>
+    public IReadOnlyList<Workflows.WorkflowEffect> Effects { get; init; } = Effects ?? [];
 
     public IReadOnlyList<string> FromStates { get; init; } = FromStates ?? [];
     public IReadOnlyList<string> InputFields { get; init; } = InputFields ?? [];
@@ -118,19 +130,22 @@ public sealed class CommandService<T> where T : class, IRecord, new()
     private readonly ICurrentUser _user;
     private readonly IClock _clock;
     private readonly Notifications.NotificationService _notifications;
+    private readonly Workflows.WorkflowRunner _effects;
 
     public CommandService(
         IRecordStore<T> store,
         AppCommandCatalogue catalogue,
         ICurrentUser user,
         IClock clock,
-        Notifications.NotificationService notifications)
+        Notifications.NotificationService notifications,
+        Workflows.WorkflowRunner effects)
     {
         _store = store;
         _catalogue = catalogue;
         _user = user;
         _clock = clock;
         _notifications = notifications;
+        _effects = effects;
     }
 
     private static readonly System.Text.RegularExpressions.Regex Placeholder =
@@ -219,6 +234,19 @@ public sealed class CommandService<T> where T : class, IRecord, new()
         // After the write, so a message can say what the record now is — and so that a failure to
         // notify cannot roll back a decision somebody already made.
         await NotifyAsync(command, updated, ct);
+
+        // The same, and for the same reason: an effect reads the record the command has already
+        // moved, and an effect that fails does not undo the move. `approve` creating an invoice is
+        // the invoice failing to appear, not the approval coming back.
+        if (command.Effects.Count > 0)
+        {
+            await _effects.RunEffectsAsync(
+                command.Effects,
+                $"Command '{command.Key}'",
+                _store.Descriptor.EntityKey,
+                JsonSerializer.SerializeToNode(updated, Json)!.AsObject(),
+                ct);
+        }
 
         return new CommandResult(
             RecordVisibility.Project(access, updated, Json),
