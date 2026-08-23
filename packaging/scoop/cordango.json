@@ -21,11 +21,11 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-x64.zip",
-            "hash": "REPLACE_WITH_THE_WIN_X64_SHA256"
+            "hash": "059b0a554b1a366b9ac3670480dab4add12ffc456ea280d8c2e38eb624a8de24"
         },
         "arm64": {
             "url": "https://github.com/cordango/cordango/releases/download/v0.4.0/cordango-0.4.0-win-arm64.zip",
-            "hash": "REPLACE_WITH_THE_WIN_ARM64_SHA256"
+            "hash": "6a8d5216026ff0e4458bb0dfedbd01ff2b33a8f9b0744d3bc3dbd3be2e61f67b"
         }
     },
 
