@@ -2,7 +2,6 @@
 
 [![CI](https://github.com/cordango/cordango/actions/workflows/ci.yml/badge.svg)](https://github.com/cordango/cordango/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Cordango.Cli?logo=nuget&label=Cordango.Cli)](https://www.nuget.org/packages/Cordango.Cli)
-[![Downloads](https://img.shields.io/nuget/dt/Cordango.Cli?logo=nuget&label=downloads)](https://www.nuget.org/packages/Cordango.Cli)
 [![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
@@ -16,7 +15,7 @@ application** that is yours. This repository is the language, the compiler and t
 generator.
 
 What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
-no phone home. It is an ordinary ASP.NET Core and Vue project that keeps working whether or not this
+no phone home. It is an ordinary project that keeps working whether or not this
 project does.
 
 > **Status: pre-alpha.** The standalone generator works end to end and nothing here is stable yet.
