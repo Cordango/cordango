@@ -13,7 +13,7 @@ public class RecordQueryTests
 {
     private sealed class Task : IRecord
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string Id { get; set; } = "";
         public string? Title { get; set; }
         public DateOnly? DueOn { get; set; }
         public bool Done { get; set; }
@@ -27,9 +27,12 @@ public class RecordQueryTests
         new RecordField<Task>("done", nameof(Task.Done), (from, to) => to.Done = from.Done),
     ]);
 
-    private static readonly Task Overdue = new() { Title = "overdue", DueOn = new DateOnly(2026, 1, 1) };
-    private static readonly Task Soon = new() { Title = "soon", DueOn = new DateOnly(2026, 6, 15) };
-    private static readonly Task Someday = new() { Title = "someday", DueOn = null };
+    // Fixed ids, in the order the assertions expect. `Apply` appends an id ordering when nothing
+    // else says otherwise, so random ids would make every assertion about ORDER a coin toss — which
+    // is exactly what happened: this passed locally and failed on the runner.
+    private static readonly Task Overdue = new() { Id = "1", Title = "overdue", DueOn = new DateOnly(2026, 1, 1) };
+    private static readonly Task Soon = new() { Id = "2", Title = "soon", DueOn = new DateOnly(2026, 6, 15) };
+    private static readonly Task Someday = new() { Id = "3", Title = "someday", DueOn = null };
 
     private static IReadOnlyList<string> Matching(params string[] terms) =>
     [
