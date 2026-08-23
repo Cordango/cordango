@@ -1,0 +1,75 @@
+name: Bug report
+description: Something does not work
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this.
+
+        **Security vulnerabilities do not go here.** See [SECURITY.md](https://github.com/cordango/cordango/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, and what happened instead of what you expected.
+      placeholder: I ran `cordango build --target standalone` and …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition
+    attributes:
+      label: The definition
+      description: |
+        For anything to do with the compiler or a generator, this is the most useful thing you can
+        give us — the definition that produced the problem, or the smallest one that still does.
+        Paste it, or link a repository.
+      render: yaml
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: The command you ran and everything it printed. Include the diagnostic code if there was one.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`cordango version`. If the problem is in a generated application, the `generator` field from its `cordango.build.json` instead."
+      placeholder: cordango 0.4.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Linux
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How you installed it
+      options:
+        - Homebrew
+        - Scoop
+        - install.sh
+        - dotnet tool install
+        - Built from source
+        - Other

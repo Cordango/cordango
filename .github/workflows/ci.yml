@@ -1,0 +1,70 @@
+# Every push and every pull request. The other two workflows only fire on a tag, which meant nothing
+# validated a change until somebody released it — fine while this was one person's repository, and
+# not fine the moment a stranger opens a pull request nobody can see the result of.
+#
+# The SDK tests are the slow half: they generate eight applications, compile each with the real .NET
+# SDK, and ask EF to certify its own model snapshot. They are also the half that catches the bugs
+# that matter, so they run here rather than being deferred to the release.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  # A second push to the same branch makes the first run's answer irrelevant. Cancelling it frees the
+  # runner rather than racing to report on code nobody has any more.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore Cordango.slnx
+
+      # Warnings-as-errors is set in Directory.Build.props, so this is where a warning stops being a
+      # thing somebody scrolls past.
+      - name: Build
+        run: dotnet build Cordango.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test Cordango.slnx --no-build -c Release --verbosity normal
+
+  # A generated application has to still be a valid, buildable repository on Windows and macOS too —
+  # paths, line endings and the SDK's own behaviour differ, and this generator writes files for a
+  # living. Ubuntu carries the full suite above; these two carry the part that is platform-shaped.
+  cross-platform:
+    name: Generate and compile (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test tests/Standalone.Tests/Cordango.Standalone.Tests.csproj -c Release

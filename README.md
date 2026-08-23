@@ -1,122 +1,87 @@
 # Cordango
 
+[![CI](https://github.com/cordango/cordango/actions/workflows/ci.yml/badge.svg)](https://github.com/cordango/cordango/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Cordango.Cli?logo=nuget&label=Cordango.Cli)](https://www.nuget.org/packages/Cordango.Cli)
+[![Downloads](https://img.shields.io/nuget/dt/Cordango.Cli?logo=nuget&label=downloads)](https://www.nuget.org/packages/Cordango.Cli)
+[![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+
 Cordango is an open application language and deterministic compiler for building complete business
-applications. Define what your application should do, generate conventional source code, own it, and
+applications. Describe what the application should do, generate conventional source code, own it, and
 deploy it anywhere.
 
-There is no runtime dependency on Cordango in what you generate. No license server, no account, no
-model API. The generated project is an ordinary ASP.NET Core and Vue application that keeps working
-whether or not this project does.
+The same definition either runs on **Cordango Platform** — the hosted product, currently in
+invite-only beta at [cordango.com](https://cordango.com) — or compiles to a **standalone
+application** that is yours. This repository is the language, the compiler and the standalone
+generator.
 
-> Status: pre-alpha. The standalone generator is under construction and nothing here is stable yet.
+What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
+no phone home. It is an ordinary ASP.NET Core and Vue project that keeps working whether or not this
+project does.
 
-## What is in this repository
+> **Status: pre-alpha.** The standalone generator works end to end and nothing here is stable yet.
 
-| Path | What it is |
-| --- | --- |
-| `src/Cordango.Compiler` | The App Definition contract: schema gate, semantic validation, normalizer, the Cord semantic model, the compiler that turns a definition into a runtime manifest, and the access-token format the CLI uses to talk to an instance. |
-| `src/Cordango.Cli` | The `cordango` command. |
-| `src/Cordango.SourceGen` | The generator SDK: capabilities, target validation, the file runner, the external generator protocol. |
-| `src/Cordango.SourceGen.DotNetVue` | The first-party generator. ASP.NET Core, EF Core, PostgreSQL, Vue 3, Vuetify. |
-| `src/Cordango.Standalone` | The runtime a generated application runs on — records, hooks, permissions, the built-in directory, the error wire — plus the scaffold it starts from. Emitted as source into what you generate, not referenced as a package. |
-| `schemas/` | The App Definition JSON Schema and its composed sources. |
-| `docs/` | Design notes, including what the standalone scaffold takes from prior art and why. |
-| `tests/corpus/` | Application definitions used as the conformance corpus. |
-| `tests/` | Compiler, CLI, generator, standalone, determinism and compatibility suites. |
+## Table of Contents
 
-## The two products
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+  - [Install](#install)
+  - [Generate an application](#generate-an-application)
+- [What you get](#what-you-get)
+- [Commands](#commands)
+- [Nothing is dropped silently](#nothing-is-dropped-silently)
+- [Determinism](#determinism)
+- [Examples](#examples)
+- [Packages](#packages)
+- [Building from source](#building-from-source)
+- [Contributing](#contributing)
+- [Security](#security)
+- [Getting help](#getting-help)
+- [License](#license)
 
-Cordango Open Source builds **one application**. It has its own backend, frontend, database, users,
-authentication, permissions, Organizations and People. It is not multi-tenant, it contains no AI at
-runtime, and it belongs to whoever generated it.
+## Requirements
 
-Cordango Platform connects, operates and governs **many applications** as one company system: shared
-people and organizations across apps, cross-app references, audit and record history, governance, AI,
-search, marketplace and managed hosting. That is a separate, commercial product.
+To **run** `cordango`: nothing. The binary is self-contained and carries its own runtime — no .NET
+SDK, no .NET runtime, no ICU.
 
-The same application definition works in both places. What differs is what each target supports, and
-every target says so out loud rather than silently dropping what it cannot do.
+To **build and run what it generates**: Docker, or the .NET 10 SDK and PostgreSQL.
 
-## How it fits together
+## Quick Start
 
-```
-Human or AI
-     |
-Cordango source
-     |
-  compiler
-     |
-App Definition          the canonical contract
-     |
-     +----------------------+
-     |                      |
-Cordango Platform     Standalone generator
-                            |
-                     complete source project
-                            |
-                      deploy anywhere
-```
-
-## Installing
+### Install
 
 **macOS and Linux**
 
-```
-curl -fsSL https://cordango.com/install.sh | sh
-```
-
-**macOS and Linux, with Homebrew**
-
-```
+```sh
 brew install cordango/tap/cordango
+```
+
+Or without Homebrew:
+
+```sh
+curl -fsSL https://cordango.com/install.sh | sh
 ```
 
 **Windows**
 
-```
+```powershell
 scoop bucket add cordango https://github.com/cordango/scoop-bucket
 scoop install cordango
 ```
 
-One self-contained binary, about 39 MB, carrying its own runtime. **It does not need .NET
-installed** — not the SDK, not the runtime, not ICU. Uninstalling is deleting the file.
+**If you already have the .NET SDK**
 
-**If you already have the .NET SDK**, there is a shorter way in:
-
-```
+```sh
 dotnet tool install -g Cordango.Cli
 ```
 
-Same command, same version, published from the same tag. It is a convenience rather than the main
-route: Cordango is an application language, and generating a Go or React target should not require a
-.NET SDK just to run the compiler.
+Same command, same version, published from the same tag. A convenience rather than the main route:
+Cordango is an application language, and generating a Go or React target should not require a .NET
+SDK to run the compiler.
 
-### The packages
+### Generate an application
 
-There are two, and both have somebody who actually references them.
-
-| Package | Who references it |
-| --- | --- |
-| `Cordango.Cli` | Nobody — it is the tool. Installed, not referenced. |
-| `Cordango.Standalone` | A GENERATED application. Records, hooks, permissions, queries, the directory, the wire. |
-
-Both are published from one git tag and share a version, because a generated application pins the
-runtime at the version of the generator that wrote its project file.
-
-The compiler, the generator SDK and the `dotnet-vue` generator are **not** published. A .NET tool
-package contains its whole publish output, so all three ship inside `Cordango.Cli` as files and it
-declares no dependencies — `cordango` installs with nothing else to restore.
-
-Writing a generator for another target does not need them either. The extension point is a process:
-it describes itself on stdout and takes a request on stdin, so a generator written in Go or Python
-is as welcome as one written in .NET. `Cordango.SourceGen` will be published when a second target
-exists and has something to say about the shape of that contract — freezing an interface on an
-immutable feed with one implementation to learn from is how you get an interface that fits one
-implementation and fights the next.
-
-## Generating an application
-
-```
+```sh
 cordango new expenses            # a workspace, with one application in it
 cd expenses
 cordango check                   # parse, lower and validate. No model, no database.
@@ -127,50 +92,135 @@ cd ../expenses-app
 docker compose up --build
 ```
 
-That last command is the whole deployment: no `.env` to write first, no migration step, no password
+That last command is the whole deployment — no `.env` to write first, no migration step, no password
 to look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
 account.
 
-What comes out is an ordinary repository — `api/` (ASP.NET Core, EF Core, migrations you can read),
-`web/` (Vue 3 and Vuetify, one component per screen), a Dockerfile and a compose file. Delete the
-toolchain afterwards and it still builds.
+## What you get
 
-**A build refuses rather than quietly shipping less than the definition asks for.** Anything this
-target cannot do is reported with a code and the path in the definition that caused it, and the build
-stops. `--allow-incomplete` says you know: the application is generated, the gaps are listed in the
-generated README, and `cordango.build.json` carries them permanently so a partial build can never
-pass for a complete one later.
+An ordinary repository you own:
+
+```
+api/        ASP.NET Core, MVC controllers, EF Core, migrations you can read
+web/        Vue 3 and Vuetify, one component per screen
+runtime/    the Cordango runtime as source, or a package reference — your choice
+Dockerfile
+docker-compose.yml
+```
+
+Entities and their EF configuration, a REST API, roles and per-field permissions enforced on the
+server, commands with their guards and effects, workflows, computed fields and rollups, sign-in,
+a first-run setup screen, and a demo dataset.
+
+Delete the toolchain afterwards and it still builds.
+
+## Commands
+
+| Command | What it does |
+| --- | --- |
+| `cordango new <app>` | Create a workspace and its first application |
+| `cordango add app <name>` | Add another application to the workspace |
+| `cordango import <definition.json>` | Bring an existing App Definition in as editable source |
+| `cordango check [--target <id>]` | Parse, lower and validate. With `--target`, ask whether that generator can build it |
+| `cordango targets` | What this build can generate, and what each target deliberately will not |
+| `cordango build --target <id> --out <dir>` | Generate a whole application |
+| `cordango inspect [path]` | Describe the workspace, one application, or one aggregate |
+| `cordango vocabulary [<name>]` | What may be written |
+| `cordango fmt` | Rewrite every source file in canonical form |
+| `cordango doctor` | Check the workspace for problems that are not source errors |
+
+`cordango --help` lists the rest, including `login`, `publish` and `whoami` for talking to an
+instance.
+
+## Nothing is dropped silently
+
+**A build refuses rather than quietly shipping less than the definition asks for.** Anything the
+target cannot do is reported with a diagnostic code and the path in the definition that caused it,
+and the build stops.
+
+`--allow-incomplete` is how you say you know. The application is generated, every gap is listed in
+its README, and `cordango.build.json` records them permanently — so a partial build can never pass
+for a complete one later.
+
+The codes separate two different kinds of news: `CORD21xx` is *this target will never do that*
+(record history needs an audit trail a standalone application does not keep), and `CORD23xx` is
+*not generated yet*, which a later release removes with no change to your definition.
 
 ## Determinism
 
-The generator is deterministic. The same App Definition, generator version, scaffold version and
-controls version produce the same files, byte for byte. No timestamps, no random identifiers, no
-machine paths, no locale-dependent formatting in generated output. CI generates the same fixture
-twice and compares.
+The same App Definition, generator version and scaffold version produce the same files, byte for
+byte. No timestamps, no random identifiers, no machine paths, no locale-dependent formatting in
+generated output. CI generates the same fixture twice and compares.
 
-Seed data works the same way. `cordango build --seed 42` produces the same dataset every time,
-including dates. If you want data anchored to today instead, `--seed-date today` says so explicitly
-and gives up reproducibility on purpose.
+Seed data works the same way: `cordango build --seed 42` produces the same dataset every time, dates
+included. If you would rather the demo data looked current, the generated application re-anchors it
+on the day it loads when you set `SEED_DATE=today` — a run-time choice that gives up reproducibility
+on purpose, and deliberately not a build-time one, so the build stays deterministic either way.
 
-## Building
+## Examples
 
-Requires the .NET 10 SDK.
+Complete applications, as source you can clone, read, change and build:
+**[cordango/examples](https://github.com/cordango/examples)**.
 
-```
+Start with `expenses` — the smallest one that is still complete. Read `budget-planner` for the
+calculation plane: rollups across a window, figures read across a reference, and a cash balance that
+reads the row before it.
+
+## Packages
+
+| Package | Who references it |
+| --- | --- |
+| [`Cordango.Cli`](https://www.nuget.org/packages/Cordango.Cli) | Nobody — it is the tool. Installed, not referenced. |
+| [`Cordango.Standalone`](https://www.nuget.org/packages/Cordango.Standalone) | A *generated* application. Records, hooks, permissions, queries, the directory, the wire. |
+
+Both are published from one git tag and share a version, because a generated application pins the
+runtime at the version of the generator that wrote its project file.
+
+The compiler, the generator SDK and the `dotnet-vue` generator are **not** published: a .NET tool
+package contains its whole publish output, so all three ship inside `Cordango.Cli` as files, and it
+declares no dependencies at all.
+
+Writing a generator for another target does not need them either. The extension point is a process —
+it describes itself on stdout and takes a request on stdin — so a generator written in Go or Python
+is as welcome as one written in .NET.
+
+## Building from source
+
+Requires the .NET 10 SDK. No database, no containers.
+
+```sh
 dotnet build Cordango.slnx
 dotnet test Cordango.slnx
 ```
 
-No database and no containers. Some of the standalone tests do generate an application and run the
-real .NET SDK over it — compiling it, and asking EF to certify the model snapshot against its own
-model — which reaches the package feed. `CORDANGO_SKIP_SDK_TESTS=1` skips those; the rest of the
-suite runs offline.
+Some tests generate an application and run the real SDK over it — compiling it, and asking EF to
+certify its model snapshot against its own model — which reaches the package feed.
+`CORDANGO_SKIP_SDK_TESTS=1` skips those; the rest runs offline.
+
+## Contributing
+
+Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get set up, what the
+bar is for a change here, and how to add a generator target.
+
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Please report vulnerabilities privately — see [SECURITY.md](SECURITY.md). A flaw in a generated
+application's authentication or permission enforcement is a flaw in the generator, and it is the most
+serious kind of report we can get.
+
+## Getting help
+
+- [Issues](https://github.com/cordango/cordango/issues) — bugs and feature requests
+- [Discussions](https://github.com/cordango/cordango/discussions) — questions and ideas
+- [hello@cordango.com](mailto:hello@cordango.com)
 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
 
-Source generated by this toolchain belongs to the person or organization that generated it and is not
-covered by this license. Generate it, modify it, ship it.
+**Source generated by this toolchain belongs to whoever generated it** and is not covered by this
+licence. Generate it, modify it, ship it.
 
-CORDANGO is a trademark. The license covers the software, not the name.
+CORDANGO is a trademark. The licence covers the software, not the name.

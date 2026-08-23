@@ -1,0 +1,39 @@
+name: Feature request
+description: Something is missing
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that you cannot do today? Describe the situation rather than the feature — the best solution is often not the one either of us thought of first.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: Optional. If you know what you want it to look like, show it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part
+      options:
+        - The language (App Definition / Cord source)
+        - The compiler
+        - The CLI
+        - The dotnet-vue generator
+        - A generated application's runtime
+        - A new generator target
+        - Documentation
+        - Something else
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you do instead today
+      description: Optional, and genuinely useful — a workaround tells us how much this hurts.
