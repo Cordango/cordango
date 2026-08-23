@@ -122,23 +122,113 @@ public static class WebEmitter
     private static GeneratedFile Page(AppModel app, PageModel page, List<Diagnostic> unsupported)
     {
         var body = new Source(2);
-        var context = new BlockContext(app, page.Entity, Record: false, $"$.pages[?(@.key=='{page.Key}')]");
+        var state = ScreenState(page);
+        var context = new BlockContext(app, page.Entity, Record: false, $"$.pages[?(@.key=='{page.Key}')]")
+        {
+            State = state,
+        };
 
         body.Indent().Indent();
         foreach (var block in page.Blocks.OfType<JsonObject>())
             Block(body, block, context, unsupported);
 
+        List<string> setup =
+        [
+            "// This screen came from the definition. Once you stop regenerating, it is an ordinary",
+            "// Vue component and yours to change.",
+        ];
+
+        if (state.Count > 0)
+        {
+            setup.Add("");
+            setup.Add("// The screen's own working state: which week, which facet, which mode. It is not data and");
+            setup.Add("// it is not persisted — the blocks below write it, and the lists read it through their");
+            setup.Add("// own `{{state.<key>}}` filters, which is how one filter bar drives several of them.");
+            setup.Add("const state = reactive({");
+            foreach (var (key, var) in state) setup.Add($"  {key}: {StateInitial(var)},");
+            setup.Add("})");
+        }
+
         return Component(
             path: $"web/src/pages/{page.ComponentName}.vue",
             imports: context.Imports,
-            setup:
-            [
-                "// This screen came from the definition. Once you stop regenerating, it is an ordinary",
-                "// Vue component and yours to change.",
-            ],
+            setup: setup,
             template: body.ToString(),
             title: page.Label,
-            conditional: context.Conditional);
+            conditional: context.Conditional,
+            state: state.Count > 0);
+    }
+
+    /// <summary>
+    /// The screen's state vars, in the order they will be declared.
+    ///
+    /// <para>The declared list first, then any key a block WRITES that the screen forgot to declare.
+    /// Refusing the second case would be defensible and unhelpful: a facet writing an undeclared key
+    /// is a screen missing a line, not a screen asking for something this target cannot do, and an
+    /// undeclared key is a text var — which is what a facet and a search box both are.</para>
+    /// </summary>
+    private static Dictionary<string, JsonObject> ScreenState(PageModel page)
+    {
+        var state = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+
+        foreach (var var in page.State)
+            if (AppModel.Str(var["key"]) is { } key) state.TryAdd(key, var);
+
+        foreach (var key in Written(page.Blocks))
+            state.TryAdd(key, new JsonObject { ["key"] = key, ["type"] = "text" });
+
+        return state;
+    }
+
+    /// <summary>Every state key the blocks on a page write, however deep they are nested.</summary>
+    private static IEnumerable<string> Written(JsonNode? blocks)
+    {
+        foreach (var block in AppModel.Arr(blocks).OfType<JsonObject>())
+        {
+            switch (AppModel.Str(block["kind"]))
+            {
+                case "filterbar":
+                    if (AppModel.Str(block["search"]?["state"]) is { } search) yield return search;
+                    foreach (var facet in AppModel.Arr(block["facets"]).OfType<JsonObject>())
+                        if (AppModel.Str(facet["state"]) is { } key) yield return key;
+                    break;
+
+                case "control":
+                    if (AppModel.Str(block["stateKey"]) is { } bound) yield return bound;
+                    break;
+            }
+
+            // Containers, in every spelling the language has for holding children.
+            foreach (var nested in Written(block["blocks"])) yield return nested;
+            foreach (var tab in AppModel.Arr(block["tabs"]).OfType<JsonObject>())
+                foreach (var nested in Written(tab["blocks"])) yield return nested;
+            foreach (var column in AppModel.Arr(block["columns"]))
+                foreach (var nested in Written(column is JsonArray ? column : column?["blocks"]))
+                    yield return nested;
+        }
+    }
+
+    /// <summary>What a state var holds before anybody touches it.</summary>
+    private static string StateInitial(JsonObject var)
+    {
+        var value = var["default"];
+        if (value is not null)
+        {
+            var literal = AppModel.Str(value);
+            // The one token a default may carry. Resolved when the component is created rather than
+            // written into the file, or a page built in December opens on December for ever.
+            if (literal == "{{today}}") return "new Date().toISOString().slice(0, 10)";
+            return literal is not null ? JsString(literal) : value.ToJsonString(Compact);
+        }
+
+        // An enum with no default opens on its first option: a segmented control has to be on
+        // something, and `mandatory` would otherwise pick for us without saying so.
+        if (AppModel.Str(var["type"]) == "enum"
+            && AppModel.Arr(var["options"]).OfType<JsonObject>().FirstOrDefault() is { } first
+            && AppModel.Str(first["value"]) is { } option)
+            return "'" + option + "'";
+
+        return AppModel.Str(var["type"]) == "number" ? "null" : "''";
     }
 
     /// <summary>
@@ -221,7 +311,8 @@ public static class WebEmitter
         string template,
         string? title,
         bool record = false,
-        bool conditional = false)
+        bool conditional = false,
+        bool state = false)
     {
         var source = new Source(2);
         source.Line("<script setup>");
@@ -234,9 +325,10 @@ public static class WebEmitter
                 ? "import { loadRecord, deleteRecord, visibleWhen } from '../records.js'"
                 : "import { loadRecord, deleteRecord } from '../records.js'");
         }
-        else if (conditional)
+        else
         {
-            source.Line("import { visibleWhen } from '../records.js'");
+            if (state) source.Line("import { reactive } from 'vue'");
+            if (conditional) source.Line("import { visibleWhen } from '../records.js'");
         }
 
         foreach (var import in imports.OrderBy(i => i, StringComparer.Ordinal))
@@ -307,7 +399,7 @@ public static class WebEmitter
                 $"'{name}' block: {caps.Blocks.Explain(name)}.",
                 context.Path);
 
-        return new Diagnostic("CORD2301",
+        return new Diagnostic(NotYetCodes.Block,
             $"the dotnet-vue generator does not emit '{name}' blocks yet.", context.Path);
     }
 
@@ -320,6 +412,14 @@ public static class WebEmitter
     private sealed record BlockContext(AppModel App, string? Entity, bool Record, string Path)
     {
         public HashSet<string> Imports { get; } = Record ? [] : ["PageShell"];
+
+        /// <summary>The screen state vars in scope, by key. Empty on a record page, which has no
+        /// state of its own: what a detail screen is about is the record.</summary>
+        public IReadOnlyDictionary<string, JsonObject> State { get; init; } =
+            new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+
+        /// <summary>What to hand a component that reads screen state — the object, or nothing.</summary>
+        public string StateBinding => State.Count > 0 ? "state" : "null";
 
         /// <summary>Set when any block on this page has a <c>visibleWhen</c>, so the evaluator is
         /// imported only where it is used.</summary>
@@ -341,7 +441,9 @@ public static class WebEmitter
         if (block["visibleWhen"] is JsonObject condition)
         {
             context.Conditional = true;
-            source.Line($"<template v-if=\"visibleWhen({Js(condition)}, {(context.Record ? "record" : "null")})\">");
+            source.Line(
+                $"<template v-if=\"visibleWhen({Js(condition)}, "
+                + $"{(context.Record ? "record" : "null")}, {context.StateBinding})\">");
             source.Indent();
 
             var inner = (JsonObject)block.DeepClone();
@@ -415,15 +517,31 @@ public static class WebEmitter
                 break;
 
             case "view":
-                context.Imports.Add("ViewBlock");
-                source.Line($"<ViewBlock view=\"{AppModel.Str(block["view"])}\" />");
+                View(source, block, context, unsupported);
                 break;
 
             case "table":
-                // A table naming its entity rather than a saved view. The compiler synthesizes a
-                // view per entity, so there is always one to point at.
-                context.Imports.Add("ViewBlock");
-                source.Line($"<ViewBlock view=\"{AppModel.Str(block["entity"]) ?? context.Entity}_table\" />");
+                Table(source, block, context, unsupported);
+                break;
+
+            case "calendar":
+                Calendar(source, block, context, unsupported);
+                break;
+
+            case "filterbar":
+                context.Imports.Add("FilterBar");
+                source.Line("<FilterBar");
+                source.Indent();
+                source.Line($"entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\"");
+                source.Line($":state=\"{context.StateBinding}\"");
+                if (block["search"] is JsonObject bar) source.Line($":search=\"{Js(bar)}\"");
+                if (block["facets"] is JsonArray facets) source.Line($":facets=\"{Js(facets)}\"");
+                source.Outdent();
+                source.Line("/>");
+                break;
+
+            case "control":
+                Control(source, block, context);
                 break;
 
             case "child":
@@ -511,6 +629,217 @@ public static class WebEmitter
                 unsupported.Add(Unrenderable(kind, context));
                 break;
         }
+    }
+
+    /// <summary>
+    /// A saved view, rendered the way its <c>type</c> says.
+    ///
+    /// <para>The type is not decoration. A calendar view and a table view are the same query — same
+    /// entity, same filters, same permissions — and differ only in the arrangement, which is exactly
+    /// why rendering every view as a table would be so quiet a wrong answer: the rows would be
+    /// right, the screen would look finished, and the thing the author asked for would be missing
+    /// with nothing to notice.</para>
+    /// </summary>
+    private static void View(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var key = AppModel.Str(block["view"]);
+        var view = context.App.View(key);
+
+        // No such view is a broken definition rather than a gap in this target, and the component
+        // says so on the screen. Refusing here would report it as something we have not built yet.
+        switch (view?.Type ?? "table")
+        {
+            case "table":
+                context.Imports.Add("ViewBlock");
+                source.Line($"<ViewBlock view=\"{key}\" :state=\"{context.StateBinding}\" />");
+                break;
+
+            case "calendar":
+                context.Imports.Add("CalendarBlock");
+                source.Line($"<CalendarBlock view=\"{key}\" :state=\"{context.StateBinding}\" />");
+                break;
+
+            default:
+                context.Imports.Add("UnsupportedBlock");
+                source.Line($"<UnsupportedBlock kind=\"{view!.Type} view\" />");
+                unsupported.Add(NotYet(
+                    $"'{key}' is a '{view.Type}' view, and only 'table' and 'calendar' views render", context));
+                break;
+        }
+    }
+
+    /// <summary>
+    /// A list the block itself describes: which rows, in what order, showing which columns.
+    ///
+    /// <para>What goes to the component is a view definition — the same shape a saved view has — so
+    /// one component renders both and there is no second path on which a filter can be dropped. An
+    /// earlier version of this pointed the block at a synthesized <c>&lt;entity&gt;_table</c> view
+    /// instead, on the belief that the compiler always makes one. It does not: it synthesizes them
+    /// only for a definition that declares no views at all. On every other application the block
+    /// named a view that did not exist, and where one happened to exist it rendered the entire
+    /// table — the block's own filters, sort, columns and limit all silently gone.</para>
+    /// </summary>
+    private static void Table(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var query = block["source"] as JsonObject;
+        var entity = AppModel.Str(query?["entity"]) ?? AppModel.Str(block["entity"]) ?? context.Entity;
+
+        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+
+        // The one cell inline editing cannot offer. A process-governed status moves by running a
+        // transition, and a dropdown over the field's options would offer moves the lifecycle
+        // forbids — which the server would then refuse, one click at a time.
+        if (AppModel.Bool(block["inlineEdit"])
+            && context.App.Processes.FirstOrDefault(p => p.Entity == entity) is { } process
+            && Columns(block).Contains(process.StateField))
+            unsupported.Add(NotYet(
+                $"inline editing '{process.StateField}' — it is governed by the '{process.Key}' process, "
+                + "so changing it has to run a transition", context));
+
+        context.Imports.Add("ViewBlock");
+        source.Line("<ViewBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(Query(block, query, entity, "table", context.Record))}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (block["search"] is JsonObject search) source.Line($":search=\"{Js(search)}\"");
+        if (block["groupBy"] is JsonObject group) source.Line($":group-by=\"{Js(group)}\"");
+        if (block["newDefaults"] is JsonObject defaults) source.Line($":new-defaults=\"{Js(defaults)}\"");
+        if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
+        if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
+        if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
+        // A page-level list creates through the New button. `inlineCreate` defaults on in the
+        // language, so a table only loses the button where somebody has turned it off.
+        if (block["inlineCreate"] is not null && !AppModel.Bool(block["inlineCreate"])
+            && !AppModel.Bool(block["newButton"]))
+            source.Line(":create=\"false\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>A month grid over records that carry a date, from the block's own query.</summary>
+    private static void Calendar(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var query = block["source"] as JsonObject;
+        var entity = AppModel.Str(query?["entity"]) ?? context.Entity;
+
+        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+
+        var range = AppModel.Str(block["range"]);
+        if (range is not null and not "month")
+            unsupported.Add(NotYet($"a calendar's '{range}' range (only the month grid renders)", context));
+        if (block["quickAdd"] is not null)
+            unsupported.Add(NotYet("a calendar's 'quickAdd' — a new entry opens the full record form", context));
+
+        var definition = Query(block, query, entity, "calendar", context.Record);
+        var config = (JsonObject)definition["config"]!;
+        if (AppModel.Str(block["startField"]) is { } start) config["dateField"] = start;
+        if (AppModel.Str(block["endField"]) is { } end) config["endField"] = end;
+
+        context.Imports.Add("CalendarBlock");
+        source.Line("<CalendarBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(definition)}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (!AppModel.Bool(block["allowCreate"])) source.Line(":create=\"false\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>The field keys a list shows, in order.</summary>
+    private static IReadOnlyList<string> Columns(JsonObject block) =>
+        [.. AppModel.Arr(block["fields"]).Select(AppModel.Str).OfType<string>()];
+
+    /// <summary>A block's own query, in the shape a saved view has.</summary>
+    private static JsonObject Query(
+        JsonObject block, JsonObject? query, string? entity, string type, bool record)
+    {
+        var config = new JsonObject();
+        var definition = new JsonObject
+        {
+            ["key"] = entity + "_" + type,
+            ["type"] = type,
+            ["entity"] = entity,
+            ["config"] = config,
+        };
+
+        if (AppModel.Str(block["label"]) is { } label) definition["label"] = label;
+        if (query?["filters"] is JsonArray filters) definition["filters"] = filters.DeepClone();
+        if (query?["sort"] is JsonArray sort) definition["sort"] = sort.DeepClone();
+        if (query?["limit"] is { } limit) definition["limit"] = limit.DeepClone();
+        if (block["fields"] is JsonArray fields) config["columns"] = fields.DeepClone();
+
+        // `via` is shorthand: the rows are the ones whose reference points at the record this screen
+        // is about. Expanded into an ordinary filter leaf rather than given its own path through the
+        // component, so it narrows the query the same way everything else does.
+        if (record && AppModel.Str(query?["via"]) is { } via)
+        {
+            var narrowed = definition["filters"] as JsonArray;
+            if (narrowed is null) definition["filters"] = narrowed = [];
+            narrowed.Add(new JsonObject
+            {
+                ["field"] = via,
+                ["operator"] = "eq",
+                ["value"] = "{{record.id}}",
+            });
+        }
+
+        return definition;
+    }
+
+    /// <summary>
+    /// What this block asked for that the list components do not do.
+    ///
+    /// <para>One diagnostic per feature rather than one for the block, because "the table did not
+    /// come out right" is not something anybody can act on and "inlineEdit is not emitted yet" is.
+    /// </para>
+    /// </summary>
+    private static IEnumerable<string> Gaps(JsonObject block, JsonObject? query, bool record)
+    {
+        if (query is not null)
+        {
+            foreach (var origin in new[] { "dates", "options", "platform" })
+                if (query[origin] is not null)
+                    yield return $"a list over '{origin}' rather than over an entity's records";
+
+            if (query["via"] is not null && !record)
+                yield return "a list bound with 'via' on a screen that is not about one record";
+        }
+
+        if (block["orderField"] is not null) yield return "a list's manual row order ('orderField')";
+        if (AppModel.Bool(block["openDetail"])) yield return "a list's 'openDetail' panel overlay";
+    }
+
+    /// <summary>
+    /// One thing the emitters have not got to, named precisely.
+    ///
+    /// <para>Separate from <see cref="Unrenderable"/>: that one answers "this whole block did not
+    /// render", this one "the block rendered and one option on it did not". Both are CORD23xx —
+    /// something a later release removes with no change to anybody's definition.</para>
+    /// </summary>
+    private static Diagnostic NotYet(string what, BlockContext context) =>
+        new(NotYetCodes.BlockOption, $"the dotnet-vue generator does not emit {what} yet.", context.Path);
+
+    /// <summary>A state-writing control: a value toggle, or a prev/next pair over a date.</summary>
+    private static void Control(Source source, JsonObject block, BlockContext context)
+    {
+        var key = AppModel.Str(block["stateKey"]);
+        var options = key is not null && context.State.TryGetValue(key, out var declared)
+            ? declared["options"] as JsonArray
+            : null;
+
+        context.Imports.Add("ControlBlock");
+        source.Line("<ControlBlock");
+        source.Indent();
+        source.Line($"control=\"{AppModel.Str(block["control"])}\"");
+        source.Line($"state-key=\"{key}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (AppModel.Str(block["label"]) is { } label) source.Line($"label={Quote(label)}");
+        if (options is not null) source.Line($":options=\"{Js(options)}\"");
+        if (block["step"] is JsonObject step) source.Line($":step=\"{Js(step)}\"");
+        source.Outdent();
+        source.Line("/>");
     }
 
     /// <summary>
@@ -671,6 +1000,11 @@ public static class WebEmitter
     };
 
     private static string Quote(string value) => "\"" + value.Replace("\"", "&quot;", StringComparison.Ordinal) + "\"";
+
+    /// <summary>A JavaScript string literal, single-quoted so it survives being written inside a
+    /// double-quoted Vue attribute as well as inside a script block.</summary>
+    private static string JsString(string value) =>
+        "'" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\'", StringComparison.Ordinal) + "'";
 
     /// <summary>Every route the application has, listed. A generated file rather than a scan, so the
     /// route table is something you can read.</summary>

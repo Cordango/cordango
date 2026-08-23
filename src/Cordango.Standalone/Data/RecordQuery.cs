@@ -108,6 +108,22 @@ public static class RecordQuery
             return filter.Operator == "in" ? any : Expression.Not(any);
         }
 
+        // A closed range, both ends included. Written as one leaf rather than a gte and an lte
+        // because that is how the language spells it, and splitting it here would put the job of
+        // keeping the two halves together on whoever writes the query string.
+        if (filter.Operator is "between")
+        {
+            var bounds = (filter.Value ?? "").Split('|');
+            if (bounds.Length != 2 || bounds.Any(string.IsNullOrWhiteSpace))
+                throw new RecordException("query.range_invalid",
+                    $"'between' needs both bounds, written lo|hi. '{filter.Field}' was given "
+                    + $"'{filter.Value}'.");
+
+            return Expression.AndAlso(
+                Expression.GreaterThanOrEqual(member, Constant(bounds[0], type)),
+                Expression.LessThanOrEqual(member, Constant(bounds[1], type)));
+        }
+
         if (filter.Operator is "contains" or "startsWith")
         {
             if (type != typeof(string))
@@ -135,7 +151,8 @@ public static class RecordQuery
             "lt" => Expression.LessThan(member, constant),
             "lte" => Expression.LessThanOrEqual(member, constant),
             _ => throw new RecordException("query.operator_unknown",
-                $"'{filter.Operator}' is not a filter operator. Use eq, neq, gt, gte, lt, lte, in, notIn, contains, startsWith, isEmpty or isNotEmpty."),
+                $"'{filter.Operator}' is not a filter operator. Use eq, neq, gt, gte, lt, lte, "
+                + "between, in, notIn, contains, startsWith, isEmpty or isNotEmpty."),
         };
     }
 

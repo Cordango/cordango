@@ -1,31 +1,67 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { viewOf, entityOf, loadView, commandsOf, onRecordsChanged, recordsChanged } from '../records.js'
+import {
+  viewOf, entityOf, loadView, commandsOf, deleteRecord, referenceOptions, processOf,
+  onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue, optionLabel,
+} from '../records.js'
 import { session } from '../session.js'
-import FieldValue from './FieldValue.vue'
 import RecordDialog from './RecordDialog.vue'
 import CommandButton from './CommandButton.vue'
+import FilterBar from './FilterBar.vue'
+import InlineCell from './InlineCell.vue'
 
 const props = defineProps({
+  // A SAVED view, by key.
   view: String,
-  // Extra conditions the page adds on top of the view's own — a stat card's deep link, a filter bar.
+  // Or the block's own query, inline. A `table` block carries its filters, sort and columns itself
+  // rather than pointing at a saved view, and reading them off the block is the whole difference
+  // between "Open tasks" and "every task there has ever been".
+  definition: { type: Object, default: null },
+  // Extra conditions the page adds on top of the view's own — a stat card's deep link.
   extraFilters: { type: Array, default: () => [] },
+  // The screen's state, so `{{state.x}}` in a filter resolves and the list reloads when a facet
+  // moves.
+  state: { type: Object, default: null },
+  // Bound to a PAGE-level filterbar's search box: `{ state, fields }`.
+  search: { type: Object, default: null },
+  // This list's OWN toolbar: `{ search: [...fields], facets: [...fields] }`.
+  filterBar: { type: Object, default: null },
   create: { type: Boolean, default: true },
+  allowDelete: { type: Boolean, default: false },
+  // Edit cells where they sit. The first column is left alone: it is the one that opens the record,
+  // and a column that both opens and edits does neither predictably.
+  inlineEdit: { type: Boolean, default: false },
+  // The record this list is inside, on a detail screen. A `{{record.id}}` in a filter resolves
+  // against it, which is how a table narrowed with `via` finds its parent's children.
+  record: { type: Object, default: null },
+  // Split the rows into labelled sections by a discrete field.
+  groupBy: { type: Object, default: null },
+  // What a new record starts with, beyond what this list's own equality filters already imply.
+  newDefaults: { type: Object, default: null },
 })
 
 const router = useRouter()
-const definition = computed(() => viewOf(props.view))
-const entity = computed(() => entityOf(definition.value?.entity))
+const definition = computed(() => props.definition ?? viewOf(props.view))
+const entityKey = computed(() => definition.value?.entity)
+const entity = computed(() => entityOf(entityKey.value))
 
 const rows = ref([])
 const total = ref(0)
 const loading = ref(true)
 const error = ref(null)
 const editing = ref(null)
+const confirming = ref(null)
+
+// The toolbar this list owns, if it has one. Its own state object rather than the page's: a table
+// filter bar narrows THIS table, and two tables on a page must not share one search box.
+const own = ref({ q: '' })
+const ownFacets = computed(() =>
+  (props.filterBar?.facets || []).map((field) => ({ state: `facet_${field}`, field })))
 
 const columns = computed(() => {
   const keys = definition.value?.config?.columns
+    ?? definition.value?.columns
     // No columns named means every field somebody could have entered. Not every field: the audit
     // stamps would push the ones people care about off the right of the screen.
     ?? entity.value?.fields.filter((f) => !f.system).slice(0, 6).map((f) => f.key)
@@ -34,15 +70,81 @@ const columns = computed(() => {
 })
 
 const rowCommands = computed(() =>
-  commandsOf(definition.value?.entity).filter((c) => (c.placements || []).includes('tableRow')))
+  commandsOf(entityKey.value).filter((c) => (c.placements || []).includes('tableRow')))
+
+// A field the server would refuse anyway is not one to offer a control for. A process-governed
+// status is refused for a different reason: its legal moves are the process's, not the field's, so
+// a plain dropdown over its options would offer transitions the lifecycle forbids.
+const processState = computed(() => processOf(entityKey.value)?.stateField)
+
+const editableIn = (field, index) =>
+  props.inlineEdit && index > 0 && !field.system && !field.readOnly && !field.computed
+  && field.key !== processState.value
+
+// Reference columns arrive as ids. Resolving them here rather than per cell means the table asks
+// once for the whole page instead of once per row, and it is the same map the search reads so a
+// query matches the name a person can actually see.
+const labels = ref({})
+
+async function resolveLabels() {
+  const grouping = props.groupBy?.field
+    ? entity.value?.fields.filter((f) => f.key === props.groupBy.field) ?? []
+    : []
+  const references = [...columns.value, ...grouping].filter((f) => f.type === 'reference'
+    && f.targetApp !== 'platform' && f.targetEntity && f.targetEntity !== 'person')
+  const resolved = {}
+  for (const field of references) {
+    const options = await referenceOptions(field.targetEntity)
+    resolved[field.key] = Object.fromEntries(options.map((o) => [o.value, o.label]))
+  }
+  labels.value = resolved
+}
+
+const labelFor = (field, value) => labels.value[field.key]?.[value] ?? formatValue(value, field)
+
+// Everything a `{{...}}` in a filter can be resolved against, in one object, so records.js does not
+// have to know where any of it came from.
+const context = computed(() => ({
+  personId: session.personId,
+  userId: session.userId,
+  state: props.state ?? {},
+  record: props.record ?? {},
+}))
+
+/**
+ * What a new row starts with.
+ *
+ * The list's own equality filters come first and need no declaring: a list showing `my_day eq true`
+ * that added rows with `my_day` unset would create something that vanishes on the next load. A
+ * comparison says which rows to SHOW rather than what a new one should BE, so only `eq` is read,
+ * and `newDefaults` says the rest.
+ */
+const blank = computed(() => {
+  const seed = {}
+  for (const filter of definition.value?.filters || []) {
+    if (filter.operator === 'eq' && filter.field && !filter.optional) {
+      seed[filter.field] = resolveValue(filter.value, context.value)
+    }
+  }
+  for (const [key, value] of Object.entries(props.newDefaults || {})) {
+    seed[key] = resolveValue(value, context.value)
+  }
+  return seed
+})
 
 async function load() {
+  if (!definition.value) {
+    error.value = `No view named '${props.view}'.`
+    loading.value = false
+    return
+  }
   loading.value = true
   error.value = null
   try {
-    const page = await loadView(definition.value, session, { extraFilters: props.extraFilters })
+    const page = await loadView(definition.value, context.value, { extraFilters: props.extraFilters })
     rows.value = page?.items ?? []
     total.value = page?.total ?? 0
+    await resolveLabels()
   } catch (failure) {
     error.value = failure.message
     rows.value = []
@@ -51,17 +153,86 @@ async function load() {
   }
 }
 
+// Narrowed after loading, not before: a free-text query has to match what somebody SEES, and a
+// facet on this table's own toolbar is client-side by definition. A page-level facet is a filter
+// leaf instead, so it goes to the server and reloads through `load`.
+const visible = computed(() => {
+  let result = rows.value
+
+  if (props.search && props.state) {
+    result = result.filter((r) =>
+      matchesSearch(r, props.state[props.search.state], entityKey.value, props.search.fields, labelFor))
+  }
+  if (props.filterBar?.search) {
+    result = result.filter((r) => matchesSearch(r, own.value.q, entityKey.value, props.filterBar.search, labelFor))
+  }
+  for (const facet of ownFacets.value) {
+    const wanted = own.value[facet.state]
+    if (wanted !== undefined && wanted !== null && wanted !== '') {
+      result = result.filter((r) => String(r[facet.field] ?? '') === String(wanted))
+    }
+  }
+  return result
+})
+
+// The rows as the table renders them: one section per distinct value of the grouping field, in
+// option order for a select and in load order for a reference. A row whose group is empty falls into
+// a section of its own at the end rather than disappearing.
+const sections = computed(() => {
+  if (!props.groupBy?.field) return [{ key: '__all', label: null, rows: visible.value }]
+
+  const key = props.groupBy.field
+  const field = entity.value?.fields.find((f) => f.key === key)
+  const order = field?.options?.map((o) => o.value) ?? []
+  const buckets = new Map()
+
+  for (const row of visible.value) {
+    const value = row[key] ?? ''
+    if (!buckets.has(value)) buckets.set(value, [])
+    buckets.get(value).push(row)
+  }
+
+  if (props.groupBy.showEmpty) for (const value of order) if (!buckets.has(value)) buckets.set(value, [])
+
+  const rank = (value) => {
+    if (value === '') return Number.MAX_SAFE_INTEGER
+    const at = order.indexOf(value)
+    return at === -1 ? Number.MAX_SAFE_INTEGER - 1 : at
+  }
+
+  return [...buckets.entries()]
+    .sort((a, b) => rank(a[0]) - rank(b[0]))
+    .map(([value, rows]) => ({
+      key: String(value),
+      label: value === ''
+        ? (props.groupBy.ungroupedLabel || '(No section)')
+        : (labels.value[key]?.[value] ?? (field?.options ? optionLabel(field, value) : String(value))),
+      rows,
+    }))
+})
+
+async function remove(row) {
+  await deleteRecord(entityKey.value, row.id)
+  confirming.value = null
+  load()
+  recordsChanged(entityKey.value)
+}
+
 // A create button three blocks away has no way to tell this list it added a row, so the two ends
 // meet on one window event instead of threading a callback through every container between them.
 let stop
 onMounted(() => {
   load()
-  stop = onRecordsChanged(definition.value?.entity, load)
+  stop = onRecordsChanged(entityKey.value, load)
 })
 onUnmounted(() => stop?.())
 watch(() => props.extraFilters, load, { deep: true })
+// A page facet writes screen state, and this list's filters read it. Reloading on any state change
+// is coarser than watching the keys this view happens to name, and it cannot go stale when the
+// filters change.
+watch(() => props.state, load, { deep: true })
 
-const open = (row) => router.push(`/record/${definition.value.entity}/${encodeURIComponent(row.id)}`)
+const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
 </script>
 
 <template>
@@ -70,35 +241,73 @@ const open = (row) => router.push(`/record/${definition.value.entity}/${encodeUR
       <span class="text-subtitle-1">{{ definition?.label }}</span>
       <v-chip v-if="!loading" size="x-small" class="ml-2" variant="tonal">{{ total }}</v-chip>
       <v-spacer />
-      <v-btn v-if="create" size="small" variant="tonal" prepend-icon="mdi-plus" @click="editing = {}">
+      <v-btn v-if="create" size="small" variant="tonal" prepend-icon="mdi-plus" @click="editing = { ...blank }">
         New
       </v-btn>
     </v-card-title>
 
+    <div v-if="filterBar" class="px-4">
+      <FilterBar
+        :entity="entityKey"
+        :state="own"
+        :search="filterBar.search ? { state: 'q', placeholder: 'Search' } : null"
+        :facets="ownFacets"
+      />
+    </div>
+
     <v-alert v-if="error" type="error" variant="tonal" class="ma-4">{{ error }}</v-alert>
     <v-skeleton-loader v-else-if="loading" type="table" />
 
-    <v-table v-else-if="rows.length" hover>
+    <v-table v-else-if="visible.length" hover>
       <thead>
         <tr>
           <th v-for="field in columns" :key="field.key">{{ field.label }}</th>
-          <th v-if="rowCommands.length" />
+          <th v-if="rowCommands.length || allowDelete" />
         </tr>
       </thead>
-      <tbody>
-        <tr v-for="row in rows" :key="row.id" style="cursor: pointer" @click="open(row)">
-          <td v-for="field in columns" :key="field.key">
-            <FieldValue :field="field" :value="row[field.key]" />
+      <tbody v-for="section in sections" :key="section.key">
+        <tr v-if="section.label">
+          <td
+            :colspan="columns.length + (rowCommands.length || allowDelete ? 1 : 0)"
+            class="text-caption text-medium-emphasis font-weight-medium"
+          >
+            {{ section.label }}
+            <v-chip size="x-small" variant="tonal" class="ml-2">{{ section.rows.length }}</v-chip>
           </td>
-          <td v-if="rowCommands.length" class="text-right" @click.stop>
+        </tr>
+        <tr v-for="row in section.rows" :key="row.id" style="cursor: pointer" @click="open(row)">
+          <td
+            v-for="(field, index) in columns"
+            :key="field.key"
+            :style="editableIn(field, index) ? 'cursor: auto' : ''"
+            @click="editableIn(field, index) ? $event.stopPropagation() : null"
+          >
+            <InlineCell
+              :entity="entityKey"
+              :field="field"
+              :record="row"
+              :editable="editableIn(field, index)"
+              :labels="labels[field.key] || null"
+              @saved="load(); recordsChanged(entityKey)"
+              @failed="error = $event"
+            />
+          </td>
+          <td v-if="rowCommands.length || allowDelete" class="text-right" @click.stop>
             <CommandButton
               v-for="command in rowCommands"
               :key="command.key"
-              :entity="definition.entity"
+              :entity="entityKey"
               :record="row"
               :command="command"
               density="compact"
               @done="load"
+            />
+            <v-btn
+              v-if="allowDelete"
+              icon="mdi-delete-outline"
+              size="small"
+              variant="text"
+              @click="confirming = row"
             />
           </td>
         </tr>
@@ -109,10 +318,22 @@ const open = (row) => router.push(`/record/${definition.value.entity}/${encodeUR
 
     <RecordDialog
       v-if="editing"
-      :entity="definition.entity"
+      :entity="entityKey"
       :record="editing"
       @close="editing = null"
-      @saved="editing = null; load(); recordsChanged(definition.entity)"
+      @saved="editing = null; load(); recordsChanged(entityKey)"
     />
+
+    <v-dialog :model-value="!!confirming" max-width="420" @update:model-value="confirming = null">
+      <v-card>
+        <v-card-title class="text-subtitle-1">Delete this record?</v-card-title>
+        <v-card-text class="text-medium-emphasis">This cannot be undone.</v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="confirming = null">Cancel</v-btn>
+          <v-btn color="error" variant="tonal" @click="remove(confirming)">Delete</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>

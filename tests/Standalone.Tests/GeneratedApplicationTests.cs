@@ -71,6 +71,55 @@ public class GeneratedApplicationTests
             "The generated model snapshot does not match the generated model. EF wants to change:\n\n" + up);
     }
 
+    /// <summary>
+    /// The front end is source too, and until this ran nothing ever compiled it.
+    ///
+    /// <para>A generated <c>.vue</c> with a syntax error, or a component importing a name
+    /// <c>records.js</c> does not export, shipped green: every test here reads the emitter's strings
+    /// or builds the C# beside them, and neither notices. It cost exactly that — a records.js edit
+    /// dropped four exports, the whole suite passed, and the bundle was broken.</para>
+    ///
+    /// <para>One application rather than eight: the bundler is the same for all of them and the
+    /// install dominates the clock. `sales-crm` is the one that reaches the most block kinds.</para>
+    /// </summary>
+    [Theory]
+    [InlineData("sales-crm")]
+    public async Task The_generated_front_end_bundles(string key)
+    {
+        if (Skipped) return;
+
+        using var app = Materialise(key);
+        var web = Path.Combine(app.Root, "web");
+
+        // The full path, not the name. Windows resolves `npm.cmd` from PATH and then the shim
+        // resolves its own installation relative to where it was STARTED, so launching it by name in
+        // a working directory with no node_modules sends it looking for npm inside the generated app.
+        var npm = Npm();
+        // No node on this machine. The same call the `dotnet ef` check makes: a missing tool is not
+        // a failing generator, and failing here would tell a contributor their change broke
+        // something it did not.
+        if (npm is null) return;
+
+        var install = await Run(npm, ["install", "--no-audit", "--no-fund"], web);
+        Assert.True(install.ExitCode == 0,
+            "npm install failed for the generated front end." + Environment.NewLine + install.Output);
+
+        var build = await Run(npm, ["run", "build"], web);
+        Assert.True(build.ExitCode == 0,
+            $"The front end generated from '{key}' does not bundle."
+            + Environment.NewLine + build.Output);
+    }
+
+    private static string? Npm()
+    {
+        var name = OperatingSystem.IsWindows() ? "npm.cmd" : "npm";
+
+        return (Environment.GetEnvironmentVariable("PATH") ?? "")
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Select(directory => Path.Combine(directory.Trim('"'), name))
+            .FirstOrDefault(File.Exists);
+    }
+
     private static string Between(string source, string signature)
     {
         var start = source.IndexOf(signature, StringComparison.Ordinal);

@@ -275,7 +275,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         // has written does this; it is checked because the emitted code would be the thing that
         // failed, at run time, in production.
         if (Emit.RollupGraph.IsCyclic(app))
-            yield return new Diagnostic("CORD2307",
+            yield return new Diagnostic(NotYetCodes.RollupCycle,
                 "the rollups in this application count each other in a circle, so no order works "
                 + "them out. Break the loop — one of the totals has to be worked out from something "
                 + "other than a figure that counts it.",
@@ -294,7 +294,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             // to wake it, which is a different piece of machinery from a hook on a write.
             if (@event is null || !Emit.WorkflowEmitter.Triggers.Contains(@event))
             {
-                yield return new Diagnostic("CORD2302",
+                yield return new Diagnostic(NotYetCodes.Trigger,
                     $"the workflow '{key}' triggers on '{@event ?? "nothing"}', which is not wired yet, "
                     + "so nothing will run.",
                     $"$.workflows[{i}].trigger");
@@ -305,7 +305,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             // excludes — the same hazard as a command's guard, and louder here because a workflow
             // runs without anybody watching.
             if (!Emit.ConditionEmitter.TryEmit(workflow["when"], out _))
-                yield return new Diagnostic("CORD2306",
+                yield return new Diagnostic(NotYetCodes.Guard,
                     $"the workflow '{key}' has a condition this generator cannot write, so it would "
                     + "run in cases the definition excludes.",
                     $"$.workflows[{i}].when");
@@ -318,7 +318,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                 .ToList();
 
             if (unwritten.Count > 0)
-                yield return new Diagnostic("CORD2303",
+                yield return new Diagnostic(NotYetCodes.Effect,
                     $"the workflow '{key}' declares {string.Join(" and ", unwritten)} effect(s), which are "
                     + "not generated yet. Its trigger fires and its other effects run; these do not.",
                     $"$.workflows[{i}].effects");
@@ -338,7 +338,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                 .ToList();
 
             if (unsent.Count > 0)
-                yield return new Diagnostic("CORD2303",
+                yield return new Diagnostic(NotYetCodes.Effect,
                     $"'{command.Label}' declares {string.Join(" and ", unsent)} effect(s), which are not "
                     + "generated yet. The command runs and moves the record; those effects do not fire. "
                     + "Its other effects DO.",
@@ -348,11 +348,13 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             // command would run, look correct, and be more permissive than the definition — the
             // only kind of generator bug that is invisible in the output.
             if (!Emit.ConditionEmitter.TryEmit(command.Json["when"], out _))
-                yield return new Diagnostic("CORD2306",
+                yield return new Diagnostic(NotYetCodes.Guard,
                     $"'{command.Label}' has a guard this generator cannot write, so the command would "
                     + "be generated WITHOUT it and would run in cases the definition refuses.",
                     $"$.commands[?(@.key=='{command.Key}')].when");
         }
+
+        foreach (var diagnostic in UnqueryableFilters(app)) yield return diagnostic;
 
         foreach (var entity in app.Entities)
             foreach (var field in entity.AuthoredFields.Where(f => f.Computed is not null))
@@ -369,10 +371,71 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                         + "sum, count and simple comparisons"
                     : "is computed from something outside its own record, which is not generated yet";
 
-                yield return new Diagnostic("CORD2305",
+                yield return new Diagnostic(NotYetCodes.Computed,
                     $"'{entity.Label}.{field.Label}' {why}. The column exists and stays empty.",
                     $"$.entities[?(@.key=='{entity.Key}')].fields[?(@.key=='{field.Key}')].computed");
             }
+    }
+
+    /// <summary>
+    /// Filter leaves the generated query layer cannot answer.
+    ///
+    /// <para>These reach the browser as part of a view or a block source and are only found out
+    /// about when somebody opens the screen and the request comes back refused. That is the worst
+    /// place to learn it: the build said nothing, the application compiled, and the page shows an
+    /// error about an operator to a person who did not write one.</para>
+    ///
+    /// <para>Walked over the manifest rather than over the models, because the same filter shape
+    /// appears in a saved view, a block's <c>source</c>, a stat's aggregate and a child list, and
+    /// each of those is reached by a different path. Only arrays actually called <c>filters</c> are
+    /// read, which is what keeps a process rule's <c>when</c> — evaluated by the condition
+    /// evaluator, not by the query layer — out of this.</para>
+    /// </summary>
+    private static IEnumerable<Diagnostic> UnqueryableFilters(AppModel app)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var (leaf, path) in Filters(app.Manifest, "$"))
+        {
+            var reason = Model.AppModel.Str(leaf["path"]) is { } hop
+                ? $"a filter on '{hop}', which reads a field one reference away"
+                : Model.AppModel.Str(leaf["operator"]) is "overlaps"
+                    ? "the 'overlaps' filter, which compares a row's own range against a window"
+                    : null;
+
+            if (reason is null || !seen.Add(path)) continue;
+
+            yield return new Diagnostic(NotYetCodes.BlockOption,
+                $"the dotnet-vue generator does not emit {reason} yet. The screen that reads it "
+                + "would ask for something the generated API refuses.",
+                path);
+        }
+    }
+
+    private static IEnumerable<(JsonObject Leaf, string Path)> Filters(JsonNode? node, string path)
+    {
+        switch (node)
+        {
+            case JsonObject o:
+                foreach (var (name, child) in o)
+                {
+                    if (name == "filters" && child is JsonArray leaves)
+                    {
+                        for (var i = 0; i < leaves.Count; i++)
+                            if (leaves[i] is JsonObject leaf)
+                                yield return (leaf, $"{path}.filters[{i}]");
+                        continue;
+                    }
+
+                    foreach (var found in Filters(child, $"{path}.{name}")) yield return found;
+                }
+                break;
+
+            case JsonArray a:
+                for (var i = 0; i < a.Count; i++)
+                    foreach (var found in Filters(a[i], $"{path}[{i}]")) yield return found;
+                break;
+        }
     }
 
     /// <summary>

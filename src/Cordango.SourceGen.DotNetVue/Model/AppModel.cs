@@ -343,6 +343,7 @@ public sealed class PageModel
         Icon = AppModel.Str(json["icon"]);
         Entity = AppModel.Str(json["entity"]);
         Blocks = AppModel.Arr(json["blocks"]);
+        State = [.. AppModel.Arr(json["state"]).OfType<JsonObject>()];
     }
 
     public JsonObject Json { get; }
@@ -351,6 +352,11 @@ public sealed class PageModel
     public string? Icon { get; }
     public string? Entity { get; }
     public JsonArray Blocks { get; }
+
+    /// <summary>The screen's own working state: a picked week, a chosen facet, a view mode. Not
+    /// data, not persisted, and the reason a screen can offer criteria rather than a fixed query.
+    /// </summary>
+    public IReadOnlyList<JsonObject> State { get; }
 
     public string ComponentName => Naming.Pascal(Key) + "Page";
 

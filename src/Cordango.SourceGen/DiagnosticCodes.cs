@@ -71,3 +71,60 @@ public static class DiagnosticCodes
         UnsupportedPlatformTarget, AiFeature, UnsupportedBlock, UnsupportedFieldType,
     ];
 }
+
+/// <summary>
+/// The CORD23xx range: "this target will build that one day, and today it does not."
+///
+/// <para>The difference from <see cref="DiagnosticCodes"/> is what a reader should do about it.
+/// CORD21xx says wait for the platform or change the definition; CORD23xx says wait for a release,
+/// which will remove it without anybody touching their definition. Reporting one as the other sends
+/// somebody either to a workaround they did not need or to a wait that never ends.</para>
+///
+/// <para><b>Why they are listed rather than written where they are raised.</b> They were magic
+/// strings in two files, and a retired code came back meaning something new: CORD2304 was once
+/// "a command guard is not emitted", was fixed, and a test still asserts its absence. Reusing the
+/// number made that test fail against a diagnostic about a table. A second target picking its own
+/// numbers would have collided the same way, quietly.</para>
+/// </summary>
+public static class NotYetCodes
+{
+    /// <summary>A block kind the emitters have not got to.</summary>
+    public const string Block = "CORD2301";
+
+    /// <summary>A workflow trigger that is not wired, so nothing runs.</summary>
+    public const string Trigger = "CORD2302";
+
+    /// <summary>An effect declared on a workflow or a command that is not generated.</summary>
+    public const string Effect = "CORD2303";
+
+    // CORD2304 is RETIRED. It meant "a command guard is not emitted", which was fixed, and
+    // CommandGuardTests still asserts that no application reports it. Do not reuse the number:
+    // a new diagnostic wearing it makes that test fail for a reason that has nothing to do with
+    // guards. Take the next free code instead.
+
+    /// <summary>A computed field neither the expression emitter nor the rollup emitter can write.</summary>
+    public const string Computed = "CORD2305";
+
+    /// <summary>A guard condition the emitter cannot write, so the thing it guards would run
+    /// without it.</summary>
+    public const string Guard = "CORD2306";
+
+    /// <summary>Rollups that count each other in a circle, so no evaluation order works them out.</summary>
+    public const string RollupCycle = "CORD2307";
+
+    /// <summary>One option ON a block that did render — a list's grouping, a calendar's day view.
+    /// Separate from <see cref="Block"/> so a reader is told which part is missing rather than left
+    /// to work out why the screen looks nearly right.</summary>
+    public const string BlockOption = "CORD2308";
+
+    /// <summary>Every code in the range, for the test that stops two of them meaning the same
+    /// thing. The retired number is deliberately absent.</summary>
+    public static readonly IReadOnlyList<string> All =
+    [
+        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption,
+    ];
+
+    /// <summary>Codes that once meant something, no longer do, and must not be handed to anything
+    /// new — tests still assert their absence.</summary>
+    public static readonly IReadOnlyList<string> Retired = ["CORD2304"];
+}

@@ -71,4 +71,12 @@ public class CapabilityCoverageTests
         Assert.Equal(DiagnosticCodes.All.Count, DiagnosticCodes.All.Distinct(StringComparer.Ordinal).Count());
         Assert.All(DiagnosticCodes.All, c => Assert.StartsWith("CORD21", c, StringComparison.Ordinal));
     }
+
+    [Fact]
+    public void Every_not_yet_code_is_distinct_and_none_is_a_retired_one()
+    {
+        Assert.Equal(NotYetCodes.All.Count, NotYetCodes.All.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(NotYetCodes.All, c => Assert.StartsWith("CORD23", c, StringComparison.Ordinal));
+        Assert.Empty(NotYetCodes.All.Intersect(NotYetCodes.Retired, StringComparer.Ordinal));
+    }
 }
