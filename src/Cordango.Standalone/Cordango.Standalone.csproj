@@ -58,13 +58,34 @@
     code under our licence; the GENERATED files beside them are the user's and carry no header.
   -->
   <!--
-    Two dependencies, and they are the two a generated application already has: the web framework it
-    is hosted by and the ORM it stores rows with. The database PROVIDER is not among them — this
-    library never names Postgres, so the same runtime source compiles in an application somebody
-    repointed at SQL Server or SQLite without touching a line of it.
+    The dependencies a generated application already has: the web framework it is hosted by and the
+    ORM it stores rows with. The database PROVIDER is not among them — this library never names
+    Postgres, so the same runtime source compiles in an application somebody repointed at SQL Server
+    or SQLite without touching a line of it.
+
+    Microsoft.AspNetCore.OpenApi is first-party and version-matched to the SDK; it is a package
+    rather than part of the shared framework, which is why it is named here. It buys the document an
+    application describes itself with. The UI that renders that document is NOT here: a reference UI
+    is a choice about how the application looks, so it belongs to the application's own project file
+    next to Program.cs, where somebody can swap it.
   -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+
+    <!-- Pinned ABOVE what Microsoft.AspNetCore.OpenApi asks for. That package still resolves
+         Microsoft.OpenApi 2.0.0, and everything below 2.7.5 carries GHSA-v5pm-xwqc-g5wc (a crafted
+         document with circular schema references overflows the parser stack). A direct reference
+         is nearer than a transitive one, so this is what the whole graph gets. Remove it once
+         the framework package asks for a fixed version itself. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+
+    <!-- The MCP server every generated application answers on /mcp. The official C# SDK rather
+         than a hand-rolled JSON-RPC controller: the transport has a specification with
+         version negotiation, header/body validation and error codes in it, and none of that is
+         work worth doing twice. -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
   </ItemGroup>

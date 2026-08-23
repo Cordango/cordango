@@ -3,6 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using Cordango.Standalone.Commands;
 using Cordango.Standalone.Data;
 using Cordango.Standalone.Hosting;
 using Cordango.Standalone.Http;
@@ -10,6 +11,7 @@ using Cordango.Standalone.Records;
 using Cordango.Standalone.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Cordango.Standalone.Directory;
 
@@ -27,7 +29,36 @@ public static class DirectoryModule
         services.AddRecord(GroupDescriptor);
         services.AddRecord(OrganizationDescriptor);
         services.AddRecord(ContactDescriptor);
+
+        // AddRecord installed the ordinary gateway, which answers from the definition's roles — and
+        // the definition has nothing to say about these five. Replacing it here, rather than adding
+        // beside it, is what makes IEnumerable<IRecordGateway> hold ONE gateway per entity: two
+        // would let a caller reach the directory through whichever came first.
+        Replace<Person>(services);
+        Replace<Department>(services);
+        Replace<Group>(services);
+        Replace<Organization>(services);
+        Replace<Contact>(services);
+
         return services;
+    }
+
+    /// <summary>
+    /// Swap this entity's gateway for the directory's own.
+    ///
+    /// <para>Only the CLOSED type is removed, and that matters: <c>RecordGateway&lt;Person&gt;</c> is
+    /// a different service from <c>RecordGateway&lt;Department&gt;</c>, so this takes out exactly one
+    /// registration. Removing <c>IRecordGateway</c> instead would take out every entity's, including
+    /// the four registered a line earlier.</para>
+    ///
+    /// <para>The <c>IRecordGateway</c> registration needs no touching at all: <c>AddRecord</c> wrote
+    /// it as a factory that asks for <c>RecordGateway&lt;T&gt;</c>, so it follows this swap.</para>
+    /// </summary>
+    private static void Replace<T>(IServiceCollection services) where T : class, IRecord, new()
+    {
+        services.RemoveAll<RecordGateway<T>>();
+        services.AddScoped<DirectoryGateway<T>>();
+        services.AddScoped(s => (RecordGateway<T>)s.GetRequiredService<DirectoryGateway<T>>());
     }
 
     public static readonly RecordDescriptor<Person> PersonDescriptor = new("person", "person",
@@ -106,14 +137,16 @@ public static class DirectoryModule
 /// here and which team they are on is what makes an approval field usable, and it is not a secret
 /// from the people who work here. Editing that chart is administration.</para>
 ///
-/// <para>An application that needs something narrower — a directory only HR may read — overrides
-/// <see cref="RecordsController{T}.ResolveAccess"/> on its own controller. It is a virtual method
-/// on a generated class, which is the point of generating the class.</para>
+/// <para><b>Why it lives on the gateway rather than on the controller.</b> HTTP is not the only way
+/// in any more. A rule enforced in a controller would be a rule an MCP client walked straight past,
+/// and "the directory is readable but not writable" would silently become "the directory is
+/// writable" for anyone holding a token. One place, every face.</para>
 /// </summary>
-public abstract class DirectoryController<T> : RecordsController<T> where T : class, IRecord, new()
+public class DirectoryGateway<T> : RecordGateway<T> where T : class, IRecord, new()
 {
-    protected DirectoryController(IRecordStore<T> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public DirectoryGateway(
+        IRecordStore<T> store, AppPermissions permissions, ICurrentUser user, CommandService<T> commands)
+        : base(store, permissions, user, commands) { }
 
     protected override EntityAccess ResolveAccess()
     {
@@ -122,37 +155,44 @@ public abstract class DirectoryController<T> : RecordsController<T> where T : cl
     }
 }
 
+/// <summary>
+/// The HTTP face of the directory.
+///
+/// <para>An application that needs something narrower — a directory only HR may read — registers its
+/// own <see cref="DirectoryGateway{T}"/> subclass in place of this one. Doing it there rather than
+/// here is what makes the narrower rule apply to every caller rather than only to browsers.</para>
+/// </summary>
+public abstract class DirectoryController<T> : RecordsController<T> where T : class, IRecord, new()
+{
+    protected DirectoryController(DirectoryGateway<T> records) : base(records) { }
+}
+
 [Route("api/directory/person")]
 public sealed class PersonController : DirectoryController<Person>
 {
-    public PersonController(IRecordStore<Person> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public PersonController(DirectoryGateway<Person> records) : base(records) { }
 }
 
 [Route("api/directory/department")]
 public sealed class DepartmentController : DirectoryController<Department>
 {
-    public DepartmentController(IRecordStore<Department> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public DepartmentController(DirectoryGateway<Department> records) : base(records) { }
 }
 
 [Route("api/directory/group")]
 public sealed class GroupController : DirectoryController<Group>
 {
-    public GroupController(IRecordStore<Group> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public GroupController(DirectoryGateway<Group> records) : base(records) { }
 }
 
 [Route("api/directory/organization")]
 public sealed class OrganizationController : DirectoryController<Organization>
 {
-    public OrganizationController(IRecordStore<Organization> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public OrganizationController(DirectoryGateway<Organization> records) : base(records) { }
 }
 
 [Route("api/directory/contact")]
 public sealed class ContactController : DirectoryController<Contact>
 {
-    public ContactController(IRecordStore<Contact> store, AppPermissions permissions, ICurrentUser user)
-        : base(store, permissions, user) { }
+    public ContactController(DirectoryGateway<Contact> records) : base(records) { }
 }

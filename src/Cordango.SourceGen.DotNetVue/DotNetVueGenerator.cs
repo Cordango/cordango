@@ -193,6 +193,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         Add(BackendEmitter.Setup(app));
         Add(BackendEmitter.Permissions(app));
         Add(BackendEmitter.Commands(app));
+        Add(SchemaEmitter.Emit(app));
         Add(WorkflowEmitter.Workflows(app));
 
         foreach (var entity in app.Entities)

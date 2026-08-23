@@ -65,6 +65,10 @@ public static class CordangoRuntime
         // registering it unconditionally costs nothing.
         services.AddHostedService<Workflows.WorkflowScheduler>();
 
+        // Credentials for callers that are not browsers. Registered unconditionally: the MCP endpoint
+        // is on by default, and it is the reason this exists.
+        services.TryAddScoped<Security.IAccessKeys, Security.AccessKeys>();
+
         services.AddAntiforgery(o =>
         {
             o.HeaderName = AntiforgeryHeader;
@@ -91,6 +95,9 @@ public static class CordangoRuntime
             // Our own filter, not AutoValidateAntiforgeryTokenAttribute — see AntiforgeryFilter for
             // why the framework's own one cannot be used by an application with no views.
             mvc.Filters.Add<AntiforgeryFilter>();
+
+            // Without this an OpenAPI document of this application is empty. See ApiVisibility.
+            mvc.Conventions.Add(new ApiVisibility());
         });
 
         return services;
@@ -114,6 +121,12 @@ public static class CordangoRuntime
         services.AddScoped<RecordHooks<T>>();
         services.AddScoped<IRecordStore<T>, RecordStore<T>>();
         services.AddScoped<Commands.CommandService<T>>();
+
+        // The permission-applying façade over that store, both typed and as a member of the
+        // collection. Typed is what the controller injects; the collection is how something naming
+        // an entity with a STRING — an MCP tool, a script — finds the right one without reflection.
+        services.AddScoped<RecordGateway<T>>();
+        services.AddScoped<IRecordGateway>(s => s.GetRequiredService<RecordGateway<T>>());
 
         // Every entity can be seeded, including the directory. Registered as a collection so the
         // seed runner can ask for "all of them" without a registry to keep in step.

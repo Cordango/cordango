@@ -3,6 +3,7 @@ import { session, loadSession } from './session.js'
 
 import HomeView from './views/HomeView.vue'
 import DirectoryView from './views/DirectoryView.vue'
+import AccessKeysView from './views/AccessKeysView.vue'
 import LoginView from './views/LoginView.vue'
 import SetupView from './views/SetupView.vue'
 
@@ -11,6 +12,7 @@ import SetupView from './views/SetupView.vue'
 const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/directory', name: 'directory', component: DirectoryView },
+  { path: '/access-keys', name: 'access-keys', component: AccessKeysView },
   { path: '/login', name: 'login', component: LoginView, meta: { anonymous: true } },
   { path: '/setup', name: 'setup', component: SetupView, meta: { anonymous: true } },
 ]

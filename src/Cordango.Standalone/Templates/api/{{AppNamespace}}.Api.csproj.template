@@ -6,6 +6,12 @@
     <Nullable>enable</Nullable>
     <RootNamespace>{{AppNamespace}}</RootNamespace>
     <AssemblyName>{{AppNamespace}}.Api</AssemblyName>
+
+    <!-- Microsoft.AspNetCore.OpenApi ships a source generator that lifts your XML doc comments into
+         the OpenAPI document, and it does that by emitting INTERCEPTORS. Interceptors are opt-in per
+         namespace, so without this line the generated file does not compile and the error names a
+         file under obj/ that nobody wrote. The .NET web templates carry the same line. -->
+    <InterceptorsNamespaces>$(InterceptorsNamespaces);Microsoft.AspNetCore.OpenApi.Generated</InterceptorsNamespaces>
   </PropertyGroup>
 
 {{RuntimeReference}}
@@ -18,6 +24,13 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+
+    <!-- The API reference at /scalar. It renders the OpenAPI document the runtime builds; the
+         document itself needs nothing from here. Yours to swap for Swagger UI, Redoc or nothing at
+         all — it is one line in Program.cs and this reference. Scalar serves its own JavaScript and
+         CSS from the package rather than a CDN, which is why an application built from this can be
+         installed somewhere with no route to the internet. -->
+    <PackageReference Include="Scalar.AspNetCore" Version="2.17.1" />
   </ItemGroup>
 
   <!-- Update, not Include: the Web SDK already treats .json under the project as Content, and

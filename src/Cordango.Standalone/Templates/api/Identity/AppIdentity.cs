@@ -59,6 +59,13 @@ public static class AppIdentitySetup
             .AddClaimsPrincipalFactory<AppClaimsFactory>()
             .AddDefaultTokenProviders();
 
+        // Adjustment three: a second way in, for callers that are not browsers.
+        //
+        // A script, a CI job and the /mcp endpoint have no cookie and no way to echo an antiforgery
+        // token. AddAccessKeyAuthentication adds a bearer scheme beside the cookie and picks between
+        // them per request, so both reach the same endpoints with the same claims and the same roles.
+        services.AddAccessKeyAuthentication();
+
         services.ConfigureApplicationCookie(options =>
         {
             options.Cookie.Name = "{{AppKey}}-session";

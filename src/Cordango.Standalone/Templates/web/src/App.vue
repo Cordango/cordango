@@ -49,6 +49,7 @@ async function leave() {
 
           <v-divider class="my-2" />
           <v-list-item :to="{ name: 'directory' }" prepend-icon="mdi-account-group" :title="t('nav.directory')" />
+          <v-list-item :to="{ name: 'access-keys' }" prepend-icon="mdi-key-variant" :title="t('nav.keys')" />
         </v-list>
       </v-navigation-drawer>
 

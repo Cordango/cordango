@@ -28,6 +28,21 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+
+    <!-- Pinned ABOVE what Microsoft.AspNetCore.OpenApi asks for. That package still resolves
+         Microsoft.OpenApi 2.0.0, and everything below 2.7.5 carries GHSA-v5pm-xwqc-g5wc (a crafted
+         document with circular schema references overflows the parser stack). A direct reference
+         is nearer than a transitive one, so this is what the whole graph gets. Remove it once
+         the framework package asks for a fixed version itself. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.12.2" />
+
+    <!-- The MCP server every generated application answers on /mcp. The official C# SDK rather
+         than a hand-rolled JSON-RPC controller: the transport has a specification with
+         version negotiation, header/body validation and error codes in it, and none of that is
+         work worth doing twice. -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.2.0" />
+
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.9" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.9" />
   </ItemGroup>

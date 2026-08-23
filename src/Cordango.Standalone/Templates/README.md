@@ -30,6 +30,35 @@ a log — which is not an answer for anybody who arrived through a browser.
 Uploads and the key ring that protects the session and antiforgery cookies both live on the
 `/appdata` volume, so rebuilding the image does not sign everybody out.
 
+## Three ways in
+
+The screens are one face of this application. There are two more, and all three go through the same
+permissions — a caller reaches exactly what the same person reaches on the screens, and is refused in
+the same words.
+
+| | |
+|---|---|
+| <http://localhost:8080/> | the application |
+| <http://localhost:8080/scalar> | its API, documented and callable in a browser |
+| <http://localhost:8080/openapi/v1.json> | the OpenAPI 3.1 document behind that page |
+| <http://localhost:8080/mcp> | its MCP endpoint, for AI clients |
+
+The OpenAPI document is not reflection over the controllers: every route takes untyped JSON, so
+reflection would describe each one as "an object". The field types come from `api/Data/AppSchema.cs`,
+which the generator wrote from the same definition as your entities — so the document cannot drift
+from the application.
+
+**MCP** is on by default. It offers eight tools — describe, list, get, create, update, delete,
+aggregate, run a command — each one an operation this application already has, reached through the
+same permission layer. It is deliberately not one tool per entity: a client pays for the tool list on
+every request, and this way that cost does not grow with your application. Turn it off by deleting
+`AddCordangoMcp` and `MapCordangoMcp` from `Program.cs`.
+
+To connect anything that is not a browser, mint an **access key** under *Access keys* in the
+navigation, and send it as `Authorization: Bearer cordango_pat...`. A key acts as the person who made
+it, expires if they gave it a date, and stops working the moment their account is locked. Only a hash
+is stored, so the key is shown once and cannot be recovered — mint a new one instead.
+
 `DB_PASSWORD` has a local-only default so the above works with nothing configured. That is safe here
 and only here: the database service publishes no port, so nothing outside the compose network can
 reach it. Set a real one before this runs anywhere but your machine.
@@ -65,7 +94,7 @@ api/                  the ASP.NET Core application
   Security/           the definition's roles, as compiled rules — generated
   Hooks/              the fields the runtime fills in — generated
   Seed/               the demo dataset — generated
-  Identity/           sign-in, accounts, the first administrator
+  Identity/           sign-in, accounts, access keys, the first administrator
   Resources/          messages.en.json, messages.de.json
 runtime/              the Cordango runtime — a library, not your code (Apache-2.0).
                       Checked in until the NuGet package is public; api/*.csproj says how to swap it
@@ -73,6 +102,7 @@ web/                  the Vue application
   src/app.js          your definition, as the screens read it — generated
   src/pages/          one component per screen and per record — generated
   src/blocks/         the building blocks those pages are made of
+  src/views/          the shell's own screens: home, directory, access keys, sign-in
 Dockerfile            one image, API and front end on one origin
 docker-compose.yml    the application and a pinned Postgres
 cordango.build.json   what produced this, and every file it wrote
@@ -109,8 +139,8 @@ appears in a response — not in the record, and not in a message rendered from 
 
 Two things are decided outside the definition, because the definition has nothing to say about them:
 
-- **Signing in** is stock ASP.NET Core Identity with a cookie. Swap it for single sign-on by
-  changing `api/Identity/AppIdentity.cs`.
+- **Signing in** is stock ASP.NET Core Identity with a cookie, plus access keys for callers that are
+  not browsers. Swap either for single sign-on by changing `api/Identity/`.
 - **The `Administrator` role** bypasses definition roles entirely. It is an ASP.NET role rather than
   a definition role, so reading the definition never turns up a role that grants more than it says.
 
@@ -127,7 +157,13 @@ was built completely is one you can trust to be complete.
 ## Security worth knowing about
 
 - Every state-changing request requires an antiforgery token, enforced globally rather than per
-  controller — including on a controller you add later without reading this.
+  controller — including on a controller you add later without reading this. The `/mcp` endpoint is
+  the one exemption, and only because a bearer token is not something a browser attaches to a request
+  on another site's behalf, which is what antiforgery exists to stop.
+- An access key is stored as a SHA-256 hash of a 32-byte random secret. Revoking one takes effect on
+  the next request; there is no cached copy anywhere.
+- Access keys are not an entity. They have no store, no controller and no MCP tool, so no caller can
+  list them through the API — only their own, through `/api/account/keys`.
 - The front-end client in `web/src/api.js` attaches the token automatically. Anything that talks to
   the API should go through it.
 - Uploaded files are addressed by the hash of their contents, so a reference cannot be guessed or

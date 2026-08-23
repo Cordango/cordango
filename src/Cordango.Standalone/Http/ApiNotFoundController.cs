@@ -20,6 +20,9 @@ namespace Cordango.Standalone.Http;
 /// <para>A catch-all route has lower precedence than every literal one, so this only ever runs when
 /// nothing else matched.</para>
 /// </summary>
+// Not an endpoint anybody should call, so not one the document should advertise: it exists to
+// turn an unclaimed /api route into a {code, error} 404 instead of a page of HTML.
+[ApiExplorerSettings(IgnoreApi = true)]
 [Route("api/{**path}")]
 public sealed class ApiNotFoundController : ControllerBase
 {

@@ -30,6 +30,7 @@ public static class BackendEmitter
         source.Line("using Cordango.Standalone.Notifications;");
         source.Line("using Cordango.Standalone.Preferences;");
         source.Line("using Cordango.Standalone.Records;");
+        source.Line("using Cordango.Standalone.Security;");
         source.Line("using Microsoft.EntityFrameworkCore;");
         source.Line($"using {app.Namespace}.Entities;");
         source.Line();
@@ -61,6 +62,9 @@ public static class BackendEmitter
         source.Line();
         source.Line("// What a command told somebody about.");
         source.Line("builder.AddNotifications();");
+        source.Line();
+        source.Line("// Credentials for callers that are not browsers: scripts, CI, the MCP endpoint.");
+        source.Line("builder.AddAccessKeys();");
         source.Line();
         source.Line($"// {app.Name}'s own entities, in definition order.");
         foreach (var entity in app.Entities)
@@ -164,6 +168,9 @@ public static class BackendEmitter
         source.Line("services.AddSingleton(AppRoles.Rules);");
         source.Line("services.AddSingleton(AppCommands.Catalogue);");
         source.Line("services.AddSingleton(AppWorkflows.Catalogue);");
+        source.Line();
+        source.Line("// What this application contains, for the OpenAPI document and the MCP server.");
+        source.Line("services.AddSingleton(AppSchema.Catalogue);");
         source.Line();
 
         foreach (var entity in app.Entities)
@@ -370,6 +377,7 @@ public static class BackendEmitter
         var source = new Source();
         source.Line("using Cordango.Standalone.Hooks;");
         source.Line("using Cordango.Standalone.Records;");
+        source.Line("using Cordango.Standalone.Security;");
         source.Line("using Microsoft.EntityFrameworkCore;");
         source.Line($"using {app.Namespace}.Entities;");
         source.Line();
@@ -912,8 +920,7 @@ public static class BackendEmitter
         source.Line("/// Add your own endpoints in a class of your own — this file is regenerated.</summary>");
         source.Line($"[Route({Naming.Literal("api/" + entity.Key)})]");
         source.Open($"public sealed class {entity.TypeName}Controller : RecordsController<{entity.TypeName}>");
-        source.Line($"public {entity.TypeName}Controller(IRecordStore<{entity.TypeName}> store, AppPermissions permissions, ICurrentUser user)");
-        source.Indent().Line(": base(store, permissions, user) { }").Outdent();
+        source.Line($"public {entity.TypeName}Controller(RecordGateway<{entity.TypeName}> records) : base(records) {{ }}");
         source.Close();
 
         return new GeneratedFile($"api/Controllers/{entity.TypeName}Controller.cs", source.ToString());

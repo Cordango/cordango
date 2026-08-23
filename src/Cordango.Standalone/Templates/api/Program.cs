@@ -1,11 +1,13 @@
 using Cordango.Standalone.Hosting;
 using Cordango.Standalone.Http;
+using Cordango.Standalone.Mcp;
 using Cordango.Standalone.Media;
 using Cordango.Standalone.Directory;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
 using {{AppNamespace}};
 using {{AppNamespace}}.Data;
 using {{AppNamespace}}.Identity;
@@ -89,6 +91,23 @@ builder.Services.AddSingleton<IApiMessages>(services => new JsonApiMessages(
     services.GetRequiredService<IHttpContextAccessor>(),
     Path.Combine(AppContext.BaseDirectory, "Resources")));
 
+// How this application describes itself.
+//
+// The framework finds the ROUTES by walking the controllers, which is why an endpoint you add by
+// hand appears without being registered here. It cannot find the SHAPES: every record route takes a
+// JsonElement, so reflection would describe each one as "an object", and a document that says that
+// about every field is worse than none. OpenApiFromSchema fills them in from AppSchema.cs, which was
+// emitted from the same definition as your entities.
+builder.Services.AddOpenApi(options => options.AddDocumentTransformer<OpenApiFromSchema>());
+
+// The MCP endpoint, on by default.
+//
+// It is not a second permission model. Every tool it offers projects an operation this application
+// already has, through the same gateway the controllers use, so an AI client acting as somebody
+// reaches exactly what that person reaches and is refused in the same words. Delete this line and
+// the MapCordangoMcp below to turn it off.
+builder.Services.AddCordangoMcp(AppSchema.Catalogue);
+
 var app = builder.Build();
 
 // Schema first, on the way up, so the first launch of a fresh checkout is one command and not two.
@@ -150,6 +169,23 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// The document, and something to read it with. Both are real endpoints, so they win over the
+// single-page fallback below; both sit OUTSIDE /api, so the catch-all that 404s unknown API routes
+// never sees them.
+//
+// DisableDefaultFonts is not a style choice. Scalar ships its own JavaScript and CSS in the package,
+// but its default typography is fetched from a font CDN — one outbound request per visit, from an
+// application somebody may well have installed precisely because it does not make any. Off, it
+// renders from what is already in the image and works with no route to the internet at all.
+app.MapOpenApi();
+app.MapScalarApiReference(options => options
+    .WithTitle("{{AppName}} API")
+    .DisableDefaultFonts());
+
+// /mcp, plus the provisional server card beside it. After UseAuthentication above, so a tool call
+// runs as whoever presented a credential rather than as nobody.
+app.MapCordangoMcp();
 
 // Anything that is not an API route is a page of the single-page app, and the app's router decides
 // what it means. Excluding /api keeps a mistyped endpoint a 404 rather than a page of HTML that a

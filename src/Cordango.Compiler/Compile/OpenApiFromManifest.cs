@@ -51,45 +51,21 @@ public static class OpenApiFromManifest
         };
     }
 
+    /// <summary>The field-type map lives in <see cref="FieldJsonSchema"/> — shared with the
+    /// standalone target, which emits the same schemas into a generated application's source rather
+    /// than answering them from a manifest.</summary>
     private static JsonObject EntitySchema(JsonObject entity)
     {
-        var props = new JsonObject();
-        var required = new JsonArray();
-        foreach (var f in (entity["fields"] as JsonArray ?? new JsonArray()).OfType<JsonObject>())
-        {
-            if (f["key"]?.GetValue<string>() is not { } fk) continue;
-            props[fk] = TypeSchema(f);
-            if (f["required"]?.GetValue<bool>() == true && f["system"]?.GetValue<bool>() != true) required.Add(fk);
-        }
-        var schema = new JsonObject { ["type"] = "object", ["properties"] = props };
-        if (required.Count > 0) schema["required"] = required;
-        return schema;
-    }
+        var fields = (entity["fields"] as JsonArray ?? []).OfType<JsonObject>().ToList();
 
-    private static JsonObject TypeSchema(JsonObject field)
-    {
-        var t = field["type"]?.GetValue<string>() ?? "text";
-        JsonObject s = t switch
-        {
-            "integer" => new JsonObject { ["type"] = "integer" },
-            "decimal" or "money" => new JsonObject { ["type"] = "number" },
-            "boolean" => new JsonObject { ["type"] = "boolean" },
-            "multiselect" => new JsonObject { ["type"] = "array", ["items"] = new JsonObject { ["type"] = "string" } },
-            "json" => new JsonObject { ["type"] = "object" },
-            _ => new JsonObject { ["type"] = "string" },
-        };
-        switch (t)
-        {
-            case "date": s["format"] = "date"; break;
-            case "datetime": s["format"] = "date-time"; break;
-            case "email": s["format"] = "email"; break;
-            case "url": s["format"] = "uri"; break;
-        }
-        if (t == "select" && field["options"] is JsonArray opts)
-            s["enum"] = new JsonArray(opts.OfType<JsonObject>()
-                .Select(o => o["value"]?.GetValue<string>()).Where(v => v is not null)
-                .Select(v => (JsonNode)JsonValue.Create(v!)).ToArray());
-        return s;
+        var required = fields
+            .Where(f => f["required"]?.GetValue<bool>() == true && f["system"]?.GetValue<bool>() != true)
+            .Select(f => f["key"]?.GetValue<string>())
+            .Where(k => k is not null)
+            .Select(k => k!)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return FieldJsonSchema.ForObject(fields, required);
     }
 
     private static JsonObject Ref(string key) => new() { ["$ref"] = $"#/components/schemas/{key}" };

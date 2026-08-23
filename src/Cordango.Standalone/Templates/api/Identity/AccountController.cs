@@ -1,4 +1,5 @@
 using Cordango.Standalone.Http;
+using Cordango.Standalone.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -8,6 +9,10 @@ namespace {{AppNamespace}}.Identity;
 public sealed record LoginRequest(string? Email, string? Password, bool RememberMe = false);
 
 public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+
+/// <summary>A new access key. The label is for the person's own list; the expiry is optional, and a
+/// key without one has to be revoked by hand.</summary>
+public sealed record MintKeyRequest(string? Label, DateTimeOffset? Expires);
 
 /// <summary>What the first-run screen sends: the account the person setting this up wants to
 /// have.</summary>
@@ -183,6 +188,74 @@ public sealed class AccountController : ControllerBase
         // proved themselves at.
         await _signIn.RefreshSignInAsync(user);
         return NoContent();
+    }
+
+    /// <summary>
+    /// This person's access keys.
+    ///
+    /// <para>Never anybody else's, and never a secret: what comes back is the label, the dates and
+    /// the id — enough to decide which one to revoke and nothing that could be used to sign in.</para>
+    /// </summary>
+    [HttpGet("keys")]
+    [Authorize]
+    public async Task<IActionResult> Keys([FromServices] IAccessKeys keys, CancellationToken ct)
+    {
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
+
+        var mine = await keys.ListAsync(user.Id, ct);
+
+        return Ok(mine.Select(k => new
+        {
+            id = k.Id,
+            label = k.Label,
+            created = k.Created,
+            lastUsed = k.LastUsed,
+            expires = k.Expires,
+        }));
+    }
+
+    /// <summary>
+    /// Mint one, for a script, a CI job or an AI client on /mcp.
+    ///
+    /// <para><b>The token comes back once and is never recoverable.</b> Only its hash is stored, so
+    /// there is no second chance to copy it and no way for anyone reading the database to use it.
+    /// A key acts as its owner: it reaches exactly what this person reaches through the screens, and
+    /// it stops working the moment their account is locked.</para>
+    /// </summary>
+    [HttpPost("keys")]
+    [Authorize]
+    public async Task<IActionResult> MintKey(
+        [FromBody] MintKeyRequest request, [FromServices] IAccessKeys keys, CancellationToken ct)
+    {
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
+
+        var (key, token) = await keys.MintAsync(user.Id, request?.Label ?? "", request?.Expires, ct);
+
+        return Ok(new
+        {
+            id = key.Id,
+            label = key.Label,
+            created = key.Created,
+            expires = key.Expires,
+            token,
+            notice = "Copy this now. It is not stored and cannot be shown again.",
+        });
+    }
+
+    [HttpDelete("keys/{id}")]
+    [Authorize]
+    public async Task<IActionResult> RevokeKey(string id, [FromServices] IAccessKeys keys, CancellationToken ct)
+    {
+        var user = await _users.GetUserAsync(User);
+        if (user is null) return Unauthorized(this.Refuse("auth.required", "Sign in first."));
+
+        // The same answer whether the key was somebody else's or never existed. Either way it is not
+        // yours, and saying which would let somebody test ids against other people's keys.
+        return await keys.RevokeAsync(user.Id, id, ct)
+            ? NoContent()
+            : NotFound(this.Refuse("key.not_found", "No access key of yours has that id."));
     }
 
     private async Task<object> Describe(AppUser user) => new

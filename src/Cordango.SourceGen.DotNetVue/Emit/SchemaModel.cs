@@ -70,6 +70,7 @@ public static class SchemaModel
         tables.AddRange(Directory);
         tables.Add(Preferences);
         tables.Add(NotificationTable);
+        tables.Add(AccessKeyTable);
 
         // Ordinal by CLR type, which is the order EF writes a snapshot in. Matching it means the
         // fidelity test compares like with like instead of reporting a reordering as a difference.
@@ -191,6 +192,23 @@ public static class SchemaModel
             new IndexSchema(["FullName"], ["full_name"], false),
         ]),
     ];
+
+    /// <summary>Credentials for callers that are not browsers. Not an entity: it has no store, no
+    /// controller and no place in the MCP tool surface, because a caller who could list access keys
+    /// through the API could enumerate every credential in the application.</summary>
+    private static TableSchema AccessKeyTable => new(
+        "Cordango.Standalone.Security.AccessKey", "access_key",
+        [
+            Key("id"),
+            new("label", "Label", "string", "character varying(80)", false, 80),
+            new("user_id", "UserId", "string", "character varying(64)", false, 64),
+            new("secret_hash", "SecretHash", "string", "character varying(64)", false, 64),
+            new("created", "Created", "DateTimeOffset", "timestamp with time zone", false),
+            new("last_used", "LastUsed", "DateTimeOffset", "timestamp with time zone", true),
+            new("expires", "Expires", "DateTimeOffset", "timestamp with time zone", true),
+        ],
+        ["Id"],
+        [new IndexSchema(["UserId"], ["user_id"], false)]);
 
     /// <summary>Each person's own table layouts. A composite key, so there is no id to tamper
     /// with.</summary>
