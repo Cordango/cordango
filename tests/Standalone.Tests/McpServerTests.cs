@@ -143,7 +143,7 @@ public class McpServerTests : IAsyncLifetime
     public async Task Describe_app_reports_the_fields_and_what_this_caller_may_do()
     {
         var described = Payload(await ToolAsync("describe_app", []));
-        var entity = described["entities"]!.AsArray().Single();
+        var entity = described["entities"]!.AsArray().Single()!;
 
         Assert.Equal("widget", entity["key"]!.GetValue<string>());
         Assert.Equal("number", entity["fields"]!["properties"]!["amount"]!["type"]!.GetValue<string>());

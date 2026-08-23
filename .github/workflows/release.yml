@@ -127,9 +127,20 @@ jobs:
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "$GITHUB_REF_NAME"
-          --title "$GITHUB_REF_NAME"
-          --generate-notes
-          --verify-tag
-          assets/*
+        run: |
+          set -euo pipefail
+
+          # A hyphen in the tag means a pre-release. Without this, `v0.5.0-alpha` becomes the release
+          # GitHub calls "Latest" and every download button on the repository points an alpha at
+          # people who wanted 0.4.0.
+          case "$GITHUB_REF_NAME" in
+            *-*) prerelease=--prerelease ;;
+            *)   prerelease= ;;
+          esac
+
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            $prerelease \
+            assets/*

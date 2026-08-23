@@ -25,6 +25,16 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
 
+    <!-- Program.cs calls AddOpenApi and MapOpenApi, so this project needs the package that defines
+         them. The runtime references it too, and for a while this line was left out on the grounds
+         that a package flows through a ProjectReference anyway. It does not always: restore prunes
+         TRANSITIVE references to packages the targeted framework is deemed to provide, this project
+         has the ASP.NET Core framework reference the Web SDK puts there, and the result was a build
+         that worked on two operating systems and failed on the third with "IServiceCollection does
+         not contain a definition for AddOpenApi". A direct reference is never pruned. Declare what
+         you call. -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+
     <!-- The API reference at /scalar. It renders the OpenAPI document the runtime builds; the
          document itself needs nothing from here. Yours to swap for Swagger UI, Redoc or nothing at
          all — it is one line in Program.cs and this reference. Scalar serves its own JavaScript and

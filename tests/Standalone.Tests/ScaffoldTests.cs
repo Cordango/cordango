@@ -146,6 +146,33 @@ public class ScaffoldTests
             project, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("AddOpenApi(", "Microsoft.AspNetCore.OpenApi")]
+    [InlineData("MapOpenApi(", "Microsoft.AspNetCore.OpenApi")]
+    [InlineData("MapScalarApiReference(", "Scalar.AspNetCore")]
+    public void A_package_the_application_calls_is_referenced_by_the_application(string call, string package)
+    {
+        var files = Scaffold.Files(Expenses);
+
+        var callers = files
+            .Where(f => f.RelativePath.StartsWith("api/", StringComparison.Ordinal)
+                && f.RelativePath.EndsWith(".cs", StringComparison.Ordinal)
+                && f.Content.Contains(call, StringComparison.Ordinal))
+            .Select(f => f.RelativePath)
+            .ToList();
+
+        Assert.True(callers.Count > 0, $"No file under api/ calls {call} any more, so this row is stale.");
+
+        var project = files.Single(f => f.RelativePath == "api/ExpenseClaims.Api.csproj").Content;
+
+        Assert.True(
+            project.Contains($@"<PackageReference Include=""{package}""", StringComparison.Ordinal),
+            $"{string.Join(", ", callers)} calls {call} but api/ExpenseClaims.Api.csproj does not reference "
+            + $"{package} directly. Reaching it through the runtime's ProjectReference is not enough: restore "
+            + "prunes transitive references to packages the framework is deemed to provide, and the build then "
+            + "fails on some machines and not others.");
+    }
+
     [Fact]
     public void Referencing_the_runtime_as_a_package_leaves_nothing_to_check_in()
     {
