@@ -12,8 +12,10 @@ deploy it anywhere.
 
 The same definition either runs on **Cordango Platform** — the hosted product, currently in
 invite-only beta at [cordango.com](https://cordango.com) — or compiles to a **standalone
-application** that is yours. This repository is the language, the compiler and the standalone
-generator.
+application** that is yours.
+
+One definition, many targets. `dotnet-vue` is the first first-party target and the one that works
+today; Node, Python and React are on the way. See [Targets](#targets).
 
 What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
 no phone home. It is an ordinary project that keeps working whether or not this
@@ -26,6 +28,7 @@ project does.
 ## Table of Contents
 
 - [Documentation](#documentation)
+- [Targets](#targets)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
   - [Install](#install)
@@ -57,12 +60,41 @@ Full documentation is at **[docs.cordango.com](https://docs.cordango.com)**.
 | [Building with an agent](https://docs.cordango.com/ai/overview) | Claude Code, Codex, Cursor |
 | [API reference](https://docs.cordango.com/api-reference/introduction) · [MCP](https://docs.cordango.com/mcp/overview) | Talking to an instance |
 
+## Targets
+
+A **target** is one whole stack — a backend and a frontend that ship together. `--target` names it,
+and `cordango targets` prints what each one can and cannot build.
+
+| Target | Backend | Frontend | Status |
+| --- | --- | --- | --- |
+| `dotnet-vue` | ASP.NET Core, EF Core, PostgreSQL | Vue 3, Vuetify | **Available** |
+| `node-vue` | Node, TypeScript | Vue 3, Vuetify | Designed, next up |
+| Python | Python | — | Planned |
+| React | — | React | Planned |
+
+**Only `dotnet-vue` exists today.** The others are not implemented and `--target` will not accept
+them yet — they are listed so you can see where this is going, not so you can use them.
+
+Nothing about the language is tied to .NET. The schema, the compiler, the validator and the
+capability model are all target-agnostic; `dotnet-vue` is simply the one that was written first. A
+generator does not have to be written in .NET either — the extension point is a process that
+describes itself on stdout and takes a request on stdin, so one written in Go or Python is as welcome
+as one written in C#.
+
+[Targets](https://docs.cordango.com/concepts/targets) has the detail.
+
 ## Requirements
 
-To **run** `cordango`: nothing. The binary is self-contained and carries its own runtime — no .NET
-SDK, no .NET runtime, no ICU.
+**To run `cordango`:** nothing at all. The binary is self-contained and carries its own runtime —
+no .NET SDK, no .NET runtime, no ICU.
 
-To **build and run what it generates**: Docker, or the .NET 10 SDK and PostgreSQL.
+**To run what it generates:** Docker, for now. `docker compose up --build` brings the application and
+its database up together, which is why the quickstart is one command.
+
+You do not have to use it. A generated application is an ordinary project in whatever language the
+target emits, so you can run it directly with that toolchain — `dotnet run` and `npm run dev` for
+`dotnet-vue`, and whatever is native to the target otherwise. You bring your own PostgreSQL in that
+case. Running a generated application with no Docker and nothing to set up is coming.
 
 ## Quick Start
 
@@ -119,7 +151,7 @@ The longer version, with an application worth reading at the end of it, is the
 
 ## What you get
 
-An ordinary repository you own:
+An ordinary repository you own. From `dotnet-vue`:
 
 ```
 api/        ASP.NET Core, MVC controllers, EF Core, migrations you can read
@@ -129,9 +161,11 @@ Dockerfile
 docker-compose.yml
 ```
 
-Entities and their EF configuration, a REST API, roles and per-field permissions enforced on the
-server, commands with their guards and effects, workflows, computed fields and rollups, sign-in,
-a first-run setup screen, and a demo dataset.
+Another target lays it out in whatever is idiomatic for its own stack. What every target owes you is
+the same list, because it comes from the definition rather than from the language: entities and their
+schema, a REST API, roles and per-field permissions enforced on the server, commands with their
+guards and effects, workflows, computed fields and rollups, sign-in, a first-run setup screen, and a
+demo dataset.
 
 Delete the toolchain afterwards and it still builds.
 
