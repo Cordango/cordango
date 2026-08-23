@@ -67,10 +67,13 @@ and `cordango targets` prints what each one can and cannot build.
 
 | Target | Backend | Frontend | Status |
 | --- | --- | --- | --- |
-| `dotnet-vue` | ASP.NET Core, EF Core, PostgreSQL | Vue 3, Vuetify | **Available** |
+| `dotnet-vue` | ASP.NET Core, EF Core | Vue 3, Vuetify | **Available** |
 | `node-vue` | Node, TypeScript | Vue 3, Vuetify | Designed, next up |
 | Python | Python | — | Planned |
 | React | — | React | Planned |
+
+**PostgreSQL is the only database today.** More will follow. Which one a generated application uses
+is the target's choice, never something your definition has to say.
 
 **Only `dotnet-vue` exists today.** The others are not implemented and `--target` will not accept
 them yet — they are listed so you can see where this is going, not so you can use them.
