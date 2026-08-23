@@ -118,6 +118,7 @@ Security vulnerabilities go to [SECURITY.md](SECURITY.md), not to the issue trac
 
 ## Getting help
 
+- [docs.cordango.com](https://docs.cordango.com) — the language, the CLI, and the concepts behind both
 - [Issues](https://github.com/cordango/cordango/issues) — bugs and feature requests
 - [Discussions](https://github.com/cordango/cordango/discussions) — questions and ideas
 - [hello@cordango.com](mailto:hello@cordango.com)

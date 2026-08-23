@@ -3,6 +3,7 @@
 [![CI](https://github.com/cordango/cordango/actions/workflows/ci.yml/badge.svg)](https://github.com/cordango/cordango/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Cordango.Cli?logo=nuget&label=Cordango.Cli)](https://www.nuget.org/packages/Cordango.Cli)
 [![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
+[![Docs](https://img.shields.io/badge/docs-docs.cordango.com-0f766e)](https://docs.cordango.com)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
 Cordango is an open application language and deterministic compiler for building complete business
@@ -20,8 +21,11 @@ project does.
 
 > **Status: pre-alpha.** The standalone generator works end to end and nothing here is stable yet.
 
+📖 **[Documentation](https://docs.cordango.com)** · [Quickstart](https://docs.cordango.com/quickstart) · [CLI reference](https://docs.cordango.com/cli/install) · [Concepts](https://docs.cordango.com/concepts) · [Building with an agent](https://docs.cordango.com/ai/overview)
+
 ## Table of Contents
 
+- [Documentation](#documentation)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
   - [Install](#install)
@@ -37,6 +41,21 @@ project does.
 - [Security](#security)
 - [Getting help](#getting-help)
 - [License](#license)
+
+## Documentation
+
+Full documentation is at **[docs.cordango.com](https://docs.cordango.com)**.
+
+| | |
+| --- | --- |
+| [Quickstart](https://docs.cordango.com/quickstart) | From nothing to a running application |
+| [CLI](https://docs.cordango.com/cli/install) | Installing, and every command |
+| [Concepts](https://docs.cordango.com/concepts) | Semantic source, the App Definition, the schema, targets |
+| [Authoring](https://docs.cordango.com/guides/authoring) | Editing an app, semantic operations, roles and access |
+| [Deploying](https://docs.cordango.com/guides/deploying) | Getting a generated application into production |
+| [Validation and CI](https://docs.cordango.com/guides/validation) | Checking a definition in a pipeline |
+| [Building with an agent](https://docs.cordango.com/ai/overview) | Claude Code, Codex, Cursor |
+| [API reference](https://docs.cordango.com/api-reference/introduction) · [MCP](https://docs.cordango.com/mcp/overview) | Talking to an instance |
 
 ## Requirements
 
@@ -95,6 +114,9 @@ That last command is the whole deployment — no `.env` to write first, no migra
 to look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
 account.
 
+The longer version, with an application worth reading at the end of it, is the
+**[Quickstart](https://docs.cordango.com/quickstart)**.
+
 ## What you get
 
 An ordinary repository you own:
@@ -129,7 +151,7 @@ Delete the toolchain afterwards and it still builds.
 | `cordango doctor` | Check the workspace for problems that are not source errors |
 
 `cordango --help` lists the rest, including `login`, `publish` and `whoami` for talking to an
-instance.
+instance. Every command is documented at [docs.cordango.com/cli](https://docs.cordango.com/cli/install).
 
 ## Nothing is dropped silently
 
@@ -144,6 +166,8 @@ for a complete one later.
 The codes separate two different kinds of news: `CORD21xx` is *this target will never do that*
 (record history needs an audit trail a standalone application does not keep), and `CORD23xx` is
 *not generated yet*, which a later release removes with no change to your definition.
+
+See [Targets](https://docs.cordango.com/concepts/targets) for what each one supports.
 
 ## Determinism
 
@@ -211,6 +235,7 @@ serious kind of report we can get.
 
 ## Getting help
 
+- [Documentation](https://docs.cordango.com) — start here
 - [Issues](https://github.com/cordango/cordango/issues) — bugs and feature requests
 - [Discussions](https://github.com/cordango/cordango/discussions) — questions and ideas
 - [hello@cordango.com](mailto:hello@cordango.com)
