@@ -49,33 +49,59 @@ const commands = computed(() => commandsOf(props.entity).filter((c) => props.act
           </div>
         </div>
 
-        <div class="d-flex flex-wrap align-center">
-          <CommandButton
-            v-for="command in commands"
-            :key="command.key"
-            :entity="entity"
-            :record="record"
-            :command="command"
-            @done="emit('changed')"
-          />
+        <!--
+          Up to two commands stay as buttons, because a record with one obvious next step should
+          show it. Beyond that they collapse: a detail header with six buttons across it has no
+          primary action at all, which is the same problem the table rows had.
+        -->
+        <div class="d-flex flex-wrap align-center ga-1">
+          <template v-if="commands.length <= 2">
+            <CommandButton
+              v-for="command in commands"
+              :key="command.key"
+              :entity="entity"
+              :record="record"
+              :command="command"
+              @done="emit('changed')"
+            />
+          </template>
+
           <v-btn
             v-if="actions.includes('edit')"
             size="small"
-            variant="text"
-            class="ml-1"
+            variant="tonal"
+            prepend-icon="mdi-pencil-outline"
             @click="emit('edit')"
           >
             Edit
           </v-btn>
-          <v-btn
-            v-if="actions.includes('delete')"
-            size="small"
-            variant="text"
-            color="error"
-            @click="emit('remove')"
-          >
-            Delete
-          </v-btn>
+
+          <v-menu v-if="commands.length > 2 || actions.includes('delete')" location="bottom end">
+            <template #activator="{ props }">
+              <v-btn icon="mdi-dots-horizontal" size="small" v-bind="props" />
+            </template>
+            <v-list>
+              <template v-if="commands.length > 2">
+                <CommandButton
+                  v-for="command in commands"
+                  :key="command.key"
+                  as="item"
+                  :entity="entity"
+                  :record="record"
+                  :command="command"
+                  @done="emit('changed')"
+                />
+                <v-divider v-if="actions.includes('delete')" />
+              </template>
+              <v-list-item
+                v-if="actions.includes('delete')"
+                prepend-icon="mdi-delete-outline"
+                title="Delete"
+                base-color="error"
+                @click="emit('remove')"
+              />
+            </v-list>
+          </v-menu>
         </div>
       </div>
     </v-card-text>

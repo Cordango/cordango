@@ -91,4 +91,49 @@ public class VocabularyTests
         Assert.Contains("cordango vocabulary", instructions, StringComparison.Ordinal);
         Assert.Contains("Never read the `cordango` binary", instructions, StringComparison.Ordinal);
     }
+
+    [Fact]
+    public void Every_file_spelling_in_the_seams_table_is_a_key_a_written_file_carries()
+    {
+        using var sandbox = new Sandbox();
+
+        Assert.Equal(ExitCodes.Ok, sandbox.Run("new", "placeholder"));
+
+        foreach (var app in new[] { "task-manager", "helpdesk" })
+            Assert.Equal(ExitCodes.Ok, sandbox.Run("import", CorpusApp(app)));
+
+        var written = string.Join(
+            "\n",
+            Directory.EnumerateFiles(sandbox.Root, "*.cordango.yaml", SearchOption.AllDirectories)
+                .Select(File.ReadAllText));
+
+        var keys = written.Split('\n')
+            .Select(line => line.TrimStart(' ', '-').Split(':')[0].Trim())
+            .Where(key => key.Length > 0)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = VocabularyCommand.Seams
+            .Where(seam => !seam.File.Contains(' ') && !seam.File.Contains(':'))
+            .SelectMany(seam => seam.File.Split('.').Select(segment => (seam.Idea, seam.File, segment)))
+            .Where(row => !keys.Contains(row.segment))
+            .ToArray();
+
+        Assert.True(
+            missing.Length == 0,
+            "The table that exists to stop an agent guessing names a key no written file carries: "
+            + string.Join("; ", missing.Select(r => $"{r.Idea}: file '{r.File}' has no '{r.segment}'")));
+    }
+
+    private static string CorpusApp(string name)
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var candidate = Path.Combine(directory.FullName, "tests", "corpus", "reference", name + ".appdef.json");
+            if (File.Exists(candidate)) return candidate;
+            directory = directory.Parent;
+        }
+
+        throw new InvalidOperationException("Could not find the corpus above " + AppContext.BaseDirectory);
+    }
 }

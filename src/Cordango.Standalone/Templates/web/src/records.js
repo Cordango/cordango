@@ -331,6 +331,52 @@ export function formatValue(value, field) {
   }
 }
 
+/**
+ * A BLOCK's `format`, which is not a field's `type`.
+ *
+ * A field is formatted by what it IS — a money column is money wherever it appears. A stat is
+ * formatted by what the author says it MEANS at this spot on this screen, and the two vocabularies
+ * do not overlap: there is no `share` or `multiple` field type, and `formatValue` fell through to
+ * `String(value)` for every one of them. A count of 12400 rendered as "12400".
+ *
+ * `share` and `percent` take a FRACTION — 0.42 prints as 42%.
+ */
+export function formatStat(value, format, options = {}) {
+  if (value === null || value === undefined || value === '') return '—'
+
+  const locale = currentLocale()
+  const number = Number(value)
+
+  switch (format) {
+    case 'money':
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency: options.currency || 'EUR',
+      }).format(number)
+
+    case 'percent':
+    case 'share':
+      return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(number)
+
+    case 'multiple':
+      return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(number)}×`
+
+    case 'date':
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(new Date(value))
+
+    case 'datetime':
+      return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' })
+        .format(new Date(value))
+
+    default:
+      // Including 'number', and including no format at all. A figure that is not a number falls
+      // back to its own text rather than to NaN.
+      return Number.isFinite(number)
+        ? new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(number)
+        : String(value)
+  }
+}
+
 /** The colour a select option carries, for a chip or a board column. */
 export const optionColor = (field, value) =>
   field?.options?.find((o) => o.value === value)?.color || undefined
@@ -357,3 +403,17 @@ export function onRecordsChanged(matches, handler) {
   window.addEventListener('cordango:records-changed', listener)
   return () => window.removeEventListener('cordango:records-changed', listener)
 }
+
+/**
+ * The event the shell's snackbar listens for.
+ *
+ * A CONSTANT rather than a string at each end, because it was a string at each end and the two
+ * ends did not match: the shell listened on one name and the command button dispatched another, so
+ * every message a command returned was thrown into an empty room. Nothing errored, nothing logged,
+ * and the only symptom was a confirmation that never appeared.
+ */
+export const TOAST_EVENT = 'cordango:toast'
+
+/** Say something to the person using the application. `tone` is info | success | warning | error. */
+export const toast = (message, tone = 'info') =>
+  window.dispatchEvent(new CustomEvent(TOAST_EVENT, { detail: { message, tone } }))

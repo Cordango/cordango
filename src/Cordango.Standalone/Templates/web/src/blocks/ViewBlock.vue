@@ -8,6 +8,7 @@ import {
 import { session } from '../session.js'
 import RecordDialog from './RecordDialog.vue'
 import CommandButton from './CommandButton.vue'
+import EmptyState from './EmptyState.vue'
 import FilterBar from './FilterBar.vue'
 import InlineCell from './InlineCell.vue'
 
@@ -28,6 +29,9 @@ const props = defineProps({
   // This list's OWN toolbar: `{ search: [...fields], facets: [...fields] }`.
   filterBar: { type: Object, default: null },
   create: { type: Boolean, default: true },
+  // The page heading already says this. Set by the emitter when the two would be the same words,
+  // never by the definition — an author naming a list is not making a mistake.
+  hideTitle: { type: Boolean, default: false },
   allowDelete: { type: Boolean, default: false },
   // Edit cells where they sit. The first column is left alone: it is the one that opens the record,
   // and a column that both opens and edits does neither predictably.
@@ -237,16 +241,30 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
 
 <template>
   <v-card>
-    <v-card-title class="d-flex align-center">
-      <span class="text-subtitle-1">{{ definition?.label }}</span>
-      <v-chip v-if="!loading" size="x-small" class="ml-2" variant="tonal">{{ total }}</v-chip>
+    <v-card-title class="d-flex align-center ga-2 flex-wrap">
+      <span v-if="!hideTitle" class="text-subtitle-1 font-weight-medium">
+        {{ definition?.label }}
+      </span>
+      <!-- With the title suppressed a bare "25" in a chip says nothing. The count is worth keeping;
+           what it counts has to come from somewhere, and with no title above it that is here. -->
+      <v-chip v-if="!loading && !hideTitle" size="x-small" variant="tonal">{{ total }}</v-chip>
+      <span v-else-if="!loading" class="text-body-2 text-medium-emphasis">
+        {{ total }} {{ (total === 1 ? entity?.label : entity?.labelPlural) || '' }}
+      </span>
       <v-spacer />
-      <v-btn v-if="create" size="small" variant="tonal" prepend-icon="mdi-plus" @click="editing = { ...blank }">
+      <v-btn
+        v-if="create"
+        size="small"
+        variant="tonal"
+        color="primary"
+        prepend-icon="mdi-plus"
+        @click="editing = { ...blank }"
+      >
         New
       </v-btn>
     </v-card-title>
 
-    <div v-if="filterBar" class="px-4">
+    <div v-if="filterBar" class="px-4 pb-2">
       <FilterBar
         :entity="entityKey"
         :state="own"
@@ -255,66 +273,97 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
       />
     </div>
 
-    <v-alert v-if="error" type="error" variant="tonal" class="ma-4">{{ error }}</v-alert>
+    <v-alert v-if="error" type="error" class="ma-4">{{ error }}</v-alert>
     <v-skeleton-loader v-else-if="loading" type="table" />
 
-    <v-table v-else-if="visible.length" hover>
-      <thead>
-        <tr>
-          <th v-for="field in columns" :key="field.key">{{ field.label }}</th>
-          <th v-if="rowCommands.length || allowDelete" />
-        </tr>
-      </thead>
-      <tbody v-for="section in sections" :key="section.key">
-        <tr v-if="section.label">
-          <td
-            :colspan="columns.length + (rowCommands.length || allowDelete ? 1 : 0)"
-            class="text-caption text-medium-emphasis font-weight-medium"
-          >
-            {{ section.label }}
-            <v-chip size="x-small" variant="tonal" class="ml-2">{{ section.rows.length }}</v-chip>
-          </td>
-        </tr>
-        <tr v-for="row in section.rows" :key="row.id" style="cursor: pointer" @click="open(row)">
-          <td
-            v-for="(field, index) in columns"
-            :key="field.key"
-            :style="editableIn(field, index) ? 'cursor: auto' : ''"
-            @click="editableIn(field, index) ? $event.stopPropagation() : null"
-          >
-            <InlineCell
-              :entity="entityKey"
-              :field="field"
-              :record="row"
-              :editable="editableIn(field, index)"
-              :labels="labels[field.key] || null"
-              @saved="load(); recordsChanged(entityKey)"
-              @failed="error = $event"
-            />
-          </td>
-          <td v-if="rowCommands.length || allowDelete" class="text-right" @click.stop>
-            <CommandButton
-              v-for="command in rowCommands"
-              :key="command.key"
-              :entity="entityKey"
-              :record="row"
-              :command="command"
-              density="compact"
-              @done="load"
-            />
-            <v-btn
-              v-if="allowDelete"
-              icon="mdi-delete-outline"
-              size="small"
-              variant="text"
-              @click="confirming = row"
-            />
-          </td>
-        </tr>
-      </tbody>
-    </v-table>
+    <div v-else-if="visible.length" class="cd-table-scroll">
+      <v-table hover>
+        <thead>
+          <tr>
+            <th v-for="field in columns" :key="field.key">{{ field.label }}</th>
+            <th v-if="rowCommands.length || allowDelete" class="cd-row-actions" />
+          </tr>
+        </thead>
+        <tbody v-for="section in sections" :key="section.key">
+          <tr v-if="section.label" class="cd-group">
+            <td
+              :colspan="columns.length + (rowCommands.length || allowDelete ? 1 : 0)"
+              class="text-caption text-medium-emphasis font-weight-medium"
+            >
+              {{ section.label }}
+              <v-chip size="x-small" variant="tonal" class="ml-2">{{ section.rows.length }}</v-chip>
+            </td>
+          </tr>
+          <tr v-for="row in section.rows" :key="row.id" style="cursor: pointer" @click="open(row)">
+            <td
+              v-for="(field, index) in columns"
+              :key="field.key"
+              :style="editableIn(field, index) ? 'cursor: auto' : ''"
+              @click="editableIn(field, index) ? $event.stopPropagation() : null"
+            >
+              <InlineCell
+                :entity="entityKey"
+                :field="field"
+                :record="row"
+                :editable="editableIn(field, index)"
+                :labels="labels[field.key] || null"
+                @saved="load(); recordsChanged(entityKey)"
+                @failed="error = $event"
+              />
+            </td>
 
-    <v-card-text v-else class="text-medium-emphasis">Nothing here yet.</v-card-text>
+            <!--
+              One button, not one per command.
+
+              This rendered every `tableRow` command as its own button in the last cell. Six
+              commands on a task — add to my day, due today, due tomorrow, mark important, no longer
+              important, remove from my day — produced eighteen centimetres of grey buttons wrapping
+              onto two lines on every row, which is not a table any more. The commands are the same
+              and the guard is the same; they are simply behind the control that means "there is
+              more here".
+            -->
+            <td v-if="rowCommands.length || allowDelete" class="cd-row-actions text-right" @click.stop>
+              <div class="cd-hover-actions d-inline-flex align-center">
+                <v-menu v-if="rowCommands.length" location="bottom end">
+                  <template #activator="{ props }">
+                    <v-btn
+                      icon="mdi-dots-horizontal"
+                      size="small"
+                      v-bind="props"
+                      :aria-label="'More actions'"
+                    />
+                  </template>
+                  <v-list>
+                    <CommandButton
+                      v-for="command in rowCommands"
+                      :key="command.key"
+                      as="item"
+                      :entity="entityKey"
+                      :record="row"
+                      :command="command"
+                      @done="load"
+                    />
+                  </v-list>
+                </v-menu>
+
+                <v-btn
+                  v-if="allowDelete"
+                  icon="mdi-delete-outline"
+                  size="small"
+                  @click="confirming = row"
+                />
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </v-table>
+    </div>
+
+    <EmptyState v-else icon="mdi-table-off" title="Nothing here yet.">
+      <v-btn v-if="create" variant="tonal" prepend-icon="mdi-plus" @click="editing = { ...blank }">
+        Add the first one
+      </v-btn>
+    </EmptyState>
 
     <RecordDialog
       v-if="editing"
@@ -326,12 +375,12 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
 
     <v-dialog :model-value="!!confirming" max-width="420" @update:model-value="confirming = null">
       <v-card>
-        <v-card-title class="text-subtitle-1">Delete this record?</v-card-title>
+        <v-card-title>Delete this record?</v-card-title>
         <v-card-text class="text-medium-emphasis">This cannot be undone.</v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="confirming = null">Cancel</v-btn>
-          <v-btn color="error" variant="tonal" @click="remove(confirming)">Delete</v-btn>
+          <v-btn @click="confirming = null">Cancel</v-btn>
+          <v-btn color="error" variant="flat" @click="remove(confirming)">Delete</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>

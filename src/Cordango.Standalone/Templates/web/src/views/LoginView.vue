@@ -11,6 +11,7 @@ const router = useRouter()
 const email = ref('')
 const password = ref('')
 const remember = ref(false)
+const reveal = ref(false)
 const busy = ref(false)
 const error = ref(null)
 
@@ -31,29 +32,44 @@ async function submit() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center align-center" style="min-height: 80vh">
-    <v-card width="420" class="pa-4">
-      <v-card-title>{{ t('auth.title') }}</v-card-title>
-      <v-card-text>
-        <v-form @submit.prevent="submit">
-          <v-text-field
-            v-model="email"
-            :label="t('auth.email')"
-            type="email"
-            autocomplete="username"
-            autofocus
-          />
-          <v-text-field
-            v-model="password"
-            :label="t('auth.password')"
-            type="password"
-            autocomplete="current-password"
-          />
-          <v-checkbox v-model="remember" :label="t('auth.remember')" density="compact" />
-          <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
-          <v-btn type="submit" color="primary" block :loading="busy">{{ t('auth.submit') }}</v-btn>
-        </v-form>
-      </v-card-text>
-    </v-card>
-  </v-container>
+  <div class="d-flex align-center justify-center pa-4" style="min-height: 100vh">
+    <div style="width: 100%; max-width: 400px">
+      <div class="text-center mb-6">
+        <v-avatar color="primary" size="52" rounded="lg" class="mb-4">
+          <v-icon icon="mdi-hexagon-slice-6" size="28" />
+        </v-avatar>
+        <h1 class="text-h5 font-weight-bold">{{ t('app.name') }}</h1>
+        <p class="text-body-2 text-medium-emphasis mt-1 mb-0">{{ t('auth.intro') }}</p>
+      </div>
+
+      <v-card>
+        <v-card-text class="pa-6">
+          <v-form class="d-flex flex-column ga-4" @submit.prevent="submit">
+            <v-text-field
+              v-model="email"
+              :label="t('auth.email')"
+              type="email"
+              autocomplete="username"
+              prepend-inner-icon="mdi-email-outline"
+              autofocus
+            />
+            <v-text-field
+              v-model="password"
+              :label="t('auth.password')"
+              :type="reveal ? 'text' : 'password'"
+              autocomplete="current-password"
+              prepend-inner-icon="mdi-lock-outline"
+              :append-inner-icon="reveal ? 'mdi-eye-off-outline' : 'mdi-eye-outline'"
+              @click:append-inner="reveal = !reveal"
+            />
+            <v-checkbox v-model="remember" :label="t('auth.remember')" density="compact" />
+            <v-alert v-if="error" type="error">{{ error }}</v-alert>
+            <v-btn type="submit" color="primary" variant="flat" size="large" block :loading="busy">
+              {{ t('auth.submit') }}
+            </v-btn>
+          </v-form>
+        </v-card-text>
+      </v-card>
+    </div>
+  </div>
 </template>

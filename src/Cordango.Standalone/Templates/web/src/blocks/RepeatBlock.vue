@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { loadRecords, onRecordsChanged, sortTerm } from '../records.js'
 import { session } from '../session.js'
+import EmptyState from './EmptyState.vue'
 
 // A `repeat` block: the same little layout, once per record. A row of scenario cards, a list of
 // funding rounds — shapes a table cannot make, because each row is a composition rather than cells.
@@ -61,9 +62,9 @@ watch(() => props.source, load, { deep: true })
 </script>
 
 <template>
-  <v-alert v-if="error" type="error" variant="tonal">{{ error }}</v-alert>
+  <v-alert v-if="error" type="error">{{ error }}</v-alert>
   <v-skeleton-loader v-else-if="loading" type="list-item-two-line" />
-  <div v-else-if="rows.length === 0" class="text-medium-emphasis">{{ emptyText }}</div>
+  <EmptyState v-else-if="rows.length === 0" :title="emptyText" />
   <div v-else class="d-flex flex-column" :class="gaps[gap] || 'ga-4'">
     <template v-for="row in rows" :key="row.id">
       <slot :record="row" />

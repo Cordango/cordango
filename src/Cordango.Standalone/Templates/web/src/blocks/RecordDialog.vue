@@ -48,10 +48,13 @@ function close(value) {
 </script>
 
 <template>
-  <v-dialog v-model="open" max-width="640" @update:model-value="close">
+  <!-- Scrollable, because a form is as long as the entity is wide. Without it an entity with
+       twenty fields renders a dialog taller than the window whose Save button cannot be reached. -->
+  <v-dialog v-model="open" max-width="640" scrollable @update:model-value="close">
     <v-card>
       <v-card-title>{{ isNew ? 'New ' + (definition?.label || '') : definition?.label }}</v-card-title>
-      <v-card-text>
+      <v-divider />
+      <v-card-text class="d-flex flex-column ga-4 py-5">
         <FieldInput
           v-for="field in shown"
           :key="field.key"
@@ -59,12 +62,13 @@ function close(value) {
           :model-value="fields[field.key]"
           @update:model-value="(v) => (fields[field.key] = v)"
         />
-        <v-alert v-if="error" type="error" variant="tonal" class="mt-2">{{ error }}</v-alert>
+        <v-alert v-if="error" type="error">{{ error }}</v-alert>
       </v-card-text>
+      <v-divider />
       <v-card-actions>
         <v-spacer />
-        <v-btn variant="text" @click="emit('close')">Cancel</v-btn>
-        <v-btn color="primary" :loading="busy" @click="save">Save</v-btn>
+        <v-btn @click="emit('close')">Cancel</v-btn>
+        <v-btn color="primary" variant="flat" :loading="busy" @click="save">Save</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

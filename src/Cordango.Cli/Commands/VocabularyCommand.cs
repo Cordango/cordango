@@ -48,17 +48,61 @@ public static class VocabularyCommand
     /// error and said so.
     ///
     /// <para>An operation is what a model SENDS; a file is what gets WRITTEN. They diverged for
-    /// defensible reasons at each step — <c>target</c> is shorter than <c>targetEntity</c>,
-    /// <c>calculate</c> reads better than <c>computed</c> — and the sum is a seam nobody documented.
-    /// Naming the pairs is the cheap fix; collapsing them is a breaking change to both surfaces and
-    /// wants its own decision.</para>
+    /// defensible reasons at each step — <c>target</c> is shorter than <c>targetEntity</c> — and the
+    /// sum is a seam nobody documented. Naming the pairs is the cheap fix; collapsing them is a
+    /// breaking change to both surfaces and wants its own decision.</para>
+    ///
+    /// <para><b>A table of names has to be right or it is worse than absent.</b> Two rows here said
+    /// a calculation is written <c>calculate.aggregate</c> and <c>calculate.expression</c>. There is
+    /// no <c>calculate</c> key anywhere in the format — the word appeared only in this table — and
+    /// the file spelling is <c>computed.rollup</c> and <c>computed.expr</c>. An agent following the
+    /// document written to stop it guessing spent a round trip guessing anyway, which is the exact
+    /// failure this list exists to prevent. <c>VocabularyTests</c> now checks every File value
+    /// against the schema.</para>
     /// </summary>
-    private static readonly (string Idea, string Operation, string File)[] Seams =
+    /// <summary>
+    /// The value tokens, and — the part nobody could find — the fact that the SAME ones work in an
+    /// effect as in a filter.
+    ///
+    /// <para>They are documented in the App Definition schema per property, which means an author
+    /// reading about effects saw <c>{{today}}</c> and <c>{{now}}</c> and had no way to learn that
+    /// the offsets they had already used in a filter were also allowed there. One agent shipped a
+    /// recurrence feature with a note saying the arithmetic form was the one thing they could not
+    /// verify. It was allowed, and it was also broken in the runtime — see
+    /// <c>ValueTokens</c> — so the answer they could not find was "yes, and it does not work".</para>
+    ///
+    /// <para><b>Here rather than in the ops schema.</b> That schema is what a model reads on every
+    /// request and it is a few bytes under a deliberate ceiling; the standing rule is to narrow
+    /// before raising one. This command is the documentation surface and costs nothing per
+    /// request.</para>
+    /// </summary>
+    private static readonly (string Token, string Means)[] Tokens =
+    [
+        ("{{actor.id}}", "the signed-in PERSON — what a 'mine' filter and an owner stamp both compare"),
+        ("{{today}}", "the current date, yyyy-MM-dd"),
+        ("{{now}}", "the current instant, ISO 8601"),
+        ("{{today+7}}", "an offset off either anchor; the unit defaults to days"),
+        ("{{today-30d}} {{today+2w}}", "days and weeks"),
+        ("{{now-4h}}", "hours, on the instant anchor only — a date has no hours"),
+        ("{{record.<field>}}", "a field of the record the rule is about (effects and templates)"),
+        ("{{source.<field>}}", "a field of the row being iterated, inside createForEach"),
+    ];
+
+    /// <summary>What the offsets deliberately cannot say, with the reason — an absence with a reason
+    /// is a closed question, and a bare one gets reopened by every author who wants a monthly
+    /// anything.</summary>
+    private const string TokenLimits =
+        "Units are d, w and h. There is no month or year offset: JavaScript's setMonth overflows "
+        + "(Jan 31 + 1m = Mar 3) and .NET's AddMonths clamps (Feb 28), so {{today+1m}} would select "
+        + "different rows in the browser than on the server. For monthly and yearly steps use a "
+        + "createForEach over a `range` source, whose `step` takes day/week/month/year.";
+
+    public static readonly (string Idea, string Operation, string File)[] Seams =
     [
         ("a reference's target", "target", "targetEntity"),
         ("an automation trigger", "on", "trigger"),
-        ("a rollup", "aggregate", "calculate.aggregate"),
-        ("an expression", "expr", "calculate.expression"),
+        ("a rollup", "aggregate", "computed.rollup"),
+        ("an expression", "expr", "computed.expr"),
         ("a section's entity", "of", "of (screens) / entity (views)"),
         ("a board view", "board", "kind: kanban"),
         ("an entity's plural", "labelPlural", "plural"),
@@ -239,6 +283,14 @@ public static class VocabularyCommand
                 ["withheld"] = withheld,
                 ["blocks"] = Words(blocks),
                 ["constructs"] = Words(constructs),
+                ["tokens"] = new JsonObject
+                {
+                    ["values"] = new JsonObject(
+                        Tokens.Select(t => KeyValuePair.Create(t.Token, (JsonNode?)t.Means))),
+                    ["limits"] = TokenLimits,
+                    ["where"] = "The same tokens resolve in a filter value, a condition value, an "
+                        + "effect's set, and a notification's text.",
+                },
                 ["usage"] = "cordango vocabulary <name>  ·  cordango vocabulary block <kind>",
             },
             w =>
@@ -271,9 +323,17 @@ public static class VocabularyCommand
                 }
 
                 w.WriteLine();
+                w.WriteLine("VALUE TOKENS. The same ones resolve in a filter value, a condition value,");
+                w.WriteLine("an effect's set and a notification's text — there is not a narrower set for effects:");
+                foreach (var (token, means) in Tokens)
+                    w.WriteLine($"  {token,-26} {means}");
+                w.WriteLine();
+                foreach (var line in Wrap(TokenLimits, 92)) w.WriteLine($"  {line}");
+
+                w.WriteLine();
                 w.WriteLine("THE SAME IDEA HAS DIFFERENT NAMES IN DIFFERENT LAYERS. Known pairs:");
                 foreach (var (idea, operation, file) in Seams)
-                    w.WriteLine($"  {idea,-22} operation: {operation,-22} file: {file}");
+                    w.WriteLine($"  {idea,-25} operation: {operation,-16} file: {file}");
 
                 w.WriteLine();
                 w.WriteLine("  cordango vocabulary operation          what `cordango apply` accepts");
@@ -281,6 +341,26 @@ public static class VocabularyCommand
                 w.WriteLine("  cordango vocabulary field              a field's properties and types");
                 w.WriteLine("  cordango vocabulary core organizations what a core app holds");
             });
+    }
+
+    /// <summary>Fold a paragraph to a width, so a terminal renders it as prose rather than as one
+    /// line somebody has to scroll.</summary>
+    private static IEnumerable<string> Wrap(string text, int width)
+    {
+        var line = new System.Text.StringBuilder();
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (line.Length > 0 && line.Length + 1 + word.Length > width)
+            {
+                yield return line.ToString();
+                line.Clear();
+            }
+
+            if (line.Length > 0) line.Append(' ');
+            line.Append(word);
+        }
+
+        if (line.Length > 0) yield return line.ToString();
     }
 
     private static int One(JsonObject defs, string name, Output output)

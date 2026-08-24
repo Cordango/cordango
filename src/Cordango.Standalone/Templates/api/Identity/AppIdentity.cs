@@ -19,6 +19,16 @@ public sealed class AppUser : IdentityUser
     public string? PersonId { get; set; }
 
     public string? DisplayName { get; set; }
+
+    /// <summary>
+    /// This account is still on a password somebody else chose.
+    ///
+    /// <para>Set when an administrator creates an account or resets one, cleared the moment the
+    /// person changes it. The application refuses to show anything else while it is true, which is
+    /// the whole point: an administrator has to know the password to hand it over, so a password
+    /// that is never changed is a password two people know.</para>
+    /// </summary>
+    public bool MustChangePassword { get; set; }
 }
 
 /// <summary>The sign-in tables. Kept in their own context so that upgrading ASP.NET Core Identity
@@ -261,12 +271,32 @@ public static class IdentitySetup
         return IdentityResult.Success;
     }
 
-    private static async Task LinkPersonAsync(IServiceProvider services, AppUser user, string email)
+    /// <summary>
+    /// Tie a login to a directory Person, creating the Person when there is none.
+    ///
+    /// <para><b>Every account needs this, not only the first one.</b> The definition's own screens
+    /// filter on the PERSON — "tickets assigned to me", "expenses I submitted" — so somebody with a
+    /// login and no person record signs in perfectly and finds every one of those screens empty,
+    /// with nothing on the page to suggest why.</para>
+    ///
+    /// <para><paramref name="personId"/> names an EXISTING person to attach to, which is the usual
+    /// case once a directory has people in it: the person is already there, and creating a second
+    /// record for the same human is how a directory stops being one. Without it the person is found
+    /// by email address or created.</para>
+    /// </summary>
+    public static async Task LinkPersonAsync(
+        IServiceProvider services, AppUser user, string email, string? personId = null)
     {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(user);
+
         var db = services.GetRequiredService<Cordango.Standalone.Data.CordangoDbContext>();
         var users = services.GetRequiredService<UserManager<AppUser>>();
 
-        var person = await db.Set<Person>().FirstOrDefaultAsync(p => p.Email == email);
+        var person = personId is { Length: > 0 } chosen
+            ? await db.Set<Person>().FirstOrDefaultAsync(p => p.Id == chosen)
+            : await db.Set<Person>().FirstOrDefaultAsync(p => p.Email == email);
+
         if (person is null)
         {
             // A readable id while one is free — "person-admin" in a foreign key column is worth

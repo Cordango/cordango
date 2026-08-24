@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { runCommand, entityOf, processOf } from '../records.js'
+import { runCommand, entityOf, processOf, toast } from '../records.js'
 import FieldInput from './FieldInput.vue'
 
 const props = defineProps({
@@ -8,6 +8,9 @@ const props = defineProps({
   record: Object,
   command: Object,
   density: { type: String, default: 'default' },
+  // How to draw it. A row with six commands rendered as six buttons is a wall; the same six inside
+  // an overflow menu are a list. Same command, same guard, same request.
+  as: { type: String, default: 'button' },
 })
 const emit = defineEmits(['done'])
 
@@ -31,6 +34,7 @@ const available = computed(() => {
 })
 
 const colors = { primary: 'primary', danger: 'error', neutral: undefined }
+const icons = { primary: 'mdi-play-outline', danger: 'mdi-alert-outline', neutral: 'mdi-flash-outline' }
 
 async function run() {
   if ((inputFields.value.length || props.command.confirm) && !asking.value) {
@@ -44,10 +48,15 @@ async function run() {
     const result = await runCommand(props.entity, props.record.id, props.command.key, input.value)
     asking.value = false
     input.value = {}
-    if (result?.message) window.dispatchEvent(new CustomEvent('cordango:toast', { detail: result.message }))
+    // Through the shared helper, on the event name the shell actually listens for. This dispatched
+    // its own hand-written event name for a while and the shell listened for a different one, so
+    // every message a command returned went nowhere at all — no error, no log, just a confirmation
+    // that never appeared.
+    if (result?.message) toast(result.message, 'success')
     emit('done', result)
   } catch (failure) {
     error.value = failure.message
+    if (props.as === 'item') toast(failure.message, 'error')
   } finally {
     busy.value = false
   }
@@ -56,7 +65,17 @@ async function run() {
 
 <template>
   <template v-if="available">
+    <v-list-item
+      v-if="as === 'item'"
+      :prepend-icon="icons[command.style] ?? icons.neutral"
+      :title="command.label"
+      :base-color="command.style === 'danger' ? 'error' : undefined"
+      :disabled="busy"
+      @click="run"
+    />
+
     <v-btn
+      v-else
       :color="colors[command.style]"
       :density="density"
       variant="tonal"
@@ -71,8 +90,10 @@ async function run() {
     <v-dialog v-model="asking" max-width="480">
       <v-card>
         <v-card-title>{{ command.confirm?.title || command.label }}</v-card-title>
-        <v-card-text>
-          <p v-if="command.confirm?.body" class="mb-4">{{ command.confirm.body }}</p>
+        <v-card-text class="d-flex flex-column ga-4">
+          <p v-if="command.confirm?.body" class="text-body-2 text-medium-emphasis mb-0">
+            {{ command.confirm.body }}
+          </p>
           <FieldInput
             v-for="field in inputFields"
             :key="field.key"
@@ -80,13 +101,14 @@ async function run() {
             :model-value="input[field.key]"
             @update:model-value="(v) => (input[field.key] = v)"
           />
-          <v-alert v-if="error" type="error" variant="tonal" class="mt-2">{{ error }}</v-alert>
+          <v-alert v-if="error" type="error">{{ error }}</v-alert>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn variant="text" @click="asking = false">Cancel</v-btn>
+          <v-btn @click="asking = false">Cancel</v-btn>
           <v-btn
             :color="command.confirm?.tone === 'danger' ? 'error' : 'primary'"
+            variant="flat"
             :loading="busy"
             @click="run"
           >

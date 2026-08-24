@@ -30,12 +30,12 @@ const shown = computed(() =>
 <template>
   <v-row dense>
     <v-col v-for="tile in shown" :key="tile.key" cols="12" sm="6" md="3">
-      <v-sheet border rounded class="pa-3 h-100">
-        <div class="d-flex align-center ga-1 text-caption text-medium-emphasis">
-          <v-icon v-if="tile.icon" :icon="'mdi-' + tile.icon" size="x-small" />
-          <span>{{ tile.label }}</span>
+      <v-sheet border rounded="lg" class="pa-4 h-100">
+        <div class="d-flex align-center ga-2 text-caption text-medium-emphasis">
+          <v-icon v-if="tile.icon" :icon="'mdi-' + tile.icon" size="16" />
+          <span class="text-truncate">{{ tile.label }}</span>
         </div>
-        <div class="text-h6 mt-1">{{ tile.text }}</div>
+        <div class="text-h6 font-weight-bold mt-2">{{ tile.text }}</div>
       </v-sheet>
     </v-col>
   </v-row>

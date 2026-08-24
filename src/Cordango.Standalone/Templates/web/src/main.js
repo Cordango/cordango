@@ -5,11 +5,13 @@ import * as directives from 'vuetify/directives'
 import { createI18n } from 'vue-i18n'
 import 'vuetify/styles'
 import '@mdi/font/css/materialdesignicons.css'
+import './styles.css'
 
 import App from './App.vue'
 import { router } from './router.js'
 import { messages } from './i18n.js'
 import { setLocaleSource } from './records.js'
+import { theme, defaults } from './theme.js'
 
 const i18n = createI18n({
   legacy: false,
@@ -29,6 +31,12 @@ const vuetify = createVuetify({
   components,
   directives,
   icons: { defaultSet: 'mdi' },
+
+  // What this application looks like. See theme.js — the palettes say what the colours mean, the
+  // defaults say how every component uses them. Without the defaults an application is not
+  // unstyled, it is Material's demo, which is a different problem that reads as the same one.
+  theme,
+  defaults,
 })
 
 // Formatting reads the APPLICATION's locale, never the browser's. `toLocaleString(undefined, …)`

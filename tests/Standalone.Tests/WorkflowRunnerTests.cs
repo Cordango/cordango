@@ -142,6 +142,49 @@ public class WorkflowRunnerTests
         Assert.Equal(3, world.Store.Query().Count(w => w.Name!.StartsWith("month-")));
     }
 
+    [Theory]
+    [InlineData("{{today+1w}}", "2026-03-22")]
+    [InlineData("{{today+2w}}", "2026-03-29")]
+    [InlineData("{{today+7d}}", "2026-03-22")]
+    [InlineData("{{today-30d}}", "2026-02-13")]
+    [InlineData("{{today+7}}", "2026-03-22")]
+    public async Task An_effect_writes_the_date_a_clock_offset_names(string token, string expected)
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "schedule_next", "Schedule the next one", "widget", WorkflowEvent.FieldChanged,
+            Field: "name",
+            Effects: [new UpdateRecordEffect([new EffectSet("note", token)])]));
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "open", Amount = 1 }, default);
+        await world.Store.UpdateAsync(widget.Id, new Widget { Name = "done" }, ["name"], default);
+
+        Assert.Equal(expected, (await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    [Fact]
+    public async Task Ticking_a_repeating_record_creates_the_next_one_a_week_out()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "recur", "Create the next occurrence", "widget", WorkflowEvent.FieldChanged,
+            Field: "name",
+            Effects:
+            [
+                new CreateRecordEffect("widget",
+                [
+                    new EffectSet("name", "{{record.name}} (next)"),
+                    new EffectSet("note", "{{today+1w}}"),
+                ]),
+            ]));
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "water the plants", Amount = 1 }, default);
+        await world.Store.UpdateAsync(widget.Id, new Widget { Name = "done" }, ["name"], default);
+
+        var created = world.Store.Query().Single(w => w.Id != widget.Id);
+
+        Assert.Equal("2026-03-22", created.Note);
+        Assert.Equal("done (next)", created.Name);
+    }
+
     private sealed class World : IAsyncDisposable
     {
         public World(params WorkflowDefinition[] workflows)

@@ -30,6 +30,32 @@ a log — which is not an answer for anybody who arrived through a browser.
 Uploads and the key ring that protects the session and antiforgery cookies both live on the
 `/appdata` volume, so rebuilding the image does not sign everybody out.
 
+## Letting other people in
+
+*Users*, in the navigation, is where an administrator adds everybody else. It is administrators only,
+and it is the only way a second account can exist.
+
+Adding somebody takes an email address, a password you choose, and **at least one role**. The roles
+offered are the ones your App Definition declares, plus `Administrator`, which is the runtime's own
+bypass rather than a role anybody wrote. This part is not optional: what a person may read and change
+is decided entirely by their roles, so an account with none of them signs in perfectly and reaches
+nothing — and looks exactly like an account that works.
+
+Give them the password however you would normally. They are asked to replace it the first time they
+sign in and cannot reach anything else until they do, so it stops being a password two people know as
+soon as it is used. *Reset password* does the same thing later, and kills every session and access
+key the old password backed.
+
+Link each account to a **directory person** while you are there. A login and a person are separate
+things — most people in a directory never sign in — and screens that say "assigned to me" match on
+the person. An account with no person attached signs in, sees every one of those screens empty, and
+gives no clue why.
+
+Locking somebody out keeps their account and everything it created; deleting the login removes only
+the login, and the directory record stays. Neither can be done to your own account, and the last
+administrator cannot be demoted — the recovery from an application nobody can administer is a SQL
+prompt.
+
 ## Three ways in
 
 The screens are one face of this application. There are two more, and all three go through the same
@@ -100,7 +126,10 @@ api/                  the ASP.NET Core application
   src/app.js          your definition, as the screens read it — generated
   src/pages/          one component per screen and per record — generated
   src/blocks/         the building blocks those pages are made of
-  src/views/          the shell's own screens: home, directory, access keys, sign-in
+  src/views/          the shell's own screens: home, directory, users, your account,
+                      access keys, sign-in
+  src/theme.js        the palettes and the component defaults — what this looks like
+  src/styles.css      the few rules a component default cannot express
 Dockerfile            one image, API and front end on one origin
 docker-compose.yml    the application and a pinned Postgres
 cordango.build.json   what produced this, and every file it wrote

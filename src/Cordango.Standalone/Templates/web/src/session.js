@@ -15,6 +15,10 @@ export const session = reactive({
   displayName: null,
   personId: null,
   roles: [],
+  // True while this account is still on a password somebody else chose. The router holds them on
+  // the change-password screen until it is false.
+  mustChangePassword: false,
+  isAdministrator: false,
 })
 
 function apply(data) {
@@ -25,6 +29,8 @@ function apply(data) {
   session.displayName = data?.displayName ?? null
   session.personId = data?.personId ?? null
   session.roles = data?.roles ?? []
+  session.mustChangePassword = Boolean(data?.mustChangePassword)
+  session.isAdministrator = Boolean(data?.isAdministrator)
   session.loaded = true
 }
 
@@ -58,4 +64,18 @@ export async function signOut() {
   apply(null)
 }
 
-export const isAdministrator = () => session.roles.includes('Administrator')
+/**
+ * Is this the administrator?
+ *
+ * Answered by the SERVER, on the session, rather than by looking for a role name in a list here.
+ * The bypass is the runtime's own and is not one of the definition's roles, so a client deciding it
+ * by string comparison is a second implementation of an authorisation rule — and the one that would
+ * be wrong first. It hides and shows things; it grants nothing.
+ */
+export const isAdministrator = () => session.isAdministrator
+
+/** Change your own password. Clears `mustChangePassword` on the server, so the session is reloaded. */
+export async function changePassword(currentPassword, newPassword) {
+  await api.post('/api/account/password', { currentPassword, newPassword })
+  await loadSession()
+}

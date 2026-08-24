@@ -1,0 +1,161 @@
+/*
+ * The handful of things a component default cannot say.
+ *
+ * Everything that CAN be expressed as a Vuetify default lives in theme.js instead, because a rule
+ * written here overrides the framework globally and is invisible from the template it changes.
+ * Reach for this file when the answer is genuinely CSS: scrollbars, sticky positioning, the shape
+ * of a focus ring.
+ *
+ * Every colour below is read from the theme rather than written out, so both palettes and any you
+ * add keep working.
+ */
+
+/* Vuetify's --v-theme-* custom properties are "r, g, b" triples, not colours, which is why every
+   use of one goes through rgb()/rgba(). Writing `color: var(--v-theme-surface)` produces no error
+   and no colour. */
+
+html {
+  /* v-navigation-drawer and v-app-bar manage their own scrolling. A scrollbar on the html element
+     as well gives the shell a second one that scrolls nothing. */
+  overflow-y: auto;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---- scrollbars ---------------------------------------------------------------------------- */
+/* The default is bright white on a dark theme and is the single loudest thing on the page. */
+
+* {
+  scrollbar-color: rgba(var(--v-border-color), 0.3) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--v-border-color), 0.28);
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--v-border-color), 0.45);
+}
+
+/* ---- tables -------------------------------------------------------------------------------- */
+
+/* A long list scrolled past its own header is a list of unlabelled columns. */
+.cd-table-scroll {
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: min(70vh, 780px);
+}
+
+.cd-table-scroll .v-table__wrapper {
+  overflow: visible;
+}
+
+.cd-table-scroll thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgb(var(--v-theme-surface));
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+  white-space: nowrap;
+}
+
+/* A group heading inside the body, which scrolls under the column header rather than over it. */
+.cd-table-scroll tbody tr.cd-group th,
+.cd-table-scroll tbody tr.cd-group td {
+  position: sticky;
+  top: 37px;
+  z-index: 1;
+  background: rgb(var(--v-theme-surface-light));
+}
+
+.cd-row-actions {
+  white-space: nowrap;
+  width: 1%;
+}
+
+/* Row actions appear on hover on a pointer device and are always there on a touch one, where there
+   is no hover to have. Opacity rather than display, so the column does not change width. */
+@media (hover: hover) {
+  .cd-hover-actions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  tr:hover .cd-hover-actions,
+  tr:focus-within .cd-hover-actions {
+    opacity: 1;
+  }
+}
+
+/* ---- focus --------------------------------------------------------------------------------- */
+
+/* Keyboard focus, and only keyboard focus. :focus alone rings every mouse click too, which is why
+   so many applications remove the outline altogether and become unusable without a mouse. */
+:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}
+
+/* ---- shell --------------------------------------------------------------------------------- */
+
+.cd-page {
+  max-width: 1440px;
+}
+
+/* The rail's active item. Vuetify marks it, but on a rail the marker is a full-width bar that
+   swallows the icon. */
+.cd-rail .v-list-item--active {
+  color: rgb(var(--v-theme-primary));
+}
+
+.cd-brand {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* An empty state should read as an answer, not as a failure. */
+.cd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 24px;
+  text-align: center;
+  color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+/* A native date or datetime input keeps its own calendar button, and in a dark theme the browser
+   draws it black-on-black. */
+.v-theme--dark input[type='date']::-webkit-calendar-picker-indicator,
+.v-theme--dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+.v-theme--dark input[type='time']::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(0.7);
+}
+
+@media print {
+  .v-navigation-drawer,
+  .v-app-bar,
+  .cd-no-print {
+    display: none !important;
+  }
+}

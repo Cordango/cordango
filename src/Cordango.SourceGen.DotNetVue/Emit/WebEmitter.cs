@@ -126,6 +126,7 @@ public static class WebEmitter
         var context = new BlockContext(app, page.Entity, Record: false, $"$.pages[?(@.key=='{page.Key}')]")
         {
             State = state,
+            PageTitle = page.Label,
         };
 
         body.Indent().Indent();
@@ -413,6 +414,17 @@ public static class WebEmitter
     {
         public HashSet<string> Imports { get; } = Record ? [] : ["PageShell"];
 
+        /// <summary>
+        /// What the page shell has already written at the top of the screen.
+        ///
+        /// <para>A page called "All tasks" holding one list called "All tasks" printed those words
+        /// twice, forty pixels apart, on most generated screens. The definition is not wrong to name
+        /// both — a list has a name wherever it appears — so this is not something the author should
+        /// have to work around. It is redundant only HERE, and only the emitter is in a position to
+        /// know that.</para>
+        /// </summary>
+        public string? PageTitle { get; init; }
+
         /// <summary>The screen state vars in scope, by key. Empty on a record page, which has no
         /// state of its own: what a detail screen is about is the record.</summary>
         public IReadOnlyDictionary<string, JsonObject> State { get; init; } =
@@ -496,10 +508,7 @@ public static class WebEmitter
                 break;
 
             case "stat":
-                context.Imports.Add("StatCard");
-                Self(source, "StatCard",
-                    Attributes(("label", AppModel.Str(block["label"])), ("icon", AppModel.Str(block["icon"])), ("format", AppModel.Str(block["format"]))),
-                    Bind(("source", block["source"]), ("link", block["link"])));
+                Stat(source, block, context, unsupported);
                 break;
 
             case "chart":
@@ -510,10 +519,7 @@ public static class WebEmitter
                 break;
 
             case "progress":
-                context.Imports.Add("ProgressBlock");
-                Self(source, "ProgressBlock",
-                    Attributes(("label", AppModel.Str(block["label"])), ("target", block["target"]?.ToString())),
-                    Bind(("source", block["source"])));
+                Progress(source, block, context, unsupported);
                 break;
 
             case "view":
@@ -651,7 +657,9 @@ public static class WebEmitter
         {
             case "table":
                 context.Imports.Add("ViewBlock");
-                source.Line($"<ViewBlock view=\"{key}\" :state=\"{context.StateBinding}\" />");
+                source.Line(
+                    $"<ViewBlock view=\"{key}\" :state=\"{context.StateBinding}\""
+                    + $"{Echoes(view?.Label, context)} />");
                 break;
 
             case "calendar":
@@ -708,6 +716,7 @@ public static class WebEmitter
         if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
         if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
         if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
         // A page-level list creates through the New button. `inlineCreate` defaults on in the
         // language, so a table only loses the button where somebody has turned it off.
         if (block["inlineCreate"] is not null && !AppModel.Bool(block["inlineCreate"])
@@ -853,6 +862,155 @@ public static class WebEmitter
     /// <para>Which means the children are emitted with a record context even on a page that has
     /// none — the one place on this target where those two things come apart.</para>
     /// </summary>
+    /// <summary>
+    /// A stat, from whichever of its two origins the author used.
+    ///
+    /// <para><b>They are not variations of one thing.</b> <c>source</c> aggregates a collection and
+    /// costs a request; <c>field</c> reads a value off the record the block is bound to and costs
+    /// nothing, because the row is already on the page. Only <c>source</c> was emitted, so a stat
+    /// written the second way arrived at the component with NO origin at all — and since the
+    /// component required one, it asked the server to aggregate <c>undefined</c>, failed, and
+    /// rendered "unavailable". Every per-record figure in every generated application.</para>
+    ///
+    /// <para>What is still not emitted is reported rather than dropped. A stat that silently loses
+    /// its denominator prints a numerator and calls it a percentage, which is worse than a build
+    /// that says so.</para>
+    /// </summary>
+    private static void Stat(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        context.Imports.Add("StatCard");
+
+        var attributes = new List<string>
+        {
+            Attributes(
+                ("label", AppModel.Str(block["label"])),
+                ("icon", AppModel.Str(block["icon"])),
+                ("format", AppModel.Str(block["format"])),
+                ("size", AppModel.Str(block["size"])),
+                ("weight", AppModel.Str(block["weight"])),
+                ("color", AppModel.Str(block["color"]))),
+        };
+
+        if (block["sources"] is not null || block["combine"] is not null)
+        {
+            unsupported.Add(new Diagnostic(NotYetCodes.BlockOption,
+                "a 'stat' folding several sources with 'combine' is not emitted yet — "
+                + "the figure will be missing rather than wrong.", context.Path));
+        }
+
+        if (RecordField(block["field"], "stat", context, unsupported) is { } field)
+            attributes.Add($"field=\"{field}\" :record=\"record\"");
+
+        if (Denominator(block["max"], "stat", context, unsupported) is { } max)
+            attributes.Add(max);
+
+        // `grow` defaults to true in the component, so only the author's `false` needs saying.
+        if (block["grow"] is JsonValue grow && grow.GetValueKind() == JsonValueKind.False)
+            attributes.Add(":grow=\"false\"");
+
+        attributes.Add(Bind(("source", block["source"]), ("link", block["link"])));
+
+        Self(source, "StatCard", string.Join(" ", attributes.Where(a => a.Length > 0)), "");
+    }
+
+    /// <summary>
+    /// A progress bar.
+    ///
+    /// <para>The language makes <c>field</c> and <c>max</c> REQUIRED here, because a bar without a
+    /// numerator and a denominator is not a bar. The emitter read neither and emitted a label — so
+    /// a definition could ask for one, this target could claim to support it, the build could pass,
+    /// and the screen showed "0 / " with nothing in it.</para>
+    /// </summary>
+    private static void Progress(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        context.Imports.Add("ProgressBlock");
+
+        var attributes = new List<string>
+        {
+            Attributes(("label", AppModel.Str(block["label"])), ("color", AppModel.Str(block["color"]))),
+        };
+
+        if (RecordField(block["field"], "progress", context, unsupported) is { } field)
+            attributes.Add($"field=\"{field}\" :record=\"record\"");
+
+        if (Denominator(block["max"] ?? block["target"], "progress", context, unsupported) is { } max)
+            attributes.Add(max);
+
+        attributes.Add(Bind(("source", block["source"])));
+
+        Self(source, "ProgressBlock", string.Join(" ", attributes.Where(a => a.Length > 0)), "");
+    }
+
+    /// <summary>
+    /// A block's <c>field</c>, when it can be read where the block sits.
+    ///
+    /// <para>Two things stop it, and both are reported rather than dropped. A field named on a page
+    /// with no record in scope has nothing to read from. A field naming a hop through a reference —
+    /// <c>shift.start_time</c> — needs the row on the OTHER side of that reference, which this
+    /// block has not loaded; emitting the hop as a plain key would read <c>undefined</c> and print
+    /// a dash on a screen that looks finished.</para>
+    /// </summary>
+    private static string? RecordField(
+        JsonNode? node, string kind, BlockContext context, List<Diagnostic> unsupported)
+    {
+        if (AppModel.Str(node) is not { Length: > 0 } field) return null;
+
+        if (!context.Record)
+        {
+            unsupported.Add(new Diagnostic(NotYetCodes.BlockOption,
+                $"a '{kind}' block reads the field '{field}', but nothing on this screen binds a "
+                + "record for it to read — put it inside a repeat or on a detail screen.",
+                context.Path));
+            return null;
+        }
+
+        if (field.Contains('.', StringComparison.Ordinal))
+        {
+            unsupported.Add(new Diagnostic(NotYetCodes.BlockOption,
+                $"a '{kind}' block reading '{field}' hops through a reference, which this target "
+                + "does not resolve yet — the figure will be missing rather than wrong.",
+                context.Path));
+            return null;
+        }
+
+        return field;
+    }
+
+    /// <summary>
+    /// The denominator that turns a figure into a share, as the prop the component takes.
+    ///
+    /// <para>A number is bound; a sibling field key is an attribute, which is what the component
+    /// looks up on the record. An aggregate over a whole collection — <c>{ source }</c> — is the
+    /// one shape not emitted, and it is the one that changes the figure most, so it is
+    /// reported.</para>
+    /// </summary>
+    private static string? Denominator(
+        JsonNode? node, string kind, BlockContext context, List<Diagnostic> unsupported)
+    {
+        switch (node)
+        {
+            case null:
+                return null;
+
+            case JsonObject:
+                unsupported.Add(new Diagnostic(NotYetCodes.BlockOption,
+                    $"a '{kind}' block whose 'max' is an aggregate over a collection is not emitted "
+                    + "yet — the share would be printed against no denominator.", context.Path));
+                return null;
+
+            case JsonValue value when value.GetValueKind() == JsonValueKind.Number:
+                return $":max=\"{value.ToJsonString(Compact)}\"";
+
+            case JsonValue value when value.GetValueKind() == JsonValueKind.String:
+                return $"max=\"{value.GetValue<string>()}\"";
+
+            default:
+                return null;
+        }
+    }
+
     private static void Repeat(
         Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
     {
@@ -972,6 +1130,17 @@ public static class WebEmitter
         source.Line($"<{component} {string.Join(" ", parts)} />");
     }
 
+    /// <summary>
+    /// <c> :hide-title="true"</c> when this block's own label would only repeat the page heading —
+    /// nothing otherwise. Compared case-insensitively and trimmed, because "All tasks" and "All
+    /// Tasks" are the same words to a reader.
+    /// </summary>
+    private static string Echoes(string? label, BlockContext context) =>
+        label is { Length: > 0 } && context.PageTitle is { Length: > 0 } title
+        && string.Equals(label.Trim(), title.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? " :hide-title=\"true\""
+            : "";
+
     private static string Attributes(params (string Name, string? Value)[] pairs) =>
         string.Join(" ", pairs
             .Where(p => !string.IsNullOrEmpty(p.Value))
@@ -1006,8 +1175,23 @@ public static class WebEmitter
     private static string JsString(string value) =>
         "'" + value.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("'", "\'", StringComparison.Ordinal) + "'";
 
-    /// <summary>Every route the application has, listed. A generated file rather than a scan, so the
-    /// route table is something you can read.</summary>
+    /// <summary>
+    /// Every route the application has, listed. A generated file rather than a scan, so the route
+    /// table is something you can read.
+    /// </summary>
+    /// <remarks>
+    /// <para><b>The shell's routes belong here too, and once did not.</b> This emitter listed the
+    /// definition's screens and four of the shell's, leaving out access keys, the profile and the
+    /// administration screen — while the shell's navigation linked to all of them. A
+    /// <c>&lt;v-list-item :to="{ name: 'access-keys' }"&gt;</c> pointing at a name the router has
+    /// never heard of does not render a dead link: <c>router.resolve</c> THROWS, from inside a
+    /// render, and the page it was on goes with it. Every generated application had an uncaught
+    /// error in its console from the moment somebody signed in.</para>
+    ///
+    /// <para>Keep this list and <c>Templates/web/src/router.js</c> saying the same thing. The
+    /// template is the shape a scaffold starts in; this is the shape it is regenerated into, and a
+    /// route in one and not the other is exactly the bug above.</para>
+    /// </remarks>
     private static GeneratedFile Router(AppModel app)
     {
         var source = new Source(2);
@@ -1016,6 +1200,9 @@ public static class WebEmitter
         source.Line();
         source.Line("import HomeView from './views/HomeView.vue'");
         source.Line("import DirectoryView from './views/DirectoryView.vue'");
+        source.Line("import AdminUsersView from './views/AdminUsersView.vue'");
+        source.Line("import ProfileView from './views/ProfileView.vue'");
+        source.Line("import AccessKeysView from './views/AccessKeysView.vue'");
         source.Line("import LoginView from './views/LoginView.vue'");
         source.Line("import SetupView from './views/SetupView.vue'");
 
@@ -1032,6 +1219,9 @@ public static class WebEmitter
         source.Indent();
         source.Line("{ path: '/', name: 'home', component: HomeView },");
         source.Line("{ path: '/directory', name: 'directory', component: DirectoryView },");
+        source.Line("{ path: '/admin/users', name: 'admin-users', component: AdminUsersView, meta: { administrator: true } },");
+        source.Line("{ path: '/profile', name: 'profile', component: ProfileView },");
+        source.Line("{ path: '/access-keys', name: 'access-keys', component: AccessKeysView },");
         source.Line("{ path: '/login', name: 'login', component: LoginView, meta: { anonymous: true } },");
         source.Line("{ path: '/setup', name: 'setup', component: SetupView, meta: { anonymous: true } },");
 
@@ -1059,11 +1249,23 @@ public static class WebEmitter
         source.Line("  if (to.name === 'setup') return session.authenticated ? { name: 'home' } : { name: 'login' }");
         source.Line();
         source.Line("  if (to.meta.anonymous) return true");
-        source.Line("  if (session.authenticated) return true");
         source.Line();
-        source.Line("  // `redirect` so that signing in returns to the page that was wanted. Landing");
-        source.Line("  // everybody on the home page quietly loses the link somebody followed.");
-        source.Line("  return { name: 'login', query: { redirect: to.fullPath } }");
+        source.Line("  if (!session.authenticated) {");
+        source.Line("    // `redirect` so that signing in returns to the page that was wanted. Landing");
+        source.Line("    // everybody on the home page quietly loses the link somebody followed.");
+        source.Line("    return { name: 'login', query: { redirect: to.fullPath } }");
+        source.Line("  }");
+        source.Line();
+        source.Line("  // An account created by an administrator is on a password two people know. Nothing else");
+        source.Line("  // in the application is reachable until that stops being true — a prompt somebody can");
+        source.Line("  // dismiss is a prompt everybody dismisses.");
+        source.Line("  if (session.mustChangePassword && to.name !== 'profile') return { name: 'profile' }");
+        source.Line();
+        source.Line("  // The server decides this too, and refuses the request either way. Checking it here only");
+        source.Line("  // saves somebody the trip to a screen that would have come back empty.");
+        source.Line("  if (to.meta.administrator && !session.isAdministrator) return { name: 'home' }");
+        source.Line();
+        source.Line("  return true");
         source.Line("})");
 
         return new GeneratedFile("web/src/router.js", source.ToString());

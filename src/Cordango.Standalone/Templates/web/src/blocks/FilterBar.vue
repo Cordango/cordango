@@ -38,7 +38,7 @@ const clear = (key) => { props.state[key] = '' }
 </script>
 
 <template>
-  <v-sheet class="d-flex flex-wrap align-center ga-3 pa-3 mb-4" rounded border>
+  <v-sheet class="d-flex flex-wrap align-center ga-3 pa-3 mb-4" rounded border color="surface-light">
     <v-text-field
       v-if="search"
       v-model="state[search.state]"

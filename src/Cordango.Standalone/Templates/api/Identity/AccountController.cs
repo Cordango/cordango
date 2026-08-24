@@ -183,6 +183,14 @@ public sealed class AccountController : ControllerBase
             return BadRequest(this.Refuse("auth.password_rejected",
                 string.Join(" ", result.Errors.Select(e => e.Description))));
 
+        // Whatever they were handed, they have now replaced. Clearing this is what lets them past
+        // the change-password screen the router holds them on.
+        if (user.MustChangePassword)
+        {
+            user.MustChangePassword = false;
+            await _users.UpdateAsync(user);
+        }
+
         // The old cookie was minted against the old password stamp. Refreshing it here keeps the
         // person signed in on this device instead of bouncing them to the login form they just
         // proved themselves at.
@@ -267,5 +275,11 @@ public sealed class AccountController : ControllerBase
         displayName = user.DisplayName ?? user.Email,
         personId = user.PersonId,
         roles = await _users.GetRolesAsync(user),
+        // The client holds them on the change-password screen while this is true. The SERVER does
+        // not refuse anything on it: an account that cannot read its own record cannot be told why
+        // it is being asked to change a password, and a person locked out of a form they are
+        // required to complete has no way forward at all.
+        mustChangePassword = user.MustChangePassword,
+        isAdministrator = await _users.IsInRoleAsync(user, IdentitySetup.AdministratorRole),
     };
 }

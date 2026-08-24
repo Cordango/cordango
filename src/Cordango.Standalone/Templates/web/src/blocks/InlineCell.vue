@@ -72,6 +72,28 @@ async function save(value) {
 const commit = () => save(kind.value === 'number' && draft.value !== '' && draft.value !== null
   ? Number(draft.value)
   : (draft.value === '' ? null : draft.value))
+
+const picking = ref(false)
+
+/**
+ * A date, on the wire as the plain ISO day it is.
+ *
+ * `toISOString()` converts to UTC first, so a date picked in Berlin at any time of day becomes the
+ * day BEFORE for anyone east of Greenwich — a booking made on the 3rd stored as the 2nd, on every
+ * row, with nothing to notice. The parts are read in local time and formatted by hand instead.
+ */
+function pickDate(value) {
+  if (!value) {
+    draft.value = null
+    save(null)
+  } else {
+    const day = new Date(value)
+    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`
+    draft.value = iso
+    save(iso)
+  }
+  picking.value = false
+}
 </script>
 
 <template>
@@ -111,10 +133,50 @@ const commit = () => save(kind.value === 'number' && draft.value !== '' && draft
     </template>
   </v-select>
 
+  <!--
+    A date, as a date picker rather than as the browser's own control.
+
+    `<input type="date">` renders the OPERATING SYSTEM's widget, which is why a German machine shows
+    "tt.mm.jjjj" in the middle of an English screen, why it cannot be styled, and why in a dark
+    theme the calendar button is drawn black on black. It also cannot be cleared once set on some
+    browsers. The value on the wire is the same ISO date either way.
+  -->
+  <v-menu
+    v-else-if="kind === 'date'"
+    v-model="picking"
+    :close-on-content-click="false"
+    location="bottom start"
+  >
+    <template #activator="{ props }">
+      <v-btn
+        v-bind="props"
+        variant="text"
+        size="small"
+        class="px-1 text-none"
+        :loading="saving"
+      >
+        <span v-if="record[field.key]">{{ formatValue(record[field.key], field) }}</span>
+        <span v-else class="text-disabled">—</span>
+      </v-btn>
+    </template>
+    <v-card>
+      <v-date-picker
+        :model-value="draft ? new Date(draft) : null"
+        show-adjacent-months
+        @update:model-value="pickDate"
+      />
+      <v-card-actions>
+        <v-btn size="small" @click="pickDate(null)">Clear</v-btn>
+        <v-spacer />
+        <v-btn size="small" @click="picking = false">Close</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-menu>
+
   <v-text-field
     v-else
     v-model="draft"
-    :type="kind === 'date' ? 'date' : kind === 'datetime' ? 'datetime-local' : kind === 'number' ? 'number' : 'text'"
+    :type="kind === 'datetime' ? 'datetime-local' : kind === 'number' ? 'number' : 'text'"
     density="compact"
     variant="plain"
     hide-details

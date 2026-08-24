@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { api } from '../api.js'
+import PageShell from '../blocks/PageShell.vue'
+import EmptyState from '../blocks/EmptyState.vue'
 
 const { t, locale } = useI18n()
 
@@ -74,33 +76,29 @@ onMounted(load)
 </script>
 
 <template>
-  <v-container>
-    <h1 class="text-h5 mb-2">{{ t('keys.title') }}</h1>
-    <p class="text-body-2 text-medium-emphasis mb-6">{{ t('keys.intro') }}</p>
-
-    <v-alert v-if="error" type="error" variant="tonal" class="mb-4">{{ error }}</v-alert>
+  <PageShell :title="t('keys.title')" :subtitle="t('keys.intro')">
+    <v-alert v-if="error" type="error">{{ error }}</v-alert>
 
     <!-- Shown once and never again. The server stores only a hash, so there is no second chance to
          copy this and no endpoint that could hand it back. -->
-    <v-alert v-if="minted" type="success" variant="tonal" class="mb-6">
+    <v-alert v-if="minted" type="success" prominent>
       <div class="text-subtitle-2 mb-2">{{ t('keys.copyNow') }}</div>
       <v-textarea
         :model-value="minted.token"
         readonly
         rows="2"
-        variant="outlined"
         density="compact"
         hide-details
-        class="mb-2"
+        class="mb-3"
       />
       <v-btn size="small" variant="tonal" prepend-icon="mdi-content-copy" @click="copy">
         {{ t('keys.copy') }}
       </v-btn>
     </v-alert>
 
-    <v-card class="mb-6">
-      <v-card-title class="text-subtitle-1">{{ t('keys.newKey') }}</v-card-title>
-      <v-card-text>
+    <v-card>
+      <v-card-title>{{ t('keys.newKey') }}</v-card-title>
+      <v-card-text class="pt-0">
         <v-row>
           <v-col cols="12" md="6">
             <v-text-field
@@ -122,7 +120,7 @@ onMounted(load)
           </v-col>
         </v-row>
       </v-card-text>
-      <v-card-actions>
+      <v-card-actions class="px-4 pb-4">
         <v-btn
           color="primary"
           variant="flat"
@@ -136,38 +134,40 @@ onMounted(load)
     </v-card>
 
     <v-card>
-      <v-table v-if="keys.length">
-        <thead>
-          <tr>
-            <th>{{ t('keys.label') }}</th>
-            <th>{{ t('keys.created') }}</th>
-            <th>{{ t('keys.lastUsed') }}</th>
-            <th>{{ t('keys.expires') }}</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="key in keys" :key="key.id">
-            <td>{{ key.label }}</td>
-            <td>{{ formatDateTime(key.created) }}</td>
-            <td>{{ key.lastUsed ? formatDateTime(key.lastUsed) : t('keys.never') }}</td>
-            <td>{{ formatDateTime(key.expires) }}</td>
-            <td class="text-right">
-              <v-btn size="small" variant="text" color="error" @click="revoke(key)">
-                {{ t('keys.revoke') }}
-              </v-btn>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
+      <div v-if="keys.length" class="cd-table-scroll">
+        <v-table hover>
+          <thead>
+            <tr>
+              <th>{{ t('keys.label') }}</th>
+              <th>{{ t('keys.created') }}</th>
+              <th>{{ t('keys.lastUsed') }}</th>
+              <th>{{ t('keys.expires') }}</th>
+              <th class="cd-row-actions" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="key in keys" :key="key.id">
+              <td class="font-weight-medium">{{ key.label }}</td>
+              <td class="text-medium-emphasis">{{ formatDateTime(key.created) }}</td>
+              <td class="text-medium-emphasis">
+                {{ key.lastUsed ? formatDateTime(key.lastUsed) : t('keys.never') }}
+              </td>
+              <td class="text-medium-emphasis">{{ formatDateTime(key.expires) }}</td>
+              <td class="cd-row-actions text-right">
+                <v-btn size="small" color="error" @click="revoke(key)">
+                  {{ t('keys.revoke') }}
+                </v-btn>
+              </td>
+            </tr>
+          </tbody>
+        </v-table>
+      </div>
 
-      <v-card-text v-else-if="!loading" class="text-medium-emphasis">
-        {{ t('keys.none') }}
+      <v-card-text v-else-if="loading">
+        <v-skeleton-loader type="table-row@2" />
       </v-card-text>
 
-      <v-card-text v-else>
-        <v-progress-linear indeterminate />
-      </v-card-text>
+      <EmptyState v-else icon="mdi-key-outline" :title="t('keys.none')" />
     </v-card>
-  </v-container>
+  </PageShell>
 </template>

@@ -67,7 +67,7 @@
       and therefore applies to every project in the build graph, packed or merely referenced. So a
       released build and a local build differ in the NUMBER and never in where it came from.
     -->
-    <Version>0.5.3</Version>
+    <Version>0.5.4</Version>
 
     <Authors>Cordango</Authors>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>

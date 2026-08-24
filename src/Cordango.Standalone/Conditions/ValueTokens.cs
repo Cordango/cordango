@@ -11,10 +11,26 @@ namespace Cordango.Standalone.Conditions;
 /// <summary>
 /// The placeholders a definition may write where a value goes: who is asking, and when.
 ///
-/// <para><c>{{actor.id}}</c>, <c>{{today}}</c>, <c>{{now}}</c>, and the date offsets
-/// <c>{{today+7}}</c> / <c>{{today-30}}</c>. They appear in a command's <c>set</c>, in a workflow's
-/// effects, in a condition's <c>value</c> and in a notification's text, which is why they resolve in
-/// one place rather than three.</para>
+/// <para><c>{{actor.id}}</c>, <c>{{today}}</c>, <c>{{now}}</c>, and the offsets <c>{{today+7}}</c>,
+/// <c>{{today-30d}}</c>, <c>{{today+2w}}</c>, <c>{{now-4h}}</c>. They appear in a command's
+/// <c>set</c>, in a workflow's effects, in a condition's <c>value</c> and in a notification's text,
+/// which is why they resolve in one place rather than four.</para>
+///
+/// <para><b>This grammar has to match the gate's, and for a long time it did not.</b> The compiler's
+/// <c>ExprTokens</c> accepts a unit suffix — <c>d</c>, <c>w</c>, <c>h</c> — and this class matched
+/// only bare digits. So <c>{{today+1w}}</c> passed <c>cordango check</c>, passed
+/// <c>cordango build</c>, and then resolved to nothing: the literal text <c>{{today+1w}}</c> was
+/// written into the field. Every failure it caused was silent. In a condition the literal never
+/// equals a date, so the automation simply never fired. In an effect the write threw, and
+/// <c>WorkflowRunner</c> catches effect failures and logs them — the record saved, the next record
+/// was never created, and the screen said nothing at all.</para>
+///
+/// <para><b>Why the two are not one class.</b> <c>ExprTokens</c> lives in <c>Cordango.Compiler</c>,
+/// and a generated application must not carry the compiler — the schemas, the gate and the whole
+/// Cord parser — to resolve a date. So there are deliberately two implementations of one grammar,
+/// and <c>TokenGrammarTests</c> is what holds them together: it generates every shape the gate could
+/// accept, asks <c>ExprTokens</c> which ones it allows, and fails if this class does not resolve
+/// each of them to the same value. Add a unit there and that test fails until it is added here.</para>
 ///
 /// <para><b>Everything comes from the clock that was passed in.</b> Nothing here reads
 /// <c>DateTime.Now</c>, so a test can ask what a workflow would have done last March, and two
@@ -69,24 +85,52 @@ public static class ValueTokens
         // them identically.
         if (token is "actor.id" or "currentUser.id") return actorId ?? "";
         if (token is "actor.userId" or "currentUser.userId") return userId ?? "";
-        if (token == "now") return now.ToString("O", CultureInfo.InvariantCulture);
-        if (token == "today") return Today(now).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
-        // "today+7", "today-30". Days, because that is the unit every use of it in the corpus means
-        // and a unit-less number that silently meant hours would be worse than no offset at all.
-        if (Offset.Match(token) is { Success: true } offset)
+        if (Relative.Match(token) is not { Success: true } match) return null;
+
+        var anchor = match.Groups[1].Value;
+        var unit = match.Groups[4].Value;
+
+        // An hour offset on a date anchor would resolve to the day it started on: the author meant
+        // {{now-4h}}. The gate refuses that pairing, and leaving it unresolved here rather than
+        // quietly agreeing is what keeps the two answers the same.
+        if (anchor == "today" && unit == "h") return null;
+
+        // A date anchor is a DATE — midnight of the day the clock is on, in UTC. Taking the offset's
+        // own wall-clock date instead would make the same instant resolve to two different days for
+        // two callers, which is the kind of thing that shows up as one row missing from a report.
+        var at = anchor == "today" ? Today(now).ToDateTime(TimeOnly.MinValue) : now.UtcDateTime;
+
+        if (match.Groups[2].Success)
         {
-            var days = int.Parse(offset.Groups[2].Value, CultureInfo.InvariantCulture);
-            if (offset.Groups[1].Value == "-") days = -days;
-            return Today(now).AddDays(days).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var amount = int.Parse(match.Groups[3].Value, CultureInfo.InvariantCulture);
+            if (match.Groups[2].Value == "-") amount = -amount;
+
+            at = unit switch
+            {
+                // No month or year, deliberately, and this is the one place it would be easy to add.
+                // JavaScript's setMonth overflows (Jan 31 + 1m = Mar 3) and .NET's AddMonths clamps
+                // (Feb 28), so a {{today+1m}} filter would select different rows in the browser than
+                // on the server. Weeks are exactly seven days on both sides and carry no such risk.
+                "w" => at.AddDays(amount * 7),
+                "h" => at.AddHours(amount),
+                _ => at.AddDays(amount),
+            };
         }
 
-        return null;
+        return anchor == "today"
+            ? at.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : new DateTimeOffset(at, TimeSpan.Zero).ToString("o", CultureInfo.InvariantCulture);
     }
 
     private static DateOnly Today(DateTimeOffset now) => DateOnly.FromDateTime(now.UtcDateTime);
 
     private static readonly Regex Placeholder = new(@"\{\{([^}]+)\}\}", RegexOptions.Compiled);
 
-    private static readonly Regex Offset = new(@"^today\s*([+-])\s*(\d{1,5})$", RegexOptions.Compiled);
+    /// <summary>The same shape <c>ExprTokens.Relative</c> matches. Kept spelled out rather than
+    /// shared, because sharing it would mean shipping the compiler inside every generated
+    /// application; <c>TokenGrammarTests</c> is what stops the two drifting apart instead.</summary>
+    private static readonly Regex Relative = new(
+        @"^(today|now)(?:\s*([+-])\s*(\d{1,5})\s*([dwh])?)?$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant);
 }
