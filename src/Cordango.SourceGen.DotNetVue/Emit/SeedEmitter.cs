@@ -3,11 +3,13 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Cordango.SourceGen.DotNetVue.Model;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
@@ -26,7 +28,7 @@ namespace Cordango.SourceGen.DotNetVue.Emit;
 /// here — dates are written as offsets from an anchor the runtime resolves, which is what lets a
 /// dataset built in March still read sensibly in November.</para>
 /// </summary>
-public static class SeedEmitter
+public static partial class SeedEmitter
 {
     /// <summary>Rows per entity. Enough to page, to group and to fill a chart; few enough that a
     /// person can read the whole table and check it.</summary>
@@ -48,11 +50,24 @@ public static class SeedEmitter
             var rows = new JsonArray();
             var entityIds = new List<string>();
 
+            // What each unique field has already handed out. A dataset is only useful if it LOADS,
+            // and two rows carrying the same value in a `unique: true` column do not — the index
+            // rejects the insert and the application dies on startup with a constraint violation
+            // rather than an empty screen, which is a much worse first impression than no data.
+            var taken = Taken(entity);
+
             for (var index = 0; index < RowsPerEntity; index++)
             {
                 var id = Id(entity.Key, index);
+                var row = Row(app, entity, seed, index, id, ids, taken);
+
+                // A required unique field that has run out of distinct values ends the entity here
+                // rather than emitting a row that cannot be stored. Twenty rows that load beat
+                // twenty-four that do not.
+                if (row is null) break;
+
                 entityIds.Add(id);
-                rows.Add(Row(app, entity, seed, index, id, ids));
+                rows.Add(row);
             }
 
             ids[entity.Key] = entityIds;
@@ -127,8 +142,11 @@ public static class SeedEmitter
         return new JsonObject { ["entity"] = "person", ["rows"] = rows };
     }
 
-    private static JsonObject Row(
-        AppModel app, EntityModel entity, int seed, int index, string id, Dictionary<string, List<string>> ids)
+    /// <summary>One row's worth of values, or null when a required unique field has nothing
+    /// distinct left to give.</summary>
+    private static JsonObject? Row(
+        AppModel app, EntityModel entity, int seed, int index, string id,
+        Dictionary<string, List<string>> ids, Dictionary<string, HashSet<string>> taken)
     {
         var row = new JsonObject { ["id"] = id };
         var process = app.ProcessFor(entity.Key);
@@ -139,12 +157,126 @@ public static class SeedEmitter
             if (field.Computed is not null) continue;
 
             var value = Value(app, entity, field, process, seed, index, ids);
+
+            if (field.Unique && taken.TryGetValue(field.Key, out var used))
+            {
+                value = Distinct(value, field, used);
+                if (value is null && field.Required) return null;
+                // An optional unique field is left empty instead. SQL treats nulls as distinct from
+                // each other, so any number of rows may decline to fill one in.
+                if (value is not null) used.Add(value.ToJsonString());
+            }
+
             if (value is not null) row[field.Key] = value;
         }
 
         row["created_at"] = $"{{T-{180 - (index * 7)}}}T09:00:00Z";
         return row;
     }
+
+    /// <summary>The unique fields of an entity, each with an empty ledger.</summary>
+    private static Dictionary<string, HashSet<string>> Taken(EntityModel entity) =>
+        entity.AuthoredFields
+            .Where(f => f.Unique && f.Computed is null)
+            .ToDictionary(f => f.Key, _ => new HashSet<string>(StringComparer.Ordinal), StringComparer.Ordinal);
+
+    /// <summary>
+    /// The same value, made distinct — or null when it cannot be.
+    ///
+    /// <para>Values here come from a hash of (seed, entity, field, row) over a fixed word list, so
+    /// twenty-four rows of a text field collide constantly: three scenarios called "Regional
+    /// rollout" is the norm rather than bad luck.</para>
+    ///
+    /// <para><b>Every attempt is checked, not just the first.</b> Appending the row index produced a
+    /// value that was very probably free and never asked whether it was, which is the same bug one
+    /// layer down. Each type now walks candidates until one is actually unused, so the answer is
+    /// guaranteed rather than likely.</para>
+    ///
+    /// <para><b>Varied, but not random.</b> A random suffix would do the job and would also end
+    /// determinism, which is load-bearing here: two builds of one definition are asserted to be
+    /// byte-identical, and a dataset that changed every build would make every diff unreadable. So
+    /// the discriminator is the attempt number, which behaves like a randomiser and is reproducible.
+    /// </para>
+    ///
+    /// <para>Some types genuinely run out. A boolean has two values, a select has as many as the
+    /// author wrote, and a reference has as many as the target has rows — no suffix can be added to
+    /// any of them without writing something the column does not allow. A unique field of one of
+    /// those stops the entity early rather than being handed a value the index would reject.</para>
+    /// </summary>
+    private static JsonNode? Distinct(JsonNode? value, FieldModel field, HashSet<string> used)
+    {
+        if (value is null) return null;
+        if (!used.Contains(value.ToJsonString())) return value;
+
+        // Generous, because the ceiling is only reached when every candidate collides — which for
+        // anything but a closed value set means the entity is far larger than a demo dataset.
+        const int Attempts = RowsPerEntity * 8;
+
+        switch (field.Type)
+        {
+            case "boolean":
+            case "select":
+            case "multiselect":
+            case "reference":
+                return null;
+
+            case "integer":
+            {
+                var number = value.GetValue<long>();
+                return Walk(Attempts, bump => number + bump, used);
+            }
+
+            case "decimal":
+            case "money":
+            {
+                var number = value.GetValue<decimal>();
+                return Walk(Attempts, bump => number + (bump * 0.01m), used);
+            }
+
+            case "email":
+            {
+                // The tag goes before the @, because "ada.lovelace@example.com 2" is not an address.
+                var text = value.GetValue<string>();
+                var at = text.IndexOf('@', StringComparison.Ordinal);
+                if (at <= 0) return null;
+                return Walk(Attempts, bump => $"{text[..at]}+{bump}{text[at..]}", used);
+            }
+
+            case "date":
+            case "datetime":
+            {
+                // Written as a token the runtime resolves — "{T-97}" or "{T+12}T09:00:00Z" — so the
+                // arithmetic is on the OFFSET rather than on a date. Shifting the day is what makes
+                // a unique date field possible at all; returning null here ended the entity at its
+                // second row.
+                var text = value.GetValue<string>();
+                var token = ClockToken().Match(text);
+                if (!token.Success) return null;
+
+                var days = int.Parse(token.Groups["days"].Value, CultureInfo.InvariantCulture);
+                return Walk(Attempts, bump =>
+                    text[..token.Index] + "{T" + Signed(days + bump) + "}" + text[(token.Index + token.Length)..],
+                    used);
+            }
+
+            default:
+                return Walk(Attempts, bump => $"{value.GetValue<string>()} {bump}", used);
+        }
+    }
+
+    /// <summary>Candidate after candidate until one is free, or null when the space runs out.</summary>
+    private static JsonNode? Walk<T>(int attempts, Func<int, T> candidate, HashSet<string> used)
+    {
+        for (var bump = 1; bump <= attempts; bump++)
+        {
+            JsonNode next = JsonValue.Create(candidate(bump))!;
+            if (used.Add(next.ToJsonString())) return next;
+        }
+        return null;
+    }
+
+    [GeneratedRegex(@"\{T(?<days>[+-]?\d+)\}")]
+    private static partial Regex ClockToken();
 
     private static JsonNode? Value(
         AppModel app, EntityModel entity, FieldModel field, ProcessModel? process,

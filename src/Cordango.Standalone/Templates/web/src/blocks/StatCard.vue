@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadAggregate, formatStat } from '../records.js'
 import { session } from '../session.js'
+import { useSurface } from './surface.js'
 
 // One figure, and what it means.
 //
@@ -39,6 +40,10 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+// A stat inside a `card` block has already been given a border and a caption by that card. Drawing
+// its own on top produced the box-in-a-box that made every dashboard look broken.
+const depth = useSurface()
 
 const aggregate = ref(null)
 const loading = ref(false)
@@ -126,21 +131,27 @@ function open() {
     its neighbours, which means every one of them the same size and none of them the size of a
     poster. So it grows to fill a strip of four and stops well before it fills a row of two.
   -->
-  <v-card
-    :class="clickable ? 'cursor-pointer' : ''"
-    :style="grow ? 'flex: 1 1 168px; max-width: 260px' : 'width: 200px'"
-    :ripple="false"
+  <component
+    :is="depth === 0 ? 'v-card' : 'div'"
+    :class="[clickable ? 'cursor-pointer' : '', depth === 0 ? '' : 'w-100']"
+    :style="depth === 0 ? (grow ? 'flex: 1 1 168px; max-width: 260px' : 'width: 200px') : ''"
+    :ripple="depth === 0 ? false : undefined"
     @click="open"
   >
-    <v-card-text class="pa-4">
-      <div class="d-flex align-center ga-2 text-caption text-medium-emphasis text-truncate">
+    <div :class="depth === 0 ? 'pa-4' : ''">
+      <!-- No label means the container already carried it. An empty caption row there is a blank
+           line the reader has to account for. -->
+      <div
+        v-if="label || clickable"
+        class="d-flex align-center ga-2 text-caption text-medium-emphasis text-truncate"
+      >
         <v-icon v-if="icon" :icon="`mdi-${icon}`" size="16" />
         <span class="text-truncate">{{ label }}</span>
         <v-spacer />
         <v-icon v-if="clickable" icon="mdi-arrow-top-right" size="14" class="text-disabled" />
       </div>
 
-      <div class="mt-2 d-flex align-baseline ga-2">
+      <div class="d-flex align-baseline ga-2" :class="(label || clickable) ? 'mt-2' : ''">
         <v-progress-circular v-if="loading" indeterminate size="20" width="2" />
         <span v-else-if="failed" class="text-body-2 text-medium-emphasis">
           <v-icon icon="mdi-alert-circle-outline" size="16" class="mr-1" />unavailable
@@ -163,6 +174,6 @@ function open() {
         height="4"
         class="mt-3"
       />
-    </v-card-text>
-  </v-card>
+    </div>
+  </component>
 </template>

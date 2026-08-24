@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { entityOf, commandsOf, optionColor, optionLabel } from '../records.js'
+import { entityOf, commandsOf, displayOf, optionColor, optionLabel, processOf } from '../records.js'
 import FieldValue from './FieldValue.vue'
 import CommandButton from './CommandButton.vue'
 
@@ -15,7 +15,17 @@ const props = defineProps({
 const emit = defineEmits(['changed', 'edit', 'remove'])
 
 const definition = computed(() => entityOf(props.entity))
-const statusField = computed(() => definition.value?.fields.find((f) => f.key === props.status))
+
+// A hub that names no title field still has to say WHICH record this is, and the entity already
+// knows: `displayOf` is the same answer a table's first column and a reference chip give. It used
+// to print `record[title]` with an empty title and fall through to `record.id`, so every detail
+// screen whose hub named no title was headed by a uuid.
+const heading = computed(() =>
+  (props.title ? props.record?.[props.title] : null) || displayOf(props.entity, props.record))
+
+// Likewise the state: an entity with a lifecycle has one whether or not the block spelled it out.
+const statusKey = computed(() => props.status || processOf(props.entity)?.stateField || null)
+const statusField = computed(() => definition.value?.fields.find((f) => f.key === statusKey.value))
 const factFields = computed(() =>
   props.facts.map((k) => definition.value?.fields.find((f) => f.key === k)).filter(Boolean))
 
@@ -30,14 +40,14 @@ const commands = computed(() => commandsOf(props.entity).filter((c) => props.act
       <div class="d-flex align-start ga-4 flex-wrap">
         <div class="flex-grow-1">
           <div class="d-flex align-center ga-2">
-            <h2 class="text-h6 mb-0">{{ record?.[title] || record?.id }}</h2>
+            <h2 class="text-h6 mb-0">{{ heading }}</h2>
             <v-chip
-              v-if="statusField && record?.[status]"
+              v-if="statusField && record?.[statusKey]"
               size="small"
-              :color="optionColor(statusField, record[status])"
+              :color="optionColor(statusField, record[statusKey])"
               variant="flat"
             >
-              {{ optionLabel(statusField, record[status]) }}
+              {{ optionLabel(statusField, record[statusKey]) }}
             </v-chip>
           </div>
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { runCommand, entityOf, processOf, toast } from '../records.js'
 import FieldInput from './FieldInput.vue'
 
@@ -11,8 +11,13 @@ const props = defineProps({
   // How to draw it. A row with six commands rendered as six buttons is a wall; the same six inside
   // an overflow menu are a list. Same command, same guard, same request.
   as: { type: String, default: 'button' },
+  // Run on sight, with no trigger of its own: something ELSE has already decided this command
+  // should run — a card dropped into a board column — and what is still needed is the confirm and
+  // the input fields. Reusing this rather than writing a second dialog is the difference between
+  // one confirm flow and two that drift apart.
+  auto: { type: Boolean, default: false },
 })
-const emit = defineEmits(['done'])
+const emit = defineEmits(['done', 'cancelled'])
 
 const busy = ref(false)
 const error = ref(null)
@@ -32,6 +37,12 @@ const available = computed(() => {
   if (!transition) return true
   return (transition.from || []).includes(props.record?.[process.stateField])
 })
+
+function cancel() {
+  asking.value = false
+  input.value = {}
+  emit('cancelled')
+}
 
 const colors = { primary: 'primary', danger: 'error', neutral: undefined }
 const icons = { primary: 'mdi-play-outline', danger: 'mdi-alert-outline', neutral: 'mdi-flash-outline' }
@@ -61,12 +72,17 @@ async function run() {
     busy.value = false
   }
 }
+
+// Nothing to ask means nothing to show: the command runs and this component never draws anything.
+onMounted(() => { if (props.auto) run() })
 </script>
 
 <template>
-  <template v-if="available">
+  <!-- `auto` bypasses the availability check on purpose. Whatever asked for this command already
+       decided the move is legal, and hiding the dialog would leave that caller waiting forever. -->
+  <template v-if="available || auto">
     <v-list-item
-      v-if="as === 'item'"
+      v-if="!auto && as === 'item'"
       :prepend-icon="icons[command.style] ?? icons.neutral"
       :title="command.label"
       :base-color="command.style === 'danger' ? 'error' : undefined"
@@ -75,7 +91,7 @@ async function run() {
     />
 
     <v-btn
-      v-else
+      v-else-if="!auto"
       :color="colors[command.style]"
       :density="density"
       variant="tonal"
@@ -87,7 +103,7 @@ async function run() {
       {{ command.label }}
     </v-btn>
 
-    <v-dialog v-model="asking" max-width="480">
+    <v-dialog :model-value="asking" max-width="480" @update:model-value="$event || cancel()">
       <v-card>
         <v-card-title>{{ command.confirm?.title || command.label }}</v-card-title>
         <v-card-text class="d-flex flex-column ga-4">
@@ -105,7 +121,7 @@ async function run() {
         </v-card-text>
         <v-card-actions>
           <v-spacer />
-          <v-btn @click="asking = false">Cancel</v-btn>
+          <v-btn @click="cancel">Cancel</v-btn>
           <v-btn
             :color="command.confirm?.tone === 'danger' ? 'error' : 'primary'"
             variant="flat"

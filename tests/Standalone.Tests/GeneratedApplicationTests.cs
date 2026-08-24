@@ -79,11 +79,16 @@ public class GeneratedApplicationTests
     /// or builds the C# beside them, and neither notices. It cost exactly that — a records.js edit
     /// dropped four exports, the whole suite passed, and the bundle was broken.</para>
     ///
-    /// <para>One application rather than eight: the bundler is the same for all of them and the
-    /// install dominates the clock. `sales-crm` is the one that reaches the most block kinds.</para>
+    /// <para>Three applications rather than eight, chosen for the components they reach rather than
+    /// for coverage of the definitions: `sales-crm` reaches the most block kinds and is the only one
+    /// with a `board` block, `budget-planner` is the only one with `kanban` and `timeline` SAVED
+    /// VIEWS, and `time-off` is the only one with a `timeline` BLOCK. A component nothing here
+    /// bundles is a component nothing compiles.</para>
     /// </summary>
     [Theory]
     [InlineData("sales-crm")]
+    [InlineData("budget-planner")]
+    [InlineData("time-off")]
     public async Task The_generated_front_end_bundles(string key)
     {
         if (Skipped) return;

@@ -25,6 +25,77 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ---- typography ---------------------------------------------------------------------------- */
+/*
+ * The font, and a type scale that agrees with itself.
+ *
+ * Vuetify's stylesheet asks for Roboto and this application ships no font, so everything fell back
+ * to the browser's generic sans. Then Material 3's own scale rendered that fallback at 16px/400 on a
+ * button, 22px/500 on a card title and 14px on a table cell — three sizes and three weights within
+ * one card, which is what "the fonts are all different" actually looks like.
+ *
+ * A component default cannot fix it: `.v-card-title` and `.v-btn` set font-size in Vuetify's own
+ * stylesheet, and a `class` default loses to a rule with the same specificity that was written
+ * first. This file is imported after `vuetify/styles` in main.js, so equal specificity wins here —
+ * which is why none of this needs !important.
+ */
+
+:root {
+  --cd-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+html,
+body,
+.v-application,
+[class^='v-'],
+[class*=' v-'] {
+  font-family: var(--cd-font);
+}
+
+/* A button is a label on a control, not a paragraph. */
+.v-btn {
+  font-size: 0.875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.v-btn--size-small {
+  font-size: 0.8125rem;
+}
+
+.v-btn--size-large {
+  font-size: 0.9375rem;
+}
+
+/* Card titles sat two steps above everything they introduced. */
+.v-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0;
+  padding: 16px 16px 12px;
+}
+
+.v-card-subtitle {
+  font-size: 0.8125rem;
+  letter-spacing: 0;
+}
+
+/* Material's tracking is tuned for Roboto at Material's sizes. On a system face at these sizes it
+   reads as loose. */
+.v-list-item-title,
+.v-field__input,
+.v-label,
+table td,
+table th {
+  letter-spacing: 0;
+}
+
+.v-table {
+  font-size: 0.875rem;
+}
+
 /* ---- scrollbars ---------------------------------------------------------------------------- */
 /* The default is bright white on a dark theme and is the single loudest thing on the page. */
 

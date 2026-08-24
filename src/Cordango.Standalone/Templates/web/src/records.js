@@ -139,12 +139,16 @@ export const sortTerm = (sort) =>
   (sort || []).map((s) => (s.direction === 'desc' ? `-${s.field}` : s.field)).join(',')
 
 /** A page of records for a view. */
-export async function loadView(view, context, { skip = 0, take = 100, extraFilters = [] } = {}) {
+export async function loadView(
+  view, context, { skip = 0, take = 100, extraFilters = [], sort: order = null } = {}) {
   const params = new URLSearchParams()
   for (const filter of [...(view.filters || []), ...extraFilters]) {
     if (filterApplies(filter, context)) params.append('filter', filterTerm(filter, context))
   }
-  const sort = sortTerm(view.sort)
+  // The view's own order, unless the caller needs a different one over the SAME rows — a timeline
+  // asking "where is the nearest record" wants the earliest by date and still wants this view's
+  // filters, so that it never offers to jump to something the view excludes.
+  const sort = order ?? sortTerm(view.sort)
   if (sort) params.set('sort', sort)
   params.set('skip', String(skip))
   params.set('take', String(view.limit ?? take))

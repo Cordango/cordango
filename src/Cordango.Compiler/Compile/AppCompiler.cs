@@ -765,7 +765,7 @@ public static class AppCompiler
         bool Has(params string[] types) => fields.Any(f => types.Contains(GetStr(f, "type")));
 
         var via = GetStr(child["ownedBy"], "via");
-        // The one field each composer writes — mirrors ChildBlock.vue (bodyField/titleField).
+        // The one field each composer writes (bodyField/titleField).
         var bodyField = fields.FirstOrDefault(f => GetStr(f, "type") == "longtext")
                      ?? fields.FirstOrDefault(f => GetStr(f, "type") == "text");
         var titleField = fields.FirstOrDefault(f => GetStr(f, "key") == GetStr(child, "displayField"))
@@ -917,12 +917,23 @@ public static class AppCompiler
         if (commands.Count > 0) manifest["commands"] = commands;
     }
 
-    /// <summary>Force a board to read-only when dragging its cards could not legally do anything.
-    /// A drop writes the grouping field directly (KanbanView PUTs it), so an interactive board is a
-    /// promise that the acting user may set that field by hand. The design pass marks every board
-    /// `interactive` (it is also the default when the key is omitted), which offers drag on fields the
-    /// runtime would reject: system/readOnly/auto fields, and process-governed statuses that may only
-    /// move through their declared transitions. Derive it from the field instead of asking.</summary>
+    /// <summary>
+    /// Force a board to read-only when dragging its cards could not legally do anything.
+    ///
+    /// <para>The design pass marks every board <c>interactive</c> (it is also the default when the
+    /// key is omitted), which offers drag on fields the runtime would reject: a system stamp, a
+    /// read-only or auto field, a value only a command may set. Derive it from the field instead of
+    /// asking.</para>
+    ///
+    /// <para><b>A process-governed status is NOT one of those, and treating it as one was a stale
+    /// rule.</b> It was written when a drop wrote the grouping field directly, so offering drag over
+    /// a status the process guards would have promised a move the server refuses. Both renderers
+    /// have since learned the difference: a drop over a governed field looks up the declared
+    /// TRANSITION, runs its command where it has one, and refuses an illegal move by name. Keeping
+    /// the downgrade meant the language's own description of a process board — "dragging a card
+    /// between columns runs the matching transition command" — was something no definition could
+    /// actually ask for, because this rewrote every one of them to read-only on the way past.</para>
+    /// </summary>
     private static void ResolveBoardInteraction(JsonObject manifest)
     {
         var fieldsByEntity = Arr(manifest["entities"]).OfType<JsonObject>()
@@ -940,11 +951,16 @@ public static class AppCompiler
             var f = fields.FirstOrDefault(x => GetStr(x, "key") == gk);
             if (f is null) continue;
 
-            var writable = f["system"]?.GetValue<bool>() != true
+            // Nothing writes these, transition or not.
+            var editable = f["system"]?.GetValue<bool>() != true
                         && f["readOnly"]?.GetValue<bool>() != true
-                        && f["auto"] is null
-                        && f["governedBy"] is null
-                        && f["setByCommand"]?.GetValue<bool>() != true;
+                        && f["auto"] is null;
+
+            // A process is a write path, so a governed field is draggable. Without one,
+            // `setByCommand` says the only write path is a command and a drag has none.
+            var governed = f["governedBy"] is not null;
+            var writable = editable && (governed || f["setByCommand"]?.GetValue<bool>() != true);
+
             if (!writable) cfg["interaction"] = "visualization";
         }
     }

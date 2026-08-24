@@ -503,8 +503,15 @@ public static class WebEmitter
                 break;
 
             case "text":
+                if (AppModel.Str(block["value"]) is not { Length: > 0 }
+                    && AppModel.Str(block["text"]) is not { Length: > 0 }) break;
                 context.Imports.Add("BlockText");
-                source.Line($"<BlockText {Attributes(("text", AppModel.Str(block["text"])), ("tone", AppModel.Str(block["tone"])))} />");
+                source.Line($"<BlockText {Attributes(
+                    ("text", AppModel.Str(block["value"]) ?? AppModel.Str(block["text"])),
+                    ("size", AppModel.Str(block["size"])),
+                    ("weight", AppModel.Str(block["weight"])),
+                    ("color", AppModel.Str(block["color"])),
+                    ("icon", AppModel.Str(block["icon"])))} />");
                 break;
 
             case "stat":
@@ -534,6 +541,14 @@ public static class WebEmitter
                 Calendar(source, block, context, unsupported);
                 break;
 
+            case "board":
+                Board(source, block, context, unsupported);
+                break;
+
+            case "timeline":
+                Timeline(source, block, context, unsupported);
+                break;
+
             case "filterbar":
                 context.Imports.Add("FilterBar");
                 source.Line("<FilterBar");
@@ -551,8 +566,7 @@ public static class WebEmitter
                 break;
 
             case "child":
-                context.Imports.Add("ChildBlock");
-                source.Line($"<ChildBlock entity=\"{AppModel.Str(block["entity"])}\" field=\"{AppModel.Str(block["field"])}\" :record=\"record\" />");
+                Child(source, block, context, unsupported);
                 break;
 
             case "hub":
@@ -562,8 +576,13 @@ public static class WebEmitter
                 source.Indent();
                 source.Line($"entity=\"{context.Entity}\"");
                 source.Line(":record=\"record\"");
-                source.Line($"title=\"{AppModel.Str(block["title"])}\"");
-                source.Line($"status=\"{AppModel.Str(block["status"])}\"");
+                // Only when the definition named one. Written unconditionally, an absent title
+                // arrived as `title=""`, the component looked up the field called "" , found
+                // nothing, and fell back to printing the record's uuid as the page heading.
+                if (AppModel.Str(block["title"]) is { Length: > 0 } heading)
+                    source.Line($"title=\"{heading}\"");
+                if (AppModel.Str(block["status"]) is { Length: > 0 } state)
+                    source.Line($"status=\"{state}\"");
                 source.Line($":facts=\"{JsArray(block["facts"])}\"");
                 source.Line($":actions=\"{JsArray(block["actions"])}\"");
                 source.Line("@changed=\"load\"");
@@ -599,9 +618,10 @@ public static class WebEmitter
 
             case "chip":
                 context.Imports.Add("BlockChip");
-                source.Line(
-                    $"<BlockChip entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" "
-                    + $"field=\"{AppModel.Str(block["field"])}\" :record=\"record\" />");
+                source.Line($"<BlockChip {Attributes(
+                    ("entity", AppModel.Str(block["entity"]) ?? context.Entity),
+                    ("field", AppModel.Str(block["field"])),
+                    ("value", AppModel.Str(block["value"])))} :record=\"record\" />");
                 break;
 
             case "action":
@@ -622,7 +642,9 @@ public static class WebEmitter
             // It loads and saves on its own — there is nothing to pick between and no table to open.
             case "settings":
                 context.Imports.Add("SettingsBlock");
-                source.Line($"<SettingsBlock entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" />");
+                source.Line(
+                    $"<SettingsBlock entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\""
+                    + $"{Echoes(context.App.Entity(AppModel.Str(block["entity"]) ?? context.Entity)?.Label, context)} />");
                 break;
 
             case "repeat":
@@ -667,11 +689,26 @@ public static class WebEmitter
                 source.Line($"<CalendarBlock view=\"{key}\" :state=\"{context.StateBinding}\" />");
                 break;
 
+            case "kanban":
+                context.Imports.Add("BoardBlock");
+                source.Line(
+                    $"<BoardBlock view=\"{key}\" :state=\"{context.StateBinding}\""
+                    + $"{Echoes(view?.Label, context)} />");
+                break;
+
+            case "timeline":
+                context.Imports.Add("TimelineBlock");
+                source.Line(
+                    $"<TimelineBlock view=\"{key}\" :state=\"{context.StateBinding}\""
+                    + $"{Echoes(view?.Label, context)} />");
+                break;
+
             default:
                 context.Imports.Add("UnsupportedBlock");
                 source.Line($"<UnsupportedBlock kind=\"{view!.Type} view\" />");
                 unsupported.Add(NotYet(
-                    $"'{key}' is a '{view.Type}' view, and only 'table' and 'calendar' views render", context));
+                    $"'{key}' is a '{view.Type}' view, and 'dashboard' and 'detail' views do not render "
+                    + "as a block", context));
                 break;
         }
     }
@@ -726,6 +763,63 @@ public static class WebEmitter
         source.Line("/>");
     }
 
+    /// <summary>
+    /// The rows of another entity that point back at this record.
+    ///
+    /// <para><b>The definition spells the foreign key <c>via</c>.</b> This read <c>field</c>, which
+    /// no child block has ever carried, so every child list in every generated application was
+    /// emitted with an empty one — and an empty field key is not an empty filter, it is a filter on
+    /// a column called "". The server refused each one by name and the screen showed
+    /// <c>'segment' has no field ''</c> where the list should have been. Every detail screen with a
+    /// child list on it, in every application, since the block was first emitted.</para>
+    ///
+    /// <para>It goes through the same <see cref="Query"/> as a <c>table</c> block, so a child list
+    /// is an ordinary list that happens to be narrowed by its parent: the block's own columns,
+    /// label, limit and toolbar all arrive the way a table's do. The component it used to point at
+    /// read none of them — it looked up the first saved view over the child entity and rendered
+    /// that instead, which showed the wrong columns where a view existed and nothing at all where
+    /// one did not.</para>
+    /// </summary>
+    private static void Child(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var entity = AppModel.Str(block["entity"]);
+        var via = AppModel.Str(block["via"]);
+
+        // `via` and the block's row cap are the only two things Query reads off a source object. A
+        // child block carries them itself, so they are handed over in the shape it expects rather
+        // than giving Query a second place to look.
+        var query = new JsonObject { ["via"] = via };
+        if (block["limit"] is { } limit) query["limit"] = limit.DeepClone();
+
+        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+
+        // Only the table presentation is built. The others are real differences in how the rows are
+        // read — a feed is chronological with a composer, a checklist is one tick per row — so a
+        // table in their place is a list of the right records in the wrong shape, and that is worth
+        // saying rather than leaving somebody to notice.
+        var childType = AppModel.Str(block["childType"]);
+        if (childType is not null and not "table")
+            unsupported.Add(NotYet($"a child list's '{childType}' presentation (the rows render as a table)", context));
+
+        context.Imports.Add("ViewBlock");
+        source.Line("<ViewBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(Query(block, query, entity, "table", context.Record))}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        source.Line(":record=\"record\"");
+        if (block["groupBy"] is JsonObject group) source.Line($":group-by=\"{Js(group)}\"");
+        if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
+        if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
+        if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
+        // `inlineCreate` defaults on in the language, so the New button goes only where somebody
+        // has turned it off.
+        if (block["inlineCreate"] is not null && !AppModel.Bool(block["inlineCreate"]))
+            source.Line(":create=\"false\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
     /// <summary>A month grid over records that carry a date, from the block's own query.</summary>
     private static void Calendar(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
     {
@@ -752,6 +846,73 @@ public static class WebEmitter
         source.Line($":state=\"{context.StateBinding}\"");
         if (context.Record) source.Line(":record=\"record\"");
         if (!AppModel.Bool(block["allowCreate"])) source.Line(":create=\"false\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>
+    /// A board: the same rows a table would show, stacked into columns by one field.
+    ///
+    /// <para>The presentation goes into the definition's <c>config</c> under the same names a saved
+    /// kanban view uses, so the component reads one shape whichever route the board arrived by. The
+    /// block spells the column field <c>groupField</c> and a saved view spells it
+    /// <c>groupByField</c>; both are written, because the component that reads them is the only
+    /// place that should have to know they are the same thing.</para>
+    /// </summary>
+    private static void Board(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var query = block["source"] as JsonObject;
+        var entity = AppModel.Str(query?["entity"]) ?? AppModel.Str(block["entity"]) ?? context.Entity;
+
+        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+
+        var definition = Query(block, query, entity, "kanban", context.Record);
+        var config = (JsonObject)definition["config"]!;
+        if (AppModel.Str(block["groupField"]) is { } group) config["groupByField"] = group;
+        if (block["cardFields"] is JsonArray cards) config["cardFields"] = cards.DeepClone();
+        if (AppModel.Str(block["sumField"]) is { } sum) config["sumField"] = sum;
+        if (AppModel.Str(block["interaction"]) is { } interaction) config["interaction"] = interaction;
+
+        context.Imports.Add("BoardBlock");
+        source.Line("<BoardBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(definition)}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (block["search"] is JsonObject search) source.Line($":search=\"{Js(search)}\"");
+        if (AppModel.Bool(block["newButton"])) source.Line(":create=\"true\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>
+    /// Bars along a date axis, one lane per whatever groups them.
+    ///
+    /// <para>Unlike a board, the block names its entity directly rather than carrying a
+    /// <c>source</c> — so there is no query object to read <c>via</c> from, and a timeline on a
+    /// record screen is narrowed by nothing. That is the language's shape, not an omission here.
+    /// </para>
+    /// </summary>
+    private static void Timeline(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var entity = AppModel.Str(block["entity"]) ?? context.Entity;
+
+        foreach (var gap in Gaps(block, null, context.Record)) unsupported.Add(NotYet(gap, context));
+
+        var definition = Query(block, null, entity, "timeline", context.Record);
+        var config = (JsonObject)definition["config"]!;
+        foreach (var key in new[] { "rowBy", "startField", "endField", "colorField", "labelField" })
+            if (AppModel.Str(block[key]) is { } value) config[key] = value;
+        if (block["axis"] is JsonObject axis) config["axis"] = axis.DeepClone();
+
+        context.Imports.Add("TimelineBlock");
+        source.Line("<TimelineBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(definition)}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
         source.Outdent();
         source.Line("/>");
     }

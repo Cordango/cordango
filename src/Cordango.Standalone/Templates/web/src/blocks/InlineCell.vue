@@ -125,11 +125,30 @@ function pickDate(value) {
     style="min-width: 8rem"
     @update:model-value="save($event === undefined ? null : $event)"
   >
-    <template #selection="{ item }">
-      <v-chip v-if="optionColor(field, item.value)" size="x-small" variant="tonal" :color="optionColor(field, item.value)">
-        {{ optionLabel(field, item.value) }}
+    <!--
+      `internalItem`, not `item`.
+
+      Vuetify 4 changed what this slot is handed: `item` is now the RAW object you put in `items`,
+      and the normalised one carrying `title` and `value` moved to `internalItem`. Our raw items are
+      {value, label}, so `item.value` kept working by coincidence and `item.title` silently became
+      undefined — which rendered an EMPTY cell for every reference column while the coloured select
+      columns, which read `item.value`, carried on looking fine.
+
+      It made a working feature look broken: choosing a list saved correctly, the table reloaded, and
+      the cell still showed nothing, so the change appeared to have been discarded.
+    -->
+    <template #selection="{ item, internalItem }">
+      <v-chip
+        v-if="optionColor(field, internalItem?.value ?? item?.value)"
+        size="x-small"
+        variant="tonal"
+        :color="optionColor(field, internalItem?.value ?? item?.value)"
+      >
+        {{ optionLabel(field, internalItem?.value ?? item?.value) }}
       </v-chip>
-      <span v-else class="text-body-2">{{ item.title }}</span>
+      <span v-else class="text-body-2">
+        {{ internalItem?.title ?? item?.label ?? item?.title ?? '' }}
+      </span>
     </template>
   </v-select>
 

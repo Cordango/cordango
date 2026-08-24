@@ -10,6 +10,35 @@
 // borders, whether cards float or sit flat. Both are ordinary objects and neither is generated, so
 // regenerating this application will not overwrite what you decide here.
 
+/**
+ * The typeface, as a stack of fonts that are already on the machine.
+ *
+ * <p><b>Vuetify asks for Roboto and nothing ships it.</b> Its stylesheet says
+ * `font-family: Roboto, sans-serif`, this application bundles no font, and it deliberately fetches
+ * nothing from a CDN — so every element fell back to the browser's generic sans. That alone is
+ * survivable; what made it read as "the fonts are different everywhere" is that the fallback face
+ * was then rendered at sizes and weights that disagree with each other, so a 16px/400 button label
+ * next to 14px table text next to a 22px card title looked like three typefaces.</p>
+ *
+ * <p>A system stack is the honest answer for an application that must work with no route to the
+ * internet: it is a real, hinted, locally-installed face on every platform, it costs no request, and
+ * it matches what the rest of the operating system looks like. Swap it for a bundled webfont here if
+ * you want a brand face — one constant, one place.</p>
+ */
+export const fontStack = [
+  'ui-sans-serif',
+  'system-ui',
+  '-apple-system',
+  'Segoe UI',
+  'Roboto',
+  'Helvetica Neue',
+  'Arial',
+  'Noto Sans',
+  'sans-serif',
+  'Apple Color Emoji',
+  'Segoe UI Emoji',
+].join(', ')
+
 /** Where the reader's choice is kept. Per browser, because it is a preference and not a setting. */
 export const THEME_STORAGE_KEY = '{{AppKey}}.theme'
 
@@ -120,6 +149,9 @@ export const defaults = {
   VCardTitle: { class: 'text-subtitle-1 font-weight-medium' },
   VSheet: { rounded: 'lg' },
 
+  // Sized down from Material 3's own defaults, which put a 16px/400 label on a button — larger than
+  // the body text beside it and lighter than the table header above it. A button is a label, not a
+  // paragraph: it wants to be small, medium-weight and unmistakably a control.
   VBtn: { rounded: 'md', variant: 'text' },
   // A button inside a card's title row is a secondary action, and an elevated one there competes
   // with the page. This is the contextual-defaults mechanism doing what forty `variant="tonal"`

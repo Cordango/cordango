@@ -11,6 +11,7 @@ import CommandButton from './CommandButton.vue'
 import EmptyState from './EmptyState.vue'
 import FilterBar from './FilterBar.vue'
 import InlineCell from './InlineCell.vue'
+import { useSurface } from './surface.js'
 
 const props = defineProps({
   // A SAVED view, by key.
@@ -46,6 +47,10 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+// A table inside a `card` block is already in a card. Two borders around one table is the same
+// box-in-a-box the stats had.
+const depth = useSurface()
 const definition = computed(() => props.definition ?? viewOf(props.view))
 const entityKey = computed(() => definition.value?.entity)
 const entity = computed(() => entityOf(entityKey.value))
@@ -236,18 +241,21 @@ watch(() => props.extraFilters, load, { deep: true })
 // filters change.
 watch(() => props.state, load, { deep: true })
 
+// A title of its own is worth drawing only when this block is the outermost surface and the
+// definition actually named it.
+const titled = computed(() => !props.hideTitle && depth === 0 && Boolean(definition.value?.label))
+
 const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
 </script>
 
 <template>
-  <v-card>
-    <v-card-title class="d-flex align-center ga-2 flex-wrap">
-      <span v-if="!hideTitle" class="text-subtitle-1 font-weight-medium">
-        {{ definition?.label }}
-      </span>
-      <!-- With the title suppressed a bare "25" in a chip says nothing. The count is worth keeping;
-           what it counts has to come from somewhere, and with no title above it that is here. -->
-      <v-chip v-if="!loading && !hideTitle" size="x-small" variant="tonal">{{ total }}</v-chip>
+  <component :is="depth === 0 ? 'v-card' : 'div'">
+    <div class="d-flex align-center ga-2 flex-wrap px-4 py-3">
+      <span v-if="titled" class="text-subtitle-1 font-weight-medium">{{ definition?.label }}</span>
+      <!-- A bare "25" in a chip says nothing on its own. It only reads as a count when there is a
+           title beside it to count; without one — this list is inside a `card` block that already
+           named it, or the page heading says the same words — it says what it counts instead. -->
+      <v-chip v-if="!loading && titled" size="x-small" variant="tonal">{{ total }}</v-chip>
       <span v-else-if="!loading" class="text-body-2 text-medium-emphasis">
         {{ total }} {{ (total === 1 ? entity?.label : entity?.labelPlural) || '' }}
       </span>
@@ -262,7 +270,7 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
       >
         New
       </v-btn>
-    </v-card-title>
+    </div>
 
     <div v-if="filterBar" class="px-4 pb-2">
       <FilterBar
@@ -384,5 +392,5 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
         </v-card-actions>
       </v-card>
     </v-dialog>
-  </v-card>
+  </component>
 </template>

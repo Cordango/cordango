@@ -6,6 +6,7 @@ import {
 } from '../records.js'
 import { session } from '../session.js'
 import RecordDialog from './RecordDialog.vue'
+import { useSurface } from './surface.js'
 
 // A month grid over records that carry a date.
 //
@@ -26,6 +27,10 @@ const props = defineProps({
 })
 
 const router = useRouter()
+
+// A calendar inside a `card` block is already in a card, the same way a table and a stat are.
+const depth = useSurface()
+
 const definition = computed(() => props.definition ?? viewOf(props.view))
 const entityKey = computed(() => definition.value?.entity)
 const entity = computed(() => entityOf(entityKey.value))
@@ -160,15 +165,15 @@ watch(() => props.state, load, { deep: true })
 </script>
 
 <template>
-  <v-card>
-    <v-card-title class="d-flex align-center">
+  <component :is="depth === 0 ? 'v-card' : 'div'">
+    <div class="d-flex align-center px-4 py-3">
       <span class="text-subtitle-1">{{ definition?.label }}</span>
       <v-spacer />
       <v-btn icon="mdi-chevron-left" size="small" variant="text" @click="move(-1)" />
       <span class="text-body-2 mx-2" style="min-width: 9rem; text-align: center">{{ monthLabel }}</span>
       <v-btn icon="mdi-chevron-right" size="small" variant="text" @click="move(1)" />
       <v-btn size="small" variant="text" class="ml-2" @click="cursor = new Date()">Today</v-btn>
-    </v-card-title>
+    </div>
 
     <v-alert v-if="error" type="error" variant="tonal" class="ma-4">{{ error }}</v-alert>
     <v-skeleton-loader v-else-if="loading" type="image" />
@@ -216,7 +221,7 @@ watch(() => props.state, load, { deep: true })
       @close="editing = null"
       @saved="editing = null; load(); recordsChanged(entityKey)"
     />
-  </v-card>
+  </component>
 </template>
 
 <style scoped>
