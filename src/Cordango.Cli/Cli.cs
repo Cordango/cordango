@@ -52,7 +52,8 @@ public sealed class Args
 
     public IReadOnlyList<string> Positional => _positional;
 
-    /// <summary>Every command supports it (CordyOSS §5), so it is read here rather than per command.</summary>
+    /// <summary>Every command supports it (CordyOSS §5), so it is read here rather than per command.
+    /// It also suppresses every prompt — see <see cref="Interview"/>.</summary>
     public bool Json => Has("json");
 
     public bool Has(string flag) => _flags.ContainsKey(flag);

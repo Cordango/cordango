@@ -9,42 +9,54 @@ namespace Cordango.Cli.Commands;
 
 public static class Help
 {
+    /// <summary>One command in the list.</summary>
+    /// <param name="Connected">Whether it needs an instance. A flag on the row rather than an index
+    /// into the array: the divider used to be a constant that had to be moved by hand whenever a
+    /// command was added, which is the kind of bookkeeping that is wrong once and then wrong
+    /// forever.</param>
+    private sealed record Command(string Usage, string What, bool Connected = false);
+
     /// <summary>Commands this build actually has. `cordango help --json` is how an agent discovers the
     /// surface without a human pasting a README into its context.</summary>
-    private static readonly (string Usage, string What)[] Commands =
+    private static readonly Command[] Commands =
     [
-        ("new <first-app>", "Create a workspace and its first app. Needs an empty directory."),
-        ("add app <name>", "Add another app to this workspace. One workspace holds many."),
-        ("import <app.definition.json> [--app <name>]",
-            "Bring an existing App Definition in as source files you can edit."),
-        ("check [--app <key>] [--target <id>]",
+        new("new <first-app>", "Create a workspace and its first app. Needs an empty directory."),
+        new("add app <name>", "Add another app to this workspace. One workspace holds many."),
+        new("configure [--target <id>]",
+            "Decide once where this workspace's apps are meant to run, and write it into "
+            + "cordango.yaml. Asks, when there is somebody to ask. `--show` prints what is set."),
+        new("import <app.definition.json> [--app <name>]",
+            "Bring an App Definition on disk in as source files you can edit. No connection needed."),
+        new("check [--app <key>] [--target <id>]",
             "Parse, lower and validate. No model, no database. With --target, also ask whether "
             + "that generator can build it."),
-        ("validate [--app <key>] [--target <id>]", "The same command; the word for asking about a target."),
-        ("targets", "What this build can generate, and what each target deliberately will not."),
-        ("build [--app <key>]", "Write .cordango/build/<key>/ artifacts. Deterministic."),
-        ("build --app <key> --target <id> --out <dir>",
-            "Generate a whole application into a directory you own. Add --seed <n> for a different "
-            + "dataset, --allow-incomplete to accept a build the generator cannot finish, and "
-            + "--runtime source to check the Cordango.Standalone source in as a sibling project "
-            + "instead of restoring the package."),
-        ("inspect [path] [--app <key>]", "Describe the workspace, one app, or one aggregate."),
-        ("vocabulary [<name>]", "What may be written: Cord's words, or one construct's schema."),
-        ("apply <ops.json> --app <key> --scope <kind[:key]>",
+        new("validate [--app <key>] [--target <id>]", "The same command; the word for asking about a target."),
+        new("targets", "What this build can generate, and what each target deliberately will not."),
+        new("build [--app <key>]",
+            "Do what `cordango configure` said: write .cordango/build/<key>/ artifacts, and, when a "
+            + "target is configured, generate each application into generated/<key>/. Deterministic."),
+        new("build --target <id> [--app <key>]",
+            "Generate with a target this once, whatever the configuration says. Add --seed <n> for "
+            + "a different dataset, --allow-incomplete to accept a build the generator cannot "
+            + "finish, and --runtime source to check the Cordango.Standalone source in as a sibling "
+            + "project instead of restoring the package."),
+        new("inspect [path] [--app <key>]", "Describe the workspace, one app, or one aggregate."),
+        new("vocabulary [<name>]", "What may be written: Cord's words, or one construct's schema."),
+        new("apply <ops.json> --app <key> --scope <kind[:key]>",
             "Apply semantic operations and rewrite the affected source files."),
-        ("fmt [--app <key>]", "Rewrite every .cordango.yaml file in canonical form."),
-        ("doctor", "Check the workspace for problems that are not source errors."),
-        ("version", "CLI, source-format and App Definition schema versions."),
+        new("fmt [--app <key>]", "Rewrite every .cordango.yaml file in canonical form."),
+        new("doctor", "Check the workspace for problems that are not source errors."),
+        new("version", "CLI, source-format and App Definition schema versions."),
         // The connected half. Listed apart in the human rendering below, because everything above
         // works with no instance, no account and no network, and that is worth seeing at a glance.
-        ("login <token> [--instance <url>]", "Connect to a Cordango instance. Make a token under your avatar → Personal Access Keys."),
-        ("whoami [--offline]", "Which instance this workspace publishes to, and as whom."),
-        ("publish [--app <key>] [--force]", "Build from source, send it to the instance, and make it live."),
-        ("logout [--instance <url>] [--all]", "Forget a stored credential on this machine. Does not revoke it."),
+        new("login <token> [--instance <url>]", "Connect to a Cordango instance. Make a token under your avatar → Personal Access Keys.", true),
+        new("whoami [--offline]", "Which instance this workspace publishes to, and as whom.", true),
+        new("publish [--app <key>] [--force]", "Build from source, send it to the instance, and make it live.", true),
+        new("import [<app>] [--list]",
+            "The way back: bring one of the instance's apps in as source. With no name it lists what "
+            + "you can reach and asks which one. `--list` only looks.", true),
+        new("logout [--instance <url>] [--all]", "Forget a stored credential on this machine. Does not revoke it.", true),
     ];
-
-    /// <summary>Where the offline list ends and the connected list begins.</summary>
-    private const int FirstConnectedCommand = 13;
 
     public static int Print(Output output) => output.Ok(
         new JsonObject
@@ -53,25 +65,56 @@ public static class Help
             {
                 ["usage"] = c.Usage,
                 ["description"] = c.What,
-                ["connected"] = Array.IndexOf(Commands, c) >= FirstConnectedCommand,
+                ["connected"] = c.Connected,
             })]),
         },
         w =>
         {
             w.WriteLine("cordango — author Cordango apps as semantic source.");
             w.WriteLine();
-            for (var i = 0; i < Commands.Length; i++)
+
+            var connected = false;
+            foreach (var command in Commands)
             {
-                if (i == FirstConnectedCommand)
+                if (command.Connected && !connected)
                 {
+                    connected = true;
                     w.WriteLine();
-                    w.WriteLine("  Connected to an instance:");
+                    w.WriteLine("  " + Ansi.Bold("Connected to an instance:"));
                     w.WriteLine();
                 }
-                w.WriteLine($"  cordango {Commands[i].Usage}");
-                w.WriteLine($"      {Commands[i].What}");
+
+                w.WriteLine("  cordango " + Ansi.Bold(command.Usage));
+                foreach (var line in Wrap(command.What, 72)) w.WriteLine("      " + Ansi.Dim(line));
             }
+
             w.WriteLine();
             w.WriteLine("  Every command accepts --json.");
+            w.WriteLine("  Nothing ever prompts under --json, in CI, or with --no-interaction.");
         });
+
+    /// <summary>
+    /// Soft-wrap a description at a word boundary.
+    ///
+    /// <para>Because the descriptions grew past a terminal's width and a hard wrap in the middle of
+    /// <c>Cordango.Stand|alone</c> reads as a typo in the product rather than in the help text.</para>
+    /// </summary>
+    private static IEnumerable<string> Wrap(string text, int width)
+    {
+        var line = new System.Text.StringBuilder();
+
+        foreach (var word in text.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (line.Length > 0 && line.Length + 1 + word.Length > width)
+            {
+                yield return line.ToString();
+                line.Clear();
+            }
+
+            if (line.Length > 0) line.Append(' ');
+            line.Append(word);
+        }
+
+        if (line.Length > 0) yield return line.ToString();
+    }
 }

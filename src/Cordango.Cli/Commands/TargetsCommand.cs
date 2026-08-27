@@ -5,6 +5,7 @@
 
 using System.Text.Json.Nodes;
 using Cordango.Cli.Generate;
+using Cordango.Cli.Workspace;
 using Cordango.SourceGen;
 
 namespace Cordango.Cli.Commands;
@@ -27,17 +28,33 @@ public static class TargetsCommand
     public static int Run(Args args, Output output)
     {
         var wanted = args.Value("target");
-        var targets = wanted is { Length: > 0 }
-            ? Targets.Find(wanted) is { } one ? [one] : Array.Empty<IAppSourceGenerator>()
-            : [.. Targets.All];
+        var platform = wanted is { Length: > 0 }
+            && string.Equals(wanted, BuildConfig.Platform, StringComparison.OrdinalIgnoreCase);
 
-        if (wanted is { Length: > 0 } && targets.Length == 0)
-            return output.Fail($"no target called '{wanted}'", [$"known targets: {Targets.Known}"],
+        IAppSourceGenerator[] targets;
+        if (platform) targets = [];
+        else if (wanted is { Length: > 0 }) targets = Targets.Find(wanted) is { } one ? [one] : [];
+        else targets = [.. Targets.All];
+
+        if (wanted is { Length: > 0 } && !platform && targets.Length == 0)
+            return output.Fail($"no target called '{wanted}'",
+                [$"known targets: {Targets.Known}, {BuildConfig.Platform}"],
                 code: ExitCodes.Usage);
 
         var payload = new JsonObject
         {
             ["targets"] = new JsonArray([.. targets.Select(t => (JsonNode)Describe(t))]),
+
+            // The platform is listed beside the generators because it is what `--target` and
+            // `configure` will accept, and a list that omits an accepted value is a list somebody
+            // has to correct from the error message instead.
+            ["platform"] = new JsonObject
+            {
+                ["id"] = BuildConfig.Platform,
+                ["generates"] = false,
+                ["withholds"] = false,
+                ["requiresConnection"] = true,
+            },
         };
 
         return output.Ok(payload, w =>
@@ -67,6 +84,13 @@ public static class TargetsCommand
                 w.WriteLine("  and names every reason it does not.");
                 w.WriteLine();
             }
+
+            w.WriteLine(BuildConfig.Platform);
+            w.WriteLine();
+            w.WriteLine("    generates: nothing — the definition itself is what travels");
+            w.WriteLine("    withholds: nothing — the platform runs the whole language");
+            w.WriteLine("    needs:     a connection. `cordango login <token>` first.");
+            w.WriteLine();
         });
     }
 

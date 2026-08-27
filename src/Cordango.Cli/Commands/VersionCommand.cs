@@ -53,8 +53,12 @@ public static class VersionCommand
         },
         w =>
         {
-            w.WriteLine($"cordango                {CliVersion}");
-            w.WriteLine($"source format           {WorkspaceFile.FormatVersion}");
-            w.WriteLine($"App Definition schema   {AppSchemaVersion.Current}");
+            // The one command whose whole job is to say what this is, so it is the one that gets to
+            // show the mark. `--json` never sees it: the payload above is the machine's answer.
+            Branding.Write(w);
+            w.WriteLine($"  cordango                {CliVersion}");
+            w.WriteLine($"  source format           {WorkspaceFile.FormatVersion}");
+            w.WriteLine($"  App Definition schema   {AppSchemaVersion.Current}");
+            w.WriteLine();
         });
 }

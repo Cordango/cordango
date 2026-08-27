@@ -140,10 +140,22 @@ cd expenses
 cordango check                   # parse, lower and validate. No model, no database.
 cordango targets                 # what can be generated, and what each target supports
 
-cordango build --target standalone --out ../expenses-app
-cd ../expenses-app
+cordango configure               # where these apps run. One question, written to cordango.yaml
+cordango build                   # do what it said
+
+cd generated/expenses
 docker compose up --build
 ```
+
+`cordango configure` is asked once and committed, so `cordango build` takes no flags from then on —
+for you, for the next person to clone it, and for CI. `--target` still overrides for a one-off run.
+A workspace with no configuration is not broken; `build` writes its definition artifacts and says
+what it did not do.
+
+**Generated applications go to `generated/<app>/` and nowhere else.** There is no output directory
+to choose and no `--out`: one workspace builds all of its apps in one command, into one directory
+each, gitignored because everything in them comes from the source beside them. The application is
+still yours and still leaves — move the directory, or give it a remote of its own.
 
 That last command is the whole deployment. No `.env` to write first, no migration step, no password
 to look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
@@ -177,10 +189,13 @@ Delete the toolchain afterwards and it still builds.
 | --- | --- |
 | `cordango new <app>` | Create a workspace and its first application |
 | `cordango add app <name>` | Add another application to the workspace |
-| `cordango import <definition.json>` | Bring an existing App Definition in as editable source |
+| `cordango configure` | Decide once where this workspace's apps run, and commit it |
+| `cordango import <definition.json>` | Bring an App Definition on disk in as editable source |
+| `cordango import [<app>]` | Bring one of a connected instance's apps in as editable source |
 | `cordango check [--target <id>]` | Parse, lower and validate. With `--target`, ask whether that generator can build it |
 | `cordango targets` | What this build can generate, and what each target deliberately won't |
-| `cordango build --target <id> --out <dir>` | Generate a whole application |
+| `cordango build` | Do what `configure` said |
+| `cordango build --target <id>` | Generate with a target this once, whatever the configuration says |
 | `cordango inspect [path]` | Describe the workspace, one application, or one aggregate |
 | `cordango vocabulary [<name>]` | What may be written |
 | `cordango fmt` | Rewrite every source file in canonical form |

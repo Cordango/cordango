@@ -29,13 +29,17 @@ try
     {
         "new" => NewCommand.Run(parsed, output),
         "add app" => AddAppCommand.Run(parsed, output),
+        // Offline like everything around it, with one exception it states out loud: the platform
+        // target will not be written into a workspace that has never connected to an instance.
+        "configure" or "config" => ConfigureCommand.Run(parsed, output),
         "check" => CheckCommand.Run(parsed, output),
         // `validate` is the same command under the word people reach for when they are asking about
         // a TARGET rather than about their source. One implementation, two spellings, because two
         // implementations of "is this all right" is how the two answers start disagreeing.
         "validate" => CheckCommand.Run(parsed, output),
         "targets" => TargetsCommand.Run(parsed, output),
-        "import" => ImportCommand.Run(parsed, output),
+        // Offline for a file, connected for everything else — see the note on the command.
+        "import" => await ImportCommand.RunAsync(parsed, output, interrupt.Token),
         "build" => BuildCommand.Run(parsed, output),
         "inspect" => InspectCommand.Run(parsed, output),
         "vocabulary" or "vocab" => VocabularyCommand.Run(parsed, output),

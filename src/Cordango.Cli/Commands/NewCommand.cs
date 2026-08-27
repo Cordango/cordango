@@ -136,13 +136,17 @@ public static class NewCommand
             },
             w =>
             {
+                Branding.Write(w);
                 w.WriteLine($"Created {workspaceName} with one app, {report.AppKey}, in {appPath}/");
                 w.WriteLine();
-                w.WriteLine("  cordango check                 # it already passes");
+                w.WriteLine("  cordango check                 " + Ansi.Dim("# it already passes"));
                 w.WriteLine("  cordango inspect --app " + report.AppKey);
+                w.WriteLine("  cordango configure             "
+                    + Ansi.Dim("# where these apps run. `cordango build` then needs no flags"));
                 w.WriteLine();
                 w.WriteLine("Open this directory in Claude Code, Codex or Cursor — CLAUDE.md and "
-                    + "AGENTS.md explain the workflow.");
+                    + "AGENTS.md explain the workflow. Ask it what the app should do before you ask "
+                    + "it to build one.");
             });
     }
 }

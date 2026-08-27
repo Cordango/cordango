@@ -33,11 +33,21 @@ public static class CheckCommand
         if (selection is null) return exit;
 
         IAppSourceGenerator? target = null;
-        if (args.Value("target") is { Length: > 0 } requested)
+        var requested = args.Value("target");
+
+        // The platform withholds nothing: it runs the whole language, and every generator supports
+        // less than it does. So `--target platform` asks a question whose answer is always the
+        // ordinary one, and saying so is better than "no target called platform" — which would read
+        // as though the word were wrong.
+        var platform = requested is { Length: > 0 }
+            && string.Equals(requested, BuildConfig.Platform, StringComparison.OrdinalIgnoreCase);
+
+        if (!platform && requested is { Length: > 0 })
         {
             target = Targets.Find(requested);
             if (target is null)
-                return output.Fail($"no target called '{requested}'", [$"known targets: {Targets.Known}"],
+                return output.Fail($"no target called '{requested}'",
+                    [$"known targets: {Targets.Known}, {BuildConfig.Platform}"],
                     code: ExitCodes.Usage);
         }
 
@@ -56,6 +66,8 @@ public static class CheckCommand
         {
             ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.ToJson())]),
         };
+
+        if (platform) payload["target"] = BuildConfig.Platform;
 
         if (target is not null)
         {
@@ -99,6 +111,7 @@ public static class CheckCommand
                 // the difference is the whole reason CandidateOutcome carries two booleans.
                 var state = report.Valid ? "ok" : "ok, incomplete";
                 if (target is not null) state += $", builds with {target.Id}";
+                else if (platform) state += ", runs on the platform";
                 w.WriteLine($"{report.AppKey,-24} {state}");
 
                 if (!report.Valid)

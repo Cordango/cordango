@@ -12,8 +12,15 @@ namespace Cordango.Cli.Remote;
 
 /// <summary>What the instance answered. <paramref name="Errors"/> is always a list, even for one —
 /// same rule as <see cref="Output.Fail"/>, and for the same reason.</summary>
-public sealed record InstanceResult(bool Ok, HttpStatusCode Status, JsonObject? Body, IReadOnlyList<string> Errors)
+/// <param name="Payload">The parsed body, whatever shape it came in. A LIST endpoint answers with a
+/// JSON array, which is why this is a node rather than an object — it was an object, and an array
+/// body silently became null.</param>
+public sealed record InstanceResult(bool Ok, HttpStatusCode Status, JsonNode? Payload, IReadOnlyList<string> Errors)
 {
+    /// <summary>The body when it is an object, which is every endpoint that answers with a record.
+    /// Named separately so the callers that only ever read fields stay readable.</summary>
+    public JsonObject? Body => Payload as JsonObject;
+
     public static InstanceResult Failed(HttpStatusCode status, params string[] errors) =>
         new(false, status, null, errors);
 }
@@ -23,8 +30,9 @@ public sealed record InstanceResult(bool Ok, HttpStatusCode Status, JsonObject? 
 ///
 /// <para><b>The CLI's only network surface.</b> Everything else in <c>cordango</c> is offline and
 /// token-free by design (CordyOSS §14: "no model call in new, doctor, check, build, run or test"),
-/// so the reachable-instance code is confined to one class that only <c>login</c>, <c>whoami</c> and
-/// <c>publish</c> construct. Nothing on the <c>check</c>/<c>build</c> path may ever import it.</para>
+/// so the reachable-instance code is confined to one class that only <c>login</c>, <c>whoami</c>,
+/// <c>publish</c> and the remote half of <c>import</c> construct. Nothing on the
+/// <c>check</c>/<c>build</c> path may ever import it.</para>
 ///
 /// <para><b>It speaks the platform's ordinary API.</b> There is no CLI-specific endpoint: publishing
 /// hits the same route Studio would, under the same authorization. A separate machine API would be
@@ -50,6 +58,20 @@ public sealed class Instance : IDisposable
     /// <summary>Who this token acts as, and where. The login check, and the whole of `cordango whoami`.</summary>
     public Task<InstanceResult> WhoAmIAsync(CancellationToken ct) => SendAsync(
         () => new HttpRequestMessage(HttpMethod.Get, "api/me"), ct);
+
+    /// <summary>
+    /// Every app this credential can reach, as the instance's own studio lists them.
+    ///
+    /// <para>Scoped server-side to the caller and their tenant — the CLI does not filter and must
+    /// not, because "what may I see" is the instance's answer to give.</para>
+    /// </summary>
+    public Task<InstanceResult> ListAppsAsync(CancellationToken ct) => SendAsync(
+        () => new HttpRequestMessage(HttpMethod.Get, "api/apps"), ct);
+
+    /// <summary>One app, including its whole App Definition. The list deliberately does not carry
+    /// definitions — a workspace of twenty apps would be megabytes to answer "which one".</summary>
+    public Task<InstanceResult> GetAppAsync(string id, CancellationToken ct) => SendAsync(
+        () => new HttpRequestMessage(HttpMethod.Get, "api/apps/" + Uri.EscapeDataString(id)), ct);
 
     /// <summary>Publish one built App Definition and make it live.</summary>
     public Task<InstanceResult> PublishAsync(JsonNode definition, bool force, CancellationToken ct) => SendAsync(
@@ -77,11 +99,11 @@ public sealed class Instance : IDisposable
             return InstanceResult.Failed(0, $"could not reach {Origin}: {ex.Message}");
         }
 
-        JsonObject? body = null;
+        JsonNode? body = null;
         try
         {
             if (await response.Content.ReadAsStringAsync(ct) is { Length: > 0 } text)
-                body = JsonNode.Parse(text) as JsonObject;
+                body = JsonNode.Parse(text);
         }
         catch (Exception ex) when (ex is System.Text.Json.JsonException or IOException)
         {
@@ -90,7 +112,7 @@ public sealed class Instance : IDisposable
 
         if (response.IsSuccessStatusCode) return new InstanceResult(true, response.StatusCode, body, []);
 
-        return new InstanceResult(false, response.StatusCode, body, Explain(response.StatusCode, body));
+        return new InstanceResult(false, response.StatusCode, body, Explain(response.StatusCode, body as JsonObject));
     }
 
     /// <summary>

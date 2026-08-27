@@ -18,12 +18,17 @@ namespace Cordango.Cli.Workspace;
 /// <param name="Name">Display name, defaulted from the directory name at creation.</param>
 /// <param name="Apps">Repo-relative app directories, forward-slashed. EXPLICIT: a stray folder under
 /// <c>apps/</c> is reported by <c>doctor</c> and never installed merely because it exists.</param>
+/// <param name="Build">How this workspace builds, or null when nobody has said yet. Optional on the
+/// constructor so that adding it did not have to touch every caller — and null-by-default is the
+/// right default anyway: a workspace that has never been configured must be distinguishable from one
+/// configured to the same values on purpose.</param>
 public sealed record WorkspaceFile(
     string Root,
     string WorkspaceId,
     string Name,
     string Runtime,
-    IReadOnlyList<string> Apps)
+    IReadOnlyList<string> Apps,
+    BuildConfig? Build = null)
 {
     public const string FileName = "cordango.yaml";
 
@@ -115,7 +120,8 @@ public sealed record WorkspaceFile(
             (string?)doc["workspaceId"] ?? "",
             (string?)doc["name"] ?? "",
             (string?)doc["runtime"] ?? DefaultRuntime,
-            apps);
+            apps,
+            BuildConfig.Read(doc[BuildConfig.Key]));
     }
 
     public void Save()
@@ -127,8 +133,13 @@ public sealed record WorkspaceFile(
             ["name"] = Name,
             ["runtime"] = Runtime,
             ["coreApps"] = "default",
-            ["apps"] = new JsonArray([.. Apps.Select(a => (JsonNode)a!)]),
         };
+
+        // Above the app list rather than below it: `apps` grows without limit, and a setting written
+        // after it would be off the bottom of the screen in any workspace worth having settings for.
+        if (Build is not null) doc[BuildConfig.Key] = Build.ToDocument();
+
+        doc["apps"] = new JsonArray([.. Apps.Select(a => (JsonNode)a!)]);
 
         AtomicFile.Write(Path, Yaml.Write(doc));
 

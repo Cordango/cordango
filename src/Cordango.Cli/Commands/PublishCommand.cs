@@ -36,9 +36,8 @@ public static class PublishCommand
         if (selection.LoadProblems is { Count: > 0 } problems)
             return output.Fail("nothing was published — the source could not be read", problems);
 
-        var credentials = Credentials.Load();
-        if (ResolveTarget(args, selection.Workspace, credentials, output, out var target) is { } targetExit)
-            return targetExit;
+        var target = Connection.Resolve(args, selection.Workspace, output, out var offline);
+        if (target is null) return offline;
 
         var reports = selection.Apps.Select(Pipeline.Check).ToList();
         if (reports.Where(r => !r.Coherent).ToList() is { Count: > 0 } broken)
@@ -49,7 +48,7 @@ public static class PublishCommand
         }
 
         var force = args.Has("force");
-        using var instance = new Instance(target!.Origin, target.Token);
+        using var instance = new Instance(target.Origin, target.Token);
 
         var results = new JsonArray();
         var failures = new List<string>();
@@ -117,38 +116,5 @@ public static class PublishCommand
                 w.WriteLine("Run `cordango check` to see what each one is missing.");
             }
         });
-    }
-
-    /// <summary>
-    /// Which instance, with which credential.
-    ///
-    /// <para><c>--instance</c> wins; otherwise the instance this workspace was bound to at login.
-    /// Never a default and never a guess — publishing writes to somebody's real workspace, and the
-    /// one thing worse than "no target" is the wrong one.</para>
-    /// </summary>
-    /// <returns>Null when a target was resolved; otherwise the exit code, message already written.</returns>
-    private static int? ResolveTarget(Args args, WorkspaceFile workspace, Credentials credentials,
-        Output output, out InstanceLogin? target)
-    {
-        target = null;
-
-        var origin = args.Value("instance") ?? credentials.InstanceFor(workspace.WorkspaceId);
-        if (origin is null)
-        {
-            return output.Fail("this workspace is not connected to an instance",
-            [
-                "Run `cordango login <token>` here to connect it,",
-                "or name one for this command with --instance <url>.",
-            ], code: ExitCodes.NoInstance);
-        }
-
-        if (credentials.Find(origin) is not { Token.Length: > 0 } login)
-        {
-            return output.Fail($"not signed in to {origin}",
-                [$"Run `cordango login <token> --instance {origin}`."], code: ExitCodes.NoInstance);
-        }
-
-        target = login;
-        return null;
     }
 }
