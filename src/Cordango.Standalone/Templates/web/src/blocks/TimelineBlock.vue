@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   viewOf, entityOf, loadView, displayOf, referenceOptions, onRecordsChanged, optionColor,
-  formatValue,
+  formatValue, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
 import EmptyState from './EmptyState.vue'
@@ -288,7 +288,7 @@ function move(by) {
   else cursor.value = new Date(at.getFullYear(), at.getMonth() + by, 1)
 }
 
-const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
+const open = (row) => router.push(recordRoute(entityKey.value, row.id))
 
 const titled = computed(() => !props.hideTitle && Boolean(definition.value?.label))
 

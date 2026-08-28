@@ -62,7 +62,7 @@ public class PageEditorSchemaTests
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 96_000);
+        Assert.InRange(pruned, 1, 96_500);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

@@ -16,6 +16,16 @@ const props = defineProps({
   source: { type: Object, default: () => ({}) },
   emptyText: { type: String, default: 'Nothing here yet.' },
   gap: { type: String, default: 'md' },
+
+  // A CARD GRID rather than a list: wrapping columns that fill the width. This is the difference
+  // between a directory of people and a stack of full-width rows, and it was silently dropped —
+  // `wrap: true, cols: 3` emitted nothing at all, so every definition asking for a grid got a
+  // column of page-wide cards and no diagnostic saying why.
+  wrap: { type: Boolean, default: false },
+  // How many across at the widest. NOT a fixed count: see the track sizing below.
+  cols: { type: Number, default: null },
+  // 'column' (default) | 'row' — for the non-wrapping case.
+  direction: { type: String, default: 'column' },
 })
 
 const rows = ref([])
@@ -23,7 +33,37 @@ const loading = ref(true)
 const error = ref(null)
 
 const entityKey = computed(() => props.source?.entity || props.entity)
-const gaps = { none: 'ga-0', sm: 'ga-2', md: 'ga-4', lg: 'ga-6' }
+const gaps = { none: '0px', sm: '8px', md: '16px', lg: '24px' }
+const gapOf = (key) => gaps[key] ?? gaps.md
+
+// THE AUTHORED COUNT IS THE WIDEST COUNT, not the only one. Three cards across is right on a laptop
+// and absurd on a phone, so the count has to come down with the width — and it does so here in CSS
+// rather than by measuring the container in JavaScript.
+//
+// `auto-fill` lays as many tracks as fit. Give each a minimum of "one nth of the row", and exactly n
+// fit; floor that minimum at a readable width and fewer fit once the row is narrow enough that an
+// nth would be too small. So the same declaration says "three across, but never narrower than
+// 240px" with no resize listener, no measurement and nothing to be wrong about on first paint.
+const MIN_CARD = '240px'
+
+const layout = computed(() => {
+  const gap = gapOf(props.gap)
+
+  if (props.wrap) {
+    const track = props.cols
+      ? `minmax(max(${MIN_CARD}, calc((100% - ${props.cols - 1} * ${gap}) / ${props.cols})), 1fr)`
+      : `minmax(min(${MIN_CARD}, 100%), 1fr)`
+    return { display: 'grid', gridTemplateColumns: `repeat(auto-fill, ${track})`, gap }
+  }
+
+  const row = props.direction === 'row'
+  return {
+    display: 'flex',
+    flexDirection: row ? 'row' : 'column',
+    flexWrap: row ? 'wrap' : undefined,
+    gap,
+  }
+})
 
 async function load() {
   if (!entityKey.value) {
@@ -65,7 +105,7 @@ watch(() => props.source, load, { deep: true })
   <v-alert v-if="error" type="error">{{ error }}</v-alert>
   <v-skeleton-loader v-else-if="loading" type="list-item-two-line" />
   <EmptyState v-else-if="rows.length === 0" :title="emptyText" />
-  <div v-else class="d-flex flex-column" :class="gaps[gap] || 'ga-4'">
+  <div v-else :style="layout">
     <template v-for="row in rows" :key="row.id">
       <slot :record="row" />
     </template>

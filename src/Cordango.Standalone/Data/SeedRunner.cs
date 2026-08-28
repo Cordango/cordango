@@ -22,6 +22,25 @@ public interface ISeedTarget
 }
 
 /// <summary>
+/// Work the application does once, after a seed load has filled the tables.
+///
+/// <para>Seeding writes through the <see cref="DbContext"/> rather than the store, so hooks do NOT
+/// fire — deliberately, because a workflow reacting to two hundred inserts would send two hundred
+/// notifications about records nobody created. But not everything a hook does is a reaction. A
+/// rollup column holds a total that NOTHING else writes, so a seeded application shows a dash in
+/// place of every figure the dataset was built to demonstrate, and goes on showing one until
+/// somebody edits a record by hand.</para>
+///
+/// <para>So the bookkeeping half is separated from the reacting half, and only the bookkeeping is
+/// run again here. An application with nothing to settle registers no finalizer and this costs
+/// nothing.</para>
+/// </summary>
+public interface ISeedFinalizer
+{
+    Task RunAsync(CancellationToken ct);
+}
+
+/// <summary>
 /// Inserting one entity's seed rows.
 ///
 /// <para>Rows go in through the ordinary <see cref="DbContext"/> rather than through the store, so
@@ -129,6 +148,12 @@ public static class SeedRunner
             total += added;
             if (added > 0) log.LogInformation("Seeded {Count} {Entity} records.", added, entity);
         }
+
+        // Only when something actually went in. A run over tables that already had rows changed
+        // nothing, and recomputing every total in the application to discover that is a slow no-op.
+        if (total > 0)
+            foreach (var finalizer in services.GetServices<ISeedFinalizer>())
+                await finalizer.RunAsync(ct);
 
         log.LogInformation(total > 0
             ? $"Seeding complete: {total} records, anchored on {anchor:yyyy-MM-dd}."

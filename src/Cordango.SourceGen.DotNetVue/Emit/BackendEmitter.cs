@@ -142,11 +142,15 @@ public static class BackendEmitter
             AutoFields(app, e) is not null || Computed(app, e) is not null || RollupHook(app, e) is not null);
 
         var source = new Source();
+        var finalized = SeedFinalizer(app) is not null;
+
         source.Line("using Cordango.Standalone.Commands;");
+        if (finalized) source.Line("using Cordango.Standalone.Data;");
         source.Line("using Cordango.Standalone.Hooks;");
         source.Line("using Cordango.Standalone.Hosting;");
         source.Line("using Cordango.Standalone.Security;");
         source.Line($"using {app.Namespace}.Commands;");
+        if (finalized) source.Line($"using {app.Namespace}.Computed;");
         source.Line($"using {app.Namespace}.Entities;");
         if (hooked) source.Line($"using {app.Namespace}.Hooks;");
         source.Line($"using {app.Namespace}.Data;");
@@ -194,6 +198,14 @@ public static class BackendEmitter
                 source.Line($"services.AddScoped<IAfterUpdate<{entity.TypeName}>, {entity.TypeName}RollupCascade>();");
                 source.Line($"services.AddScoped<IAfterDelete<{entity.TypeName}>, {entity.TypeName}RollupCascade>();");
             }
+        }
+
+        if (SeedFinalizer(app) is not null)
+        {
+            source.Line();
+            source.Line("// A seed load bypasses the hooks on purpose, so the totals they maintain are worked");
+            source.Line("// out once when it finishes.");
+            source.Line("services.AddScoped<ISeedFinalizer, SeedRollups>();");
         }
 
         source.Line();
@@ -617,8 +629,76 @@ public static class BackendEmitter
             source.Close();
         }
 
+        source.Line();
+        source.Line("/// <summary>");
+        source.Line("/// Every total in the application, worked out from nothing.");
+        source.Line("///");
+        source.Line("/// <para>For rows that arrived without the hooks. Seeding writes straight to the DbContext");
+        source.Line("/// on purpose — two hundred inserts should not send two hundred notifications — but the");
+        source.Line("/// rollup columns are written by nothing else, so a freshly seeded application shows a dash");
+        source.Line("/// in place of every figure its dataset was built to demonstrate.</para>");
+        source.Line("///");
+        source.Line("/// <para>Level by level, deepest first, rather than through the cascade above. That one");
+        source.Line("/// starts at a row and walks UP, which is right for one write and quadratic for a whole");
+        source.Line("/// table: a parent would be worked out once per child underneath it.</para>");
+        source.Line("/// </summary>");
+        source.Open("public static async Task RecomputeAllAsync(AppDbContext db, CancellationToken ct)");
+        source.Line("ArgumentNullException.ThrowIfNull(db);");
+
+        foreach (var entity in RollupGraph.RecomputeOrder(app))
+        {
+            var all = Naming.Camel(entity.Key) + "Rows";
+            source.Line();
+            source.Line($"var {all} = await db.Set<{entity.TypeName}>().ToListAsync(ct);");
+            source.Line($"foreach (var row in {all}) await {entity.TypeName}Rollups.ApplyAsync(row, db, ct);");
+            source.Line("await db.SaveChangesAsync(ct);");
+
+            if (Series(app, entity) is not null
+                && entity.Field(AppModel.Str(entity.Json["series"]?["partition"])) is { } part)
+            {
+                source.Open($"foreach (var partition in {all}.Select(x => x.{part.PropertyName}).Distinct())");
+                source.Line($"await {entity.TypeName}Series.ApplyAsync(partition, db, ct);");
+                source.Close();
+                source.Line("await db.SaveChangesAsync(ct);");
+            }
+        }
+
+        source.Close();
+
         source.Close();
         return new GeneratedFile("api/Computed/AppRollups.cs", source.ToString());
+    }
+
+    /// <summary>
+    /// The one thing a seed load leaves undone.
+    ///
+    /// <para>Registered as a finalizer rather than called from <c>Program.cs</c>, so that an
+    /// application with no totals carries no line about them anywhere — and so that the runtime,
+    /// which cannot see the generated code, does not have to.</para>
+    /// </summary>
+    public static GeneratedFile? SeedFinalizer(AppModel app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        // The same condition that decides whether AppRollups exists at all.
+        if (!app.Entities.Any(e => RollupGraph.Parents(app, e).Count > 0)) return null;
+
+        var source = new Source();
+        source.Line("using Cordango.Standalone.Data;");
+        source.Line($"using {app.Namespace}.Data;");
+        source.Line();
+        source.Line($"namespace {app.Namespace}.Computed;");
+        source.Line();
+        source.Line("/// <summary>Works every total out once, after a seed load has filled the tables.</summary>");
+        source.Open("public sealed class SeedRollups : ISeedFinalizer");
+        source.Line("private readonly AppDbContext _db;");
+        source.Line();
+        source.Line("public SeedRollups(AppDbContext db) => _db = db;");
+        source.Line();
+        source.Line("public Task RunAsync(CancellationToken ct) => AppRollups.RecomputeAllAsync(_db, ct);");
+        source.Close();
+
+        return new GeneratedFile("api/Computed/SeedRollups.cs", source.ToString());
     }
 
     /// <summary>The hook that calls it: after the write, because a total counts what is there.</summary>

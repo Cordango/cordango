@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   viewOf, entityOf, loadView, commandsOf, deleteRecord, referenceOptions, processOf,
-  onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue, optionLabel,
+  onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue, optionLabel, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
 import RecordDialog from './RecordDialog.vue'
@@ -55,6 +55,26 @@ const definition = computed(() => props.definition ?? viewOf(props.view))
 const entityKey = computed(() => definition.value?.entity)
 const entity = computed(() => entityOf(entityKey.value))
 
+// A saved view carries its presentation in its own `config`, and the block that renders one passes
+// nothing but the key: `<ViewBlock view="all_tasks_table" />` is the whole of it. So the view's
+// settings are the FALLBACK for every switch a block can also set.
+//
+// Without this the same words in a definition mean two different screens — `inlineEdit: true` under
+// `kind: table` gives you editable cells, and the identical line under a saved view's `settings`
+// gives you nothing — which is a difference nobody can see by reading either one.
+//
+// The block still wins wherever it says something: a screen placing a list is more specific than
+// the list's own defaults.
+const settings = computed(() => {
+  const config = definition.value?.config ?? {}
+  return {
+    filterBar: props.filterBar ?? config.filterBar ?? null,
+    groupBy: props.groupBy ?? config.groupBy ?? null,
+    inlineEdit: props.inlineEdit || config.inlineEdit === true,
+    allowDelete: props.allowDelete || config.allowDelete === true,
+  }
+})
+
 const rows = ref([])
 const total = ref(0)
 const loading = ref(true)
@@ -66,7 +86,7 @@ const confirming = ref(null)
 // filter bar narrows THIS table, and two tables on a page must not share one search box.
 const own = ref({ q: '' })
 const ownFacets = computed(() =>
-  (props.filterBar?.facets || []).map((field) => ({ state: `facet_${field}`, field })))
+  (settings.value.filterBar?.facets || []).map((field) => ({ state: `facet_${field}`, field })))
 
 const columns = computed(() => {
   const keys = definition.value?.config?.columns
@@ -87,7 +107,7 @@ const rowCommands = computed(() =>
 const processState = computed(() => processOf(entityKey.value)?.stateField)
 
 const editableIn = (field, index) =>
-  props.inlineEdit && index > 0 && !field.system && !field.readOnly && !field.computed
+  settings.value.inlineEdit && index > 0 && !field.system && !field.readOnly && !field.computed
   && field.key !== processState.value
 
 // Reference columns arrive as ids. Resolving them here rather than per cell means the table asks
@@ -96,8 +116,8 @@ const editableIn = (field, index) =>
 const labels = ref({})
 
 async function resolveLabels() {
-  const grouping = props.groupBy?.field
-    ? entity.value?.fields.filter((f) => f.key === props.groupBy.field) ?? []
+  const grouping = settings.value.groupBy?.field
+    ? entity.value?.fields.filter((f) => f.key === settings.value.groupBy.field) ?? []
     : []
   const references = [...columns.value, ...grouping].filter((f) => f.type === 'reference'
     && f.targetApp !== 'platform' && f.targetEntity && f.targetEntity !== 'person')
@@ -172,8 +192,8 @@ const visible = computed(() => {
     result = result.filter((r) =>
       matchesSearch(r, props.state[props.search.state], entityKey.value, props.search.fields, labelFor))
   }
-  if (props.filterBar?.search) {
-    result = result.filter((r) => matchesSearch(r, own.value.q, entityKey.value, props.filterBar.search, labelFor))
+  if (settings.value.filterBar?.search) {
+    result = result.filter((r) => matchesSearch(r, own.value.q, entityKey.value, settings.value.filterBar.search, labelFor))
   }
   for (const facet of ownFacets.value) {
     const wanted = own.value[facet.state]
@@ -188,9 +208,9 @@ const visible = computed(() => {
 // option order for a select and in load order for a reference. A row whose group is empty falls into
 // a section of its own at the end rather than disappearing.
 const sections = computed(() => {
-  if (!props.groupBy?.field) return [{ key: '__all', label: null, rows: visible.value }]
+  if (!settings.value.groupBy?.field) return [{ key: '__all', label: null, rows: visible.value }]
 
-  const key = props.groupBy.field
+  const key = settings.value.groupBy.field
   const field = entity.value?.fields.find((f) => f.key === key)
   const order = field?.options?.map((o) => o.value) ?? []
   const buckets = new Map()
@@ -201,7 +221,7 @@ const sections = computed(() => {
     buckets.get(value).push(row)
   }
 
-  if (props.groupBy.showEmpty) for (const value of order) if (!buckets.has(value)) buckets.set(value, [])
+  if (settings.value.groupBy.showEmpty) for (const value of order) if (!buckets.has(value)) buckets.set(value, [])
 
   const rank = (value) => {
     if (value === '') return Number.MAX_SAFE_INTEGER
@@ -214,7 +234,7 @@ const sections = computed(() => {
     .map(([value, rows]) => ({
       key: String(value),
       label: value === ''
-        ? (props.groupBy.ungroupedLabel || '(No section)')
+        ? (settings.value.groupBy.ungroupedLabel || '(No section)')
         : (labels.value[key]?.[value] ?? (field?.options ? optionLabel(field, value) : String(value))),
       rows,
     }))
@@ -245,7 +265,7 @@ watch(() => props.state, load, { deep: true })
 // definition actually named it.
 const titled = computed(() => !props.hideTitle && depth === 0 && Boolean(definition.value?.label))
 
-const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
+const open = (row) => router.push(recordRoute(entityKey.value, row.id))
 </script>
 
 <template>
@@ -272,11 +292,11 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
       </v-btn>
     </div>
 
-    <div v-if="filterBar" class="px-4 pb-2">
+    <div v-if="settings.filterBar" class="px-4 pb-2">
       <FilterBar
         :entity="entityKey"
         :state="own"
-        :search="filterBar.search ? { state: 'q', placeholder: 'Search' } : null"
+        :search="settings.filterBar.search ? { state: 'q', placeholder: 'Search' } : null"
         :facets="ownFacets"
       />
     </div>
@@ -289,13 +309,13 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
         <thead>
           <tr>
             <th v-for="field in columns" :key="field.key">{{ field.label }}</th>
-            <th v-if="rowCommands.length || allowDelete" class="cd-row-actions" />
+            <th v-if="rowCommands.length || settings.allowDelete" class="cd-row-actions" />
           </tr>
         </thead>
         <tbody v-for="section in sections" :key="section.key">
           <tr v-if="section.label" class="cd-group">
             <td
-              :colspan="columns.length + (rowCommands.length || allowDelete ? 1 : 0)"
+              :colspan="columns.length + (rowCommands.length || settings.allowDelete ? 1 : 0)"
               class="text-caption text-medium-emphasis font-weight-medium"
             >
               {{ section.label }}
@@ -330,7 +350,7 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
               and the guard is the same; they are simply behind the control that means "there is
               more here".
             -->
-            <td v-if="rowCommands.length || allowDelete" class="cd-row-actions text-right" @click.stop>
+            <td v-if="rowCommands.length || settings.allowDelete" class="cd-row-actions text-right" @click.stop>
               <div class="cd-hover-actions d-inline-flex align-center">
                 <v-menu v-if="rowCommands.length" location="bottom end">
                   <template #activator="{ props }">
@@ -355,7 +375,7 @@ const open = (row) => router.push(`/record/${entityKey.value}/${encodeURICompone
                 </v-menu>
 
                 <v-btn
-                  v-if="allowDelete"
+                  v-if="settings.allowDelete"
                   icon="mdi-delete-outline"
                   size="small"
                   @click="confirming = row"

@@ -83,7 +83,7 @@ public static class Scaffold
         """
           <!--
             The Cordango runtime, built from the source in ../runtime/ rather than restored. This is
-            what `--runtime source` asks for; the ordinary shape is
+            what `runtime: source` asks for; the ordinary shape is
 
                 <PackageReference Include="Cordango.Standalone" Version="{{RuntimeVersion}}" />
 

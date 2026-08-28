@@ -93,6 +93,61 @@ export const api = {
 /** Where a stored file lives — what `@cordango/web-controls` needs for its media seam. */
 export const mediaUrl = (reference) => (reference ? `/api/media/${reference}` : null)
 
+/**
+ * One person's saved layout for one table — which columns, in what order, how dense.
+ *
+ * The other half of `@cordango/web-controls`'s table-settings seam. Both halves are deliberately
+ * quiet, and for different reasons.
+ *
+ * READING never throws. Having no saved layout is the ordinary state of every table the first time
+ * anybody opens it, and the endpoint answers 401 rather than 200 once a session has expired — so a
+ * client that treated either as an error would turn "you have been signed out" into a table that
+ * renders nothing at all, on every table on the page at once.
+ *
+ * WRITING is fire-and-forget, which is the seam's own contract: a preference is a convenience, and
+ * a failed convenience must never block a render or surface a message about column widths.
+ */
+export async function loadTableSettings(handle, tableKey) {
+  try {
+    return await api.get(`/api/settings/table/${encodeURIComponent(handle)}/${encodeURIComponent(tableKey)}`)
+  } catch {
+    return null
+  }
+}
+
+export function saveTableSettings(handle, tableKey, settings) {
+  api.put(`/api/settings/table/${encodeURIComponent(handle)}/${encodeURIComponent(tableKey)}`, settings)
+    .catch(() => {})
+}
+
+/**
+ * One person's name, asked for once however many things on the page want it.
+ *
+ * The cache is keyed on the id and holds the PROMISE, not the answer: a table of thirty rows
+ * mentioning the same six people renders in one tick, so caching only on resolve would still send
+ * thirty requests before the first one came back.
+ */
+const names = new Map()
+
+export function personName(id) {
+  if (!id) return Promise.resolve('')
+  if (names.has(id)) return Promise.resolve(names.get(id))
+
+  const pending = api
+    .get(`/api/directory/person/${encodeURIComponent(id)}`)
+    .then((p) => p?.full_name || id)
+    // Somebody who has left, or a reference this role cannot read. The id is a worse answer than a
+    // name and a better one than a blank space.
+    .catch(() => id)
+    .then((name) => {
+      names.set(id, name)
+      return name
+    })
+
+  names.set(id, pending)
+  return pending
+}
+
 /** The directory of people, for reference pickers and person chips. */
 export async function loadPeople() {
   const page = await api.get('/api/directory/person?take=500')

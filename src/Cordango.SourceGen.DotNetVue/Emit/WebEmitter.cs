@@ -487,7 +487,9 @@ public static class WebEmitter
 
             case "card":
                 Container(source, "BlockCard",
-                    Attributes(("label", AppModel.Str(block["label"]))), block["blocks"], context, unsupported);
+                    Attributes(("label", AppModel.Str(block["label"])), ("padding", AppModel.Str(block["padding"])))
+                    + (AppModel.Bool(block["bordered"]) ? " :bordered=\"true\"" : ""),
+                    block["blocks"], context, unsupported);
                 break;
 
             case "grid":
@@ -598,8 +600,11 @@ public static class WebEmitter
                 break;
 
             case "field":
-                context.Imports.Add("RecordFields");
-                source.Line($"<RecordFields entity=\"{context.Entity}\" :record=\"record\" :fields=\"['{AppModel.Str(block["field"])}']\" :columns=\"1\" />");
+                Field(source, block, context, unsupported);
+                break;
+
+            case "avatar":
+                Avatar(source, block, context, unsupported);
                 break;
 
             case "process":
@@ -1037,6 +1042,54 @@ public static class WebEmitter
     /// its denominator prints a numerator and calls it a percentage, which is worse than a build
     /// that says so.</para>
     /// </summary>
+    /// <summary>
+    /// One field of the bound record, WITH the presentation the definition asked for.
+    ///
+    /// <para>This emitted <c>&lt;RecordFields :columns="1"&gt;</c>, which is a form row: a grey
+    /// caption above a value. So a card whose title is a <c>field</c> block rendered the word "Name"
+    /// above the name, three times per card, and every card read as a half-filled form — while
+    /// <c>size</c>, <c>weight</c>, <c>grow</c>, <c>icon</c> and <c>format</c> were dropped without a
+    /// word, because a form row has nowhere to put them.</para>
+    ///
+    /// <para><c>kind: fields</c> still emits RecordFields. That block IS the form.</para>
+    /// </summary>
+    private static void Field(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        if (RecordField(block["field"], "field", context, unsupported) is not { } field) return;
+
+        context.Imports.Add("BlockField");
+
+        var attributes = Attributes(
+            ("field", field),
+            ("label", AppModel.Str(block["label"])),
+            ("size", AppModel.Str(block["size"])),
+            ("weight", AppModel.Str(block["weight"])),
+            ("color", AppModel.Str(block["color"])),
+            ("icon", AppModel.Str(block["icon"])));
+
+        if (AppModel.Bool(block["grow"])) attributes += " :grow=\"true\"";
+
+        source.Line($"<BlockField entity=\"{context.Entity}\" :record=\"record\" {attributes} />");
+    }
+
+    /// <summary>
+    /// A face, or the initials standing in for one.
+    ///
+    /// <para>There was no case for this at all, so every <c>kind: avatar</c> fell through to the
+    /// default branch and drew the chip that says the build could not render it — once per card, in
+    /// the exact spot the picture belonged.</para>
+    /// </summary>
+    private static void Avatar(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        if (RecordField(block["field"], "avatar", context, unsupported) is not { } field) return;
+
+        context.Imports.Add("BlockAvatar");
+        source.Line($"<BlockAvatar entity=\"{context.Entity}\" :record=\"record\" "
+            + $"{Attributes(("field", field), ("size", AppModel.Str(block["size"])))} />");
+    }
+
     private static void Stat(
         Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
     {
@@ -1179,12 +1232,30 @@ public static class WebEmitter
 
         var entity = AppModel.Str(block["source"]?["entity"]) ?? context.Entity;
 
+        // Both of these were dropped in silence, which is the one thing this target is not supposed
+        // to do — a screen that quietly leaves something out looks finished.
+        if (block["filterBar"] is not null)
+            unsupported.Add(NotYet("a repeat's own filter bar (the list renders unfiltered)", context));
+
+        if (AppModel.Str(block["as"]) is { } alias)
+            unsupported.Add(NotYet(
+                $"a repeat's '{alias}' scope name — a nested block naming '{alias}' will not resolve; "
+                + "the repeated record is in scope as the block's own record", context));
+
         source.Line("<RepeatBlock");
         source.Indent();
         if (entity is not null) source.Line($"entity=\"{entity}\"");
         source.Line($":source=\"{Js(block["source"] ?? new JsonObject())}\"");
         if (AppModel.Str(block["emptyText"]) is { } empty) source.Line($"empty-text={Quote(empty)}");
         if (AppModel.Str(block["gap"]) is { } gap) source.Line($"gap=\"{gap}\"");
+
+        // A card GRID rather than a stack. Dropped silently before this, so `wrap: true, cols: 3`
+        // produced a column of page-wide cards and nothing said why.
+        if (AppModel.Bool(block["wrap"])) source.Line(":wrap=\"true\"");
+        if (block["cols"] is JsonValue cols && cols.GetValueKind() == JsonValueKind.Number)
+            source.Line($":cols=\"{cols.ToJsonString(Compact)}\"");
+        if (AppModel.Str(block["direction"]) is { } direction) source.Line($"direction=\"{direction}\"");
+
         source.Line("v-slot=\"{ record }\"");
         source.Outdent();
         source.Line(">");

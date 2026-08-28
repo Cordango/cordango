@@ -255,6 +255,18 @@ export function fieldChoices(entityKey, fieldKey) {
   return Promise.resolve([])
 }
 
+/**
+ * Where a record opens.
+ *
+ * The same four lists — table, board, calendar, timeline — each spelled this out for themselves, so
+ * changing where a record lives meant finding all four and the routes they were built from. It is
+ * also the shape `@cordango/web-controls` asks a host for: its `route(target, id)` seam takes the
+ * RESOLVED `{ handle, entity, manifest }` a reference points at rather than a bare key, so the
+ * adapter reads `target.entity` and comes through here.
+ */
+export const recordRoute = (entityKey, id) =>
+  `/record/${entityKey}/${encodeURIComponent(id)}`
+
 export const loadRecord = (entityKey, id) => api.get(`/api/${entityKey}/${encodeURIComponent(id)}`)
 export const createRecord = (entityKey, body) => api.post(`/api/${entityKey}`, body)
 export const updateRecord = (entityKey, id, body) => api.patch(`/api/${entityKey}/${encodeURIComponent(id)}`, body)

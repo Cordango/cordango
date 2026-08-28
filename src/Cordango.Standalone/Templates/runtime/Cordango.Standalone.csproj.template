@@ -8,7 +8,7 @@
     directory, the error wire: none of it varies with your definition, and none of it is anything you
     should have to read to understand your own application.
 
-    This directory exists because the application was built with `--runtime source`. The ordinary
+    This directory exists because the application was built with `runtime: source`. The ordinary
     shape is a package: delete this directory and replace the ProjectReference in
     api/{{AppNamespace}}.Api.csproj with
 

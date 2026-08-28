@@ -323,6 +323,7 @@ public static class ComponentCatalog
           { "type":"object", "additionalProperties":false, "required":["entity","via"], "properties":{
             "entity":{"type":"string"},"via":{"type":"string","description":"The reference field on the child pointing at the bound record's entity."},
             "childType":{"enum":["feed","checklist","lineItems","cards","table"]},
+            "readOnly":{"type":"boolean","description":"A list nobody types (research runs, an import log): no Add, no row pencil, no delete; a row opens read-only."},
             "subordinate":{"type":"boolean"},"label":{"type":"string"} } }
           """,
           bindings: ["record"]),
@@ -449,6 +450,7 @@ public static class ComponentCatalog
             "source":{"type":"object","description":"An ENTITY origin: { entity, filters?, sort?, limit?, via? }. A dates/options/platform axis has no columns to tabulate."},
             "fields":{"type":"array","items":{"type":"string"},"description":"The COLUMNS, in order. Omit for all declared fields — curate 5-8 that help FIND a record."},
             "openDetail":{"type":"boolean","description":"Open a clicked row in the quick-look panel instead of the full-screen detail."},
+            "tree":{"type":"boolean","description":"Nest rows by the entity's self-reference (a company's parent company); the parent field is derived and drops as a column."},
             "newButton":{"type":"boolean","description":"Show a 'New <entity>' button above the list. Default FALSE — a page whose only list is a table block cannot create anything unless you set this."},
             "label":{"type":"string"} } }
           """,

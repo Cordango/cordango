@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  viewOf, entityOf, loadView, displayOf, onRecordsChanged, recordsChanged, optionColor,
+  viewOf, entityOf, loadView, displayOf, onRecordsChanged, recordsChanged, optionColor, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
 import RecordDialog from './RecordDialog.vue'
@@ -148,7 +148,7 @@ const move = (by) => {
   cursor.value = new Date(cursor.value.getFullYear(), cursor.value.getMonth() + by, 1)
 }
 
-const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
+const open = (row) => router.push(recordRoute(entityKey.value, row.id))
 
 const add = (key) => {
   if (props.create) editing.value = { [dateField.value]: key }

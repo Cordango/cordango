@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   viewOf, entityOf, loadView, displayOf, referenceOptions, processOf, updateRecord, commandsOf,
-  onRecordsChanged, recordsChanged, matchesSearch, formatStat, optionColor, optionLabel, toast,
+  onRecordsChanged, recordsChanged, matchesSearch, formatStat, optionColor, optionLabel, toast, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
 import CommandButton from './CommandButton.vue'
@@ -238,7 +238,7 @@ async function drop(column) {
   }
 }
 
-const open = (row) => router.push(`/record/${entityKey.value}/${encodeURIComponent(row.id)}`)
+const open = (row) => router.push(recordRoute(entityKey.value, row.id))
 
 const colorOf = (column) => column.color
   ?? (groupField.value ? optionColor(groupField.value, column.value) : undefined)

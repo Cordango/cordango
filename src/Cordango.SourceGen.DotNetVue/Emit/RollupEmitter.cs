@@ -291,6 +291,53 @@ public static class RollupGraph
     }
 
     /// <summary>
+    /// Every aggregating entity, ordered so that one comes after everything it counts.
+    ///
+    /// <para><b>Working the whole application out is a different problem from keeping it right.</b>
+    /// The per-record cascade starts at a row and walks UP, which is exactly right for one write and
+    /// quadratic for a whole table — a scenario would be recomputed once per round underneath it.
+    /// This visits each level exactly once instead.</para>
+    ///
+    /// <para>And a level is only correct once what it counts has settled, because a total is a QUERY:
+    /// a scenario that sums its periods has to run after the periods that sum their lines, or it
+    /// sums the values they held before. So the order is the graph's, deepest first.</para>
+    ///
+    /// <para><see cref="IsCyclic"/> is what makes this a sort rather than a search — a definition
+    /// that cycles is refused before anything is emitted.</para>
+    /// </summary>
+    public static IReadOnlyList<EntityModel> RecomputeOrder(AppModel app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var edges = Edges(app);
+        var aggregating = app.Entities
+            .Where(e => RollupEmitter.Rollups(app, e).Count > 0)
+            .ToDictionary(e => e.Key, e => e, StringComparer.Ordinal);
+
+        var ordered = new List<EntityModel>();
+        var settled = new HashSet<string>(StringComparer.Ordinal);
+
+        // Definition order for the roots, so the emitted call order matches the emitted method order.
+        foreach (var entity in app.Entities)
+            if (aggregating.ContainsKey(entity.Key)) Visit(entity.Key);
+
+        return ordered;
+
+        void Visit(string key)
+        {
+            if (!settled.Add(key)) return;
+
+            // What this one counts, first. An entity that aggregates nothing which itself aggregates
+            // is a leaf here, whatever else hangs off it.
+            if (edges.TryGetValue(key, out var children))
+                foreach (var child in children.OrderBy(k => k, StringComparer.Ordinal))
+                    if (aggregating.ContainsKey(child)) Visit(child);
+
+            if (aggregating.TryGetValue(key, out var entity)) ordered.Add(entity);
+        }
+    }
+
+    /// <summary>
     /// How to find the parents of a changed child: the query, given <c>record</c>.
     ///
     /// <para>Two shapes again, and the same discriminator. A round names its scenario, so there is

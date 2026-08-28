@@ -57,6 +57,14 @@ export const THEME_CHOICES = ['system', 'light', 'dark']
 // is built on it, which is why `border-opacity` is set explicitly in both palettes rather than left
 // at Vuetify's — the framework's default is tuned for a design that also has shadows.
 
+// Two of these are not ours: `surface-2` and `outline` are what the shared controls'
+// own CSS reads — `rgb(var(--v-theme-surface-2))` in UiMeter and the kanban column,
+// `rgb(var(--v-theme-outline))` in the data table, the kanban card and the process strip.
+//
+// Vuetify only emits `--v-theme-X` for a key that is PRESENT here, and a CSS declaration
+// naming a variable that was never defined is invalid — so the browser drops the whole
+// declaration and says nothing. A missing token is not a wrong colour, it is a component
+// with no background and no border, arrived at silently.
 export const light = {
   dark: false,
   colors: {
@@ -64,6 +72,14 @@ export const light = {
     surface: '#FFFFFF',
     'surface-bright': '#FFFFFF',
     'surface-light': '#EDF0F5',
+    // The recessed tone the shared controls put behind a meter track and a kanban column:
+    // the same step down from `surface` that `surface-light` already is.
+    'surface-2': '#EDF0F5',
+    // The hairline, stated as a colour. This palette draws borders rather than shadows, and
+    // elsewhere gets them from `on-surface` at `border-opacity` — this is that pairing
+    // resolved against `surface`, so a control that names the token and one that inherits
+    // the framework's border land on the same line.
+    outline: '#E2E6ED',
     'surface-variant': '#3B4453',
     'on-surface-variant': '#EDF0F5',
     primary: '#2C5CE6',
@@ -98,6 +114,8 @@ export const dark = {
     surface: '#161B23',
     'surface-bright': '#242C38',
     'surface-light': '#1D242E',
+    'surface-2': '#1D242E',
+    outline: '#2A313C',
     'surface-variant': '#AEB8C7',
     'on-surface-variant': '#161B23',
     // Lighter than the light theme's blue on purpose. The same hex on a dark surface fails contrast

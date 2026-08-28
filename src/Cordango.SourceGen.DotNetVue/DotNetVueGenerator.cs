@@ -221,6 +221,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         // The chain itself: one file naming every recompute, in the order the definition's own
         // rollup graph requires.
         if (BackendEmitter.RollupCascade(app) is { } chain) Add(chain);
+        if (BackendEmitter.SeedFinalizer(app) is { } finalizer) Add(finalizer);
 
         // A dataset to open the application on. Derived from the seed alone, so two builds of the
         // same definition produce the same rows.
