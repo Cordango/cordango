@@ -76,6 +76,21 @@ public static class Scaffold
     /// </summary>
     public static string RuntimeVersion => BuildVersion.Current;
 
+    /// <summary>
+    /// The version of <c>@cordango/web-controls</c> a generated application's front end is built
+    /// against.
+    ///
+    /// <para>NOT the same number as this generator, unlike <see cref="RuntimeVersion"/>. The runtime
+    /// and the generator are one .NET solution published from one tag; the controls are a separate
+    /// npm package on its own release line, so pinning them to <c>BuildVersion</c> would name a
+    /// version that has never existed on the registry.</para>
+    ///
+    /// <para>Exact, with no range operator. A caret would let <c>npm install</c> pick up a control
+    /// this generator has never emitted against, in an application somebody generated months ago,
+    /// on a machine where the only thing that changed was the day.</para>
+    /// </summary>
+    public static string WebControlsVersion => "0.1.3-alpha";
+
     /// <summary>What the application's project file says about the runtime, in each of the two
     /// shapes. Written here rather than as two template files, because the rest of the project file
     /// is identical and two copies of it would drift.</summary>
@@ -103,7 +118,7 @@ public static class Scaffold
         "{{AppName}}", "{{AppKey}}", "{{AppSlug}}", "{{AppNamespace}}",
         "{{PartialBuildSection}}", "{{RuntimeVersion}}", "{{RuntimeReference}}",
         "{{RuntimeProjectCopy}}", "{{RuntimeSourceCopy}}",
-        "{{RuntimeLayout}}", "{{RuntimeLicence}}",
+        "{{RuntimeLayout}}", "{{RuntimeLicence}}", "{{WebControlsVersion}}",
     ];
 
     /// <summary>
@@ -168,6 +183,7 @@ public static class Scaffold
         // inserted, not before. Tokens are listed inside-out.
         var substitutions = new (string Token, string Value)[]
         {
+            ("{{WebControlsVersion}}", WebControlsVersion),
             ("{{RuntimeReference}}", options.RuntimeAsPackage ? PackageReference : ProjectReference),
             // The Dockerfile copies what the project file references. With the runtime restored
             // from a feed there is no runtime/ directory to copy, and a COPY of a path that does

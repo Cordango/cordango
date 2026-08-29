@@ -1,17 +1,35 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { CordangoDataTable, statusCellMoves } from '@cordango/web-controls'
 import {
-  viewOf, entityOf, loadView, commandsOf, deleteRecord, referenceOptions, processOf,
-  onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue, optionLabel, recordRoute,
+  viewOf, entityOf, loadView, commandsOf, createRecord, updateRecord, deleteRecord,
+  referenceOptions, onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue,
+  recordRoute, toast,
 } from '../records.js'
+import { app } from '../app.js'
+import { groupTarget, resolveGroups } from '../tableGroups.js'
 import { session } from '../session.js'
 import RecordDialog from './RecordDialog.vue'
 import CommandButton from './CommandButton.vue'
 import EmptyState from './EmptyState.vue'
-import FilterBar from './FilterBar.vue'
-import InlineCell from './InlineCell.vue'
+import RecordPeek from './RecordPeek.vue'
 import { useSurface } from './surface.js'
+
+// The LIST, and what this component is: the host around a shared control.
+//
+// The table itself is `CordangoDataTable` from `@cordango/web-controls` — the same one the platform
+// renders — and this file is what it needs a host to be. That split is the package's own and it is
+// deliberate: the control takes rows as PROPS and emits INTENTS, because a control that fetched its
+// own data would need a data seam, and a default for that seam would render convincing rows nobody
+// could tell were fictional.
+//
+// So: everything about WHICH rows belongs here — resolving a saved view, `{{actor.id}}` and
+// `{{record.id}}` in a filter, the request, the reload — and everything about how a table BEHAVES
+// belongs there. What arrived with it, none of which the hand-rolled table had: sortable columns,
+// per-column filters, show/hide and reorder with per-person persistence, density, CSV, pagination,
+// drag-and-drop ordering, inline section management, and a status cell that offers the lifecycle's
+// legal moves rather than every option the field has.
 
 const props = defineProps({
   // A SAVED view, by key.
@@ -42,8 +60,13 @@ const props = defineProps({
   record: { type: Object, default: null },
   // Split the rows into labelled sections by a discrete field.
   groupBy: { type: Object, default: null },
+  // The numeric field rows sort by, and the one a drag writes.
+  orderField: { type: String, default: null },
   // What a new record starts with, beyond what this list's own equality filters already imply.
   newDefaults: { type: Object, default: null },
+  // A row click opens a quick-look panel rather than navigating. Opt-in: for a list whose rows ARE
+  // the work, the full page is the right destination and a panel is one more thing to dismiss.
+  openDetail: { type: Boolean, default: false },
 })
 
 const router = useRouter()
@@ -70,8 +93,10 @@ const settings = computed(() => {
   return {
     filterBar: props.filterBar ?? config.filterBar ?? null,
     groupBy: props.groupBy ?? config.groupBy ?? null,
+    orderField: props.orderField ?? config.orderField ?? null,
     inlineEdit: props.inlineEdit || config.inlineEdit === true,
     allowDelete: props.allowDelete || config.allowDelete === true,
+    openDetail: props.openDetail || config.openDetail === true,
   }
 })
 
@@ -81,12 +106,7 @@ const loading = ref(true)
 const error = ref(null)
 const editing = ref(null)
 const confirming = ref(null)
-
-// The toolbar this list owns, if it has one. Its own state object rather than the page's: a table
-// filter bar narrows THIS table, and two tables on a page must not share one search box.
-const own = ref({ q: '' })
-const ownFacets = computed(() =>
-  (settings.value.filterBar?.facets || []).map((field) => ({ state: `facet_${field}`, field })))
+const pending = ref(null)
 
 const columns = computed(() => {
   const keys = definition.value?.config?.columns
@@ -95,31 +115,49 @@ const columns = computed(() => {
     // stamps would push the ones people care about off the right of the screen.
     ?? entity.value?.fields.filter((f) => !f.system).slice(0, 6).map((f) => f.key)
     ?? []
-  return keys.map((key) => entity.value?.fields.find((f) => f.key === key)).filter(Boolean)
+  return keys
+    .map((key) => entity.value?.fields.find((f) => f.key === key))
+    .filter(Boolean)
+    .map((field) => ({ key: field.key, title: field.label, field }))
 })
 
 const rowCommands = computed(() =>
   commandsOf(entityKey.value).filter((c) => (c.placements || []).includes('tableRow')))
 
-// A field the server would refuse anyway is not one to offer a control for. A process-governed
-// status is refused for a different reason: its legal moves are the process's, not the field's, so
-// a plain dropdown over its options would offer transitions the lifecycle forbids.
-const processState = computed(() => processOf(entityKey.value)?.stateField)
+// The control asks for the count up front so it can reserve the column, and resolves per row so a
+// guard can hide one. Nothing here is guarded on the client: this application has no access map, and
+// its command button has always offered the command and let the server refuse. Pre-filtering here
+// with a map we do not have would hide commands people are allowed to run.
+const commandsOnRow = computed(() =>
+  rowCommands.value.length
+    ? { count: rowCommands.value.length, resolve: () => rowCommands.value }
+    : null)
 
-const editableIn = (field, index) =>
-  settings.value.inlineEdit && index > 0 && !field.system && !field.readOnly && !field.computed
-  && field.key !== processState.value
+// Same reasoning, one layer down: `statusCellMoves` filters transitions by an access map, and an
+// absent one reads as "may run nothing" — which would empty the status cell of every legal move.
+// Permissive, and the server is still the authority.
+const access = computed(() => ({ [entityKey.value]: { commands: ['*'] } }))
+
+const transitionsFor = (record) =>
+  statusCellMoves(app, entityKey.value, record, access.value, session.personId)
 
 // Reference columns arrive as ids. Resolving them here rather than per cell means the table asks
 // once for the whole page instead of once per row, and it is the same map the search reads so a
 // query matches the name a person can actually see.
 const labels = ref({})
 
+// Where a reference cell LINKS to. The package's `route(target, id)` seam takes a resolved target
+// rather than a bare key, so it is handed the shape it reads.
+const refTargets = computed(() => Object.fromEntries(
+  columns.value
+    .filter((c) => c.field.type === 'reference' && !c.field.targetApp && c.field.targetEntity)
+    .map((c) => [c.key, { entity: c.field.targetEntity }])))
+
 async function resolveLabels() {
   const grouping = settings.value.groupBy?.field
     ? entity.value?.fields.filter((f) => f.key === settings.value.groupBy.field) ?? []
     : []
-  const references = [...columns.value, ...grouping].filter((f) => f.type === 'reference'
+  const references = [...columns.value.map((c) => c.field), ...grouping].filter((f) => f.type === 'reference'
     && f.targetApp !== 'platform' && f.targetEntity && f.targetEntity !== 'person')
   const resolved = {}
   for (const field of references) {
@@ -130,6 +168,38 @@ async function resolveLabels() {
 }
 
 const labelFor = (field, value) => labels.value[field.key]?.[value] ?? formatValue(value, field)
+
+// --- sections -----------------------------------------------------------------------------------
+
+const groups = ref(null)
+
+// WHICH record this list sits inside, by entity.
+//
+// Read off the `via` filter rather than passed in: a child list is narrowed by `project eq
+// {{record.id}}`, so the field that names the parent is already there, and its target IS the parent's
+// entity. That is what scopes the sections — a project's task list must offer that project's
+// sections and no other project's.
+const parentEntityKey = computed(() => {
+  if (!props.record) return null
+  const via = (definition.value?.filters || [])
+    .find((f) => String(f.value ?? '').includes('record.id'))
+  return via
+    ? entity.value?.fields.find((f) => f.key === via.field)?.targetEntity ?? null
+    : null
+})
+
+// A section is a RECORD only when the grouping field points at one, and that is exactly what decides
+// whether this table offers to add, rename or delete sections at all.
+const target = computed(() =>
+  settings.value.groupBy?.field
+    ? groupTarget(entity.value, settings.value.groupBy, parentEntityKey.value)
+    : null)
+
+async function loadGroups() {
+  if (!settings.value.groupBy?.field) { groups.value = null; return }
+  groups.value = await resolveGroups(
+    entity.value, settings.value.groupBy, parentEntityKey.value, props.record?.id ?? null)
+}
 
 // Everything a `{{...}}` in a filter can be resolved against, in one object, so records.js does not
 // have to know where any of it came from.
@@ -174,6 +244,7 @@ async function load() {
     rows.value = page?.items ?? []
     total.value = page?.total ?? 0
     await resolveLabels()
+    await loadGroups()
   } catch (failure) {
     error.value = failure.message
     rows.value = []
@@ -182,69 +253,89 @@ async function load() {
   }
 }
 
-// Narrowed after loading, not before: a free-text query has to match what somebody SEES, and a
-// facet on this table's own toolbar is client-side by definition. A page-level facet is a filter
-// leaf instead, so it goes to the server and reloads through `load`.
+// Narrowed before the table sees them, and only by the PAGE's search box. This list's own toolbar is
+// the control's — it searches resolved reference names and remembers its state per person, neither
+// of which a filter here could do.
 const visible = computed(() => {
-  let result = rows.value
-
-  if (props.search && props.state) {
-    result = result.filter((r) =>
-      matchesSearch(r, props.state[props.search.state], entityKey.value, props.search.fields, labelFor))
-  }
-  if (settings.value.filterBar?.search) {
-    result = result.filter((r) => matchesSearch(r, own.value.q, entityKey.value, settings.value.filterBar.search, labelFor))
-  }
-  for (const facet of ownFacets.value) {
-    const wanted = own.value[facet.state]
-    if (wanted !== undefined && wanted !== null && wanted !== '') {
-      result = result.filter((r) => String(r[facet.field] ?? '') === String(wanted))
-    }
-  }
-  return result
+  if (!props.search || !props.state) return rows.value
+  return rows.value.filter((r) =>
+    matchesSearch(r, props.state[props.search.state], entityKey.value, props.search.fields, labelFor))
 })
 
-// The rows as the table renders them: one section per distinct value of the grouping field, in
-// option order for a select and in load order for a reference. A row whose group is empty falls into
-// a section of its own at the end rather than disappearing.
-const sections = computed(() => {
-  if (!settings.value.groupBy?.field) return [{ key: '__all', label: null, rows: visible.value }]
+// --- what the table asks us to do ---------------------------------------------------------------
 
-  const key = settings.value.groupBy.field
-  const field = entity.value?.fields.find((f) => f.key === key)
-  const order = field?.options?.map((o) => o.value) ?? []
-  const buckets = new Map()
-
-  for (const row of visible.value) {
-    const value = row[key] ?? ''
-    if (!buckets.has(value)) buckets.set(value, [])
-    buckets.get(value).push(row)
+// One place, because every one of these is the same three steps and the same failure: write, reload,
+// and tell the rest of the page. A failed write RELOADS rather than leaving the optimistic value on
+// screen — a row that still shows what you typed after the server refused it is the worst of the
+// three possible answers.
+async function write(action) {
+  try {
+    await action()
+    recordsChanged(entityKey.value)
+  } catch (failure) {
+    toast(failure.message, 'error')
+  } finally {
+    await load()
   }
+}
 
-  if (settings.value.groupBy.showEmpty) for (const value of order) if (!buckets.has(value)) buckets.set(value, [])
+const onCellEdit = (record, patch) => write(() => updateRecord(entityKey.value, record.id, patch))
 
-  const rank = (value) => {
-    if (value === '') return Number.MAX_SAFE_INTEGER
-    const at = order.indexOf(value)
-    return at === -1 ? Number.MAX_SAFE_INTEGER - 1 : at
+// A drag, a move-to-section, a promote. The control has already worked out the patch — which
+// section, which position — because it is the one that knows where the row was dropped.
+const onMove = (record, patch) => write(() => updateRecord(entityKey.value, record.id, patch))
+
+// An inline add: one field typed in the row itself. Everything else comes from what the list already
+// implies — its own filters, the section it was added under, the position after its last sibling.
+function onAdd({ title, groupId, order }) {
+  const body = { ...blank.value }
+  const name = entity.value?.displayField
+    ?? entity.value?.fields.find((f) => f.type === 'text' && f.required)?.key
+    ?? entity.value?.fields.find((f) => f.type === 'text')?.key
+  if (!name) return
+  body[name] = title
+  if (settings.value.groupBy?.field && groupId != null) body[settings.value.groupBy.field] = groupId
+  if (settings.value.orderField && order != null) body[settings.value.orderField] = order
+  return write(() => createRecord(entityKey.value, body))
+}
+
+// Sections are records, so managing them is ordinary CRUD against another entity — which is why the
+// table emits an intent instead of writing: it has no idea a section is a `task_section` scoped to a
+// project, and it should not have to.
+function onAddGroup(name) {
+  const t = target.value
+  if (!t) return
+  const body = { [t.nameField]: name }
+  if (t.scopeKey && props.record?.id) body[t.scopeKey] = props.record.id
+  if (t.orderField) {
+    const last = Math.max(0, ...(groups.value || []).map((g) => Number(g.order) || 0))
+    body[t.orderField] = last + 10
   }
+  return write(() => createRecord(t.entityKey, body))
+}
 
-  return [...buckets.entries()]
-    .sort((a, b) => rank(a[0]) - rank(b[0]))
-    .map(([value, rows]) => ({
-      key: String(value),
-      label: value === ''
-        ? (settings.value.groupBy.ungroupedLabel || '(No section)')
-        : (labels.value[key]?.[value] ?? (field?.options ? optionLabel(field, value) : String(value))),
-      rows,
-    }))
-})
+function onRenameGroup(id, name) {
+  const t = target.value
+  return t ? write(() => updateRecord(t.entityKey, id, { [t.nameField]: name })) : undefined
+}
+
+// The rows do not go with it. They stay on screen because grouping puts a row whose group is not in
+// the list into the trailing "no section" bucket — which is the right OUTCOME, reached the wrong
+// way: their `section` still holds the id of a section that no longer exists.
+//
+// `onDelete: setNull` is declared on the field and NOTHING IN A GENERATED APPLICATION READS IT — the
+// compiler parses and validates it, and no emitter or runtime ever acts on it. So this delete leaves
+// a dangling reference exactly as every other delete in the application does. Not a reason to make
+// this one delete special: one entity quietly cleaning up after itself while the rest do not is
+// harder to reason about than a gap that is the same everywhere.
+function onDeleteGroup(id) {
+  const t = target.value
+  return t ? write(() => deleteRecord(t.entityKey, id)) : undefined
+}
 
 async function remove(row) {
-  await deleteRecord(entityKey.value, row.id)
   confirming.value = null
-  load()
-  recordsChanged(entityKey.value)
+  await write(() => deleteRecord(entityKey.value, row.id))
 }
 
 // A create button three blocks away has no way to tell this list it added a row, so the two ends
@@ -265,7 +356,21 @@ watch(() => props.state, load, { deep: true })
 // definition actually named it.
 const titled = computed(() => !props.hideTitle && depth === 0 && Boolean(definition.value?.label))
 
-const open = (row) => router.push(recordRoute(entityKey.value, row.id))
+const peeking = ref(null)
+
+function open(row) {
+  if (settings.value.openDetail) {
+    peeking.value = row
+    return
+  }
+  router.push(recordRoute(entityKey.value, row.id))
+}
+
+// One table's remembered layout, told apart from every other table in the application. A saved view
+// has a key; an inline block does not, so it is identified by what it is a list OF and where. Get
+// this wrong and two tables share one set of hidden columns.
+const settingsKey = computed(() =>
+  props.view || `${props.record ? 'child' : 'block'}:${entityKey.value}:${definition.value?.label ?? ''}`)
 </script>
 
 <template>
@@ -292,106 +397,71 @@ const open = (row) => router.push(recordRoute(entityKey.value, row.id))
       </v-btn>
     </div>
 
-    <div v-if="settings.filterBar" class="px-4 pb-2">
-      <FilterBar
-        :entity="entityKey"
-        :state="own"
-        :search="settings.filterBar.search ? { state: 'q', placeholder: 'Search' } : null"
-        :facets="ownFacets"
-      />
-    </div>
-
     <v-alert v-if="error" type="error" class="ma-4">{{ error }}</v-alert>
     <v-skeleton-loader v-else-if="loading" type="table" />
 
-    <div v-else-if="visible.length" class="cd-table-scroll">
-      <v-table hover>
-        <thead>
-          <tr>
-            <th v-for="field in columns" :key="field.key">{{ field.label }}</th>
-            <th v-if="rowCommands.length || settings.allowDelete" class="cd-row-actions" />
-          </tr>
-        </thead>
-        <tbody v-for="section in sections" :key="section.key">
-          <tr v-if="section.label" class="cd-group">
-            <td
-              :colspan="columns.length + (rowCommands.length || settings.allowDelete ? 1 : 0)"
-              class="text-caption text-medium-emphasis font-weight-medium"
-            >
-              {{ section.label }}
-              <v-chip size="x-small" variant="tonal" class="ml-2">{{ section.rows.length }}</v-chip>
-            </td>
-          </tr>
-          <tr v-for="row in section.rows" :key="row.id" style="cursor: pointer" @click="open(row)">
-            <td
-              v-for="(field, index) in columns"
-              :key="field.key"
-              :style="editableIn(field, index) ? 'cursor: auto' : ''"
-              @click="editableIn(field, index) ? $event.stopPropagation() : null"
-            >
-              <InlineCell
-                :entity="entityKey"
-                :field="field"
-                :record="row"
-                :editable="editableIn(field, index)"
-                :labels="labels[field.key] || null"
-                @saved="load(); recordsChanged(entityKey)"
-                @failed="error = $event"
-              />
-            </td>
-
-            <!--
-              One button, not one per command.
-
-              This rendered every `tableRow` command as its own button in the last cell. Six
-              commands on a task — add to my day, due today, due tomorrow, mark important, no longer
-              important, remove from my day — produced eighteen centimetres of grey buttons wrapping
-              onto two lines on every row, which is not a table any more. The commands are the same
-              and the guard is the same; they are simply behind the control that means "there is
-              more here".
-            -->
-            <td v-if="rowCommands.length || settings.allowDelete" class="cd-row-actions text-right" @click.stop>
-              <div class="cd-hover-actions d-inline-flex align-center">
-                <v-menu v-if="rowCommands.length" location="bottom end">
-                  <template #activator="{ props }">
-                    <v-btn
-                      icon="mdi-dots-horizontal"
-                      size="small"
-                      v-bind="props"
-                      :aria-label="'More actions'"
-                    />
-                  </template>
-                  <v-list>
-                    <CommandButton
-                      v-for="command in rowCommands"
-                      :key="command.key"
-                      as="item"
-                      :entity="entityKey"
-                      :record="row"
-                      :command="command"
-                      @done="load"
-                    />
-                  </v-list>
-                </v-menu>
-
-                <v-btn
-                  v-if="settings.allowDelete"
-                  icon="mdi-delete-outline"
-                  size="small"
-                  @click="confirming = row"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </v-table>
-    </div>
+    <CordangoDataTable
+      v-else-if="visible.length"
+      :columns="columns"
+      :rows="visible"
+      :fields="entity?.fields || []"
+      :ref-maps="labels"
+      :ref-targets="refTargets"
+      :entity-label="entity?.labelPlural || 'records'"
+      :total="total"
+      :handle="app.key"
+      :settings-key="settingsKey"
+      :filter-bar="settings.filterBar"
+      :group-field="settings.groupBy?.field || null"
+      :groups="groups"
+      :ungrouped-label="settings.groupBy?.ungroupedLabel || '(No section)'"
+      :show-empty-groups="settings.groupBy?.showEmpty === true"
+      :order-field="settings.orderField"
+      :can-add-group="Boolean(target)"
+      :can-edit-groups="Boolean(target)"
+      :inline-edit="settings.inlineEdit"
+      :transitions-for="transitionsFor"
+      :row-commands="commandsOnRow"
+      :can-delete="settings.allowDelete"
+      :can-add="create"
+      @row-click="open"
+      @edit="editing = $event"
+      @delete="confirming = $event"
+      @add="onAdd"
+      @move="onMove"
+      @add-group="onAddGroup"
+      @rename-group="onRenameGroup"
+      @delete-group="onDeleteGroup"
+      @cell-edit="onCellEdit"
+      @command="(command, record) => (pending = { command, record })"
+    />
 
     <EmptyState v-else icon="mdi-table-off" title="Nothing here yet.">
       <v-btn v-if="create" variant="tonal" prepend-icon="mdi-plus" @click="editing = { ...blank }">
         Add the first one
       </v-btn>
     </EmptyState>
+
+    <!-- A transition the table could not run itself, because running one may need a confirmation or
+         an input form. `auto` fires the same flow the record page uses, so a move made from a cell
+         and a move made from the process strip ask exactly the same questions. -->
+    <CommandButton
+      v-if="pending"
+      auto
+      :entity="entityKey"
+      :record="pending.record"
+      :command="pending.command"
+      @done="pending = null; load(); recordsChanged(entityKey)"
+      @cancelled="pending = null"
+    />
+
+    <RecordPeek
+      v-if="peeking"
+      :entity="entityKey"
+      :record="peeking"
+      :model-value="true"
+      @update:model-value="peeking = null"
+    />
 
     <RecordDialog
       v-if="editing"

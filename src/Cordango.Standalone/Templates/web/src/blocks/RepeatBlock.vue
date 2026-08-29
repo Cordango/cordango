@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { loadRecords, onRecordsChanged, sortTerm } from '../records.js'
+import { useRouter } from 'vue-router'
+import { loadRecords, onRecordsChanged, sortTerm, recordRoute } from '../records.js'
 import { session } from '../session.js'
 import EmptyState from './EmptyState.vue'
 
@@ -26,6 +27,14 @@ const props = defineProps({
   cols: { type: Number, default: null },
   // 'column' (default) | 'row' — for the non-wrapping case.
   direction: { type: String, default: 'column' },
+
+  // The whole item opens its record.
+  //
+  // Decided by the GENERATOR, not here, because whether a click belongs to the item or to something
+  // drawn inside it is a question about the block tree — and the generator has the tree at build
+  // time. A card of fields is clickable; a card holding a table is not, because then every miss
+  // beside a cell would navigate away from the row somebody was reading.
+  clickable: { type: Boolean, default: false },
 })
 
 const rows = ref([])
@@ -92,6 +101,9 @@ async function load() {
   }
 }
 
+const router = useRouter()
+const open = (row) => router.push(recordRoute(entityKey.value, row.id))
+
 let stop
 onMounted(() => {
   load()
@@ -107,7 +119,25 @@ watch(() => props.source, load, { deep: true })
   <EmptyState v-else-if="rows.length === 0" :title="emptyText" />
   <div v-else :style="layout">
     <template v-for="row in rows" :key="row.id">
-      <slot :record="row" />
+      <!-- The wrapper is the grid item, so the card inside it stretches to the track rather than
+           the click target being only as tall as the text. -->
+      <div
+        v-if="clickable && row.id"
+        class="cd-repeat-item"
+        role="link"
+        tabindex="0"
+        @click="open(row)"
+        @keydown.enter="open(row)"
+      >
+        <slot :record="row" />
+      </div>
+      <slot v-else :record="row" />
     </template>
   </div>
 </template>
+
+<style scoped>
+.cd-repeat-item { cursor: pointer; display: flex; border-radius: 4px; }
+.cd-repeat-item > * { flex: 1 1 auto; min-width: 0; }
+.cd-repeat-item:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
+</style>

@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cordango/web-controls": "{{WebControlsVersion}}",
     "@mdi/font": "^7.4.47",
     "chart.js": "^4.5.1",
     "vue": "^3.5.39",

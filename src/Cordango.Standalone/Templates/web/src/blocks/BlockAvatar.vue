@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed } from 'vue'
+import { CordangoPersonAvatar } from '@cordango/web-controls'
 import { entityOf, formatValue } from '../records.js'
-import { personName } from '../api.js'
 
 // A face, or the initials standing in for one.
 //
@@ -31,15 +31,14 @@ const isPerson = computed(() =>
   definition.value?.type === 'reference'
   && (definition.value.targetApp === 'platform' || definition.value.targetEntity === 'person'))
 
-// A person's id says nothing about their initials, so the name has to be resolved before there is
-// anything to draw. Everything else already reads as itself.
-const resolved = ref('')
-watch([isPerson, raw], async ([person, value]) => {
-  resolved.value = person ? await personName(value) : ''
-}, { immediate: true })
-
+// A PERSON is the shared control's job, and it does more than this file would: their directory
+// photo when they have one, initials on a colour that stays the same for them when they do not, and
+// the desaturated red ring that says somebody has left. It reads the directory through the host
+// seam wired in main.js, so it never learns where this application keeps its people.
+//
+// Everything else is drawn here, because there is no directory to ask — a project, a room and a
+// company are their own names, and the initials come straight off the value.
 const text = computed(() => {
-  if (isPerson.value) return resolved.value
   const value = raw.value
   if (value === null || value === undefined || value === '') return ''
   return String(formatValue(value, definition.value))
@@ -59,7 +58,10 @@ const px = computed(() => pixels[props.size] ?? pixels.md)
 </script>
 
 <template>
+  <CordangoPersonAvatar v-if="isPerson" :person-id="raw" :size="px" />
+
   <v-avatar
+    v-else
     :size="px"
     color="surface-light"
     class="text-medium-emphasis font-weight-medium"

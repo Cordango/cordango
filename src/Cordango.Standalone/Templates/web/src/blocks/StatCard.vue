@@ -126,6 +126,12 @@ function open() {
   <!--
     Bounded, not merely growing.
 
+    And NESTED, it is still a flex item. `w-100` inside a card was right for a stat sitting alone in
+    a column and wrong for the ordinary case of two side by side: `width: 100%` in a wrapping row
+    means each one takes a whole line, so "Open 2  Done 0" came out as two full-width rows and read
+    as four separate facts. `flex: 1 1 auto` shares the row where there is one and still fills the
+    width of a column, because a column flex item stretches on the cross axis anyway.
+
     `flex-grow-1` alone gave two stats inside a card half the page each — a card 550 pixels wide
     holding the word "Open" and a dash. A stat is a figure; it wants to be read at a glance beside
     its neighbours, which means every one of them the same size and none of them the size of a
@@ -133,8 +139,10 @@ function open() {
   -->
   <component
     :is="depth === 0 ? 'v-card' : 'div'"
-    :class="[clickable ? 'cursor-pointer' : '', depth === 0 ? '' : 'w-100']"
-    :style="depth === 0 ? (grow ? 'flex: 1 1 168px; max-width: 260px' : 'width: 200px') : ''"
+    :class="clickable ? 'cursor-pointer' : ''"
+    :style="depth === 0
+      ? (grow ? 'flex: 1 1 168px; max-width: 260px' : 'width: 200px')
+      : 'flex: 1 1 auto; min-width: 0'"
     :ripple="depth === 0 ? false : undefined"
     @click="open"
   >

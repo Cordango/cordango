@@ -734,7 +734,8 @@ public static class WebEmitter
         var query = block["source"] as JsonObject;
         var entity = AppModel.Str(query?["entity"]) ?? AppModel.Str(block["entity"]) ?? context.Entity;
 
-        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+        foreach (var gap in Gaps(block, query, context.Record, tabular: true))
+            unsupported.Add(NotYet(gap, context));
 
         // The one cell inline editing cannot offer. A process-governed status moves by running a
         // transition, and a dropdown over the field's options would offer moves the lifecycle
@@ -758,6 +759,8 @@ public static class WebEmitter
         if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
         if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
         if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
+        if (AppModel.Bool(block["openDetail"])) source.Line(":open-detail=\"true\"");
+        if (AppModel.Str(block["orderField"]) is { } order) source.Line($"order-field=\"{order}\"");
         if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
         // A page-level list creates through the New button. `inlineCreate` defaults on in the
         // language, so a table only loses the button where somebody has turned it off.
@@ -796,7 +799,8 @@ public static class WebEmitter
         var query = new JsonObject { ["via"] = via };
         if (block["limit"] is { } limit) query["limit"] = limit.DeepClone();
 
-        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+        foreach (var gap in Gaps(block, query, context.Record, tabular: true))
+            unsupported.Add(NotYet(gap, context));
 
         // Only the table presentation is built. The others are real differences in how the rows are
         // read — a feed is chronological with a composer, a checklist is one tick per row — so a
@@ -816,6 +820,8 @@ public static class WebEmitter
         if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
         if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
         if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
+        if (AppModel.Bool(block["openDetail"])) source.Line(":open-detail=\"true\"");
+        if (AppModel.Str(block["orderField"]) is { } order) source.Line($"order-field=\"{order}\"");
         if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
         // `inlineCreate` defaults on in the language, so the New button goes only where somebody
         // has turned it off.
@@ -970,7 +976,14 @@ public static class WebEmitter
     /// come out right" is not something anybody can act on and "inlineEdit is not emitted yet" is.
     /// </para>
     /// </summary>
-    private static IEnumerable<string> Gaps(JsonObject block, JsonObject? query, bool record)
+    /// <param name="tabular">
+    /// True where the caller renders through <c>ViewBlock</c>, which does manual row order and the
+    /// quick-look panel. The calendar, board and timeline do neither — they have no rows to reorder,
+    /// and they navigate on click — so for them these stay gaps, and saying nothing would be the
+    /// silent kind.
+    /// </param>
+    private static IEnumerable<string> Gaps(
+        JsonObject block, JsonObject? query, bool record, bool tabular = false)
     {
         if (query is not null)
         {
@@ -982,8 +995,10 @@ public static class WebEmitter
                 yield return "a list bound with 'via' on a screen that is not about one record";
         }
 
-        if (block["orderField"] is not null) yield return "a list's manual row order ('orderField')";
-        if (AppModel.Bool(block["openDetail"])) yield return "a list's 'openDetail' panel overlay";
+        if (!tabular && block["orderField"] is not null)
+            yield return "a list's manual row order ('orderField')";
+        if (!tabular && AppModel.Bool(block["openDetail"]))
+            yield return "a list's 'openDetail' panel overlay";
     }
 
     /// <summary>
@@ -1256,6 +1271,11 @@ public static class WebEmitter
             source.Line($":cols=\"{cols.ToJsonString(Compact)}\"");
         if (AppModel.Str(block["direction"]) is { } direction) source.Line($"direction=\"{direction}\"");
 
+        // Whether the item itself opens the record. Worked out HERE rather than in the component,
+        // because it is a question about the block tree and the tree is a build-time fact — the
+        // platform's renderer answers the same question by walking the subtree on every render.
+        if (entity is not null && !OwnsClickSurface(block["blocks"])) source.Line(":clickable=\"true\"");
+
         source.Line("v-slot=\"{ record }\"");
         source.Outdent();
         source.Line(">");
@@ -1276,6 +1296,43 @@ public static class WebEmitter
         // otherwise not import the evaluator the page needs.
         if (inner.Conditional) context.Conditional = true;
     }
+
+    /// <summary>
+    /// Does anything in this subtree own the click?
+    ///
+    /// <para>A repeated card is worth clicking: it is one record, and opening it is the obvious
+    /// thing to want. A repeated card containing a TABLE is not — the table's rows own their own
+    /// clicks, and every miss beside a cell would navigate away from the row somebody was reading.
+    /// So the rule is about what is drawn inside, and the answer is in the definition.</para>
+    ///
+    /// <para>Presentational leaves never disqualify an item. A field, a chip, an avatar, a progress
+    /// bar and a stat are all things to read, and a card made of them is a card you click. Nor does
+    /// an <c>action</c> button: "a row with an Approve button" still opens on click, and the button
+    /// stops the event itself.</para>
+    /// </summary>
+    private static bool OwnsClickSurface(JsonNode? blocks)
+    {
+        foreach (var block in AppModel.Arr(blocks).OfType<JsonObject>())
+        {
+            if (ClickSurfaces.Contains(AppModel.Str(block["kind"]) ?? "")) return true;
+            if (OwnsClickSurface(block["blocks"])) return true;
+
+            foreach (var tab in AppModel.Arr(block["tabs"]).OfType<JsonObject>())
+                if (OwnsClickSurface(tab["blocks"])) return true;
+
+            foreach (var column in AppModel.Arr(block["columns"]))
+                if (OwnsClickSurface(column)) return true;
+        }
+
+        return false;
+    }
+
+    private static readonly IReadOnlySet<string> ClickSurfaces =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "repeat", "cell", "view", "child", "settings", "table", "calendar", "board", "timeline",
+            "split", "form", "hub", "process",
+        };
 
     private static void Container(
         Source source, string component, string attributes, JsonNode? children,
