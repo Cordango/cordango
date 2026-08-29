@@ -143,6 +143,95 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("condition field 'ghost'"));
     }
 
+    private static JsonObject WithForEach(string set, string source = """
+        { "entity": "row", "filters": [] }
+        """)
+    {
+        var doc = (JsonObject)JsonNode.Parse("""
+        {
+          "schemaVersion": "1.0", "key": "app", "name": "App", "version": "1.0.0",
+          "entities": [
+            { "key": "thing", "label": "Thing", "displayField": "name",
+              "fields": [
+                { "key": "name", "label": "Name", "type": "text" },
+                { "key": "plan_start", "label": "Start", "type": "date" },
+                { "key": "months", "label": "Months", "type": "integer" }
+              ] },
+            { "key": "row", "label": "Row", "displayField": "label",
+              "fields": [{ "key": "label", "label": "Label", "type": "text" }] },
+            { "key": "cell", "label": "Cell", "displayField": "title",
+              "fields": [
+                { "key": "title", "label": "Title", "type": "text" },
+                { "key": "at", "label": "At", "type": "date" },
+                { "key": "n", "label": "N", "type": "integer" }
+              ] }
+          ]
+        }
+        """)!;
+
+        doc["workflows"] = JsonNode.Parse($$"""
+        [{ "key": "wf", "name": "WF",
+           "trigger": { "event": "record.created", "entity": "thing" },
+           "effects": [{ "type": "createForEach", "entity": "cell",
+             "source": {{source}},
+             "set": {{set}} }] }]
+        """);
+
+        return doc;
+    }
+
+    [Fact]
+    public void A_for_each_set_reading_the_iterated_row_is_accepted() =>
+        Assert.Empty(Gate.SemanticErrors(WithForEach("""
+            { "title": "{{record.name}} {{source.label}}" }
+            """)));
+
+    [Fact]
+    public void A_for_each_set_reading_a_field_the_iterated_entity_does_not_have_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithForEach("""
+                { "title": "{{source.min_rest_minutes}}" }
+                """)),
+            e => e.Contains("the entity being iterated"));
+
+    [Fact]
+    public void A_for_each_set_key_that_is_not_a_field_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithForEach("""
+                { "nonesuch": "{{source.label}}" }
+                """)),
+            e => e.Contains("set 'nonesuch' is not a field"));
+
+    [Fact]
+    public void A_for_each_over_a_range_offers_index_date_and_end() =>
+        Assert.Empty(Gate.SemanticErrors(WithForEach("""
+            { "title": "{{source.index}}", "at": "{{source.date}}" }
+            """, """
+            { "range": { "from": "{{record.plan_start}}", "count": "{{record.months}}", "step": "month" } }
+            """)));
+
+    [Fact]
+    public void A_for_each_over_a_range_has_no_other_columns() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithForEach("""
+                { "title": "{{source.label}}" }
+                """, """
+                { "range": { "from": "{{record.plan_start}}", "count": "{{record.months}}", "step": "month" } }
+                """)),
+            e => e.Contains("a generated date row has"));
+
+    [Fact]
+    public void A_source_token_outside_a_for_each_is_refused()
+    {
+        var doc = Minimal();
+        doc["workflows"] = JsonNode.Parse("""
+        [{ "key": "wf", "name": "WF",
+           "trigger": { "event": "record.created", "entity": "thing" },
+           "effects": [{ "type": "notify", "message": "{{source.anything}}" }] }]
+        """);
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("there is no source row here"));
+    }
+
     [Fact]
     public void Reference_to_platform_entity_resolves()
     {
@@ -1702,6 +1791,80 @@ public class GateTests
                     "computed": { "rollup": { "entity": "line", "via": "invoice", "op": "count", "field": "quantity" } } }
                 """)),
             e => e.Contains("must not name a 'field'"));
+
+    private const string InvoiceDates = """
+        , { "key": "issued_on", "label": "Issued on", "type": "date" }
+        , { "key": "sent_at", "label": "Sent at", "type": "datetime" }
+        """;
+
+    [Fact]
+    public void Date_parts_over_a_date_field_are_accepted() =>
+        Assert.Empty(Gate.Validate(WithComputed(invoiceExtra: InvoiceDates + """
+            , { "key": "wd", "label": "Weekday", "type": "integer", "computed": { "expr": "weekday(issued_on)" } }
+            , { "key": "wk", "label": "Week", "type": "integer", "computed": { "expr": "week_of_year(issued_on)" } }
+            , { "key": "mo", "label": "Month", "type": "integer", "computed": { "expr": "month_of(issued_on)" } }
+            , { "key": "dm", "label": "Day", "type": "integer", "computed": { "expr": "day_of_month(issued_on)" } }
+            , { "key": "dy", "label": "Day of year", "type": "integer", "computed": { "expr": "day_of_year(issued_on)" } }
+            , { "key": "yr", "label": "Year", "type": "integer", "computed": { "expr": "year_of(issued_on)" } }
+            """)));
+
+    [Fact]
+    public void An_hour_needs_a_datetime() =>
+        Assert.Empty(Gate.Validate(WithComputed(invoiceExtra: InvoiceDates + """
+            , { "key": "hr", "label": "Hour", "type": "integer", "computed": { "expr": "hour_of(sent_at)" } }
+            """)));
+
+    [Fact]
+    public void An_hour_of_a_plain_date_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "hr", "label": "Hour", "type": "integer", "computed": { "expr": "hour_of(issued_on)" } }
+                """)),
+            e => e.Contains("has no time of day"));
+
+    [Fact]
+    public void A_date_part_of_something_that_is_not_a_date_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "wd", "label": "Weekday", "type": "integer", "computed": { "expr": "weekday(tax_rate)" } }
+                """)),
+            e => e.Contains("must be a date/datetime field"));
+
+    [Fact]
+    public void A_date_part_takes_one_field_and_says_so() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "wd", "label": "Weekday", "type": "integer",
+                    "computed": { "expr": "weekday(issued_on, sent_at)" } }
+                """)),
+            e => e.Contains("takes exactly one date field"));
+
+    [Fact]
+    public void A_date_part_that_returns_a_date_is_still_unknown() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "sw", "label": "Week start", "type": "integer",
+                    "computed": { "expr": "start_of_week(issued_on)" } }
+                """)),
+            e => e.Contains("is not a known function"));
+
+    [Fact]
+    public void The_clock_is_not_a_function() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "age", "label": "Age", "type": "integer",
+                    "computed": { "expr": "days_between(issued_on, today())" } }
+                """)),
+            e => e.Contains("is not available in a computed field"));
+
+    [Fact]
+    public void The_clock_refusal_says_why_rather_than_calling_it_a_typo() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "age", "label": "Age", "type": "integer",
+                    "computed": { "expr": "days_between(issued_on, now)" } }
+                """)),
+            e => e.Contains("stop being true the next day"));
 
     [Fact]
     public void Rollup_filter_fields_must_exist_on_the_aggregated_entity() =>

@@ -36,6 +36,15 @@
       "type": "string",
       "maxLength": 2000
     },
+    "weekStart": {
+      "description": "Which day begins a week, for `weekday()` and `week_of_year()` in computed expressions. Default 'monday' (ISO-8601), where Monday is 1 and Sunday is 7. CHANGING THIS RESTATES EXISTING FIGURES: every stored weekday and week number is recomputed on the next write to its row, so an app whose rows are not all rewritten will hold two conventions at once. Decide it when the app is created, not after it has data.",
+      "type": "string",
+      "enum": [
+        "monday",
+        "sunday"
+      ],
+      "default": "monday"
+    },
     "archetype": {
       "description": "What kind of app this fundamentally is — the recurring shape of the work, not the industry. The domain pass classifies it; the design pass builds the app's signature working surface from it instead of defaulting to generic CRUD screens.",
       "type": "object",

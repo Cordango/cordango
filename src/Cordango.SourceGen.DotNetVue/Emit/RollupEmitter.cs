@@ -24,10 +24,17 @@ namespace Cordango.SourceGen.DotNetVue.Emit;
 /// </summary>
 public static class RollupEmitter
 {
-    /// <summary>The two operations the language has. Anything else is reported rather than guessed
-    /// at — an average that silently became a sum would be a wrong figure nobody could see.</summary>
+    /// <summary>
+    /// The operations the language has, all of which this target now writes.
+    ///
+    /// <para>Anything outside this set is reported rather than guessed at — an average that silently
+    /// became a sum would be a wrong figure nobody could see. For a while the set was <c>sum</c> and
+    /// <c>count</c> alone while the schema's enum already held five, so <c>avg</c>, <c>min</c> and
+    /// <c>max</c> were accepted by <c>cordango check</c> and then landed as CORD2305 with the column
+    /// left empty. That is a "not emitted yet", not a refusal, and this is it being emitted.</para>
+    /// </summary>
     public static readonly IReadOnlySet<string> Ops =
-        new HashSet<string>(StringComparer.Ordinal) { "sum", "count" };
+        new HashSet<string>(StringComparer.Ordinal) { "sum", "count", "avg", "min", "max" };
 
     /// <summary>Comparisons a rollup's own filters may use. Deliberately small: these go to the
     /// DATABASE, and a filter this cannot write must stop the rollup rather than widen it.</summary>
@@ -71,12 +78,23 @@ public static class RollupEmitter
 
         if (op == "count") return Narrow(field, $"await {chain}.CountAsync(ct)", counted: true);
 
-        // A sum needs something to add up, and the child has to have it.
-        if (child.Field(AppModel.Str(rollup["field"])) is not { } summed) return null;
+        // Every other operation needs something to aggregate, and the child has to have it.
+        if (child.Field(AppModel.Str(rollup["field"])) is not { } aggregated) return null;
 
-        // `(decimal?)` inside the selector, so an empty set sums to null rather than to zero and the
-        // narrowing below decides what that means. Summing `long` would also do integer arithmetic.
-        return Narrow(field, $"await {chain}.SumAsync(x => (decimal?)x.{summed.PropertyName}, ct)", counted: false);
+        // `(decimal?)` inside the selector, so an EMPTY SET answers null rather than zero and the
+        // narrowing below decides what that means. It matters more here than it did for sum alone:
+        // the lowest of no rows is not zero, it is nobody's business, and a min that reported 0 for a
+        // parent with no children would sort to the top of every list. Aggregating `long` would also
+        // do integer arithmetic — the average of 3 and 4 is 3.5, not 3.
+        var method = op switch
+        {
+            "sum" => "SumAsync",
+            "avg" => "AverageAsync",
+            "min" => "MinAsync",
+            _ => "MaxAsync",
+        };
+
+        return Narrow(field, $"await {chain}.{method}(x => (decimal?)x.{aggregated.PropertyName}, ct)", counted: false);
     }
 
     /// <summary>

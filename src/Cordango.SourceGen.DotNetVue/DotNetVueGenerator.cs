@@ -368,8 +368,8 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                     && Emit.ComputedEmitter.Expression(app, entity, field, inSeries: true) is not null) continue;
 
                 var why = field.Computed?["rollup"] is not null
-                    ? "is a rollup this generator cannot write — an operation or a filter outside "
-                        + "sum, count and simple comparisons"
+                    ? "is a rollup this generator cannot write — a filter outside simple "
+                        + "comparisons, or a shape whose parts do not resolve"
                     : "is computed from something outside its own record, which is not generated yet";
 
                 yield return new Diagnostic(NotYetCodes.Computed,

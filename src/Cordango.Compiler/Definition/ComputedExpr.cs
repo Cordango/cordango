@@ -44,6 +44,39 @@ public static class ComputedExpr
         new HashSet<string>(StringComparer.Ordinal) { "minutes_between", "hours_between", "days_between" };
 
     /// <summary>
+    /// The parts of one date, each a number: <c>weekday(shift_date)</c>, <c>month_of(due)</c>.
+    ///
+    /// <para><b>Reading a stored date, never the clock.</b> There is deliberately no
+    /// <c>today()</c> or <c>now()</c> here. A computed field is a pure function of its record,
+    /// worked out when the row is written and stored beside it — so an expression over the current
+    /// time would be right on the day it saved and quietly wrong every day after, with nothing on
+    /// the surface to say so. A duration to today is a question for a filter or a report, which
+    /// both run when somebody looks.</para>
+    ///
+    /// <para>These are what group a list by something the date IMPLIES rather than states: the week
+    /// a shift falls in, the month a claim was filed. Without them a definition has to store the
+    /// week number as a field somebody types, which is a fact the date already knows.</para>
+    ///
+    /// <para><c>weekday</c> and <c>week_of_year</c> depend on which day starts a week, which is the
+    /// app's <c>weekStart</c> — see <see cref="WeekDependentFuncs"/>. The rest are the same
+    /// everywhere.</para>
+    /// </summary>
+    public static readonly IReadOnlySet<string> DatePartFuncs =
+        new HashSet<string>(StringComparer.Ordinal)
+        { "weekday", "week_of_year", "month_of", "day_of_month", "day_of_year", "year_of", "hour_of" };
+
+    /// <summary>The date parts whose answer moves with the app's <c>weekStart</c>. Named so the
+    /// emitter can pass the convention only where it changes the figure, rather than threading it
+    /// through parts that have one answer.</summary>
+    public static readonly IReadOnlySet<string> WeekDependentFuncs =
+        new HashSet<string>(StringComparer.Ordinal) { "weekday", "week_of_year" };
+
+    /// <summary>The one date part that needs a time of day to mean anything. A <c>date</c> column
+    /// has none, so <c>hour_of</c> over one is always zero — an answer that looks computed and is
+    /// not, which is the same trap <c>{{today-4h}}</c> already refuses.</summary>
+    public const string HourFunc = "hour_of";
+
+    /// <summary>
     /// The two-argument numeric functions. All three take arbitrary sub-expressions, unlike the
     /// duration functions which take bare date field names.
     ///
@@ -86,14 +119,19 @@ public static class ComputedExpr
     /// <paramref name="identError"/> because a computed field referring to ITSELF is an error
     /// everywhere except here, where it is the entire point: <c>prev(cash_end)</c> on the field
     /// <c>cash_end</c> is a running balance, not a circular definition.</param>
+    /// <param name="datePartArgError">Validates one date PART against the field it reads, given the
+    /// function name and the field. Separate from <paramref name="dateArgError"/> because the rule
+    /// it carries depends on which part was asked for rather than on the field alone:
+    /// <c>hour_of</c> needs a time of day and a <c>date</c> column has none.</param>
     public static ComputedExprValidation Validate(string? expr,
         Func<string, ComputedValueKind?> fieldKind,
         Func<string, string?>? identError = null,
         Func<string, string?>? dateArgError = null,
-        Func<string, string?>? prevArgError = null)
+        Func<string, string?>? prevArgError = null,
+        Func<string, string, string?>? datePartArgError = null)
     {
         var parser = new Parser(expr, fieldKind, identError ?? (_ => null), dateArgError ?? (_ => null),
-            prevArgError ?? identError ?? (_ => null));
+            prevArgError ?? identError ?? (_ => null), datePartArgError ?? ((_, _) => null));
         var node = parser.Parse();
         return new ComputedExprValidation(parser.Error, node?.Kind, parser.Identifiers);
     }
@@ -200,6 +238,10 @@ public static class ComputedExpr
     /// names rather than expressions.</summary>
     public sealed record DurationNode(string Name, string From, string To) : Node(ComputedValueKind.Number);
 
+    /// <summary><c>weekday(d)</c> and its siblings — one part of one date, named as a bare field the
+    /// same way a duration's ends are.</summary>
+    public sealed record DatePartNode(string Name, string Field) : Node(ComputedValueKind.Number);
+
     /// <summary><c>prev(field)</c> or <c>prev(field, seed)</c> — the previous row of an ordered
     /// series, and what to use when there is not one.</summary>
     public sealed record PrevNode(string Field, Node? Seed) : Node(ComputedValueKind.Number);
@@ -210,6 +252,7 @@ public static class ComputedExpr
         private readonly Func<string, ComputedValueKind?> _fieldKind;
         private readonly Func<string, string?> _identError;
         private readonly Func<string, string?> _dateArgError;
+        private readonly Func<string, string, string?> _datePartArgError;
         private readonly Func<string, string?> _prevArgError;
         private int _pos;
 
@@ -218,9 +261,11 @@ public static class ComputedExpr
 
         public Parser(string? expr, Func<string, ComputedValueKind?> fieldKind,
             Func<string, string?> identError, Func<string, string?> dateArgError,
-            Func<string, string?>? prevArgError = null)
+            Func<string, string?>? prevArgError = null,
+            Func<string, string, string?>? datePartArgError = null)
         {
             _prevArgError = prevArgError ?? identError;
+            _datePartArgError = datePartArgError ?? ((_, _) => null);
             _tokens = Tokenize(expr, out var error);
             Error = error;
             _fieldKind = fieldKind;
@@ -351,7 +396,8 @@ public static class ComputedExpr
 
         private Node? Function(string name)
         {
-            if (!MathFuncs.Contains(name) && !DurationFuncs.Contains(name) && name != PrevFunc)
+            if (!MathFuncs.Contains(name) && !DurationFuncs.Contains(name)
+                && !DatePartFuncs.Contains(name) && name != PrevFunc)
             {
                 Error = $"'{name}' is not a known function";
                 return null;
@@ -393,6 +439,21 @@ public static class ComputedExpr
                 if (left.Kind != ComputedValueKind.Number || right.Kind != ComputedValueKind.Number)
                 { Error = $"'{name}' takes two numbers"; return null; }
                 return new FunctionNode(name, left, right);
+            }
+
+            if (DatePartFuncs.Contains(name))
+            {
+                var field = Peek();
+                if (field is null || !IsIdentifier(field) || Keywords.Contains(field))
+                { Error = $"'{name}' takes a date field, not '{field ?? ")"}'"; return null; }
+                _pos++;
+                Identifiers.Add(field);
+                if (_dateArgError(field) is { } partError) { Error = partError; return null; }
+                if (_datePartArgError(name, field) is { } conventionError)
+                { Error = conventionError; return null; }
+                if (Peek() == ",") { Error = $"'{name}' takes exactly one date field"; return null; }
+                if (!Take(")")) { Error ??= $"'{name}(' is missing its closing parenthesis"; return null; }
+                return new DatePartNode(name, field);
             }
 
             var args = new List<string>();

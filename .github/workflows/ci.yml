@@ -36,6 +36,19 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # THE SCHEMA HAS TO BE REGENERATABLE FROM ITS OWN SOURCE.
+      #
+      # `app-definition.schema.json` is composed from `schemas/src/` and is also the file everything
+      # reads, so it is editable by hand and nothing stopped anybody. Two properties — `tree` and
+      # `readOnly` — were added straight to the composed file and never to `src/`, and shipped that
+      # way in 0.6.1: the drift guard that catches exactly this already existed and was simply never
+      # run here, so the next person to follow the documented workflow and run `compose.py` would
+      # have silently deleted both.
+      #
+      # Before the build, because a drifted schema makes every later failure a mystery.
+      - name: Schema is composed from src/
+        run: python schemas/compose.py --check
+
       - name: Restore
         run: dotnet restore Cordango.slnx
 

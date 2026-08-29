@@ -29,6 +29,9 @@ effects:
             - field: tier
               operator: eq
               value: flex
+          sort:
+            - field: created_at
+              direction: asc
       starter:
         pick:
           entity: revenue_plan
@@ -39,6 +42,9 @@ effects:
             - field: tier
               operator: eq
               value: starter
+          sort:
+            - field: created_at
+              direction: asc
       pro:
         pick:
           entity: revenue_plan
@@ -49,6 +55,9 @@ effects:
             - field: tier
               operator: eq
               value: pro
+          sort:
+            - field: created_at
+              direction: asc
       advanced:
         pick:
           entity: revenue_plan
@@ -59,3 +68,6 @@ effects:
             - field: tier
               operator: eq
               value: advanced
+          sort:
+            - field: created_at
+              direction: asc

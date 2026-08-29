@@ -648,7 +648,7 @@ public static class Gate
         // Checked here rather than in ValidateCommands because it needs the entity's block tree.
         ValidateRecordHeaderCommands(entities, commandsByEntity, transitionBoundCommands, errors);
 
-        // Forms archetype coherence — only when the app enables the 'forms' module (see ARCHETYPES.md).
+        // Forms archetype coherence — only when the app enables the 'forms' module (see architecture-app-archetypes.md).
         if (Arr(root["plugins"]).OfType<JsonObject>().Any(p => Str(p, "id") == "forms"))
             ValidateFormsArchetype(entities, entityFieldDefs, errors);
 
@@ -1292,6 +1292,14 @@ public static class Gate
                         if (Str(f, "field") is { } ff && srcEntity is not null && !ctx.FieldExists(srcEntity, ff))
                             errors.Add($"SEMANTIC: {ew} createForEach source filter field '{ff}' is not a field of '{srcEntity}'");
 
+                    // The set map, which until now was read only for WHICH keys it writes and never
+                    // for whether they are fields or whether their templates resolve. That made
+                    // createForEach the one effect where a misspelt token shipped: it writes a blank
+                    // and the rows appear, so the failure looks like missing data rather than a
+                    // broken definition.
+                    ValidateSet(eff["set"], te, ctxEntity, ew, ctx, errors,
+                        new SourceScope(srcEntity, hasRange));
+
                     // Every key must be a field of the entity being CREATED and must be set — a key
                     // naming something the effect never writes cannot identify anything, so the effect
                     // would duplicate its whole output on a second run while claiming to be idempotent.
@@ -1371,7 +1379,8 @@ public static class Gate
     /// <summary>Validate an effect's <c>set</c>: keys resolve on <paramref name="keyEntity"/> (the record
     /// written), a literal on a select must be a valid option, and <c>{{record.x}}</c> templates resolve
     /// against <paramref name="contextEntity"/> (the triggering record).</summary>
-    private static void ValidateSet(JsonNode? set, string? keyEntity, string? contextEntity, string where, BehaviorCtx ctx, List<string> errors)
+    private static void ValidateSet(JsonNode? set, string? keyEntity, string? contextEntity, string where,
+        BehaviorCtx ctx, List<string> errors, SourceScope? source = null)
     {
         if (set is not JsonObject obj) return;   // structural layer requires it to be an object
         foreach (var (k, v) in obj)
@@ -1379,10 +1388,10 @@ public static class Gate
             if (BaseFields.Contains(k)) { errors.Add($"SEMANTIC: {where} set '{k}' is a runtime-provided base field"); continue; }
             if (!ctx.FieldExists(keyEntity, k)) { errors.Add($"SEMANTIC: {where} set '{k}' is not a field of '{keyEntity}'"); continue; }
             if (v is JsonObject nested && nested["pick"] is not null)
-            { ValidatePick(nested["pick"], k, contextEntity, where, ctx, errors); continue; }
+            { ValidatePick(nested["pick"], k, contextEntity, where, ctx, errors, source); continue; }
             if (v is JsonValue jv && jv.TryGetValue<string>(out var sval))
             {
-                if (sval.Contains("{{")) { ValidateTemplate(sval, contextEntity, where, ctx, errors); continue; }
+                if (sval.Contains("{{")) { ValidateTemplate(sval, contextEntity, where, ctx, errors, source); continue; }
                 // OptionValuesOf already resolves a governed field to its process states.
                 if (ctx.FieldType(keyEntity, k) == "select"
                     && !OptionValuesOf(ctx, keyEntity, k).Contains(sval))
@@ -1400,7 +1409,7 @@ public static class Gate
     /// has, and the only place to catch it is here.</para>
     /// </summary>
     private static void ValidatePick(JsonNode? pickNode, string field, string? ctxEntity, string where,
-        BehaviorCtx ctx, List<string> errors)
+        BehaviorCtx ctx, List<string> errors, SourceScope? source = null)
     {
         if (pickNode is not JsonObject pick)
         { errors.Add($"SEMANTIC: {where} set '{field}' pick must be an object"); return; }
@@ -1414,7 +1423,7 @@ public static class Gate
             if (Str(f, "field") is { } ff && !ctx.FieldExists(entity, ff))
                 errors.Add($"SEMANTIC: {where} set '{field}' pick filter field '{ff}' is not a field of '{entity}'");
             if (Str(f, "value") is { } fv && fv.Contains("{{"))
-                ValidateTemplate(fv, ctxEntity, where, ctx, errors);
+                ValidateTemplate(fv, ctxEntity, where, ctx, errors, source);
         }
 
         // The ordering IS the rule — "the one who went longest without a turn" is a sort, not a
@@ -1437,7 +1446,8 @@ public static class Gate
         if (!to.Contains('@')) errors.Add($"SEMANTIC: {where} recipient '{to}' must be a template (e.g. {{{{record.requester}}}}) or an email address");
     }
 
-    private static void ValidateTemplate(string text, string? ctxEntity, string where, BehaviorCtx ctx, List<string> errors)
+    private static void ValidateTemplate(string text, string? ctxEntity, string where, BehaviorCtx ctx,
+        List<string> errors, SourceScope? source = null)
     {
         foreach (System.Text.RegularExpressions.Match mm in TemplateToken.Matches(text))
         {
@@ -1447,6 +1457,27 @@ public static class Gate
                 var f = token["record.".Length..];
                 if (!ctx.FieldExists(ctxEntity, f))
                     errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — '{f}' is not a field of '{ctxEntity}'");
+            }
+            else if (token.StartsWith("source.", StringComparison.Ordinal))
+            {
+                // The row being iterated. Unchecked until now, which made this the one template
+                // prefix an author could misspell and still ship: it resolves to nothing at run
+                // time and writes a blank, so the effect appears to work and the column is empty.
+                var f = token["source.".Length..];
+                if (source is null)
+                    errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — there is no source "
+                             + "row here; '{{source.*}}' means the row being iterated and only a "
+                             + "createForEach iterates anything");
+                else if (source.IsRange)
+                {
+                    if (!RangeRowFields.Contains(f))
+                        errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — a generated "
+                                 + $"date row has {string.Join(", ", RangeRowFields.Order(StringComparer.Ordinal).Select(r => "'" + r + "'"))} "
+                                 + "and nothing else");
+                }
+                else if (!ctx.FieldExists(source.Entity, f))
+                    errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — '{f}' is not a "
+                             + $"field of '{source.Entity}', the entity being iterated");
             }
             else if (!EffectOnlyTokens.Contains(token) && ExprTokens.Describe(token) is { } why)
                 errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' is {why}, and 'record.<field>', "
@@ -1580,6 +1611,30 @@ public static class Gate
     // from created_at) even though they aren't authored fields.
     private static readonly HashSet<string> SystemDateFields = new() { "created_at", "updated_at" };
 
+    /// <summary>What somebody reaches for when they want the current time inside an expression.
+    /// Named so the refusal can explain itself: these are absent by design, not missing. They are
+    /// legal as <c>{{today}}</c> / <c>{{now}}</c> TOKENS, which resolve where the question is asked
+    /// rather than where a row was last saved.</summary>
+    private static readonly HashSet<string> ClockWords =
+        new(StringComparer.Ordinal) { "today", "now", "current_date", "current_time", "utcnow" };
+
+    /// <summary>What a generated date row carries, and therefore the whole of what
+    /// <c>{{source.*}}</c> can name when a <c>createForEach</c> iterates a range rather than an
+    /// entity. <c>end</c> is the last day before the next step begins, which is what makes a month
+    /// row cover a month instead of a day.</summary>
+    private static readonly HashSet<string> RangeRowFields =
+        new(StringComparer.Ordinal) { "index", "date", "end" };
+
+    /// <summary>
+    /// What <c>{{source.*}}</c> refers to where a template is being checked.
+    ///
+    /// <para>Null everywhere except inside a <c>createForEach</c>, which is the only effect that
+    /// iterates anything — so <c>{{source.whatever}}</c> in a notify or an updateRecord is an author
+    /// reaching for a row that is not there, and is now said rather than silently resolved to
+    /// nothing at run time.</para>
+    /// </summary>
+    private sealed record SourceScope(string? Entity, bool IsRange);
+
     /// <summary>Computed fields: numeric type, exactly one of expr/rollup, no clash with authored
     /// value sources (default/initial/options/required/role:status). An `expr` must parse and may
     /// read this entity's plain numeric fields and rollup fields — never another expr field, so
@@ -1706,11 +1761,34 @@ public static class Gate
                         // Duration-function argument: an authored date/datetime field, or a system timestamp.
                         if (SystemDateFields.Contains(dateArg)) return null;
                         if (dateArg == fk) return $"'{dateArg}' is the computed field itself";
+
+                        // The clock is absent ON PURPOSE, so say that rather than "not a field" —
+                        // which is true, and reads as though the author merely misspelled something
+                        // they could go and add. A computed field is worked out when its row is
+                        // written and stored beside it, so a figure derived from the current time
+                        // would be right on the day it saved and silently wrong every day after.
+                        if (ClockWords.Contains(dateArg))
+                            return $"'{dateArg}' is not available in a computed field: the figure is "
+                                + "worked out when the row is written and stored, so it would stop "
+                                + "being true the next day. Compare two stored dates, or ask the "
+                                + "question in a filter or a report, which run when somebody looks";
+
                         if (!ctx.FieldExists(ent, dateArg)) return $"'{dateArg}' is not a field of '{ent}'";
                         var ty = ctx.FieldType(ent, dateArg);
                         if (ty is not ("date" or "datetime"))
                             return $"'{dateArg}' must be a date/datetime field (is '{ty}')";
                         return null;
+                    }, datePartArgError: (part, dateArg) =>
+                    {
+                        // An hour needs a time of day, and a `date` column has none — every row would
+                        // answer 0. Refused rather than allowed to be a column of zeros, on the same
+                        // reasoning that rejects an hour offset on '{{today}}'.
+                        if (part != ComputedExpr.HourFunc) return null;
+                        if (SystemDateFields.Contains(dateArg)) return null;
+                        return ctx.FieldType(ent, dateArg) == "date"
+                            ? $"'{dateArg}' is a date and has no time of day, so '{part}' would be 0 on "
+                                + "every row — read an hour from a datetime field"
+                            : null;
                     });
                     if (validation.Error != null)
                         errors.Add($"SEMANTIC: {cw} expr — {validation.Error}");

@@ -233,7 +233,7 @@ public static class CordVocabulary
     /// enum, but they take a value SHAPE — a pair, a range — that Cord's single
     /// <see cref="CordWhen.Value"/> does not describe, so offering them without modelling the shape
     /// would hand back a word that lowers into a gate rejection. They belong to the relative-date
-    /// work in <c>planasanapipe.md</c> Wave 1b.</para>
+    /// work in <c>plan-expression-plane.md</c> Wave 1b.</para>
     /// </summary>
     public static readonly CordWordMap ConditionOperators = new("comparison", [
         ("eq", "eq"), ("neq", "neq"),

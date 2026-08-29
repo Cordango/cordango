@@ -1,7 +1,7 @@
 # App Definition — the contract
 
 The **App Definition** is the single, versioned, validated document that fully
-describes an application. Per [PLAN.md](../_docs/PLAN.md) §1.3 it is the one contract shared
+describes an application. Per [architecture-strategy.md](../_docs/10-platform/architecture-strategy.md) §1.3 it is the one contract shared
 by the AI, the runtime, the UI renderer, and the dev→prod promotion pipeline. The AI
 emits this document — **never freeform code** — and a document that does not validate is
 never deployed.
@@ -61,7 +61,7 @@ a human previews before go-live.
 ## What the document contains
 
 - **entities / fields** — become real, typed Postgres tables/columns (schema-on-write,
-  PLAN.md §1.1). Base fields (`Id`, `CompanyId`, `AppId`, `CreatedAt/By`, `UpdatedAt/By`,
+  architecture-strategy.md §1.1). Base fields (`Id`, `CompanyId`, `AppId`, `CreatedAt/By`, `UpdatedAt/By`,
   `DeletedAt`, `Status`) are provided by the runtime and MUST NOT be declared here.
 - **relations** — to-many / many-to-many. To-one relations are `reference` fields.
 - **views** — table / detail / kanban / calendar / timeline / dashboard.

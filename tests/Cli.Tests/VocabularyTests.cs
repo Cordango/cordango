@@ -136,4 +136,63 @@ public class VocabularyTests
 
         throw new InvalidOperationException("Could not find the corpus above " + AppContext.BaseDirectory);
     }
+
+    [Fact]
+    public void A_component_id_the_gate_names_can_be_looked_up()
+    {
+        using var sandbox = new Sandbox();
+
+        var (exit, payload) = sandbox.RunJson("vocabulary", "view.table");
+
+        Assert.Equal(ExitCodes.Ok, exit);
+        Assert.Equal("view.table", (string?)payload["id"]);
+        Assert.NotNull(payload["config"]);
+    }
+
+    [Fact]
+    public void A_component_id_resolves_spelled_as_words_too()
+    {
+        using var sandbox = new Sandbox();
+
+        var (exit, payload) = sandbox.RunJson("vocabulary", "view", "table");
+
+        Assert.Equal(ExitCodes.Ok, exit);
+        Assert.Equal("view.table", (string?)payload["id"]);
+    }
+
+    [Fact]
+    public void The_schema_still_answers_first_where_it_has_an_answer()
+    {
+        using var sandbox = new Sandbox();
+
+        var (exit, payload) = sandbox.RunJson("vocabulary", "block", "calendar");
+
+        Assert.Equal(ExitCodes.Ok, exit);
+        Assert.NotNull(payload["schema"]);
+        Assert.Null(payload["id"]);
+    }
+
+    [Fact]
+    public void Every_component_the_design_gate_can_name_is_reachable()
+    {
+        using var sandbox = new Sandbox();
+
+        foreach (var component in Cordango.Definition.ComponentCatalog.All)
+        {
+            var (exit, payload) = sandbox.RunJson("vocabulary", component.Id);
+            Assert.Equal(ExitCodes.Ok, exit);
+            Assert.True(payload["id"] is not null || payload["schema"] is not null,
+                $"the gate reports bad config as '(component {component.Id})' and that name resolves to nothing");
+        }
+    }
+
+    [Fact]
+    public void A_name_that_is_neither_still_fails_with_the_index_offered()
+    {
+        using var sandbox = new Sandbox();
+
+        var (exit, _) = sandbox.RunJson("vocabulary", "nonesuch");
+
+        Assert.NotEqual(ExitCodes.Ok, exit);
+    }
 }

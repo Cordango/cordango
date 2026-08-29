@@ -167,6 +167,18 @@ public static class ComputedEmitter
             ? $"Calc.{d.Name switch { "minutes_between" => "Minutes", "hours_between" => "Hours", _ => "Days" }}({from}, {to})"
             : null,
 
+        // The week start is written INTO the call rather than read from configuration at run time.
+        // A computed field is worked out on write, so the figure on disk was produced under whatever
+        // convention was in force then; making the runtime look it up would silently restate every
+        // stored week number the moment somebody edited the setting, including on rows nobody has
+        // touched since. Baked in, the change lands where every other definition change lands — at
+        // the next build — and the emitted source says which convention it used.
+        ComputedExpr.DatePartNode p => Read(scope, p.Field) is { } value
+            ? ComputedExpr.WeekDependentFuncs.Contains(p.Name)
+                ? $"Calc.{DatePart(p.Name)}({value}, {(scope.App.WeekStartsMonday ? "true" : "false")})"
+                : $"Calc.{DatePart(p.Name)}({value})"
+            : null,
+
         // The row before this one. Only expressible inside the pass that walks the partition in
         // order — outside it there is no "before", and rendering something that compiled would be
         // an answer to a question nobody asked.
@@ -287,6 +299,20 @@ public static class ComputedEmitter
     /// that is not there. Reported by the caller rather than emitted as something that compiles and
     /// is wrong.</para>
     /// </summary>
+    /// <summary>The <see cref="Calc"/> method behind each date part. A switch rather than a naming
+    /// convention, so the language may rename a function without renaming a runtime method that
+    /// generated applications already reference.</summary>
+    private static string DatePart(string name) => name switch
+    {
+        "weekday" => "Weekday",
+        "week_of_year" => "WeekOfYear",
+        "month_of" => "MonthOf",
+        "day_of_month" => "DayOfMonth",
+        "day_of_year" => "DayOfYear",
+        "year_of" => "YearOf",
+        _ => "HourOf",
+    };
+
     private static string? Read(Scope scope, string key)
     {
         if (scope.Entity.Field(key) is { } own) return "r." + own.PropertyName;

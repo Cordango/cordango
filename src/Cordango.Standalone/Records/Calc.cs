@@ -130,4 +130,115 @@ public static class Calc
     public static decimal? Hours(DateOnly? from, DateOnly? to) => Days(from, to) * 24m;
 
     public static decimal? Minutes(DateOnly? from, DateOnly? to) => Days(from, to) * 1440m;
+
+    /// <summary>
+    /// The same three durations with a date at one end and a datetime at the other.
+    ///
+    /// <para><b>These exist because the gate lets the two ends disagree.</b> A duration argument is
+    /// checked one at a time — each has to be a <c>date</c> or a <c>datetime</c> field — and nothing
+    /// checks that the pair agree. So <c>minutes_between(shift_date, clocked_in_at)</c> passes
+    /// <c>cordango check</c>, and without these overloads it emitted a call that bound to neither
+    /// same-typed pair: CS1503, at <c>dotnet build</c>, in generated code the author never saw. An
+    /// expression the language accepts has to produce an application that compiles.</para>
+    ///
+    /// <para>MIDNIGHT UTC is the promotion, the convention already named above. A bare date has no
+    /// time and no zone, and there is no third thing in scope to borrow one from: the record's zone
+    /// is not a column, and using the server's would make the same two records produce different
+    /// answers on different hosts. So the day starts at 00:00Z and the duration is real elapsed time
+    /// from there — <c>hours_between(shift_date, clocked_in_at)</c> on an 09:15Z clock-in is 9.25,
+    /// which is the question somebody asking it meant.</para>
+    ///
+    /// <para>Not routed through the DateOnly pair: that one answers in whole days by DayNumber, and
+    /// promoting a datetime down to a date to reach it would silently discard the time of day —
+    /// turning a 9.25-hour answer into 0 and calling it agreement.</para>
+    /// </summary>
+    public static decimal? Days(DateOnly? from, DateTimeOffset? to) => Days(AtMidnightUtc(from), to);
+
+    public static decimal? Days(DateTimeOffset? from, DateOnly? to) => Days(from, AtMidnightUtc(to));
+
+    public static decimal? Hours(DateOnly? from, DateTimeOffset? to) => Hours(AtMidnightUtc(from), to);
+
+    public static decimal? Hours(DateTimeOffset? from, DateOnly? to) => Hours(from, AtMidnightUtc(to));
+
+    public static decimal? Minutes(DateOnly? from, DateTimeOffset? to) => Minutes(AtMidnightUtc(from), to);
+
+    public static decimal? Minutes(DateTimeOffset? from, DateOnly? to) => Minutes(from, AtMidnightUtc(to));
+
+    /// <summary>A bare date as the instant its day begins in UTC. Null stays null, so a missing end
+    /// still makes the whole duration unknown rather than dating it to year one.</summary>
+    private static DateTimeOffset? AtMidnightUtc(DateOnly? date) =>
+        date is { } d ? new DateTimeOffset(d.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null;
+
+    /// <summary>
+    /// The parts of one date.
+    ///
+    /// <para><b>A blank date has no parts.</b> Every one of these answers null rather than zero on a
+    /// row where the date was never entered — the same rule the durations follow, and for the same
+    /// reason: month 0 is not a month, and a list grouped by it would grow a bucket of records that
+    /// simply have no date yet, sitting before January as though they were early.</para>
+    ///
+    /// <para><c>weekStart</c> is the app's own, passed in rather than assumed, because Monday and
+    /// Sunday are both ordinary answers and neither is a safe default to bake into the runtime. The
+    /// generator writes the app's setting into the call.</para>
+    /// </summary>
+    public static decimal? Weekday(DateOnly? date, bool weekStartsMonday) =>
+        date is { } d ? (decimal)DayIndex(d, weekStartsMonday) + 1 : null;
+
+    public static decimal? Weekday(DateTimeOffset? at, bool weekStartsMonday) =>
+        Weekday(AsDate(at), weekStartsMonday);
+
+    /// <summary>
+    /// Which week of the year the date falls in, counting from the week containing 1 January.
+    ///
+    /// <para>Deliberately NOT ISO 8601 week numbering, which puts 1 January into week 52 or 53 of the
+    /// previous year when the week starts late. That rule is correct and it is also the reason ISO
+    /// weeks need a paired ISO year to mean anything — and a computed field here answers a single
+    /// number with nowhere to put the second one. Counting from 1 January keeps
+    /// <c>year_of</c> + <c>week_of_year</c> a pair that agrees with itself, which is what a list
+    /// grouped by week actually needs.</para>
+    /// </summary>
+    public static decimal? WeekOfYear(DateOnly? date, bool weekStartsMonday)
+    {
+        if (date is not { } d) return null;
+
+        var firstOfYear = new DateOnly(d.Year, 1, 1);
+        var offsetIntoFirstWeek = DayIndex(firstOfYear, weekStartsMonday);
+        return ((d.DayOfYear - 1 + offsetIntoFirstWeek) / 7) + 1;
+    }
+
+    public static decimal? WeekOfYear(DateTimeOffset? at, bool weekStartsMonday) =>
+        WeekOfYear(AsDate(at), weekStartsMonday);
+
+    public static decimal? MonthOf(DateOnly? date) => date is { } d ? d.Month : null;
+
+    public static decimal? MonthOf(DateTimeOffset? at) => MonthOf(AsDate(at));
+
+    public static decimal? DayOfMonth(DateOnly? date) => date is { } d ? d.Day : null;
+
+    public static decimal? DayOfMonth(DateTimeOffset? at) => DayOfMonth(AsDate(at));
+
+    public static decimal? DayOfYear(DateOnly? date) => date is { } d ? d.DayOfYear : null;
+
+    public static decimal? DayOfYear(DateTimeOffset? at) => DayOfYear(AsDate(at));
+
+    public static decimal? YearOf(DateOnly? date) => date is { } d ? d.Year : null;
+
+    public static decimal? YearOf(DateTimeOffset? at) => YearOf(AsDate(at));
+
+    /// <summary>The hour of a stored instant, 0-23. Only over a datetime: the gate refuses this over
+    /// a <c>date</c> column, which has no time of day and would answer 0 on every row.</summary>
+    public static decimal? HourOf(DateTimeOffset? at) => at is { } a ? a.UtcDateTime.Hour : null;
+
+    /// <summary>How many days into its week the date sits, 0-6, under the given convention. The one
+    /// place the week start is interpreted — everything week-shaped is built on this, so Monday and
+    /// Sunday cannot drift apart between <c>weekday</c> and <c>week_of_year</c>.</summary>
+    private static int DayIndex(DateOnly date, bool weekStartsMonday) =>
+        weekStartsMonday
+            ? ((int)date.DayOfWeek + 6) % 7
+            : (int)date.DayOfWeek;
+
+    /// <summary>The calendar day a stored instant falls on, read in UTC — the zone the instant is
+    /// stored in, so the answer does not move with the machine reading it.</summary>
+    private static DateOnly? AsDate(DateTimeOffset? at) =>
+        at is { } a ? DateOnly.FromDateTime(a.UtcDateTime) : null;
 }

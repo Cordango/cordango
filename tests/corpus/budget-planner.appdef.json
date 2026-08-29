@@ -7773,6 +7773,12 @@
                     "operator": "eq",
                     "value": "flex"
                   }
+                ],
+                "sort": [
+                  {
+                    "field": "created_at",
+                    "direction": "asc"
+                  }
                 ]
               }
             },
@@ -7789,6 +7795,12 @@
                     "field": "tier",
                     "operator": "eq",
                     "value": "starter"
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "created_at",
+                    "direction": "asc"
                   }
                 ]
               }
@@ -7807,6 +7819,12 @@
                     "operator": "eq",
                     "value": "pro"
                   }
+                ],
+                "sort": [
+                  {
+                    "field": "created_at",
+                    "direction": "asc"
+                  }
                 ]
               }
             },
@@ -7823,6 +7841,12 @@
                     "field": "tier",
                     "operator": "eq",
                     "value": "advanced"
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "created_at",
+                    "direction": "asc"
                   }
                 ]
               }

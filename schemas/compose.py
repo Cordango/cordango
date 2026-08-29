@@ -64,7 +64,7 @@ BLOCK_KINDS = [
 MANIFEST: dict[str, dict[str, list[str]]] = {
     "root.json": {
         "properties": ["schemaVersion", "key", "name", "version", "description",
-                       "archetype", "plugins"],
+                       "weekStart", "archetype", "plugins"],
         "defs": ["visibleWhen", "identifier", "fieldPath", "hexColor", "filter",
                  "pluginRef"],
     },

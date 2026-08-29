@@ -132,7 +132,24 @@ public static class VocabularyCommand
         // vocabulary entry" — the answer that sent one agent off to declare its own organization.
         if (CoreAppRegistry.Find(name) is { } core) return Core(core, output);
 
-        return name.Length == 0 ? Index(defs, output) : One(defs, name, output);
+        if (name.Length == 0) return Index(defs, output);
+
+        // The App Definition's own $defs answer first, so `vocabulary block calendar` keeps returning
+        // the schema a definition is validated against rather than being shadowed by a catalog entry
+        // of the same idea.
+        if (defs[name] is JsonObject) return One(defs, name, output);
+
+        // Only then, a COMPONENT ID. The design gate reports a bad config as "(component
+        // view.table)", and until now that string led nowhere: the catalog is authored in C# rather
+        // than in the schema's $defs, so the one name the error handed you was the one name this
+        // command could not resolve. An error naming something unlookupable is worse than an error
+        // naming nothing — it sends the reader looking for a def that was never there. Both spellings
+        // resolve: `view.table` as the error prints it, and `view table` as somebody types a question.
+        var componentId = string.Join('.', args.Positional);
+        if ((ComponentCatalog.Find(componentId) ?? ComponentCatalog.Find(name)) is { } component)
+            return Component(component, output);
+
+        return One(defs, name, output);
     }
 
     /// <summary>
@@ -185,6 +202,45 @@ public static class VocabularyCommand
                 w.WriteLine($"  type: reference   targetApp: {core.SystemKey}   target: <entity key>");
             });
     }
+
+    /// <summary>
+    /// One component of the UI catalog: what it is, when to reach for it, and the exact shape of its
+    /// <c>config</c>.
+    ///
+    /// <para>The config schema is printed WHOLE rather than summarised. It is the thing the design
+    /// gate rejects against, it is a few hundred bytes, and every abbreviation of it would be one
+    /// more place for the answer to disagree with the rule.</para>
+    /// </summary>
+    private static int Component(ComponentDef component, Output output) =>
+        output.Ok(
+            new JsonObject
+            {
+                ["id"] = component.Id,
+                ["tier"] = component.Tier.ToString().ToLowerInvariant(),
+                ["label"] = component.Label,
+                ["description"] = component.Description,
+                ["whenToUse"] = component.WhenToUse,
+                ["bindings"] = component.Bindings is { } b ? Words(b) : null,
+                ["slots"] = component.Slots is { } s ? Words(s) : null,
+                ["config"] = component.ConfigSchema.DeepClone(),
+            },
+            w =>
+            {
+                w.WriteLine($"{component.Id}  ({component.Label})");
+                w.WriteLine($"  {component.Description}");
+                w.WriteLine();
+                w.WriteLine($"  when to use: {component.WhenToUse}");
+                if (component.Bindings is { Length: > 0 } bindings)
+                    w.WriteLine($"  bound to:    {string.Join(", ", bindings)}");
+                if (component.Slots is { Length: > 0 } slots)
+                    w.WriteLine($"  may nest:    {string.Join(", ", slots)}");
+                w.WriteLine();
+                w.WriteLine("  config:");
+                foreach (var line in component.ConfigSchema.ToJsonString(Indented).Split('\n'))
+                    w.WriteLine("    " + line.TrimEnd('\r'));
+            });
+
+    private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
 
     /// <summary>
     /// What <c>cordango apply</c> accepts — the authority for an operation, as opposed to the App

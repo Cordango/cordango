@@ -66,6 +66,30 @@
       "record": { "start_date": "2026-03-01", "end_date": "2026-03-04" },
       "expr": "days_between(start_date, end_date)",
       "expect": 3
+    },
+    {
+      "why": "The two ends may DISAGREE about their type, because nothing stops them: a duration argument is checked one at a time, so a date at one end and a datetime at the other passes `cordango check`. It has to therefore produce an application that compiles, and for a while it did not — the emitted call matched neither same-typed overload and the generated project failed at `dotnet build` with CS1503, which the author never saw because check had already said yes.",
+      "record": { "start_date": "2026-03-01", "opened_at": "2026-03-01T09:15:00Z" },
+      "expr": "hours_between(start_date, opened_at)",
+      "expect": 9.25
+    },
+    {
+      "why": "The bare date is the instant its day begins in UTC, so the time of day on the other end survives. Rounding the datetime down to a date instead would answer 0 here and call it agreement.",
+      "record": { "start_date": "2026-03-01", "resolved_at": "2026-03-03T12:00:00Z" },
+      "expr": "days_between(start_date, resolved_at)",
+      "expect": 2.5
+    },
+    {
+      "why": "And the other way round, so neither end is the privileged one. Six hours into the first day leaves six hours less than the three whole days.",
+      "record": { "opened_at": "2026-03-01T06:00:00Z", "end_date": "2026-03-04" },
+      "expr": "hours_between(opened_at, end_date)",
+      "expect": 66
+    },
+    {
+      "why": "A mixed pair is still a duration, so a missing end still makes it unknown rather than dating the gap from midnight of year one.",
+      "record": { "start_date": "2026-03-01" },
+      "expr": "days_between(start_date, resolved_at)",
+      "expect": null
     }
   ]
 }

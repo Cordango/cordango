@@ -1,0 +1,117 @@
+{
+  "name": "A date's parts are numbers, and a blank date has none",
+  "why": "These read a date the row already stores and answer something it implies — the week a shift falls in, the month a claim was filed. There is deliberately no today() or now() beside them: a computed field is worked out when its row is written and stored, so an expression over the current time would be right on the day it saved and quietly wrong every day after. The dates below are real 2026 calendar dates and the expected values were taken from the calendar, not from the implementation.",
+  "fields": {
+    "shift_date": { "type": "date" },
+    "clocked_in_at": { "type": "datetime" }
+  },
+  "cases": [
+    {
+      "why": "2026-03-02 is a Monday, and the fixture app declares no weekStart so it gets the default: Monday is 1.",
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "weekday(shift_date)",
+      "expect": 1
+    },
+    {
+      "why": "The day before it is a Sunday, which under a Monday-start week is the LAST day rather than the first.",
+      "record": { "shift_date": "2026-03-01" },
+      "expr": "weekday(shift_date)",
+      "expect": 7
+    },
+    {
+      "why": "The two dates above are one day apart and in different weeks, which is the whole point of the week start being a setting.",
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 10
+    },
+    {
+      "record": { "shift_date": "2026-03-01" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 9
+    },
+    {
+      "why": "The Sunday six days later is back in the same week as the Monday, so a week is seven days and not a rolling window.",
+      "record": { "shift_date": "2026-03-08" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 10
+    },
+    {
+      "why": "1 January is in week 1 by construction. Counting from it rather than by ISO 8601 keeps year_of and week_of_year a pair that agrees with itself — ISO would put this date in week 1 of 2026 and some 1 Januaries in week 53 of the year before, which needs a second number this field has nowhere to put.",
+      "record": { "shift_date": "2026-01-01" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 1
+    },
+    {
+      "why": "2026-01-04 is the Sunday ending that same first week.",
+      "record": { "shift_date": "2026-01-04" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 1
+    },
+    {
+      "why": "And the Monday after it starts week 2.",
+      "record": { "shift_date": "2026-01-05" },
+      "expr": "week_of_year(shift_date)",
+      "expect": 2
+    },
+    {
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "month_of(shift_date)",
+      "expect": 3
+    },
+    {
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "day_of_month(shift_date)",
+      "expect": 2
+    },
+    {
+      "why": "2026 is not a leap year, so 2 March is day 61.",
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "day_of_year(shift_date)",
+      "expect": 61
+    },
+    {
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "year_of(shift_date)",
+      "expect": 2026
+    },
+    {
+      "why": "The same parts read a datetime, taking the calendar day it falls on in UTC — the zone it is stored in, so the answer does not move with the machine reading it.",
+      "record": { "clocked_in_at": "2026-03-02T09:15:00Z" },
+      "expr": "weekday(clocked_in_at)",
+      "expect": 1
+    },
+    {
+      "why": "An hour needs a time of day, so it reads a datetime. Over a plain date field the gate refuses it rather than answering 0 on every row.",
+      "record": { "clocked_in_at": "2026-03-02T09:15:00Z" },
+      "expr": "hour_of(clocked_in_at)",
+      "expect": 9
+    },
+    {
+      "why": "A blank date has no parts. Not zero — month 0 is not a month, and a list grouped by it would collect every record that simply has no date yet and file them before January.",
+      "record": {},
+      "expr": "month_of(shift_date)",
+      "expect": null
+    },
+    {
+      "record": {},
+      "expr": "weekday(shift_date)",
+      "expect": null
+    },
+    {
+      "record": {},
+      "expr": "hour_of(clocked_in_at)",
+      "expect": null
+    },
+    {
+      "why": "A part is an ordinary number, so it composes with the rest of the arithmetic — and an unknown one spreads the way every other unknown does.",
+      "record": { "shift_date": "2026-03-03" },
+      "expr": "weekday(shift_date) * 10",
+      "expect": 20
+    },
+    {
+      "record": {},
+      "expr": "weekday(shift_date) + 1",
+      "expect": null
+    }
+  ]
+}

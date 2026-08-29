@@ -1764,6 +1764,10 @@
           "description": "Show the per-row delete action on this table's rows. Default false — set true only where discarding rows is part of the surface's job (line items, drafts, queues).",
           "type": "boolean"
         },
+        "readOnly": {
+          "description": "This list is a RECORD OF something rather than something anybody types (research runs, the pages a run read): no Add, no row pencil, no delete, and a row click opens the read-only panel instead of the edit form. For rows the system writes and the next run overwrites. Not an access control. Default false.",
+          "type": "boolean"
+        },
         "hideWhenEmpty": {
           "description": "Render nothing at all — header, count chip and Add row included — while this child has no rows. For a relation most records simply do not have (the companies under a holding company): an empty table with a 0 next to it claims the surface is broken rather than that the relation is absent. Default false, because a list someone is expected to fill has to stay visible to be fillable.",
           "type": "boolean"
@@ -3389,6 +3393,10 @@
         },
         "openDetail": {
           "description": "Clicking a cell that HAS a record opens that record's detail in a panel overlay (its hub/process/tabs), with a link through to the full detail page — the way a calendar entry opens without leaving the grid. An empty cell still creates on edit; combine with `editable` (edit the one field inline) or use alone (read the value, click to open).",
+          "type": "boolean"
+        },
+        "tree": {
+          "description": "Nest the rows by the entity's SELF-REFERENCE (a company's parent company): one table, an expand caret per parent. Use where the hierarchy IS what the list is read for — a flat corporate group reads as alternatives rather than as one group. The parent field is derived, not named here, and drops as a column. Default false.",
           "type": "boolean"
         },
         "allowDelete": {

@@ -12,7 +12,7 @@ namespace Cordango.Definition;
 /// authored here in C# and <b>emitted as JSON</b> (see <see cref="Json"/>) for its three consumers:
 /// the generator (injected into the prompt), the gate (validates each component's config +
 /// preconditions), and the renderer (dispatches component id -> Vue component). This is to the
-/// UI layer what the App Definition schema is to the data layer. See <c>COMPONENTS.md</c>.
+/// UI layer what the App Definition schema is to the data layer. See <c>architecture-component-catalog.md</c>.
 ///
 /// Tiers (see <see cref="ComponentTier"/>): field renderers are governed by the App Definition's
 /// <c>field.type</c> enum (surfaced via <see cref="FieldTypes"/>, not duplicated as entries); the
@@ -623,7 +623,7 @@ public static class ComponentCatalog
           """,
           requires: Req(module: "workflow")),
 
-        // ---- Forms archetype (module: forms) — see ARCHETYPES.md ----
+        // ---- Forms archetype (module: forms) — see architecture-app-archetypes.md ----
         C("capability.form_designer", ComponentTier.Capability, "Form Designer",
           "Inline, reorderable editor for a form template's questions (add/edit/reorder/type/options).",
           "In a Forms-archetype app: to build/edit a survey's questions. Bound to the formTemplate entity; edits its formField children.",

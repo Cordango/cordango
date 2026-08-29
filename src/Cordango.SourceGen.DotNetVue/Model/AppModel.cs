@@ -33,6 +33,7 @@ public sealed class AppModel
         Version = Str(manifest["version"]) ?? "1.0.0";
         Description = Str(manifest["description"]);
         Namespace = Naming.Pascal(Key);
+        WeekStartsMonday = Str(manifest["weekStart"]) is not "sunday";
 
         Entities = [.. Arr(manifest["entities"]).OfType<JsonObject>().Select(e => new EntityModel(e, Namespace))];
         Views = [.. Arr(manifest["views"]).OfType<JsonObject>().Select(v => new ViewModel(v))];
@@ -56,6 +57,14 @@ public sealed class AppModel
     public string Key { get; }
     public string Name { get; }
     public string Version { get; }
+
+    /// <summary>Which day begins a week here, for <c>weekday()</c> and <c>week_of_year()</c>.
+    /// Monday unless the definition says <c>sunday</c> — absent means ISO, which is the answer most
+    /// of the world expects and the one a definition that never thought about it should get. It is
+    /// baked into the emitted arithmetic rather than read at run time: a computed field is worked out
+    /// on write, so the convention that produced a stored figure is the one in force when it was
+    /// written, and that has to be a fact about the build rather than about the day.</summary>
+    public bool WeekStartsMonday { get; }
     public string? Description { get; }
 
     /// <summary>The C# namespace and assembly name.</summary>
