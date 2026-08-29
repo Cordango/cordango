@@ -89,7 +89,7 @@ public static class Scaffold
     /// this generator has never emitted against, in an application somebody generated months ago,
     /// on a machine where the only thing that changed was the day.</para>
     /// </summary>
-    public static string WebControlsVersion => "0.1.3-alpha";
+    public static string WebControlsVersion => "0.1.5-alpha";
 
     /// <summary>What the application's project file says about the runtime, in each of the two
     /// shapes. Written here rather than as two template files, because the rest of the project file
