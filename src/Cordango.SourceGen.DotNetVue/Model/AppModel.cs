@@ -339,6 +339,13 @@ public sealed class ViewModel
 
     public IReadOnlyList<string> Columns =>
         [.. AppModel.Arr(Config?["columns"]).Select(c => AppModel.Str(c)).Where(c => c is not null).Select(c => c!)];
+
+    /// <summary>Whether this view offers a New button. TRUE unless the config says otherwise: a list
+    /// of records people work with is a list they add to, and every view written before the setting
+    /// existed meant yes. Only a table view has one to suppress — a board's create is already off by
+    /// default and the dated views open records rather than making them.</summary>
+    public bool NewButton => Config?["newButton"] is not JsonValue flag
+        || !flag.TryGetValue<bool>(out var wanted) || wanted;
 }
 
 /// <summary>A screen in the navigation.</summary>

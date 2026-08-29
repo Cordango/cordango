@@ -173,6 +173,12 @@ public static class ComputedEmitter
         // stored week number the moment somebody edited the setting, including on rows nobody has
         // touched since. Baked in, the change lands where every other definition change lands — at
         // the next build — and the emitted source says which convention it used.
+        ComputedExpr.DateBoundaryNode b2 => Read(scope, b2.Field) is { } boundary
+            ? ComputedExpr.WeekDependentFuncs.Contains(b2.Name)
+                ? $"Calc.{DatePart(b2.Name)}({boundary}, {(scope.App.WeekStartsMonday ? "true" : "false")})"
+                : $"Calc.{DatePart(b2.Name)}({boundary})"
+            : null,
+
         ComputedExpr.DatePartNode p => Read(scope, p.Field) is { } value
             ? ComputedExpr.WeekDependentFuncs.Contains(p.Name)
                 ? $"Calc.{DatePart(p.Name)}({value}, {(scope.App.WeekStartsMonday ? "true" : "false")})"
@@ -310,7 +316,11 @@ public static class ComputedEmitter
         "day_of_month" => "DayOfMonth",
         "day_of_year" => "DayOfYear",
         "year_of" => "YearOf",
-        _ => "HourOf",
+        "hour_of" => "HourOf",
+        "start_of_week" => "StartOfWeek",
+        "end_of_week" => "EndOfWeek",
+        "start_of_month" => "StartOfMonth",
+        _ => "EndOfMonth",
     };
 
     private static string? Read(Scope scope, string key)

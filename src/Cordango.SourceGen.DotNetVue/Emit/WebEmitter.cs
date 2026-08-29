@@ -686,6 +686,10 @@ public static class WebEmitter
                 context.Imports.Add("ViewBlock");
                 source.Line(
                     $"<ViewBlock view=\"{key}\" :state=\"{context.StateBinding}\""
+                    // Written only to turn it OFF. The component defaults to true, so emitting the
+                    // affirmative case would put `:create="true"` on every table ever generated and
+                    // make a no-op setting look like a decision somebody took.
+                    + (view?.NewButton == false ? " :create=\"false\"" : "")
                     + $"{Echoes(view?.Label, context)} />");
                 break;
 

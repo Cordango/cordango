@@ -563,7 +563,7 @@
           "additionalProperties": false,
           "properties": {
             "expr": {
-              "description": "Typed expression over this record: arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses. THE COMPLETE FUNCTION LIST, and there are no others: pow(base, exponent), min(a, b), max(a, b); prev(field) or prev(field, seed) inside an ordered series; the durations days_between(a, b), hours_between(a, b), minutes_between(a, b), whose two arguments are bare date/datetime field names and may be one of each; and the date parts weekday(d), week_of_year(d), month_of(d), day_of_month(d), day_of_year(d), year_of(d), hour_of(d), each taking one bare date/datetime field name and answering a number. weekday and week_of_year follow the app's `weekStart` (Monday by default, so Monday is 1 and Sunday is 7); hour_of needs a datetime, because a plain date has no time of day. THERE IS NO today() OR now(), deliberately: a computed field is worked out when its row is written and stored beside it, so a figure derived from the current time would be right on the day it saved and silently wrong every day after — ask that question in a filter or a report, which run when somebody looks. There is also no date CONSTRUCTION and no if/then, and a boolean is never a number, so min/max are the only way to clamp: a usage charge capped at a ceiling is min(raw_usage, cap), a balance floored at zero is max(0, balance). Field keys may reference other computed fields when the dependency graph is acyclic.",
+              "description": "Typed expression over this record: arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses. THE COMPLETE FUNCTION LIST, and there are no others: pow(base, exponent), min(a, b), max(a, b); prev(field) or prev(field, seed) inside an ordered series; the durations days_between(a, b), hours_between(a, b), minutes_between(a, b), whose two arguments are bare date/datetime field names and may be one of each; the date parts weekday(d), week_of_year(d), month_of(d), day_of_month(d), day_of_year(d), year_of(d), hour_of(d), each taking one bare date/datetime field name and answering a number; and the date boundaries start_of_week(d), end_of_week(d), start_of_month(d), end_of_month(d), which take the same argument and answer a DATE — put one in a field typed `date`, which is the only computed field that is neither a number nor a boolean. Both ends of a boundary are inclusive: end_of_week is the last day of the week, not the first day of the next. weekday and week_of_year follow the app's `weekStart` (Monday by default, so Monday is 1 and Sunday is 7); hour_of needs a datetime, because a plain date has no time of day. THERE IS NO today() OR now(), deliberately: a computed field is worked out when its row is written and stored beside it, so a figure derived from the current time would be right on the day it saved and silently wrong every day after — ask that question in a filter or a report, which run when somebody looks. There is also no date CONSTRUCTION and no if/then, and a boolean is never a number, so min/max are the only way to clamp: a usage charge capped at a ceiling is min(raw_usage, cap), a balance floored at zero is max(0, balance). Field keys may reference other computed fields when the dependency graph is acyclic.",
               "type": "string",
               "minLength": 1,
               "maxLength": 300
@@ -5007,7 +5007,7 @@
       ]
     },
     "effect": {
-      "description": "One typed side effect, shared by command.effects and workflow.effects. 'updateRecord' writes fields on the triggering record (target 'self') or a referenced record; 'createRecord' inserts into an entity; 'notify' sends an in-app notification; 'email' sends mail; 'webhook' POSTs to an allow-listed URL. String values may contain template tokens: {{record.<field>}}, {{actor.id}}, {{actor.name}}, {{app.name}}, {{today}}, {{now}}.\n\nDISCRIMINATED BY `type`: each type is its own closed shape, so a property belonging to another type (a `url` on a notify, an `entity` on an updateRecord) is an error rather than an ignored extra.",
+      "description": "One typed side effect, shared by command.effects and workflow.effects. 'updateRecord' writes fields on the triggering record (target 'self') or a referenced record; 'createRecord' inserts into an entity; 'notify' sends an in-app notification; 'email' sends mail; 'webhook' POSTs to an allow-listed URL. String values may contain template tokens: {{record.<field>}}, {{actor.id}}, {{actor.name}}, {{app.name}}, {{today}}, {{now}}, and {{created.<field>}} — the record a createRecord ABOVE this effect inserted, which is the only way to name an id that does not exist until the rule runs. Every effect also takes its own `when`, checked after the workflow's and against the record as it stands when that effect is reached.\n\nDISCRIMINATED BY `type`: each type is its own closed shape, so a property belonging to another type (a `url` on a notify, an `entity` on an updateRecord) is an error rather than an ignored extra.",
       "type": "object",
       "required": [
         "type"
@@ -5019,6 +5019,7 @@
             "updateRecord",
             "createRecord",
             "createForEach",
+            "deleteRecord",
             "notify",
             "email",
             "webhook",
@@ -5070,6 +5071,21 @@
           },
           "then": {
             "$ref": "#/$defs/effect_createForEach"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "deleteRecord"
+              }
+            },
+            "required": [
+              "type"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/effect_deleteRecord"
           }
         },
         {
@@ -5174,6 +5190,48 @@
         "setIfEmpty": {
           "description": "When true, only write the `set` fields that are currently BLANK on the target — a fill-once stamp. Use to record the FIRST time something happens (e.g. a ticket_message workflow that stamps the ticket's first_reply_at on the first reply, leaving it untouched on later replies).",
           "type": "boolean"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
+        }
+      }
+    },
+    "effect_deleteRecord": {
+      "description": "Remove a record: the triggering one, or whatever a reference on it points at. THE DELETE IS REAL AND NOTHING UNDOES IT — every other effect writes something a person can correct afterwards by editing the row; this one leaves nothing to edit. It runs through the ordinary store, so the entity's delete hooks fire and anything cascading from them happens too: deleting a parent deletes its children. Pair it with `when` — an unconditional delete of 'self' on a record.created or record.updated trigger removes every record of that entity as fast as anybody can make one, and is refused.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "const": "deleteRecord"
+        },
+        "target": {
+          "description": "Which record to remove. Defaults to 'self' (the record the command or workflow fired on); give { \"field\": \"<a local reference field>\" } to remove the referenced record instead.",
+          "oneOf": [
+            {
+              "type": "string",
+              "const": "self"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "field"
+              ],
+              "properties": {
+                "field": {
+                  "$ref": "#/$defs/identifier"
+                }
+              }
+            }
+          ],
+          "default": "self"
+        },
+        "when": {
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5196,6 +5254,10 @@
         "set": {
           "description": "Field key -> a literal, a template string, or a pick block { \"pick\": { \"entity\": \"...\", \"filters\": [...], \"sort\": [{ \"field\": \"...\", \"direction\": \"asc\" }], \"field\": \"id\" } } which writes the first matching record (blanks sort first ascending, so somebody who has never had a turn comes up first). A pick that matches nothing leaves the field alone.",
           "type": "object"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5281,6 +5343,10 @@
         "set": {
           "description": "Field key -> a literal, a template, or a pick block. {{record.*}} is the triggering record, {{source.*}} is the row being iterated (or index/date for a range). A pick block { \"pick\": { \"entity\": \"...\", \"sort\": [{ \"field\": \"...\", \"direction\": \"asc\" }] } } writes the first matching record of another entity.",
           "type": "object"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5313,6 +5379,10 @@
         "payload": {
           "description": "JSON body (template strings resolved).",
           "type": "object"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5341,6 +5411,10 @@
             "full",
             "refresh"
           ]
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5675,6 +5749,10 @@
         "link": {
           "description": "'auto' to deep-link the record, or a URL.",
           "type": "string"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -5702,6 +5780,10 @@
         "body": {
           "description": "Body.",
           "type": "string"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },

@@ -81,7 +81,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             ]),
 
         Effects: CapabilitySet.Of(
-            ["createRecord", "updateRecord", "createForEach", "notify", "email", "webhook"],
+            ["createRecord", "updateRecord", "createForEach", "deleteRecord", "notify", "email", "webhook"],
             withheld:
             [
                 ("enrich",

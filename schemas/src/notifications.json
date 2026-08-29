@@ -26,6 +26,10 @@
         "link": {
           "description": "'auto' to deep-link the record, or a URL.",
           "type": "string"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     },
@@ -53,6 +57,10 @@
         "body": {
           "description": "Body.",
           "type": "string"
+        },
+        "when": {
+          "description": "A condition on THIS effect, checked after the workflow's own and against the record as it stands when this effect is reached — so it sees what an earlier effect in the same list just wrote. Without it, everything a workflow does is governed by one rule, and the only way to make two of its effects answer to different rules is to split it into two workflows with near-identical triggers.",
+          "$ref": "#/$defs/condition"
         }
       }
     }

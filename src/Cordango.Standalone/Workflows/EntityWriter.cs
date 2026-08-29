@@ -42,6 +42,11 @@ public interface IEntityWriter
     /// <summary>Write only the named fields onto an existing record.</summary>
     Task<JsonObject?> UpdateAsync(string id, JsonObject values, IReadOnlyCollection<string> fields, CancellationToken ct);
 
+    /// <summary>Remove a record. Through the ordinary store, so the entity's delete hooks fire and a
+    /// record that is not there is a no-op rather than a throw — an effect that has already run once
+    /// must not fail the second time.</summary>
+    Task DeleteAsync(string id, CancellationToken ct);
+
     /// <summary>
     /// The records matching a flat list of field comparisons, ANDed.
     ///
@@ -84,6 +89,16 @@ public sealed class EntityWriter<T> : IEntityWriter where T : class, IRecord, ne
         // runs on the same data.
         var rows = await query.OrderBy(r => r.Id).ToListAsync(ct);
         return [.. rows.Select(Snapshot)];
+    }
+
+    public async Task DeleteAsync(string id, CancellationToken ct)
+    {
+        // Absent is not an error. A workflow whose guard let it through twice, or a record somebody
+        // deleted by hand between the trigger and here, must not turn into a logged failure about a
+        // record nobody was going to keep.
+        if (await _store.FindAsync(id, ct) is null) return;
+
+        await _store.DeleteAsync(id, ct);
     }
 
     public async Task<JsonObject?> UpdateAsync(

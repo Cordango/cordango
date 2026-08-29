@@ -580,7 +580,7 @@ public static class Gate
                 else ValidateCondition(wfWhen, ctx, where, behavior, errors);
             }
             if (ctx != null && seenEntities.Contains(ctx))
-                ValidateEffects(wf["effects"], ctx, where, behavior, errors);
+                ValidateEffects(wf["effects"], ctx, where, behavior, errors, Str(trigger, "event"));
         }
 
         // roles — grants resolve; command grants must name commands on the grant's entity (G1/G2)
@@ -1233,13 +1233,29 @@ public static class Gate
 
     /// <summary>The shared typed-effect validator (commands + workflows). <paramref name="ctxEntity"/> is
     /// the record the effect runs against (the command's entity / the workflow trigger's entity).</summary>
-    private static void ValidateEffects(JsonNode? effects, string? ctxEntity, string where, BehaviorCtx ctx, List<string> errors)
+    private static void ValidateEffects(JsonNode? effects, string? ctxEntity, string where,
+        BehaviorCtx ctx, List<string> errors, string? triggerEvent = null)
     {
         var i = 0;
+
+        // What a createRecord above this point inserted, so {{created.*}} resolves against the right
+        // entity and is refused where nothing has been created yet. Updated at the END of each
+        // iteration: an effect cannot name what it is itself creating.
+        CreatedScope? created = null;
+
         foreach (var en in Arr(effects))
         {
             var ew = $"{where} effect[{i++}]";
             if (en is not JsonObject eff) continue;
+
+            // The effect's own guard, resolved against the same record the effect writes.
+            if (eff["when"] is JsonObject effectWhen)
+            {
+                if (ctxEntity is null)
+                    errors.Add($"SEMANTIC: {ew} has a 'when' guard but there is no entity to resolve it against");
+                else ValidateCondition(effectWhen, ctxEntity, ew, ctx, errors);
+            }
+
             switch (Str(eff, "type"))
             {
                 case "updateRecord":
@@ -1252,7 +1268,30 @@ public static class Gate
                         else targetEntity = TargetEntityOf(ctx, ctxEntity, tf) ?? ctxEntity;
                     }
                     // set keys resolve on the target record; {{record.x}} templates on the triggering record.
-                    ValidateSet(eff["set"], targetEntity, ctxEntity, ew, ctx, errors);
+                    ValidateSet(eff["set"], targetEntity, ctxEntity, ew, ctx, errors, created: created);
+                    break;
+                }
+                case "deleteRecord":
+                {
+                    var toSelf = true;
+                    if (eff["target"] is JsonObject dtgt && Str(dtgt, "field") is { } df)
+                    {
+                        toSelf = false;
+                        if (!ctx.FieldExists(ctxEntity, df) || ctx.FieldType(ctxEntity, df) != "reference")
+                            errors.Add($"SEMANTIC: {ew} target.field '{df}' must be a reference field on '{ctxEntity}'");
+                    }
+
+                    // AN UNCONDITIONAL SELF-DELETE ON A WRITE TRIGGER EMPTIES THE TABLE. Every record
+                    // created fires the workflow, the workflow deletes it, and the application reports
+                    // every save as successful while nothing is ever there. A command may do this —
+                    // somebody pressed a button that says Delete — but a rule that runs on its own
+                    // has to say which records it means.
+                    if (toSelf && eff["when"] is not JsonObject
+                        && triggerEvent is "record.created" or "record.updated")
+                        errors.Add($"SEMANTIC: {ew} deletes 'self' on every {triggerEvent} with no "
+                                 + "'when' guard, which removes every record of this entity as fast as "
+                                 + "anybody can make one. Give it a condition, or delete from a command "
+                                 + "somebody presses");
                     break;
                 }
                 case "createRecord":
@@ -1260,7 +1299,7 @@ public static class Gate
                     var te = Str(eff, "entity");
                     if (te == null || !ctx.Entities.Contains(te))
                     { errors.Add($"SEMANTIC: {ew} createRecord targets unknown entity '{te}'"); break; }
-                    ValidateSet(eff["set"], te, ctxEntity, ew, ctx, errors);
+                    ValidateSet(eff["set"], te, ctxEntity, ew, ctx, errors, created: created);
                     if (ctx.FieldDefs.TryGetValue(te, out var tfs))
                     {
                         var setKeys = (eff["set"] as JsonObject)?.Select(kv => kv.Key).ToHashSet() ?? new();
@@ -1298,7 +1337,7 @@ public static class Gate
                     // and the rows appear, so the failure looks like missing data rather than a
                     // broken definition.
                     ValidateSet(eff["set"], te, ctxEntity, ew, ctx, errors,
-                        new SourceScope(srcEntity, hasRange));
+                        new SourceScope(srcEntity, hasRange), created);
 
                     // Every key must be a field of the entity being CREATED and must be set — a key
                     // naming something the effect never writes cannot identify anything, so the effect
@@ -1321,14 +1360,14 @@ public static class Gate
                     break;
                 }
                 case "notify":
-                    if (Str(eff, "to") is { } nto) ValidateRecipient(nto, ctxEntity, ew, ctx, errors);
+                    if (Str(eff, "to") is { } nto) ValidateRecipient(nto, ctxEntity, ew, ctx, errors, created);
                     foreach (var s in new[] { Str(eff, "title"), Str(eff, "message") })
-                        if (s != null) ValidateTemplate(s, ctxEntity, ew, ctx, errors);
+                        if (s != null) ValidateTemplate(s, ctxEntity, ew, ctx, errors, created: created);
                     break;
                 case "email":
-                    if (Str(eff, "to") is { } eto) ValidateRecipient(eto, ctxEntity, ew, ctx, errors);
+                    if (Str(eff, "to") is { } eto) ValidateRecipient(eto, ctxEntity, ew, ctx, errors, created);
                     foreach (var s in new[] { Str(eff, "subject"), Str(eff, "body") })
-                        if (s != null) ValidateTemplate(s, ctxEntity, ew, ctx, errors);
+                        if (s != null) ValidateTemplate(s, ctxEntity, ew, ctx, errors, created: created);
                     break;
                 case "webhook":
                     if (Str(eff, "url") is not { } url || !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
@@ -1353,6 +1392,13 @@ public static class Gate
                     break;
                 }
             }
+
+            // AFTER the effect, so it cannot name what it is itself creating. The most recent create
+            // wins: two creates then one reference means the reference points at the second, which is
+            // what reading the list top to bottom says it should.
+            if (Str(eff, "type") == "createRecord" && Str(eff, "entity") is { } madeEntity
+                && ctx.Entities.Contains(madeEntity))
+                created = new CreatedScope(madeEntity);
         }
     }
 
@@ -1380,7 +1426,7 @@ public static class Gate
     /// written), a literal on a select must be a valid option, and <c>{{record.x}}</c> templates resolve
     /// against <paramref name="contextEntity"/> (the triggering record).</summary>
     private static void ValidateSet(JsonNode? set, string? keyEntity, string? contextEntity, string where,
-        BehaviorCtx ctx, List<string> errors, SourceScope? source = null)
+        BehaviorCtx ctx, List<string> errors, SourceScope? source = null, CreatedScope? created = null)
     {
         if (set is not JsonObject obj) return;   // structural layer requires it to be an object
         foreach (var (k, v) in obj)
@@ -1388,10 +1434,10 @@ public static class Gate
             if (BaseFields.Contains(k)) { errors.Add($"SEMANTIC: {where} set '{k}' is a runtime-provided base field"); continue; }
             if (!ctx.FieldExists(keyEntity, k)) { errors.Add($"SEMANTIC: {where} set '{k}' is not a field of '{keyEntity}'"); continue; }
             if (v is JsonObject nested && nested["pick"] is not null)
-            { ValidatePick(nested["pick"], k, contextEntity, where, ctx, errors, source); continue; }
+            { ValidatePick(nested["pick"], k, contextEntity, where, ctx, errors, source, created); continue; }
             if (v is JsonValue jv && jv.TryGetValue<string>(out var sval))
             {
-                if (sval.Contains("{{")) { ValidateTemplate(sval, contextEntity, where, ctx, errors, source); continue; }
+                if (sval.Contains("{{")) { ValidateTemplate(sval, contextEntity, where, ctx, errors, source, created); continue; }
                 // OptionValuesOf already resolves a governed field to its process states.
                 if (ctx.FieldType(keyEntity, k) == "select"
                     && !OptionValuesOf(ctx, keyEntity, k).Contains(sval))
@@ -1409,7 +1455,7 @@ public static class Gate
     /// has, and the only place to catch it is here.</para>
     /// </summary>
     private static void ValidatePick(JsonNode? pickNode, string field, string? ctxEntity, string where,
-        BehaviorCtx ctx, List<string> errors, SourceScope? source = null)
+        BehaviorCtx ctx, List<string> errors, SourceScope? source = null, CreatedScope? created = null)
     {
         if (pickNode is not JsonObject pick)
         { errors.Add($"SEMANTIC: {where} set '{field}' pick must be an object"); return; }
@@ -1423,7 +1469,7 @@ public static class Gate
             if (Str(f, "field") is { } ff && !ctx.FieldExists(entity, ff))
                 errors.Add($"SEMANTIC: {where} set '{field}' pick filter field '{ff}' is not a field of '{entity}'");
             if (Str(f, "value") is { } fv && fv.Contains("{{"))
-                ValidateTemplate(fv, ctxEntity, where, ctx, errors, source);
+                ValidateTemplate(fv, ctxEntity, where, ctx, errors, source, created);
         }
 
         // The ordering IS the rule — "the one who went longest without a turn" is a sort, not a
@@ -1440,14 +1486,15 @@ public static class Gate
             errors.Add($"SEMANTIC: {where} set '{field}' pick reads '{picked}', which is not a field of '{entity}'");
     }
 
-    private static void ValidateRecipient(string to, string? ctxEntity, string where, BehaviorCtx ctx, List<string> errors)
+    private static void ValidateRecipient(string to, string? ctxEntity, string where, BehaviorCtx ctx,
+        List<string> errors, CreatedScope? created = null)
     {
-        if (to.Contains("{{")) { ValidateTemplate(to, ctxEntity, where, ctx, errors); return; }
+        if (to.Contains("{{")) { ValidateTemplate(to, ctxEntity, where, ctx, errors, created: created); return; }
         if (!to.Contains('@')) errors.Add($"SEMANTIC: {where} recipient '{to}' must be a template (e.g. {{{{record.requester}}}}) or an email address");
     }
 
     private static void ValidateTemplate(string text, string? ctxEntity, string where, BehaviorCtx ctx,
-        List<string> errors, SourceScope? source = null)
+        List<string> errors, SourceScope? source = null, CreatedScope? created = null)
     {
         foreach (System.Text.RegularExpressions.Match mm in TemplateToken.Matches(text))
         {
@@ -1457,6 +1504,18 @@ public static class Gate
                 var f = token["record.".Length..];
                 if (!ctx.FieldExists(ctxEntity, f))
                     errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — '{f}' is not a field of '{ctxEntity}'");
+            }
+            else if (token.StartsWith("created.", StringComparison.Ordinal))
+            {
+                // The record an earlier effect in this same list inserted.
+                var f = token["created.".Length..];
+                if (created is null)
+                    errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — nothing has been "
+                             + "created yet at this point in the list; '{{created.*}}' names the record "
+                             + "a createRecord ABOVE this effect inserted");
+                else if (!ctx.FieldExists(created.Entity, f))
+                    errors.Add($"SEMANTIC: {where} template token '{{{{{token}}}}}' — '{f}' is not a "
+                             + $"field of '{created.Entity}', the entity just created");
             }
             else if (token.StartsWith("source.", StringComparison.Ordinal))
             {
@@ -1606,7 +1665,12 @@ public static class Gate
     }
 
     private static readonly HashSet<string> ComputedNumericTypes = new() { "integer", "decimal", "money" };
-    private static readonly HashSet<string> ComputedOutputTypes = new() { "integer", "decimal", "money", "boolean" };
+    /// <summary>What a computed field may be typed. <c>date</c> joined the list with the boundary
+    /// functions — <c>start_of_week</c> and its siblings answer a date, and there was nowhere to put
+    /// one. Deliberately NOT <c>datetime</c>: nothing in the language produces an instant, so allowing
+    /// it would advertise a column no expression can fill.</summary>
+    private static readonly HashSet<string> ComputedOutputTypes =
+        new() { "integer", "decimal", "money", "boolean", "date" };
     // Always-present system datetime columns the compiler stamps — usable as date-diff args (ticket age
     // from created_at) even though they aren't authored fields.
     private static readonly HashSet<string> SystemDateFields = new() { "created_at", "updated_at" };
@@ -1634,6 +1698,17 @@ public static class Gate
     /// nothing at run time.</para>
     /// </summary>
     private sealed record SourceScope(string? Entity, bool IsRange);
+
+    /// <summary>
+    /// What <c>{{created.*}}</c> refers to: the entity the most recent <c>createRecord</c> ABOVE
+    /// this effect inserts into, or null when nothing has been created yet.
+    ///
+    /// <para>Position matters, which is why this is threaded down the effect list rather than
+    /// gathered from it. An effect naming <c>{{created.id}}</c> when the create comes AFTER it
+    /// resolves to nothing at run time and writes a blank reference — a child pointing at no parent,
+    /// which reads as missing data rather than as the effects being in the wrong order.</para>
+    /// </summary>
+    private sealed record CreatedScope(string Entity);
 
     /// <summary>Computed fields: numeric type, exactly one of expr/rollup, no clash with authored
     /// value sources (default/initial/options/required/role:status). An `expr` must parse and may
@@ -1675,7 +1750,7 @@ public static class Gate
                 var cw = $"field '{ent}.{fk}' computed";
 
                 if (!ComputedOutputTypes.Contains(Str(fd, "type") ?? ""))
-                    errors.Add($"SEMANTIC: {cw} is only valid on integer/decimal/money/boolean fields, not '{Str(fd, "type")}'");
+                    errors.Add($"SEMANTIC: {cw} is only valid on integer/decimal/money/boolean/date fields, not '{Str(fd, "type")}'");
                 if (fd["default"] is not null || fd["initial"] is not null)
                     errors.Add($"SEMANTIC: {cw} cannot combine with 'default'/'initial' — the computation IS the value");
                 if (fd["options"] is not null)
@@ -1794,7 +1869,15 @@ public static class Gate
                         errors.Add($"SEMANTIC: {cw} expr — {validation.Error}");
                     else
                     {
-                        var expected = Str(fd, "type") == "boolean" ? ComputedValueKind.Boolean : ComputedValueKind.Number;
+                        // A computed field is a number, a boolean, or — since start_of_week and its
+                        // siblings — a DATE. The type of the column decides which, so an expression
+                        // answering the wrong one is caught here rather than at `dotnet build`.
+                        var expected = Str(fd, "type") switch
+                        {
+                            "boolean" => ComputedValueKind.Boolean,
+                            "date" => ComputedValueKind.Date,
+                            _ => ComputedValueKind.Number,
+                        };
                         if (validation.ResultKind != expected)
                             errors.Add($"SEMANTIC: {cw} expr returns a {ComputedKindName(validation.ResultKind)}, not a {ComputedKindName(expected)}");
                     }

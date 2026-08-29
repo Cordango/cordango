@@ -103,6 +103,7 @@ public static class ComponentCatalog
                 "field":{"type":"string"},"direction":{"enum":["asc","desc"]}}}},
             "density":{"enum":["compact","comfortable"]},
             "allowDelete":{"type":"boolean","description":"Show the per-row delete action (default false)."},
+            "newButton":{"type":"boolean","description":"Show the New button. DEFAULT TRUE — a list of records people work with is a list they add to. Set false where the rows arrive some other way and a New button would offer a record nobody should hand-make: an import log, a generated grid, a queue fed by a workflow."},
             "showFooter":{"type":"boolean","description":"Show the pagination footer even when the rows fit one page."},
             "filterBar":{"type":"object","additionalProperties":false,
               "description":"Always-visible search + facet dropdowns above the table — for lists long enough that finding a row matters. 'search' = fields the free-text box matches (references match their resolved names); 'facets' = select/reference fields rendered as filter dropdowns.",

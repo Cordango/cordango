@@ -128,6 +128,92 @@ public class DatePartTests
         Assert.Contains("Calc.MonthOf(r.ShiftDate)", written, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void The_week_starts_on_the_configured_day()
+    {
+        Assert.Equal(new DateOnly(2026, 2, 23), Calc.StartOfWeek(Sunday, weekStartsMonday: true));
+        Assert.Equal(new DateOnly(2026, 3, 2), Calc.StartOfWeek(Monday, weekStartsMonday: true));
+
+        Assert.Equal(new DateOnly(2026, 3, 1), Calc.StartOfWeek(Sunday, weekStartsMonday: false));
+        Assert.Equal(new DateOnly(2026, 3, 1), Calc.StartOfWeek(Monday, weekStartsMonday: false));
+    }
+
+    [Fact]
+    public void A_week_end_is_the_last_day_not_the_next_first()
+    {
+        Assert.Equal(new DateOnly(2026, 3, 8), Calc.EndOfWeek(Monday, weekStartsMonday: true));
+        Assert.Equal(new DateOnly(2026, 3, 7), Calc.EndOfWeek(Monday, weekStartsMonday: false));
+    }
+
+    [Fact]
+    public void A_week_is_always_seven_days_end_to_end()
+    {
+        foreach (var monday in new[] { true, false })
+            for (var day = new DateOnly(2026, 1, 1); day.Year == 2026; day = day.AddDays(1))
+            {
+                var start = Calc.StartOfWeek(day, monday)!.Value;
+                var end = Calc.EndOfWeek(day, monday)!.Value;
+
+                Assert.Equal(6, end.DayNumber - start.DayNumber);
+                Assert.InRange(day, start, end);
+            }
+    }
+
+    [Fact]
+    public void A_month_ends_on_its_own_last_day()
+    {
+        Assert.Equal(new DateOnly(2026, 2, 28), Calc.EndOfMonth(new DateOnly(2026, 2, 14)));
+        Assert.Equal(new DateOnly(2024, 2, 29), Calc.EndOfMonth(new DateOnly(2024, 2, 14)));
+        Assert.Equal(new DateOnly(2026, 4, 30), Calc.EndOfMonth(new DateOnly(2026, 4, 1)));
+        Assert.Equal(new DateOnly(2026, 12, 31), Calc.EndOfMonth(new DateOnly(2026, 12, 25)));
+    }
+
+    [Fact]
+    public void A_month_starts_on_the_first()
+    {
+        Assert.Equal(new DateOnly(2026, 3, 1), Calc.StartOfMonth(Monday));
+        Assert.Equal(new DateOnly(2026, 3, 1), Calc.StartOfMonth(Saturday));
+    }
+
+    [Fact]
+    public void A_blank_date_has_no_boundaries()
+    {
+        Assert.Null(Calc.StartOfWeek((DateOnly?)null, weekStartsMonday: true));
+        Assert.Null(Calc.EndOfWeek((DateOnly?)null, weekStartsMonday: true));
+        Assert.Null(Calc.StartOfMonth((DateOnly?)null));
+        Assert.Null(Calc.EndOfMonth((DateOnly?)null));
+    }
+
+    [Fact]
+    public void A_boundary_is_emitted_with_the_apps_convention()
+    {
+        var (app, entity) = Application("sunday");
+
+        var written = ComputedEmitter.Expression(app, entity, DateComputed("start_of_week(shift_date)"));
+
+        Assert.NotNull(written);
+        Assert.Contains("Calc.StartOfWeek(r.ShiftDate, false)", written, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_month_boundary_needs_no_convention()
+    {
+        var (app, entity) = Application("sunday");
+
+        var written = ComputedEmitter.Expression(app, entity, DateComputed("start_of_month(shift_date)"));
+
+        Assert.NotNull(written);
+        Assert.Contains("Calc.StartOfMonth(r.ShiftDate)", written, StringComparison.Ordinal);
+    }
+
+    private static FieldModel DateComputed(string expr) => new(new JsonObject
+    {
+        ["key"] = "the_part",
+        ["label"] = "Part",
+        ["type"] = "date",
+        ["computed"] = new JsonObject { ["expr"] = expr },
+    }, "shift");
+
     private static FieldModel Computed(string expr) => new(new JsonObject
     {
         ["key"] = "the_part",

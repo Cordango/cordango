@@ -111,6 +111,15 @@ public class GeneratedComputedTests
                         $"expected {flag.GetValue<bool>()}, got {Show(actual)}.\n{where}");
                     break;
 
+                case JsonValue text when text.GetValueKind() is JsonValueKind.String:
+                    Assert.True(actual is DateOnly,
+                        $"expected a date, the generated method returned {Show(actual)} "
+                        + $"({method.ReturnType}).\n{where}");
+                    Assert.True(
+                        DateOnly.ParseExact(text.GetValue<string>(), "yyyy-MM-dd").Equals(actual),
+                        $"expected {text.GetValue<string>()}, got {Show(actual)}.\n{where}");
+                    break;
+
                 case JsonValue number:
                     Assert.True(actual is decimal,
                         $"expected a number, the generated method returned {Show(actual)} "
@@ -120,7 +129,7 @@ public class GeneratedComputedTests
                     break;
 
                 default:
-                    Assert.Fail($"`expect` must be a number, true, false, or null.\n{where}");
+                    Assert.Fail($"`expect` must be a number, an ISO date string, true, false, or null.\n{where}");
                     break;
             }
         }
@@ -210,7 +219,8 @@ public class GeneratedComputedTests
                 }
                 : ComputedValueKind.Number).ResultKind;
 
-            Assert.True(kind is ComputedValueKind.Number or ComputedValueKind.Boolean,
+            Assert.True(
+                kind is ComputedValueKind.Number or ComputedValueKind.Boolean or ComputedValueKind.Date,
                 $"'{expr}' infers as {kind?.ToString() ?? "nothing"}, which this harness has no column "
                 + "type for. Add one, or drop the case.");
 
@@ -218,7 +228,12 @@ public class GeneratedComputedTests
             {
                 ["key"] = key,
                 ["label"] = Label(key),
-                ["type"] = kind == ComputedValueKind.Boolean ? "boolean" : "decimal",
+                ["type"] = kind switch
+                {
+                    ComputedValueKind.Boolean => "boolean",
+                    ComputedValueKind.Date => "date",
+                    _ => "decimal",
+                },
                 ["computed"] = new JsonObject { ["expr"] = expr },
             });
         }

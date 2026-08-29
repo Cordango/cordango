@@ -232,6 +232,127 @@ public class GateTests
         Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("there is no source row here"));
     }
 
+    private static JsonObject WithEffects(string effects, string @event = "record.updated")
+    {
+        var doc = (JsonObject)JsonNode.Parse("""
+        {
+          "schemaVersion": "1.0", "key": "app", "name": "App", "version": "1.0.0",
+          "entities": [
+            { "key": "thing", "label": "Thing", "displayField": "name",
+              "fields": [
+                { "key": "name", "label": "Name", "type": "text" },
+                { "key": "state", "label": "State", "type": "text" },
+                { "key": "parent", "label": "Parent", "type": "reference", "targetEntity": "thing" }
+              ] },
+            { "key": "other", "label": "Other", "displayField": "note",
+              "fields": [{ "key": "note", "label": "Note", "type": "text" }] }
+          ]
+        }
+        """)!;
+
+        doc["workflows"] = JsonNode.Parse($$"""
+        [{ "key": "wf", "name": "WF",
+           "trigger": { "event": "{{@event}}", "entity": "thing" },
+           "effects": {{effects}} }]
+        """);
+
+        return doc;
+    }
+
+    [Fact]
+    public void An_effect_may_carry_its_own_guard() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "notify", "to": "a@b.com", "title": "Hi",
+               "when": { "field": "state", "operator": "eq", "value": "done" } }]
+            """)));
+
+    [Fact]
+    public void An_effect_guard_resolves_against_the_trigger_entity() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "notify", "to": "a@b.com", "title": "Hi",
+                   "when": { "field": "ghost", "operator": "eq", "value": "done" } }]
+                """)),
+            e => e.Contains("condition field 'ghost'"));
+
+    [Fact]
+    public void A_delete_of_a_referenced_record_is_accepted() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "deleteRecord", "target": { "field": "parent" } }]
+            """)));
+
+    [Fact]
+    public void A_delete_through_something_that_is_not_a_reference_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "deleteRecord", "target": { "field": "name" } }]
+                """)),
+            e => e.Contains("must be a reference field"));
+
+    [Fact]
+    public void An_unconditional_self_delete_on_a_write_trigger_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "deleteRecord" }]
+                """, "record.created")),
+            e => e.Contains("as fast as anybody can make one"));
+
+    [Fact]
+    public void A_guarded_self_delete_is_allowed_because_it_says_which_records() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "deleteRecord",
+               "when": { "field": "state", "operator": "eq", "value": "duplicate" } }]
+            """, "record.created")));
+
+    [Fact]
+    public void An_unconditional_self_delete_on_a_schedule_is_allowed() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "deleteRecord" }]
+            """, "schedule")));
+
+    [Fact]
+    public void A_later_effect_can_name_the_record_an_earlier_one_created() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "createRecord", "entity": "thing", "set": { "name": "parent" } },
+             { "type": "createRecord", "entity": "thing",
+               "set": { "name": "child", "parent": "{{created.id}}" } }]
+            """)));
+
+    [Fact]
+    public void Naming_a_created_record_before_anything_is_created_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "createRecord", "entity": "thing",
+                   "set": { "name": "child", "parent": "{{created.id}}" } }]
+                """)),
+            e => e.Contains("nothing has been created yet"));
+
+    [Fact]
+    public void An_effect_cannot_name_what_it_is_itself_creating() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "createRecord", "entity": "thing",
+                   "set": { "name": "x", "parent": "{{created.id}}" } }]
+                """)),
+            e => e.Contains("nothing has been created yet"));
+
+    [Fact]
+    public void A_created_token_resolves_against_the_entity_that_was_created() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithEffects("""
+                [{ "type": "createRecord", "entity": "thing", "set": { "name": "parent" } },
+                 { "type": "notify", "to": "a@b.com", "title": "{{created.nonesuch}}" }]
+                """)),
+            e => e.Contains("the entity just created"));
+
+    [Fact]
+    public void The_most_recent_create_is_the_one_named() =>
+        Assert.Empty(Gate.SemanticErrors(WithEffects("""
+            [{ "type": "createRecord", "entity": "thing", "set": { "name": "a" } },
+             { "type": "createRecord", "entity": "other", "set": { "note": "b" } },
+             { "type": "notify", "to": "a@b.com", "title": "{{created.note}}" }]
+            """)));
+
     [Fact]
     public void Reference_to_platform_entity_resolves()
     {
@@ -1840,15 +1961,6 @@ public class GateTests
             e => e.Contains("takes exactly one date field"));
 
     [Fact]
-    public void A_date_part_that_returns_a_date_is_still_unknown() =>
-        Assert.Contains(
-            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
-                , { "key": "sw", "label": "Week start", "type": "integer",
-                    "computed": { "expr": "start_of_week(issued_on)" } }
-                """)),
-            e => e.Contains("is not a known function"));
-
-    [Fact]
     public void The_clock_is_not_a_function() =>
         Assert.Contains(
             Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
@@ -1865,6 +1977,53 @@ public class GateTests
                     "computed": { "expr": "days_between(issued_on, now)" } }
                 """)),
             e => e.Contains("stop being true the next day"));
+
+    [Fact]
+    public void A_date_boundary_may_fill_a_date_field() =>
+        Assert.Empty(Gate.Validate(WithComputed(invoiceExtra: InvoiceDates + """
+            , { "key": "wk", "label": "Week of", "type": "date",
+                "computed": { "expr": "start_of_week(issued_on)" } }
+            , { "key": "mo", "label": "Month of", "type": "date",
+                "computed": { "expr": "start_of_month(issued_on)" } }
+            , { "key": "we", "label": "Week end", "type": "date",
+                "computed": { "expr": "end_of_week(issued_on)" } }
+            , { "key": "me", "label": "Month end", "type": "date",
+                "computed": { "expr": "end_of_month(sent_at)" } }
+            """)));
+
+    [Fact]
+    public void A_date_boundary_in_a_number_field_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "wk", "label": "Week of", "type": "integer",
+                    "computed": { "expr": "start_of_week(issued_on)" } }
+                """)),
+            e => e.Contains("returns a date, not a number"));
+
+    [Fact]
+    public void A_number_in_a_date_field_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "wk", "label": "Week of", "type": "date",
+                    "computed": { "expr": "weekday(issued_on)" } }
+                """)),
+            e => e.Contains("returns a number, not a date"));
+
+    [Fact]
+    public void A_date_boundary_is_not_arithmetic() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: InvoiceDates + """
+                , { "key": "wk", "label": "Week of", "type": "date",
+                    "computed": { "expr": "start_of_week(issued_on) + 1" } }
+                """)),
+            e => e.Contains("requires numbers"));
+
+    [Fact]
+    public void Two_date_boundaries_may_be_compared() =>
+        Assert.Empty(Gate.Validate(WithComputed(invoiceExtra: InvoiceDates + """
+            , { "key": "same", "label": "Same week", "type": "boolean",
+                "computed": { "expr": "start_of_week(issued_on) == start_of_week(sent_at)" } }
+            """)));
 
     [Fact]
     public void Rollup_filter_fields_must_exist_on_the_aggregated_entity() =>

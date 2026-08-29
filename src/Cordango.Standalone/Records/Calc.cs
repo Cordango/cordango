@@ -229,9 +229,47 @@ public static class Calc
     /// a <c>date</c> column, which has no time of day and would answer 0 on every row.</summary>
     public static decimal? HourOf(DateTimeOffset? at) => at is { } a ? a.UtcDateTime.Hour : null;
 
+    /// <summary>
+    /// The date a containing period begins or ends on.
+    ///
+    /// <para>The only arithmetic here that answers a DATE. A number is the better key for grouping
+    /// and a date is the better label — "week 36" sorts, "1 September" reads — so the language has
+    /// both and neither has to pretend to be the other.</para>
+    ///
+    /// <para>Null in, null out, the same as every other part: a row with no date is in no week.</para>
+    /// </summary>
+    public static DateOnly? StartOfWeek(DateOnly? date, bool weekStartsMonday) =>
+        date is { } d ? d.AddDays(-DayIndex(d, weekStartsMonday)) : null;
+
+    public static DateOnly? StartOfWeek(DateTimeOffset? at, bool weekStartsMonday) =>
+        StartOfWeek(AsDate(at), weekStartsMonday);
+
+    /// <summary>The last day of the week, INCLUSIVE — the Sunday of a Monday-start week. Inclusive
+    /// because a person reading "1 to 7 September" means both ends, and an exclusive bound would put
+    /// the 8th on a report about the week before it.</summary>
+    public static DateOnly? EndOfWeek(DateOnly? date, bool weekStartsMonday) =>
+        StartOfWeek(date, weekStartsMonday) is { } start ? start.AddDays(6) : null;
+
+    public static DateOnly? EndOfWeek(DateTimeOffset? at, bool weekStartsMonday) =>
+        EndOfWeek(AsDate(at), weekStartsMonday);
+
+    public static DateOnly? StartOfMonth(DateOnly? date) =>
+        date is { } d ? new DateOnly(d.Year, d.Month, 1) : null;
+
+    public static DateOnly? StartOfMonth(DateTimeOffset? at) => StartOfMonth(AsDate(at));
+
+    /// <summary>The last day of the month, inclusive — the 28th, 29th, 30th or 31st, worked out
+    /// rather than assumed, so February is right in a leap year without anybody thinking about
+    /// it.</summary>
+    public static DateOnly? EndOfMonth(DateOnly? date) =>
+        date is { } d ? new DateOnly(d.Year, d.Month, DateTime.DaysInMonth(d.Year, d.Month)) : null;
+
+    public static DateOnly? EndOfMonth(DateTimeOffset? at) => EndOfMonth(AsDate(at));
+
     /// <summary>How many days into its week the date sits, 0-6, under the given convention. The one
     /// place the week start is interpreted — everything week-shaped is built on this, so Monday and
-    /// Sunday cannot drift apart between <c>weekday</c> and <c>week_of_year</c>.</summary>
+    /// Sunday cannot drift apart between <c>weekday</c>, <c>week_of_year</c> and
+    /// <c>start_of_week</c>.</summary>
     private static int DayIndex(DateOnly date, bool weekStartsMonday) =>
         weekStartsMonday
             ? ((int)date.DayOfWeek + 6) % 7

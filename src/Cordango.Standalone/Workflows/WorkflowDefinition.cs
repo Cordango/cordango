@@ -25,8 +25,29 @@ public static class WorkflowEvent
     public const string Schedule = "schedule";
 }
 
-/// <summary>Something a workflow does once its trigger fired and its condition held.</summary>
-public abstract record WorkflowEffect;
+/// <summary>
+/// Something a workflow does once its trigger fired and its condition held.
+/// </summary>
+public abstract record WorkflowEffect
+{
+    /// <summary>
+    /// A condition on THIS effect, evaluated after the workflow's own and before the effect runs.
+    /// Null means run it.
+    ///
+    /// <para><b>Why a second condition.</b> A workflow's <c>when</c> decides whether the workflow
+    /// fires at all, and everything in its list then runs together. But the things that should happen
+    /// when a record changes are rarely all governed by one rule — approving a request should stamp
+    /// the approval date always, and email the requester only when they asked to be told. Without
+    /// this the author's only move is to split one workflow into several, each with a nearly
+    /// identical trigger, which multiplies the triggers a reader has to hold in their head and makes
+    /// the ORDER the effects run in an accident of how the workflows happened to be listed.</para>
+    ///
+    /// <para>An init property on the base rather than a constructor parameter on each subtype, so
+    /// adding it costs no positional argument at any of the existing call sites and an effect that
+    /// does not use it reads exactly as it did.</para>
+    /// </summary>
+    public Condition? When { get; init; }
+}
 
 /// <summary>
 /// Write fields onto a record.
@@ -51,6 +72,26 @@ public sealed record UpdateRecordEffect(
 /// <summary>Insert a record of another entity — a scenario being created seeding the plan rows a
 /// person will then edit.</summary>
 public sealed record CreateRecordEffect(string Entity, IReadOnlyList<EffectSet> Set) : WorkflowEffect;
+
+/// <summary>
+/// Remove a record: the triggering one, or whatever a reference on it points at.
+///
+/// <para><b>The delete is real and nothing undoes it.</b> Every other effect writes something that
+/// can be corrected afterwards by editing the row; this one leaves nothing to edit. It runs through
+/// the ordinary store, so the entity's own delete hooks fire and anything cascading from them
+/// happens too — a workflow deleting a parent is a workflow deleting its children.</para>
+///
+/// <para>Which is why the gate refuses an UNCONDITIONAL self-delete on a write trigger: a
+/// <c>record.created</c> workflow that deletes <c>self</c> with no <see cref="WorkflowEffect.When"/>
+/// removes every record of that entity as fast as anybody can make one, and the symptom is a table
+/// that stays empty while the application reports every save as successful.</para>
+/// </summary>
+/// <param name="TargetField">Null for the triggering record; otherwise a reference field on it.</param>
+/// <param name="TargetEntity">What that reference points at, resolved at build time — a string id
+/// does not say which table it belongs to.</param>
+public sealed record DeleteRecordEffect(
+    string? TargetField = null,
+    string? TargetEntity = null) : WorkflowEffect;
 
 /// <summary>Tell somebody. The same in-app notification a command raises.</summary>
 public sealed record NotifyEffect(string To, string Title, string? Message = null, string? Link = null)

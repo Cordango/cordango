@@ -112,6 +112,47 @@
       "record": {},
       "expr": "weekday(shift_date) + 1",
       "expect": null
+    },
+    {
+      "why": "The boundary functions answer a DATE rather than a number, which is why a computed field may be typed `date` at all. 2026-03-02 is a Monday, so under the default convention it starts its own week.",
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "start_of_week(shift_date)",
+      "expect": "2026-03-02"
+    },
+    {
+      "why": "The Sunday before it belongs to the PREVIOUS week, which is the same boundary weekday and week_of_year already drew — one rule, so they cannot disagree.",
+      "record": { "shift_date": "2026-03-01" },
+      "expr": "start_of_week(shift_date)",
+      "expect": "2026-02-23"
+    },
+    {
+      "why": "The end is the LAST day of the week, not the first of the next: a person reading 2 to 8 March means both ends.",
+      "record": { "shift_date": "2026-03-02" },
+      "expr": "end_of_week(shift_date)",
+      "expect": "2026-03-08"
+    },
+    {
+      "record": { "shift_date": "2026-03-17" },
+      "expr": "start_of_month(shift_date)",
+      "expect": "2026-03-01"
+    },
+    {
+      "why": "The month's own last day, worked out rather than assumed. 2026 is not a leap year.",
+      "record": { "shift_date": "2026-02-14" },
+      "expr": "end_of_month(shift_date)",
+      "expect": "2026-02-28"
+    },
+    {
+      "why": "A boundary reads a datetime too, taking the calendar day it falls on in UTC.",
+      "record": { "clocked_in_at": "2026-03-03T09:15:00Z" },
+      "expr": "start_of_week(clocked_in_at)",
+      "expect": "2026-03-02"
+    },
+    {
+      "why": "And a blank date has no boundary either, for the same reason it has no parts.",
+      "record": {},
+      "expr": "start_of_week(shift_date)",
+      "expect": null
     }
   ]
 }

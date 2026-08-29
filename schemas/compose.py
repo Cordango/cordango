@@ -81,7 +81,7 @@ MANIFEST: dict[str, dict[str, list[str]]] = {
     },
     "behavior.json": {
         "properties": ["processes", "commands", "workflows"],
-        "defs": ["workflow", "condition", "effect", "effect_updateRecord",
+        "defs": ["workflow", "condition", "effect", "effect_updateRecord", "effect_deleteRecord",
                  "effect_createRecord", "effect_createForEach", "effect_webhook", "effect_enrich", "command", "process"],
     },
     "notifications.json": {

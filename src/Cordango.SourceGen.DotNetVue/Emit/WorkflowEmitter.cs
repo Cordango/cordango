@@ -150,6 +150,27 @@ public static class WorkflowEmitter
     /// <c>{{record.owner}}</c> means.</para>
     /// </summary>
     public static string? Effect(AppModel app, string entity, JsonObject effect) =>
+        Guarded(effect, Constructed(app, entity, effect));
+
+    /// <summary>
+    /// The effect's own <c>when</c>, attached to whatever was constructed.
+    ///
+    /// <para>One place rather than one per effect kind: <c>When</c> is an init property on the base,
+    /// so every kind takes it the same way and a kind added later gets it without anybody
+    /// remembering to. A guard the emitter dropped would run the effect unconditionally, which is
+    /// the failure that looks like the definition rather than like the build.</para>
+    /// </summary>
+    private static string? Guarded(JsonObject effect, string? constructed)
+    {
+        if (constructed is null) return null;
+        if (effect["when"] is not JsonObject) return constructed;
+
+        return ConditionEmitter.TryEmit(effect["when"], out var when) && when is not null and not "null"
+            ? $"{constructed} {{ When = {when} }}"
+            : null;
+    }
+
+    private static string? Constructed(AppModel app, string entity, JsonObject effect) =>
         AppModel.Str(effect["type"]) switch
         {
             "notify" => $"new NotifyEffect({Naming.Literal(AppModel.Str(effect["to"]) ?? "")}, "
@@ -163,6 +184,8 @@ public static class WorkflowEmitter
             "updateRecord" => Update(app, entity, effect),
 
             "createForEach" => ForEach(effect),
+
+            "deleteRecord" => Delete(app, entity, effect),
 
             _ => null,
         };
@@ -238,6 +261,25 @@ public static class WorkflowEmitter
 
         return $"new UpdateRecordEffect([{sets}], SetIfEmpty: {Lower(setIfEmpty)}, "
             + $"TargetField: {Naming.Literal(targetField)}, TargetEntity: {Naming.Literal(targetEntity)})";
+    }
+
+    /// <summary>A delete, resolving its target exactly as <see cref="Update"/> does — same question,
+    /// so deliberately not a second answer to it.</summary>
+    private static string? Delete(AppModel app, string entity, JsonObject effect)
+    {
+        var target = effect["target"];
+        var targetField = target is JsonObject reference ? AppModel.Str(reference["field"]) : null;
+
+        if (target is not null && target is not JsonObject && AppModel.Str(target) != "self") return null;
+
+        if (targetField is null) return "new DeleteRecordEffect()";
+
+        var field = app.Entities.FirstOrDefault(e => e.Key == entity)?.Field(targetField);
+        var targetEntity = AppModel.Str(field?.Json["targetEntity"]);
+        if (targetEntity is null) return null;
+
+        return $"new DeleteRecordEffect(TargetField: {Naming.Literal(targetField)}, "
+            + $"TargetEntity: {Naming.Literal(targetEntity)})";
     }
 
     private static string Sets(JsonNode? set) =>

@@ -55,13 +55,18 @@ public static class ValueTokens
     /// <param name="record">Reads a field of the record a rule is about, for <c>{{record.x}}</c>.</param>
     /// <param name="source">Reads a field of the row being iterated, for <c>{{source.x}}</c> — the
     /// month of a plan, the lifecycle step of a grid. Absent outside a <c>createForEach</c>.</param>
+    /// <param name="created">Reads a field of the record an EARLIER effect in the same list just
+    /// inserted, for <c>{{created.id}}</c>. Absent until something has been created, which is what
+    /// makes a rule that creates a parent and then points its children at it expressible at all: the
+    /// id does not exist when the definition is written and there is no other way to name it.</param>
     public static string? Fill(
         string? template,
         string? actorId,
         string? userId,
         DateTimeOffset now,
         Func<string, string?>? record = null,
-        Func<string, string?>? source = null)
+        Func<string, string?>? source = null,
+        Func<string, string?>? created = null)
     {
         if (template is null) return null;
 
@@ -74,6 +79,9 @@ public static class ValueTokens
 
             if (source is not null && token.StartsWith("source.", StringComparison.Ordinal))
                 return source(token["source.".Length..]) ?? "";
+
+            if (created is not null && token.StartsWith("created.", StringComparison.Ordinal))
+                return created(token["created.".Length..]) ?? "";
 
             return Token(token, actorId, userId, now) ?? match.Value;
         });

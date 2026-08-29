@@ -18,7 +18,7 @@ public class SchemaCompositionTests
     public void Embedded_schema_parses_under_JsonSchemaNet()
     {
         Assert.NotNull(Schemas.AppDefinitionSchema);
-        Assert.Equal(81, Defs.Count);
+        Assert.Equal(82, Defs.Count);
     }
 
     [Fact]
@@ -49,7 +49,7 @@ public class SchemaCompositionTests
         var variantTypes = Defs.Where(d => d.Key.StartsWith("effect_"))
             .Select(d => d.Key["effect_".Length..]).OrderBy(t => t).ToArray();
         Assert.Equal(
-            new[] { "createForEach", "createRecord", "email", "enrich", "notify", "updateRecord", "webhook" },
+            new[] { "createForEach", "createRecord", "deleteRecord", "email", "enrich", "notify", "updateRecord", "webhook" },
             variantTypes);
 
         var dispatched = Defs["effect"]!["allOf"]!.AsArray()

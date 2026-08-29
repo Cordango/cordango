@@ -65,11 +65,29 @@ public static class ComputedExpr
         new HashSet<string>(StringComparer.Ordinal)
         { "weekday", "week_of_year", "month_of", "day_of_month", "day_of_year", "year_of", "hour_of" };
 
-    /// <summary>The date parts whose answer moves with the app's <c>weekStart</c>. Named so the
-    /// emitter can pass the convention only where it changes the figure, rather than threading it
-    /// through parts that have one answer.</summary>
+    /// <summary>
+    /// The DATE a period containing this one begins or ends on: the Monday of a shift's week, the
+    /// first of a claim's month.
+    ///
+    /// <para>These answer a date rather than a number, which is the whole point — a list grouped by
+    /// <c>week_of_year</c> sorts correctly and reads as "week 36", while one grouped by
+    /// <c>start_of_week</c> reads as the date the week began and needs no legend. The number is the
+    /// better key and the date is the better label, so the language has both.</para>
+    ///
+    /// <para>A computed field holding one is typed <c>date</c>. That is the only place a computed
+    /// field is not a number or a boolean, and it is why the gate had to learn a third result
+    /// kind.</para>
+    /// </summary>
+    public static readonly IReadOnlySet<string> DateBoundaryFuncs =
+        new HashSet<string>(StringComparer.Ordinal)
+        { "start_of_week", "end_of_week", "start_of_month", "end_of_month" };
+
+    /// <summary>The date functions whose answer moves with the app's <c>weekStart</c>. Named so the
+    /// emitter can pass the convention only where it changes the answer, rather than threading it
+    /// through the ones that have a single answer everywhere.</summary>
     public static readonly IReadOnlySet<string> WeekDependentFuncs =
-        new HashSet<string>(StringComparer.Ordinal) { "weekday", "week_of_year" };
+        new HashSet<string>(StringComparer.Ordinal)
+        { "weekday", "week_of_year", "start_of_week", "end_of_week" };
 
     /// <summary>The one date part that needs a time of day to mean anything. A <c>date</c> column
     /// has none, so <c>hour_of</c> over one is always zero — an answer that looks computed and is
@@ -242,6 +260,10 @@ public static class ComputedExpr
     /// same way a duration's ends are.</summary>
     public sealed record DatePartNode(string Name, string Field) : Node(ComputedValueKind.Number);
 
+    /// <summary><c>start_of_week(d)</c> and its siblings — the DATE a containing period begins or
+    /// ends on, so this is the one function shape whose result is a date.</summary>
+    public sealed record DateBoundaryNode(string Name, string Field) : Node(ComputedValueKind.Date);
+
     /// <summary><c>prev(field)</c> or <c>prev(field, seed)</c> — the previous row of an ordered
     /// series, and what to use when there is not one.</summary>
     public sealed record PrevNode(string Field, Node? Seed) : Node(ComputedValueKind.Number);
@@ -397,7 +419,8 @@ public static class ComputedExpr
         private Node? Function(string name)
         {
             if (!MathFuncs.Contains(name) && !DurationFuncs.Contains(name)
-                && !DatePartFuncs.Contains(name) && name != PrevFunc)
+                && !DatePartFuncs.Contains(name) && !DateBoundaryFuncs.Contains(name)
+                && name != PrevFunc)
             {
                 Error = $"'{name}' is not a known function";
                 return null;
@@ -441,7 +464,7 @@ public static class ComputedExpr
                 return new FunctionNode(name, left, right);
             }
 
-            if (DatePartFuncs.Contains(name))
+            if (DatePartFuncs.Contains(name) || DateBoundaryFuncs.Contains(name))
             {
                 var field = Peek();
                 if (field is null || !IsIdentifier(field) || Keywords.Contains(field))
@@ -453,7 +476,9 @@ public static class ComputedExpr
                 { Error = conventionError; return null; }
                 if (Peek() == ",") { Error = $"'{name}' takes exactly one date field"; return null; }
                 if (!Take(")")) { Error ??= $"'{name}(' is missing its closing parenthesis"; return null; }
-                return new DatePartNode(name, field);
+                return DateBoundaryFuncs.Contains(name)
+                    ? new DateBoundaryNode(name, field)
+                    : new DatePartNode(name, field);
             }
 
             var args = new List<string>();

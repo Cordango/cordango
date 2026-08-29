@@ -350,13 +350,25 @@ public static class DesignDefaults
             "create" => Str(b, "entity"),
             "form" => SourceEntity(b) ?? Str(b, "entity"),
             "table" or "board" => b["newButton"]?.GetValue<bool>() == true ? SourceEntity(b) : null,
-            // A table/kanban VIEW block draws an unconditional New button (TableView/KanbanView).
+            // A table/kanban VIEW block draws a New button unless the view's config turns it off.
+            // It used to be unconditional, and that made the button unauthorable: an author who did
+            // not want it had nothing to write, and the finalizer below would count the view as the
+            // app's create path and leave it at that.
             "view" => ViewOf(b, viewsByKey) is { } v && Str(v, "type") is "table" or "kanban"
+                      && OffersNew(v)
                       ? Str(v, "entity") : null,
             "cell" => b["editable"]?.GetValue<bool>() == true ? Str(b, "entity") : null,
             "child" => Str(b, "entity"),
             _ => null,
         };
+
+    /// <summary>Whether a view offers a New button. True unless its config says otherwise, so every
+    /// view written before the setting existed keeps the button it has always drawn.</summary>
+    private static bool OffersNew(JsonObject view) =>
+        view["config"] is not JsonObject config
+        || config["newButton"] is not JsonValue flag
+        || !flag.TryGetValue<bool>(out var wanted)
+        || wanted;
 
     /// <summary>Whether the block puts records of <paramref name="entity"/> on the page at all.</summary>
     private static bool Renders(JsonObject b, string entity, Dictionary<string, JsonObject> viewsByKey) =>

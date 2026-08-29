@@ -124,8 +124,10 @@ public sealed class WorkflowRunner
         _depth.Value++;
         try
         {
+            JsonObject? created = null;
             foreach (var effect in workflow.Effects)
-                await ApplyAsync($"Workflow '{workflow.Key}'", effect, workflow.Entity, record, ct);
+                created = await ApplyAsync(
+                    $"Workflow '{workflow.Key}'", effect, workflow.Entity, record, created, ct) ?? created;
         }
         finally
         {
@@ -155,8 +157,15 @@ public sealed class WorkflowRunner
         try
         {
             foreach (var workflow in matched)
+            {
+                // Per workflow, not per batch: two workflows watching the same event are declared
+                // independently, and letting one see what the other created would make the order they
+                // happen to be listed in part of what they mean.
+                JsonObject? created = null;
                 foreach (var effect in workflow.Effects)
-                    await ApplyAsync($"Workflow '{workflow.Key}'", effect, entity, record, ct);
+                    created = await ApplyAsync(
+                        $"Workflow '{workflow.Key}'", effect, entity, record, created, ct) ?? created;
+            }
         }
         finally
         {
@@ -217,23 +226,39 @@ public sealed class WorkflowRunner
     {
         ArgumentNullException.ThrowIfNull(effects);
 
+        // What the most recent createRecord inserted, so a later effect can point at it with
+        // {{created.id}}. Carried through the loop rather than held on this runner: a workflow can
+        // trigger another one, and a field would let the inner run's creation overwrite the outer's.
+        JsonObject? created = null;
+
         foreach (var effect in effects)
-            await ApplyAsync(source, effect, entity, record, ct);
+            created = await ApplyAsync(source, effect, entity, record, created, ct) ?? created;
     }
 
-    private async Task ApplyAsync(
-        string source, WorkflowEffect effect, string entity, JsonObject record, CancellationToken ct)
+    /// <summary>Runs one effect and returns the record it inserted, or null when it inserted
+    /// nothing — which is what lets the next effect in the list name it.</summary>
+    private async Task<JsonObject?> ApplyAsync(
+        string source, WorkflowEffect effect, string entity, JsonObject record,
+        JsonObject? created, CancellationToken ct)
     {
+        // This effect's own condition, on the record as it is NOW. Checked here rather than where
+        // the list is built, so it sees the record after any earlier effect in the same list wrote
+        // to it — "email them only if the status ended up rejected" reads the status the effect
+        // above just set.
+        if (!ConditionEvaluator.Evaluate(effect.When, record, _user.PersonId, _clock.UtcNow)) return null;
+
         try
         {
             switch (effect)
             {
                 case NotifyEffect notify:
                     await _notifications.SendAsync(
-                        Fill(notify.To, record),
-                        Fill(notify.Title, record) ?? "",
-                        Fill(notify.Message, record),
-                        notify.Link == "auto" ? $"/record/{entity}/{Id(record)}" : Fill(notify.Link, record),
+                        Fill(notify.To, record, null, created),
+                        Fill(notify.Title, record, null, created) ?? "",
+                        Fill(notify.Message, record, null, created),
+                        notify.Link == "auto"
+                            ? $"/record/{entity}/{Id(record)}"
+                            : Fill(notify.Link, record, null, created),
                         ct);
                     break;
 
@@ -244,15 +269,21 @@ public sealed class WorkflowRunner
                         break;
                     }
 
-                    await inserter.CreateAsync(await ValuesAsync(create.Set, record, null, ct), ct);
-                    break;
+                    // Returned rather than discarded: this is the only moment the new record's id
+                    // exists, and {{created.id}} on a later effect is the only way to name it.
+                    return await inserter.CreateAsync(
+                        await ValuesAsync(create.Set, record, null, created, ct), ct);
 
                 case UpdateRecordEffect update:
-                    await UpdateAsync(source, update, entity, record, ct);
+                    await UpdateAsync(source, update, entity, record, created, ct);
                     break;
 
                 case CreateForEachEffect forEach:
-                    await ForEachAsync(source, forEach, record, ct);
+                    await ForEachAsync(source, forEach, record, created, ct);
+                    break;
+
+                case DeleteRecordEffect delete:
+                    await DeleteAsync(source, delete, entity, record, ct);
                     break;
             }
         }
@@ -264,10 +295,38 @@ public sealed class WorkflowRunner
                 + "this effect did not run.",
                 source, entity, effect.GetType().Name);
         }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Remove the triggering record, or whatever a reference on it points at.
+    ///
+    /// <para>The same target resolution an update does, because "which record" is the same question
+    /// and two answers to it would eventually disagree. What differs is that there is nothing to
+    /// compare first: an update skips a write that would change nothing, and a delete of a record
+    /// that is already gone is handled inside the writer rather than here.</para>
+    /// </summary>
+    private async Task DeleteAsync(
+        string source, DeleteRecordEffect delete, string entity, JsonObject record, CancellationToken ct)
+    {
+        var targetEntity = delete.TargetField is null ? entity : delete.TargetEntity;
+        var targetId = delete.TargetField is null ? Id(record) : Text(record[delete.TargetField]);
+
+        if (targetEntity is null || targetId.Length == 0) return;
+
+        if (Writer(targetEntity) is not { } writer)
+        {
+            Missing(source, targetEntity);
+            return;
+        }
+
+        await writer.DeleteAsync(targetId, ct);
     }
 
     private async Task UpdateAsync(
-        string source, UpdateRecordEffect update, string entity, JsonObject record, CancellationToken ct)
+        string source, UpdateRecordEffect update, string entity, JsonObject record,
+        JsonObject? created, CancellationToken ct)
     {
         // No target field means the record that triggered this. With one, the write lands on
         // whatever that REFERENCE points at — a message stamping its ticket.
@@ -285,7 +344,7 @@ public sealed class WorkflowRunner
         var target = await writer.FindAsync(targetId, ct);
         if (target is null) return;
 
-        var values = Values(update.Set, record);
+        var values = Values(update.Set, record, created);
         var fields = new List<string>(values.Count);
 
         foreach (var (field, value) in values)
@@ -317,7 +376,8 @@ public sealed class WorkflowRunner
     /// than asked about per row.</para>
     /// </summary>
     private async Task ForEachAsync(
-        string source, CreateForEachEffect effect, JsonObject record, CancellationToken ct)
+        string source, CreateForEachEffect effect, JsonObject record, JsonObject? created,
+        CancellationToken ct)
     {
         if (Writer(effect.Entity) is not { } writer)
         {
@@ -339,7 +399,7 @@ public sealed class WorkflowRunner
 
         foreach (var row in rows)
         {
-            var values = await ValuesAsync(effect.Set, record, row, ct);
+            var values = await ValuesAsync(effect.Set, record, row, created, ct);
 
             if (effect.Key.Count > 0
                 && !_depth.LaidOut.Add(effect.Entity + '' + KeyOf(values, effect.Key)))
@@ -426,7 +486,8 @@ public sealed class WorkflowRunner
     /// <summary>The effect's fields, filled from the triggering record and — for a
     /// <c>createForEach</c> — the source row, with any looked-up values resolved.</summary>
     private async Task<JsonObject> ValuesAsync(
-        IReadOnlyList<EffectSet> sets, JsonObject record, JsonObject? source, CancellationToken ct)
+        IReadOnlyList<EffectSet> sets, JsonObject record, JsonObject? source, JsonObject? created,
+        CancellationToken ct)
     {
         var values = new JsonObject();
 
@@ -434,11 +495,11 @@ public sealed class WorkflowRunner
         {
             if (set.Pick is { } pick)
             {
-                values[set.Field] = await PickAsync(pick, record, source, ct) is { } id ? JsonValue.Create(id) : null;
+                values[set.Field] = await PickAsync(pick, record, source, created, ct) is { } id ? JsonValue.Create(id) : null;
                 continue;
             }
 
-            var filled = Fill(set.Value, record, source);
+            var filled = Fill(set.Value, record, source, created);
             values[set.Field] = filled is null ? null : JsonValue.Create(filled);
         }
 
@@ -447,17 +508,19 @@ public sealed class WorkflowRunner
 
     /// <summary>One looked-up id, or null when nothing matches — a reference to a row that does not
     /// exist is worse than a blank.</summary>
-    private async Task<string?> PickAsync(PickValue pick, JsonObject record, JsonObject? source, CancellationToken ct)
+    private async Task<string?> PickAsync(PickValue pick, JsonObject record, JsonObject? source,
+        JsonObject? created, CancellationToken ct)
     {
         if (Writer(pick.Entity) is not { } reader) return null;
 
-        var matches = await reader.WhereAsync(Filters(pick.Filters, record, source), ct);
+        var matches = await reader.WhereAsync(Filters(pick.Filters, record, source, created), ct);
         return matches.Count == 0 ? null : Text(matches[0]["id"]);
     }
 
     private IReadOnlyList<RecordFilter> Filters(
-        IReadOnlyList<EffectFilter> filters, JsonObject record, JsonObject? source = null) =>
-        [.. filters.Select(f => new RecordFilter(f.Field, f.Operator, Fill(f.Value, record, source)))];
+        IReadOnlyList<EffectFilter> filters, JsonObject record, JsonObject? source = null,
+        JsonObject? created = null) =>
+        [.. filters.Select(f => new RecordFilter(f.Field, f.Operator, Fill(f.Value, record, source, created)))];
 
     private IEntityWriter? Writer(string entity) =>
         _writers.FirstOrDefault(w => string.Equals(w.Entity, entity, StringComparison.Ordinal));
@@ -470,18 +533,20 @@ public sealed class WorkflowRunner
             source, entity);
 
     /// <summary>The effect's fields, with every token filled from the record that triggered it.</summary>
-    private JsonObject Values(IReadOnlyList<EffectSet> sets, JsonObject record)
+    private JsonObject Values(IReadOnlyList<EffectSet> sets, JsonObject record, JsonObject? created = null)
     {
         var values = new JsonObject();
         foreach (var set in sets)
-            values[set.Field] = Fill(set.Value, record) is { } value ? JsonValue.Create(value) : null;
+            values[set.Field] = Fill(set.Value, record, null, created) is { } value ? JsonValue.Create(value) : null;
         return values;
     }
 
-    private string? Fill(string? template, JsonObject record, JsonObject? source = null) =>
+    private string? Fill(string? template, JsonObject record, JsonObject? source = null,
+        JsonObject? created = null) =>
         ValueTokens.Fill(template, _user.PersonId, _user.UserId, _clock.UtcNow,
             field => Text(record[field]),
-            source is null ? null : field => Text(source[field]));
+            source is null ? null : field => Text(source[field]),
+            created is null ? null : field => Text(created[field]));
 
     private static string Id(JsonObject record) => Text(record["id"]);
 

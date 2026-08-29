@@ -208,6 +208,10 @@ public static class CordVocabulary
                 + "vocabulary"),
             ("webhook", "calls a third party; external, same reason as email"),
             ("enrich", "calls a paid external service; external, same reason as email"),
+            ("deleteRecord", "removes a record and nothing undoes it. Withheld from the authoring "
+                + "vocabulary for the reason the others are not: every effect here writes something "
+                + "a person can correct afterwards by editing the row, and this one leaves nothing "
+                + "to edit. Author it in the App Definition, where the gate's guard rules apply"),
         ],
     };
 

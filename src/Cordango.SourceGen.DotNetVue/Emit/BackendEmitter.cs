@@ -846,8 +846,14 @@ public static class BackendEmitter
     /// the column holds — an average of integers is not an integer, and rounding on the way through
     /// every intermediate step would make the answer depend on how the author happened to split the
     /// expression.</summary>
-    private static string Result(FieldModel field) =>
-        field.Type == "boolean" ? "bool?" : "decimal?";
+    private static string Result(FieldModel field) => field.Type switch
+    {
+        "boolean" => "bool?",
+        // The one non-numeric answer: start_of_week and its siblings give the DATE a period begins
+        // on, and a date narrowed through decimal would not survive the trip.
+        "date" => "DateOnly?",
+        _ => "decimal?",
+    };
 
     /// <summary>The narrowing back to the column's own type, once, at the end. Explicit rather than
     /// implicit because <c>decimal</c> to <c>long</c> loses the fraction and that has to be a
