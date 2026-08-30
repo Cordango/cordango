@@ -58,11 +58,23 @@ public class PageEditorSchemaTests
             Assert.Null(defs[gone]);
     }
 
+    /// <summary>
+    /// The page editor's schema goes over the wire to a browser, so its size is a real cost rather
+    /// than an abstraction.
+    ///
+    /// <para>The ceiling is a canary for DUPLICATION — a shared shape inlined across variants — not a
+    /// cap on vocabulary. A move is allowed and must be recorded with its cause:</para>
+    /// <list type="bullet">
+    /// <item>96,500 → 97,400: `action.entity` + `action.keys`, the self-anchoring form that lets a
+    /// button name its own record. +641 bytes after the descriptions were trimmed to match their
+    /// neighbours; two properties on one variant, nothing shared was inlined.</item>
+    /// </list>
+    /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 96_500);
+        Assert.InRange(pruned, 1, 97_400);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

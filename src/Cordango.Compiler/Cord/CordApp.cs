@@ -91,6 +91,10 @@ public sealed record CordApp(
 /// <param name="Series">Set when rows form an ORDERED SERIES. The precondition for <c>prev()</c>.</param>
 /// <param name="Unique">Field combinations no two records may share; each becomes a real database
 /// constraint.</param>
+/// <param name="Calendar">Set when these records belong in the calendar of whoever is responsible
+/// for them. A bare flag on the wire and nothing more: which date and which person it means are
+/// worked out by the compiler from what the entity already declares, so the semantic surface never
+/// asks an author to name them and never has to be kept in step when the derivation improves.</param>
 /// <param name="Raw">Today: <c>detail</c>, <c>peek</c> and <c>form</c> — the authored block trees.
 /// Those are screens, they are the UI slice's work, and modelling them here as anonymous JSON would be
 /// exactly the "second UI model" that was ruled out.</param>
@@ -108,6 +112,7 @@ public sealed record CordEntity(
     CordSeries? Series = null,
     IReadOnlyList<CordField>? Fields = null,
     IReadOnlyList<IReadOnlyList<string>>? Unique = null,
+    bool? Calendar = null,
     JsonObject? Raw = null)
 {
     public IReadOnlyList<CordField> FieldList => Fields ?? [];
@@ -115,7 +120,7 @@ public sealed record CordEntity(
     public static readonly string[] Modelled =
     [
         "key", "label", "labelPlural", "description", "icon", "displayField", "imageField",
-        "role", "kind", "ownedBy", "series", "fields", "unique",
+        "role", "kind", "ownedBy", "series", "fields", "unique", "calendar",
     ];
 }
 

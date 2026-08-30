@@ -114,6 +114,11 @@ public static class CordDocument
             o["unique"] = groups;
         }
 
+        // The FLAG round-trips, never the resolved block. The compiler stamps start/end/who onto the
+        // manifest, and writing those back would hand an author a set of decisions they never made
+        // and would then have to maintain — the same reason `via` never goes back on the wire above.
+        if (e.Calendar is { } calendar) o["calendar"] = calendar;
+
         return o;
     }
 

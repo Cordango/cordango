@@ -108,6 +108,11 @@ public static class AppCompiler
         // Lookup/reference lists (territories, product types, risk tiers) are app CONFIG, not subjects —
         // tag them so the shell groups them under one "Configuration" area instead of top-level nav.
         InferConfigEntities(manifest);
+        // Resolve each opted-in entity's `calendar` flag into the fields it actually means. Runs here
+        // because it reads `ownedBy` (InferSubordination, just above) for the parent hop and the
+        // canonicalized status options for colour, and because everything downstream should see a
+        // resolved fact rather than re-deriving one.
+        ResolveCalendar(manifest);
         // A domain-only definition (design pass skipped or failed) has NO views — synthesize a
         // table per primary entity so the app still builds and renders.
         DefaultViews(manifest);
@@ -962,6 +967,35 @@ public static class AppCompiler
             var writable = editable && (governed || f["setByCommand"]?.GetValue<bool>() != true);
 
             if (!writable) cfg["interaction"] = "visualization";
+        }
+    }
+
+    /// <summary>
+    /// Resolve every opted-in entity's <c>calendar</c> flag into the fields it means, and stamp the
+    /// answer into the manifest as <c>calendar</c> — replacing the flag or the partial object the
+    /// author wrote with a complete one.
+    ///
+    /// <para><b>Derivation belongs here, not in the runtime.</b> The union endpoint answers a request
+    /// per person per window; re-deriving "which field says who" on each of those would make every
+    /// read depend on a belief that could drift from what the Gate checked. The compiler writes the
+    /// BUILT artifact and never the definition, and an authored key is carried through untouched —
+    /// which is the line <c>ResolveBoardInteraction</c> once crossed, disabling every process kanban
+    /// by rewriting definitions from an outgrown belief about the renderer.</para>
+    ///
+    /// <para>A flag that will not resolve is dropped rather than half-stamped. The Gate refuses those
+    /// with the reason, so reaching this with an unresolvable one means the gate was skipped, and a
+    /// partial binding downstream is worse than no calendar: the entity would appear in the union
+    /// with no date or nobody's name on it.</para>
+    /// </summary>
+    private static void ResolveCalendar(JsonObject manifest)
+    {
+        var entities = Arr(manifest["entities"]);
+        foreach (var e in entities.OfType<JsonObject>())
+        {
+            if (!CalendarResolver.IsOptedIn(e)) { e.Remove("calendar"); continue; }
+            var (binding, _) = CalendarResolver.Resolve(entities, e);
+            if (binding is null) e.Remove("calendar");
+            else e["calendar"] = binding.ToJson();
         }
     }
 

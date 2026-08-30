@@ -282,6 +282,19 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                 + "other than a figure that counts it.",
                 "$.entities");
 
+        // The calendar flag asks for something this target does not have and cannot fake: a surface
+        // that spans EVERY app a person can reach, in one workspace, with one feed. A generated
+        // application is one app. Said out loud rather than dropped, because a flag that compiles to
+        // silence is how seven earlier gaps went unnoticed — the records still reach the app's own
+        // calendar block, which is a different and smaller promise than the one the flag makes.
+        foreach (var entity in app.Entities.Where(e => e.Json["calendar"] is not null))
+            yield return new Diagnostic(NotYetCodes.Calendar,
+                $"the entity '{entity.Key}' is marked to appear in people's calendars, which is a "
+                + "cross-application surface the Cordango Platform provides and a standalone "
+                + "application has nothing to span. Its records still appear in this application's "
+                + "own calendar views.",
+                $"$.entities[?(@.key=='{entity.Key}')].calendar");
+
         for (var i = 0; i < app.Workflows.Count; i++)
         {
             var workflow = app.Workflows[i];

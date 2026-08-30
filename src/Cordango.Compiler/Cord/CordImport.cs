@@ -98,6 +98,10 @@ public static class CordImport
             series,
             fields,
             Unique(rest),
+            // Only the bare flag is modelled. A definition carrying the OBJECT form has named fields
+            // the semantic surface deliberately does not ask for, so TakeBool leaves it where it is
+            // and it round-trips through Raw — carried exactly, rather than modelled half-right.
+            CordJson.TakeBool(rest, "calendar"),
             CordJson.Remainder(rest));
     }
 

@@ -52,7 +52,10 @@ internal static class CordWire
                     .Select(v => v.TryGetValue<string>(out var k) ? k : null)
                     .Where(k => k is not null).Select(k => k!).ToList())
                 .ToList()
-            : null);
+            : null,
+        // Nullable, and the three states are distinct: absent leaves it alone, true opts in, false is
+        // a deliberate opt-OUT that an edit can use to take an entity back off the calendar.
+        Calendar: o["calendar"] is JsonValue cal && cal.TryGetValue<bool>(out var onCal) ? onCal : null);
 
     public static CordField Field(JsonObject o) => new(
         Key: Str(o, "key"),

@@ -117,11 +117,16 @@ public static class NotYetCodes
     /// to work out why the screen looks nearly right.</summary>
     public const string BlockOption = "CORD2308";
 
+    /// <summary>An entity that opts into the cross-app calendar on a target that has no such thing.
+    /// Not a block — the flag is on the ENTITY, and what it asks for is a surface spanning every app
+    /// in a workspace, which a single generated application does not have to span.</summary>
+    public const string Calendar = "CORD2309";
+
     /// <summary>Every code in the range, for the test that stops two of them meaning the same
     /// thing. The retired number is deliberately absent.</summary>
     public static readonly IReadOnlyList<string> All =
     [
-        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption,
+        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption, Calendar,
     ];
 
     /// <summary>Codes that once meant something, no longer do, and must not be handed to anything

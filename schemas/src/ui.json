@@ -3057,8 +3057,20 @@
           "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length. Every column of a composed grid — header strip and body cells alike — must use the SAME width, or the two drift apart and the grid stops lining up."
         },
         "command": {
-          "description": "A command key defined on the bound entity.",
+          "description": "A command key defined on the bound entity, or on `entity` when this action names one.",
           "$ref": "#/$defs/identifier"
+        },
+        "entity": {
+          "description": "SELF-ANCHORING form: the entity whose record this button runs its command on, instead of taking one from the surrounding surface. Give it with `keys`. For a button on a page with no bound record — a punch clock, a 'today' toggle.",
+          "$ref": "#/$defs/identifier"
+        },
+        "keys": {
+          "description": "The field values identifying the one record the command runs on, the shape `cell` uses — { \"datum\": \"{{today}}\" }. Every key must be a field of `entity`. IF NO RECORD MATCHES ONE IS CREATED with these keys set, and the command runs on it. A key resolving to nothing disables the button rather than matching an arbitrary record.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string"
+          }
         },
         "style": {
           "type": "string",
@@ -3072,6 +3084,14 @@
           "type": "string",
           "maxLength": 50
         }
+      },
+      "dependentRequired": {
+        "keys": [
+          "entity"
+        ],
+        "entity": [
+          "keys"
+        ]
       }
     },
     "block_create": {

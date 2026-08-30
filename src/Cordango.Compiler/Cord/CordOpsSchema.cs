@@ -158,6 +158,17 @@ internal static class CordOpsSchema
                 ["description"] = "Field combinations no two records may share. One booking per (room, slot).",
                 ["items"] = new JsonObject { ["type"] = "array", ["minItems"] = 2, ["items"] = Str(null) },
             },
+            ["calendar"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] =
+                    "Set when these records belong in the calendar of whoever is responsible for them, "
+                    + "alongside every other app's dates — time off, interviews, site visits, anything "
+                    + "somebody would want to see coming. Which date and which person get worked out "
+                    + "from the entity. Leave it off for dates that merely RECORD when something "
+                    + "happened (paid on, won on, date of birth): those are a ledger, not a schedule, "
+                    + "and putting them in a calendar buries the things people actually need to see.",
+            },
             ["fields"] = ArrayOf("#/$defs/field"),
         },
     };

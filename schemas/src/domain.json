@@ -120,6 +120,40 @@
             }
           }
         },
+        "calendar": {
+          "description": "Records of this entity appear in the calendar of the person responsible for them, alongside every other app's dates. Absent (the default) means they never do — an opt-in rather than a rule about date fields, because most dates on most entities are LEDGER dates (paid_on, won_date, date_of_birth) and a calendar full of 'invoice paid on' is noise. Set `true` to opt in and have everything worked out from what the entity already declares: the start from the role:'start' field (else role:'due', else the single date field), the end from role:'due', the person from the entity's single platform person reference (else by name precedence, else through `ownedBy` to the parent's — which is how a milestone lands in the calendar of whoever leads its project), the title from displayField, and the colour and treatment from the role:'status' option and its process phase, so a pending request and an approved one look different. Give the object form instead to name any of those explicitly; whatever you leave out is still worked out, and whatever you state is never overridden. If a date or a person cannot be worked out the build refuses and says which, rather than putting the record in nobody's calendar.",
+          "type": [
+            "boolean",
+            "object"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "start": {
+              "description": "The date field the entry starts on. Defaults to the role:'start' field, else role:'due', else the entity's only date field.",
+              "$ref": "#/$defs/identifier"
+            },
+            "end": {
+              "description": "The date field the entry runs until, making it a span rather than a single day. Defaults to the role:'due' field when the start came from role:'start'.",
+              "$ref": "#/$defs/identifier"
+            },
+            "who": {
+              "description": "The reference field naming the person whose calendar this belongs in. Must be a reference to the platform person directory, or the field on the `ownedBy` parent that is one. Defaults to the entity's own person reference, else the parent's.",
+              "$ref": "#/$defs/identifier"
+            },
+            "title": {
+              "description": "What the entry reads as. A field key, or a template over the record's fields ('{{type}} — {{reason}}'). Defaults to the entity's displayField.",
+              "type": "string"
+            },
+            "allDay": {
+              "description": "Whether the entry occupies whole days rather than a time of day. Defaults to true when the start field is a 'date' and false when it is a 'datetime'.",
+              "type": "boolean"
+            },
+            "hideWhen": {
+              "description": "Keep matching records OUT of the calendar — a declined request, a cancelled interview. A condition on this entity's own fields.",
+              "$ref": "#/$defs/condition"
+            }
+          }
+        },
         "fields": {
           "type": "array",
           "minItems": 1,

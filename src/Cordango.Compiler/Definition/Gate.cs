@@ -291,6 +291,16 @@ public static class Gate
             entityFieldDefs[ekey] = fdefs;
         }
 
+        // The calendar opt-in, resolved by the SAME code AppCompiler will use to stamp the answer
+        // into the manifest. One derivation with two callers, deliberately: a checker and a builder
+        // that each implement one grammar agree right up until they quietly do not, which is how
+        // `{{today+1w}}` once passed both the check and the build and then resolved to a literal string.
+        //
+        // It runs after the per-entity loop because the `who` may live on the ownedBy PARENT, which is
+        // another entity and may not have been walked yet.
+        foreach (var en in entities.OfType<JsonObject>())
+            errors.AddRange(CalendarResolver.Resolve(entities, en).Errors);
+
         // A select's allowed values must come from SOMEWHERE. Normally that is its own `options`; the
         // one exception is a field a process governs, where the process's states ARE the values —
         // AppCompiler.CanonicalizeProcesses rewrites the field's options (and default) from them, so
@@ -2763,16 +2773,44 @@ public static class Gate
                 case "action":
                 {
                     var cmd = Str(b, "command");
+
+                    // SELF-ANCHORING: the button names the record itself, the way `cell` does, so it
+                    // needs no record from the surface it sits on. A punch clock is the case that
+                    // forced it — the first click of the day has nothing to bind to, and requiring
+                    // somebody to open a form first is the thing the button exists to replace.
+                    if (Str(b, "entity") is { } ae)
+                    {
+                        if (!ctx.Entities.Contains(ae))
+                        { errors.Add($"SEMANTIC: {where}: action entity '{ae}' is unknown"); break; }
+                        if (!ctx.IsCollection(ae))
+                        { errors.Add($"SEMANTIC: {where}: action targets '{ae}', which is a {ctx.EntityKind.GetValueOrDefault(ae)} entity — there is only ever one of it, so 'keys' cannot identify which"); break; }
+
+                        if (b["keys"] is not JsonObject akeys || akeys.Count == 0)
+                        { errors.Add($"SEMANTIC: {where}: action on '{ae}' needs 'keys' identifying the record (e.g. {{\"datum\":\"{{{{today}}}}\"}})"); break; }
+                        foreach (var (kk, _) in akeys)
+                            if (!ctx.FieldExists(ae, kk))
+                                errors.Add($"SEMANTIC: {where}: action key '{kk}' is not a field of '{ae}'");
+
+                        if (cmd == null || !(ctx.CommandsByEntity.TryGetValue(ae, out var kcmds) && kcmds.ContainsKey(cmd)))
+                            errors.Add($"SEMANTIC: {where}: action command '{cmd}' is not a command on '{ae}'");
+                        break;
+                    }
+
+                    if (b["keys"] is JsonObject)
+                    { errors.Add($"SEMANTIC: {where}: action has 'keys' but no 'entity' — keys identify a record of a named entity, so the two go together"); break; }
+
                     if (binding is not ("record" or "item"))
-                        errors.Add($"SEMANTIC: {where}: 'action' requires a record or repeat-item context");
+                        errors.Add($"SEMANTIC: {where}: 'action' requires a record or repeat-item context — or give it 'entity' + 'keys' to name the record itself");
                     else if (cmd == null || !(ctx.CommandsByEntity.TryGetValue(boundEntity ?? "", out var acmds) && acmds.ContainsKey(cmd)))
                         errors.Add($"SEMANTIC: {where}: action command '{cmd}' is not a command on '{boundEntity}'");
                     break;
                 }
                 case "create":
                 {
-                    // A page-level "New <record>" button. `action` cannot express this — it requires
-                    // a `command` on the BOUND record, and creating one means there is no record yet.
+                    // A page-level "New <record>" button, which OPENS THE FORM. Distinct from a
+                    // self-anchoring `action`: that one identifies its record by keys and runs a
+                    // command on it without asking anybody anything, which is the right shape for a
+                    // toggle and the wrong one for "let me fill in a new expense".
                     // Without this kind, a page whose primary surface is a composed grid or calendar
                     // has no way at all to say "New", which is how the 2026-08-02 MeetingPrep app
                     // shipped with a display.text styled to look like a button and no create path.

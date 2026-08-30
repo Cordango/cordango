@@ -159,6 +159,8 @@ public static class CordLower
                 Put(at, "unique", arr2, o);
             }
 
+            if (e.Calendar is { } calendar) Put(at, "calendar", calendar, o);
+
             Overlay(at, e.Raw, o);
             return o;
         }
