@@ -163,9 +163,16 @@ public static class Normalizer
         schema = Resolve(schema, root);
         if (node is null || schema is not JsonObject s) return node;
 
-        var type = s["type"]?.GetValue<string>();
-        var wantsObject = type == "object" || s["properties"] is JsonObject;
-        var wantsArray = type == "array" || (type is null && s["items"] is not null);
+        // `type` may be a UNION — `"type": ["boolean", "object"]`, which is how the entity `calendar`
+        // opt-in says it is either a bare flag or a configured object. Read as a SET rather than as a
+        // string: GetValue<string> throws on the array form, and it threw from HERE, so the whole
+        // document walk died on the first entity carrying that key. It surfaced as an
+        // InvalidOperationException out of `check`, `build` and every Generator repair pass, with
+        // nothing in it naming a schema node that states two types — so it read as "the definition is
+        // broken" rather than "the walk cannot read this schema".
+        var types = Types(s["type"]);
+        var wantsObject = types.Contains("object") || s["properties"] is JsonObject;
+        var wantsArray = types.Contains("array") || (types.Count == 0 && s["items"] is not null);
 
         if (node is JsonValue v && v.TryGetValue<string>(out string? str))
         {
@@ -204,6 +211,23 @@ public static class Normalizer
         }
         return node;
     }
+
+    /// <summary>
+    /// A schema's <c>type</c> as a set: absent, one name, or a union of several.
+    ///
+    /// <para>JSON Schema allows all three and this walk meets all three, so reading it as a string is
+    /// a crash waiting for the first union anybody adds to the schema. A non-string member is
+    /// dropped rather than refused — this is a repair pass, and it has no business being the thing
+    /// that rejects a malformed schema.</para>
+    /// </summary>
+    private static List<string> Types(JsonNode? type) => type switch
+    {
+        JsonValue v when v.TryGetValue<string>(out var one) => [one],
+        JsonArray a => [.. a.OfType<JsonValue>()
+            .Select(x => x.TryGetValue<string>(out var t) ? t : null)
+            .OfType<string>()],
+        _ => [],
+    };
 
     /// <summary>Parse a double-encoded section that may carry TRAILING GARBAGE. Strict parse first,
     /// so a well-formed document takes exactly the path it always did; only a strict failure reaches

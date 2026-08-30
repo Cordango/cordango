@@ -265,4 +265,41 @@ public class GateErrorMessageTests
         Assert.DoesNotContain(errs, e => e.Contains("Expected \"\\\"reference\\\"\""));
         Assert.Contains(errs, e => e.Contains("fields/0/type"));
     }
+
+    [Fact]
+    public void A_property_whose_schema_states_a_union_of_types_does_not_stop_the_walk()
+    {
+        var doc = Minimal();
+        doc["entities"]![0]!["calendar"] = true;
+        doc["presentation"] = """{"icon": "clipboard-check"}""";
+
+        var fixedDoc = Normalizer.Repair(doc)!;
+
+        Assert.True(fixedDoc["entities"]![0]!["calendar"]!.GetValue<bool>());
+        Assert.IsType<JsonObject>(fixedDoc["presentation"]);
+    }
+
+    [Fact]
+    public void The_object_arm_of_a_union_is_still_unstringified()
+    {
+        var doc = Minimal();
+        doc["entities"]![0]!["calendar"] = """{"start": "name"}""";
+
+        var fixedDoc = Normalizer.Unstringify(doc)!;
+
+        var calendar = fixedDoc["entities"]![0]!["calendar"];
+        Assert.IsType<JsonObject>(calendar);
+        Assert.Equal("name", calendar!["start"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void A_union_typed_property_holding_a_plain_string_is_left_alone()
+    {
+        var doc = Minimal();
+        doc["entities"]![0]!["calendar"] = "true";
+
+        var fixedDoc = Normalizer.Unstringify(doc)!;
+
+        Assert.Equal("true", fixedDoc["entities"]![0]!["calendar"]!.GetValue<string>());
+    }
 }

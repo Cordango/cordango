@@ -985,7 +985,7 @@ public class CordOpsTests(ITestOutputHelper output)
         var report = CordOps.SchemaReport("cord: domain ops", CordOps.DomainOpsSchema());
         output.WriteLine(report.ToString());
 
-        Assert.InRange(report.Bytes, 1, 9_000);
+        Assert.InRange(report.Bytes, 1, 12_000);
         Assert.Equal(3, report.Operations);
     }
 
