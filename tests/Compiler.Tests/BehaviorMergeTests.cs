@@ -23,7 +23,7 @@ public class BehaviorMergeTests
 
     private static JsonNode Behavior() => JsonNode.Parse("""
     {
-      "authoringVersion": "1.0",
+      "authoringVersion": "1.1",
       "entityPatches": [
         { "entity": "ticket", "statusField": { "key": "stage", "label": "Stage" } }
       ],
@@ -127,6 +127,105 @@ public class BehaviorMergeTests
         behavior["entityPatches"]!.AsArray().Add(behavior["entityPatches"]![0]!.DeepClone());
         BehaviorMerge.Apply(PureDomain(), behavior, out var issues);
         Assert.Contains(issues, i => i.Contains("duplicate"));
+    }
+
+    private static JsonNode CalendarDomain()
+    {
+        var domain = PureDomain();
+        Entity(domain, "ticket")["calendar"] = true;
+        return domain;
+    }
+
+    private static JsonNode HideWhen() => JsonNode.Parse("""
+    { "field": "stage", "operator": "eq", "value": "closed" }
+    """)!;
+
+    [Fact]
+    public void A_calendar_guard_is_lowered_onto_the_entitys_calendar()
+    {
+        var behavior = Behavior();
+        behavior["entityPatches"]![0]!["calendarHideWhen"] = HideWhen();
+        var merged = BehaviorMerge.Apply(CalendarDomain(), behavior, out var issues);
+        Assert.Empty(issues);
+        Assert.Null(merged["entityPatches"]);
+
+        var calendar = Entity(merged, "ticket")["calendar"];
+        Assert.Equal("closed", calendar!["hideWhen"]!["value"]!.GetValue<string>());
+        Assert.Equal("stage", calendar["hideWhen"]!["field"]!.GetValue<string>());
+        Assert.Equal("status", Field(merged, "ticket", "stage")!["role"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void A_calendar_guard_widens_an_object_calendar_without_losing_its_keys()
+    {
+        var domain = PureDomain();
+        Entity(domain, "ticket")["calendar"] = JsonNode.Parse("""{ "title": "{{subject}}" }""");
+        var behavior = Behavior();
+        behavior["entityPatches"]![0]!["calendarHideWhen"] = HideWhen();
+        var merged = BehaviorMerge.Apply(domain, behavior, out var issues);
+        Assert.Empty(issues);
+
+        var calendar = Entity(merged, "ticket")["calendar"]!;
+        Assert.Equal("{{subject}}", calendar["title"]!.GetValue<string>());
+        Assert.Equal("closed", calendar["hideWhen"]!["value"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void A_calendar_guard_on_an_entity_without_a_calendar_is_an_issue()
+    {
+        var behavior = Behavior();
+        behavior["entityPatches"]![0]!["calendarHideWhen"] = HideWhen();
+        var merged = BehaviorMerge.Apply(PureDomain(), behavior, out var issues);
+        Assert.Contains(issues, i => i.Contains("no calendar"));
+        Assert.Null(Entity(merged, "ticket")["calendar"]);
+    }
+
+    [Fact]
+    public void A_calendar_guard_never_opts_an_entity_in_by_itself()
+    {
+        var domain = PureDomain();
+        Entity(domain, "ticket")["calendar"] = false;
+        var behavior = Behavior();
+        behavior["entityPatches"]![0]!["calendarHideWhen"] = HideWhen();
+        var merged = BehaviorMerge.Apply(domain, behavior, out var issues);
+        Assert.Contains(issues, i => i.Contains("no calendar"));
+        Assert.False(Entity(merged, "ticket")["calendar"]!.GetValue<bool>());
+    }
+
+    [Fact]
+    public void A_patch_may_carry_a_calendar_guard_and_no_status_field()
+    {
+        var behavior = Behavior();
+        behavior["entityPatches"] = JsonNode.Parse("""
+        [ { "entity": "ticket", "statusField": { "key": "stage", "label": "Stage" } },
+          { "entity": "ticket" } ]
+        """);
+        behavior["entityPatches"]![1]!["calendarHideWhen"] = HideWhen();
+        var merged = BehaviorMerge.Apply(CalendarDomain(), behavior, out var issues);
+        Assert.Empty(issues);
+        Assert.Equal("closed",
+            Entity(merged, "ticket")["calendar"]!["hideWhen"]!["value"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void A_patch_that_patches_nothing_is_an_issue()
+    {
+        var behavior = Behavior();
+        behavior["entityPatches"]!.AsArray().Add(JsonNode.Parse("""{ "entity": "ticket" }"""));
+        BehaviorMerge.Apply(PureDomain(), behavior, out var issues);
+        Assert.Contains(issues, i => i.Contains("declares neither"));
+    }
+
+    [Fact]
+    public void Duplicate_calendar_guards_are_an_issue()
+    {
+        var behavior = Behavior();
+        behavior["entityPatches"]![0]!["calendarHideWhen"] = HideWhen();
+        var second = JsonNode.Parse("""{ "entity": "ticket" }""")!;
+        second["calendarHideWhen"] = HideWhen();
+        behavior["entityPatches"]!.AsArray().Add(second);
+        BehaviorMerge.Apply(CalendarDomain(), behavior, out var issues);
+        Assert.Contains(issues, i => i.Contains("duplicate") && i.Contains("calendarHideWhen"));
     }
 
     [Fact]
