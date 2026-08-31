@@ -246,12 +246,26 @@ public static class WebEmitter
 
         body.Indent().Indent();
 
+        // Emitted unconditionally by the record-page template below, so it is imported
+        // unconditionally too. It used to be registered only by the block that renders an edit
+        // action, which left every page without an authored detail referencing a component it had
+        // not imported.
+        context.Imports.Add("RecordDialog");
+
         var blocks = AppModel.Arr(entity.Detail?["blocks"]).OfType<JsonObject>().ToList();
         if (blocks.Count == 0)
         {
             // No detail authored. Every field, which is what somebody opening a record wants when
             // nobody has said otherwise — and better than an empty page.
+            //
+            // With an Edit button, because the page below emits the edit dialog unconditionally and
+            // without this nothing could ever open it: an entity with no authored detail had a
+            // record page that could be read and never changed.
             context.Imports.Add("RecordFields");
+            body.Line("<div class=\"d-flex justify-end\">");
+            body.Line("  <v-btn size=\"small\" variant=\"tonal\" prepend-icon=\"mdi-pencil-outline\"");
+            body.Line("    @click=\"editing = record\">Edit</v-btn>");
+            body.Line("</div>");
             body.Line($"<RecordFields entity=\"{entity.Key}\" :record=\"record\" />");
         }
         else

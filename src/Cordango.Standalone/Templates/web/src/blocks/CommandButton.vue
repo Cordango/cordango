@@ -17,7 +17,13 @@ const props = defineProps({
   // one confirm flow and two that drift apart.
   auto: { type: Boolean, default: false },
 })
-const emit = defineEmits(['done', 'cancelled'])
+const emit = defineEmits(['done', 'cancelled', 'ask'])
+
+// Drawn INSIDE an overflow menu. The dialog cannot live here: clicking the item closes the menu,
+// the menu unmounts its content, and the dialog goes with it — which reads as a modal that blinks
+// once and never opens. So an item only reports the intent, and the host mounts the `auto` form of
+// this same component OUTSIDE the menu, which is what the table and the board already do.
+const isMenuItem = computed(() => props.as === 'item' && !props.auto)
 
 const busy = ref(false)
 const error = ref(null)
@@ -87,7 +93,7 @@ onMounted(() => { if (props.auto) run() })
       :title="command.label"
       :base-color="command.style === 'danger' ? 'error' : undefined"
       :disabled="busy"
-      @click="run"
+      @click="emit('ask')"
     />
 
     <v-btn
@@ -103,7 +109,7 @@ onMounted(() => { if (props.auto) run() })
       {{ command.label }}
     </v-btn>
 
-    <v-dialog :model-value="asking" max-width="480" @update:model-value="$event || cancel()">
+    <v-dialog v-if="!isMenuItem" :model-value="asking" max-width="480" @update:model-value="$event || cancel()">
       <v-card>
         <v-card-title>{{ command.confirm?.title || command.label }}</v-card-title>
         <v-card-text class="d-flex flex-column ga-4">

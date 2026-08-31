@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { entityOf, commandsOf, displayOf, optionColor, optionLabel, processOf } from '../records.js'
 import FieldValue from './FieldValue.vue'
 import CommandButton from './CommandButton.vue'
@@ -32,6 +32,11 @@ const factFields = computed(() =>
 // `edit` and `delete` are actions the runtime provides. Everything else the definition lists is a
 // command it declared, and only the ones it declared appear.
 const commands = computed(() => commandsOf(props.entity).filter((c) => props.actions.includes(c.key)))
+
+// A command chosen from the overflow menu, waiting to be confirmed or filled in. It runs through an
+// `auto` CommandButton mounted OUTSIDE the menu — the same pattern the table and the board use —
+// because a dialog rendered inside the menu is destroyed the moment the click closes it.
+const pending = ref(null)
 </script>
 
 <template>
@@ -99,7 +104,7 @@ const commands = computed(() => commandsOf(props.entity).filter((c) => props.act
                   :entity="entity"
                   :record="record"
                   :command="command"
-                  @done="emit('changed')"
+                  @ask="pending = command"
                 />
                 <v-divider v-if="actions.includes('delete')" />
               </template>
@@ -112,6 +117,16 @@ const commands = computed(() => commandsOf(props.entity).filter((c) => props.act
               />
             </v-list>
           </v-menu>
+
+          <CommandButton
+            v-if="pending"
+            auto
+            :entity="entity"
+            :record="record"
+            :command="pending"
+            @done="pending = null; emit('changed')"
+            @cancelled="pending = null"
+          />
         </div>
       </div>
     </v-card-text>

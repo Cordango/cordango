@@ -107,7 +107,7 @@ export function visibleWhen(condition, record, state) {
   return true
 }
 
-/** `{{record.status}}`, `{{state.cursor}}`, `{{actor.id}}` — or a literal, unchanged. */
+/** `{{record.status}}`, `{{item.status}}`, `{{state.cursor}}`, `{{actor.id}}` — or a literal. */
 function resolveScope(expression, record, state) {
   const match = /^\{\{\s*([\w.]+)\s*\}\}$/.exec(expression)
   if (!match) return expression
@@ -115,7 +115,11 @@ function resolveScope(expression, record, state) {
   const [scope, ...rest] = match[1].split('.')
   const key = rest.join('.')
 
-  if (scope === 'record') return record?.[key]
+  // `item` is what the shared runtime calls the CURRENT ROW of a repeat or a split, and an author
+  // writing `visibleWhen` inside a split's detail reasonably reaches for it. Here the same row
+  // arrives as the slot's `record`, so the two names mean one thing and both resolve — an app must
+  // not have to know which renderer it is being drawn by to say "only while this lead is new".
+  if (scope === 'record' || scope === 'item') return record?.[key]
   if (scope === 'state') return state?.[key]
   if (scope === 'actor') return key === 'id' ? session.personId : session[key]
   return undefined
