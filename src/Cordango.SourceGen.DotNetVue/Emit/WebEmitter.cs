@@ -508,12 +508,16 @@ public static class WebEmitter
                 if (AppModel.Str(block["value"]) is not { Length: > 0 }
                     && AppModel.Str(block["text"]) is not { Length: > 0 }) break;
                 context.Imports.Add("BlockText");
+                // The record goes with it wherever there is one, so a `{field}` in the line resolves.
+                // A heading over a detail pane is the whole reason the language allows the token.
                 source.Line($"<BlockText {Attributes(
                     ("text", AppModel.Str(block["value"]) ?? AppModel.Str(block["text"])),
                     ("size", AppModel.Str(block["size"])),
                     ("weight", AppModel.Str(block["weight"])),
                     ("color", AppModel.Str(block["color"])),
-                    ("icon", AppModel.Str(block["icon"])))} />");
+                    ("icon", AppModel.Str(block["icon"])),
+                    ("entity", context.Record ? context.Entity : null))}"
+                    + (context.Record ? " :record=\"record\"" : "") + " />");
                 break;
 
             case "stat":
@@ -537,6 +541,18 @@ public static class WebEmitter
 
             case "table":
                 Table(source, block, context, unsupported);
+                break;
+
+            case "split":
+                Split(source, block, context, unsupported);
+                break;
+
+            case "intake":
+                Intake(source, block, context);
+                break;
+
+            case "answers":
+                Answers(source, block, context, unsupported);
                 break;
 
             case "calendar":
@@ -833,6 +849,129 @@ public static class WebEmitter
             source.Line(":create=\"false\"");
         source.Outdent();
         source.Line("/>");
+    }
+
+    /// <summary>The front door: the forms somebody can fill in, and the form itself once they pick
+    /// one. Collection binding — pair it with a filter so retired forms stay off the list.</summary>
+    private static void Intake(Source source, JsonObject block, BlockContext context)
+    {
+        var forms = context.App.Forms;
+        var entity = AppModel.Str(block["entity"]) ?? forms?.TemplateEntity ?? context.Entity;
+
+        context.Imports.Add("IntakeBlock");
+        source.Line("<IntakeBlock");
+        source.Indent();
+        source.Line($"entity=\"{entity}\"");
+        if (AppModel.Str(block["label"]) is { } label) source.Line($"label=\"{label}\"");
+        if (AppModel.Arr(block["filters"]) is { Count: > 0 } filters)
+            source.Line($":filters=\"{Js(filters)}\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>
+    /// The answers the record was filed with. Record binding only.
+    ///
+    /// <para>Everything it needs to walk from the record to its answers is in the forms descriptor,
+    /// so the component takes the field keys as props rather than looking anything up: the same
+    /// build-time resolution the server side does, for the same reason.</para>
+    /// </summary>
+    private static void Answers(
+        Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        if (context.App.Forms is not { } forms)
+        {
+            unsupported.Add(NotYet("an 'answers' block in an application with no forms", context));
+            return;
+        }
+
+        // `via` names the reference on THIS entity pointing at the submission. Omitted, it is the one
+        // the descriptor already resolved for this entity.
+        var via = AppModel.Str(block["via"])
+            ?? (context.Entity is { } key && forms.BackReferences.TryGetValue(key, out var found) ? found : null);
+        if (via is null)
+        {
+            unsupported.Add(NotYet(
+                "an 'answers' block on an entity with no reference to the form submission", context));
+            return;
+        }
+
+        context.Imports.Add("AnswersBlock");
+        source.Line("<AnswersBlock");
+        source.Indent();
+        source.Line($"via=\"{via}\"");
+        source.Line($"answer-entity=\"{forms.AnswerEntity}\"");
+        source.Line($"answer-response-field=\"{forms.AnswerResponse}\"");
+        source.Line($"answer-question-field=\"{forms.AnswerQuestion}\"");
+        source.Line($"answer-value-field=\"{forms.AnswerValue}\"");
+        source.Line($"question-entity=\"{forms.QuestionEntity}\"");
+        if (forms.QuestionText is { } text) source.Line($"question-text-field=\"{text}\"");
+        if (forms.QuestionOrder is { } order) source.Line($"question-order-field=\"{order}\"");
+        if (AppModel.Str(block["label"]) is { } label) source.Line($"label=\"{label}\"");
+        source.Line(":record=\"record\"");
+        source.Outdent();
+        source.Line("/>");
+    }
+
+    /// <summary>
+    /// The inbox: a list of records on the left, the selected one's detail on the right.
+    ///
+    /// <para>The block's own <c>blocks</c> are emitted into the component's <c>detail</c> slot, whose
+    /// slot prop is named <c>record</c> — which is the same identifier a record page binds, so every
+    /// block that draws on a detail screen draws here with no knowledge that it is inside a split.
+    /// That is the whole trick, and it is why this needs no per-block special casing.</para>
+    ///
+    /// <para>The children are emitted with <c>Record: true</c> even on a collection page: inside the
+    /// slot there IS a record, and without it a `fields` block would render against the page instead
+    /// of against the selection.</para>
+    /// </summary>
+    private static void Split(Source source, JsonObject block, BlockContext context, List<Diagnostic> unsupported)
+    {
+        var query = block["source"] as JsonObject;
+        var entity = AppModel.Str(query?["entity"]) ?? context.Entity;
+
+        foreach (var gap in Gaps(block, query, context.Record, tabular: true))
+            unsupported.Add(NotYet(gap, context));
+
+        context.Imports.Add("SplitBlock");
+        source.Line("<SplitBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(Query(block, query, entity, "split", context.Record))}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (AppModel.Arr(block["fields"]) is { Count: > 0 } fields)
+            source.Line($":fields=\"{JsArray(fields)}\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is not { Length: > 0 }
+            && AppModel.Str(block["label"]) is { } label)
+            source.Line($"label=\"{label}\"");
+        if (AppModel.Str(block["emptyText"]) is { } empty) source.Line($"empty-text=\"{empty}\"");
+        source.Outdent();
+        source.Line(">");
+        source.Indent();
+
+        // `as` names the current item for descendants. The slot prop is always `record`, so a name
+        // is accepted and ignored rather than refused: the blocks inside address the selection the
+        // way they address any record, and nothing in a generated application reads `{{lead_sel.x}}`.
+        if (AppModel.Str(block["as"]) is { } alias)
+            unsupported.Add(NotYet($"a split's `as: '{alias}'` name (its blocks read the selection as the record)", context));
+
+        source.Line("<template #detail=\"{ record }\">");
+        source.Indent();
+
+        // Imports are the SAME set as the outer context — `with` copies the reference — so a
+        // component only the detail blocks use is still imported at the top of the page.
+        var inner = context with { Record = true, Entity = entity };
+        foreach (var child in AppModel.Arr(block["blocks"]).OfType<JsonObject>())
+            Block(source, child, inner, unsupported);
+
+        source.Outdent();
+        source.Line("</template>");
+        source.Outdent();
+        source.Line("</SplitBlock>");
+
+        // `Conditional` is a mutable flag and `with` copies it BY VALUE, so a `visibleWhen` on a
+        // block inside the detail pane would otherwise not import the evaluator the page needs.
+        if (inner.Conditional) context.Conditional = true;
     }
 
     /// <summary>A month grid over records that carry a date, from the block's own query.</summary>
@@ -1498,6 +1637,7 @@ public static class WebEmitter
         source.Line("import AccessKeysView from './views/AccessKeysView.vue'");
         source.Line("import LoginView from './views/LoginView.vue'");
         source.Line("import SetupView from './views/SetupView.vue'");
+        if (app.Forms is not null) source.Line("import PublicFormView from './views/PublicFormView.vue'");
 
         foreach (var page in app.Pages)
             source.Line($"import {page.ComponentName} from './pages/{page.ComponentName}.vue'");
@@ -1517,6 +1657,11 @@ public static class WebEmitter
         source.Line("{ path: '/access-keys', name: 'access-keys', component: AccessKeysView },");
         source.Line("{ path: '/login', name: 'login', component: LoginView, meta: { anonymous: true } },");
         source.Line("{ path: '/setup', name: 'setup', component: SetupView, meta: { anonymous: true } },");
+        // A published form, for somebody with no account. `anonymous` is what the guard reads; the
+        // address is a generated TOKEN rather than a name anybody chose, because a memorable public
+        // address is a guessable one.
+        if (app.Forms is not null)
+            source.Line("{ path: '/f/:token', name: 'public-form', component: PublicFormView, meta: { anonymous: true } },");
 
         foreach (var page in app.Pages)
             source.Line($"{{ path: '{page.Route}', name: '{page.Key}', component: {page.ComponentName} }},");

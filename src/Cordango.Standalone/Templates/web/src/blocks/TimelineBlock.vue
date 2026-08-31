@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  viewOf, entityOf, loadView, displayOf, referenceOptions, onRecordsChanged, optionColor,
+  viewOf, entityOf, loadView, displayOf, referenceOptions, referenceRoute, onRecordsChanged, optionColor,
   formatValue, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
@@ -124,8 +124,7 @@ async function resolveLanes() {
   const field = fieldOfKey(laneKey.value)
   if (field?.type === 'reference') {
     const options = await referenceOptions(
-      field.targetApp === 'platform' || field.targetEntity === 'person' ? 'person' : field.targetEntity,
-      field.targetApp === 'platform' || field.targetEntity === 'person' ? '/api/directory/person' : undefined)
+      field.targetEntity ?? 'person', `/api/${referenceRoute(field)}`)
     lanes.value = options.map((o) => ({ value: o.value, label: o.label }))
     return
   }

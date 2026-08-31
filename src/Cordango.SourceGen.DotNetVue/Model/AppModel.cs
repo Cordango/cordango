@@ -71,6 +71,13 @@ public sealed class AppModel
     public string Namespace { get; }
 
     public IReadOnlyList<EntityModel> Entities { get; }
+
+    /// <summary>The Forms archetype's keys, or null when this application has no forms. Resolved
+    /// once and shared by both emitters, so the descriptor the server holds and the props the
+    /// components take cannot disagree about which column a question's text is in.</summary>
+    public FormsInfo? Forms => _forms ??= FormsInfo.Resolve(Entities);
+    private FormsInfo? _forms;
+
     public IReadOnlyList<ViewModel> Views { get; }
     public IReadOnlyList<PageModel> Pages { get; }
     public IReadOnlyList<JsonObject> Roles { get; }

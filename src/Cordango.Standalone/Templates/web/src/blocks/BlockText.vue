@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { fieldOf, formatValue } from '../records.js'
 
 // A line of prose on a screen: the sentence above a table that says what the table is for.
 //
@@ -18,6 +19,24 @@ const props = defineProps({
   icon: { type: String, default: null },
   // Kept from the first version of this component, where 'muted' was the only choice there was.
   tone: { type: String, default: 'body' },
+  // The record this line is about, where there is one — a detail screen, or the selected row of a
+  // split. It is what makes `{full_name}` a name rather than four literal characters and a field
+  // key, which is how a heading written the way the language documents it used to render.
+  record: { type: Object, default: null },
+  entity: { type: String, default: null },
+})
+
+// `{field_key}` -> that field of the record, formatted the way the same value is formatted
+// everywhere else. A token naming a field the record does not carry is left ALONE rather than
+// blanked: a line reading "{customre}" says which key was mistyped, and an empty line says nothing.
+const resolved = computed(() => {
+  const text = props.text ?? ''
+  if (!props.record || !text.includes('{')) return text
+  return text.replace(/\{([a-zA-Z0-9_]+)\}/g, (whole, key) => {
+    if (!(key in props.record)) return whole
+    const field = props.entity ? fieldOf(props.entity, key) : null
+    return field ? formatValue(props.record[key], field) : String(props.record[key] ?? '')
+  })
 })
 
 const sizes = {
@@ -37,6 +56,6 @@ const classes = computed(() => [
 <template>
   <p v-if="text" class="d-flex align-start ga-2 mb-0" :class="classes">
     <v-icon v-if="icon" :icon="`mdi-${icon}`" size="16" class="mt-1" />
-    <span>{{ text }}</span>
+    <span>{{ resolved }}</span>
   </p>
 </template>

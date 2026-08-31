@@ -43,7 +43,7 @@ public static partial class SeedEmitter
 
         // The directory first: an application's own records point at people, and a reference has to
         // have something to point at.
-        blocks.Add(Directory(seed, ids));
+        foreach (var block in Directory(seed, ids)) blocks.Add(block);
 
         foreach (var entity in Ordered(app))
         {
@@ -116,7 +116,7 @@ public static partial class SeedEmitter
 
     /// <summary>The people every application refers to. A fixed cast, so that a screenshot of one
     /// generated application and a screenshot of another are recognisably the same demo.</summary>
-    private static JsonObject Directory(int seed, Dictionary<string, List<string>> ids)
+    private static List<JsonObject> Directory(int seed, Dictionary<string, List<string>> ids)
     {
         var rows = new JsonArray();
         var people = new List<string>();
@@ -139,7 +139,88 @@ public static partial class SeedEmitter
         }
 
         ids["person"] = people;
-        return new JsonObject { ["entity"] = "person", ["rows"] = rows };
+
+        return
+        [
+            new JsonObject { ["entity"] = "person", ["rows"] = rows },
+            Companies(seed, ids),
+            Contacts(seed, ids),
+        ];
+    }
+
+    /// <summary>
+    /// The companies every application refers to.
+    ///
+    /// <para>Seeded for the same reason the people are, and it was missed for a while: an
+    /// application whose records point at a customer had nothing to point AT, so every Company
+    /// column in a generated demo was empty and the reference read as a field nobody had filled in
+    /// rather than as one with no rows to offer.</para>
+    /// </summary>
+    private static JsonObject Companies(int seed, Dictionary<string, List<string>> ids)
+    {
+        var rows = new JsonArray();
+        var organizations = new List<string>();
+
+        for (var index = 0; index < CompanyNames.Length; index++)
+        {
+            var id = Id("organization", index);
+            organizations.Add(id);
+
+            var name = CompanyNames[index];
+            rows.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["name"] = name,
+                ["status"] = "active",
+                ["industry"] = Pick(Industries, seed, "organization", "industry", index),
+                ["website"] = $"https://{Slug(name)}.example",
+                ["email"] = $"hello@{Slug(name)}.example",
+                ["city"] = Pick(Locations, seed, "organization", "city", index),
+                ["country"] = "DE",
+                ["created_at"] = "{T-300}T09:00:00Z",
+            });
+        }
+
+        ids["organization"] = organizations;
+        return new JsonObject { ["entity"] = "organization", ["rows"] = rows };
+    }
+
+    /// <summary>One named person at each company — the external counterpart a deal is done with,
+    /// which is not the same list as the colleagues in <see cref="Names"/>.</summary>
+    private static JsonObject Contacts(int seed, Dictionary<string, List<string>> ids)
+    {
+        var rows = new JsonArray();
+        var contacts = new List<string>();
+        var organizations = ids.GetValueOrDefault("organization") ?? [];
+
+        for (var index = 0; index < ContactNames.Length && index < organizations.Count; index++)
+        {
+            var id = Id("contact", index);
+            contacts.Add(id);
+
+            rows.Add(new JsonObject
+            {
+                ["id"] = id,
+                ["full_name"] = ContactNames[index],
+                ["organization"] = organizations[index],
+                ["job_title"] = Pick(JobTitles, seed, "contact", "job_title", index),
+                ["email"] = Email(ContactNames[index]),
+                ["is_primary"] = true,
+                ["status"] = "active",
+                ["created_at"] = "{T-280}T09:00:00Z",
+            });
+        }
+
+        ids["contact"] = contacts;
+        return new JsonObject { ["entity"] = "contact", ["rows"] = rows };
+    }
+
+    private static string Slug(string name)
+    {
+        var chars = name.ToLowerInvariant()
+            .Select(c => char.IsLetterOrDigit(c) ? c : '-')
+            .ToArray();
+        return new string(chars).Trim('-').Replace("--", "-", StringComparison.Ordinal);
     }
 
     /// <summary>One row's worth of values, or null when a required unique field has nothing
@@ -155,6 +236,11 @@ public static partial class SeedEmitter
         {
             if (field.Type == "attachment" || field.Type == "json") continue;
             if (field.Computed is not null) continue;
+            // A field the RUNTIME owns is not one a demo row may claim. `readOnly` covers the
+            // generated ones — a public token, an owner stamped from the caller — and inventing a
+            // value for those is worse than leaving them empty: a public address that reads
+            // "Urgent handover" looks like a link somebody chose, and it can never resolve.
+            if (field.ReadOnly) continue;
 
             var value = Value(app, entity, field, process, seed, index, ids);
 
@@ -313,7 +399,12 @@ public static partial class SeedEmitter
 
             case "reference":
             {
-                var target = field.TargetApp is not null ? "person" : field.TargetEntity;
+                // The DIRECTORY entity this points at, which is `targetEntity` in every case — a
+                // `targetApp` says the record lives in the directory rather than in this
+                // application, not that it is a person. Reading it as "person" seeded every company
+                // and contact reference with the id of a human being, so a lead's Company resolved
+                // to a name out of the staff list and nothing about the row looked wrong.
+                var target = field.TargetEntity;
                 if (target is null || !ids.TryGetValue(target, out var pool) || pool.Count == 0) return null;
                 return pool[(int)(Hash(seed, entity.Key, field.Key, index) % (uint)pool.Count)];
             }
@@ -350,6 +441,18 @@ public static partial class SeedEmitter
 
             case "longtext":
                 return Sentence(seed, entity.Key, field.Key, index);
+
+            // A PERSON's name, which the adjective-noun phrase cannot stand in for. `full_name` is
+            // the platform's own spelling for it — core People and the directory's Contact both use
+            // it — so this is a convention being honoured rather than a guess about a key. Drawn
+            // from the same fixed cast as everything else, so a lead called "Priya Nair" is still
+            // obviously demo data and not somebody who could be phoned.
+            case "text" when field.Key == "full_name":
+                // Walked by INDEX rather than hashed. A hash over twelve names puts the same person
+                // on three of the first four rows often enough to look broken, and a list of leads
+                // is exactly where somebody counts the distinct ones. Drawn from the EXTERNAL cast:
+                // a lead or a customer contact is not one of the colleagues in `Names`.
+                return ContactNames[index % ContactNames.Length];
 
             default:
                 return Phrase(seed, entity.Key, field.Key, index);
@@ -417,6 +520,35 @@ public static partial class SeedEmitter
     ];
 
     private static readonly string[] Locations = ["Berlin", "Hamburg", "Munich", "Remote", "Vienna"];
+
+    /// <summary>The customers, suppliers and partners a generated application deals with. A fixed
+    /// cast, for the same reason the people are one: two screenshots of two applications should be
+    /// recognisably the same demo.</summary>
+    private static readonly string[] CompanyNames =
+    [
+        "Nordwind Logistik", "Kestrel Analytics", "Baumann Werke", "Lumen Health",
+        "Sable & Finch", "Ostsee Marine", "Bаlmoral Foods", "Ardent Robotics",
+    ];
+
+    /// <summary>People OUTSIDE the company: a customer's contact, a lead, an applicant. Kept apart
+    /// from <see cref="Names"/> so a generated demo never shows a colleague as a sales lead.</summary>
+    private static readonly string[] ContactNames =
+    [
+        "Henrik Soltau", "Yara Benali", "Gregor Pfeiffer", "Nadia Osei",
+        "Bertil Ahlgren", "Ines Vogel", "Callum Reid", "Mira Kovac",
+        "Ana Ferreira", "Josef Klimt", "Ruth Nakamura", "Emeka Balogun",
+        "Silje Haugen", "Theo Marchetti",
+    ];
+
+    private static readonly string[] Industries =
+    [
+        "Logistics", "Software", "Manufacturing", "Healthcare", "Retail", "Marine", "Food", "Robotics",
+    ];
+
+    private static readonly string[] JobTitles =
+    [
+        "Head of Operations", "CTO", "Procurement Lead", "Managing Director", "Finance Director",
+    ];
 
     private static readonly string[] Adjectives =
     [

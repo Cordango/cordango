@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
-  viewOf, entityOf, loadView, displayOf, referenceOptions, processOf, updateRecord, commandsOf,
+  viewOf, entityOf, loadView, displayOf, referenceOptions, referenceRoute, processOf, updateRecord, commandsOf,
   onRecordsChanged, recordsChanged, matchesSearch, formatStat, optionColor, optionLabel, toast, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
@@ -86,7 +86,8 @@ const references = ref([])
 
 async function resolveColumns() {
   if (groupField.value?.type !== 'reference') { references.value = []; return }
-  references.value = await referenceOptions(groupField.value.targetEntity)
+  references.value = await referenceOptions(
+    groupField.value.targetEntity, `/api/${referenceRoute(groupField.value)}`)
 }
 
 const visible = computed(() => {

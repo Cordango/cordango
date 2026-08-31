@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { CordangoDataTable, statusCellMoves } from '@cordango/web-controls'
 import {
   viewOf, entityOf, loadView, commandsOf, createRecord, updateRecord, deleteRecord,
-  referenceOptions, onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue,
+  referenceOptions, referenceRoute, onRecordsChanged, recordsChanged, matchesSearch, formatValue, resolveValue,
   recordRoute, toast,
 } from '../records.js'
 import { app } from '../app.js'
@@ -161,7 +161,7 @@ async function resolveLabels() {
     && f.targetApp !== 'platform' && f.targetEntity && f.targetEntity !== 'person')
   const resolved = {}
   for (const field of references) {
-    const options = await referenceOptions(field.targetEntity)
+    const options = await referenceOptions(field.targetEntity, `/api/${referenceRoute(field)}`)
     resolved[field.key] = Object.fromEntries(options.map((o) => [o.value, o.label]))
   }
   labels.value = resolved

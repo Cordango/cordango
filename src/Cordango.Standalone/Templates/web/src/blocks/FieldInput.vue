@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { api } from '../api.js'
-import { loadRecords } from '../records.js'
+import { loadRecords, referenceRoute } from '../records.js'
 
 const props = defineProps({ field: Object, modelValue: null })
 const emit = defineEmits(['update:model-value'])
@@ -40,9 +40,7 @@ async function loadOptions() {
   if (options.value.length || loadingOptions.value) return
   loadingOptions.value = true
   try {
-    const isPerson = props.field.targetApp === 'platform' || props.field.targetEntity === 'person'
-    const target = isPerson ? 'directory/person' : props.field.targetEntity
-    const page = await loadRecords(target, { take: 200 })
+    const page = await loadRecords(referenceRoute(props.field), { take: 200 })
     options.value = (page?.items ?? []).map((r) => ({
       value: r.id,
       title: r.full_name || r.name || r.title || r.description || r.id,

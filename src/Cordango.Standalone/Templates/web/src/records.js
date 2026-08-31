@@ -222,6 +222,25 @@ export function referenceOptions(entityKey, route) {
 }
 
 /**
+ * Where a reference field's records are READ from, as an api path without the `/api/` prefix.
+ *
+ * Two homes, and `targetApp` is the whole of the discriminator. A reference with no `targetApp`
+ * points at one of this application's own entities and is served by that entity's controller. A
+ * reference WITH one points into the directory — the People, Departments, Groups, Organizations and
+ * Contacts every application carries, whichever `targetApp` names them, because a standalone build
+ * has one directory rather than one per application it was linked against.
+ *
+ * This used to test for `platform` and for the literal entity `person`, which sent everything else —
+ * a customer, a contact — to `/api/organization`, a route that does not exist in a generated
+ * application. The picker then showed nothing at all, with no error a person could see: the field
+ * looked optional and was unfillable.
+ */
+export function referenceRoute(field) {
+  const target = field?.targetEntity ?? 'person'
+  return field?.targetApp ? `directory/${target}` : target
+}
+
+/**
  * The values a facet dropdown offers for one field, and what to call each.
  *
  * A select carries its own options. A process-governed status field's values are the process's
@@ -243,9 +262,8 @@ export function fieldChoices(entityKey, fieldKey) {
   }
 
   if (field.type === 'reference') {
-    return field.targetApp === 'platform' || field.targetEntity === 'person'
-      ? referenceOptions(field.targetEntity ?? 'person', `/api/directory/${field.targetEntity ?? 'person'}`)
-      : referenceOptions(field.targetEntity)
+    const route = referenceRoute(field)
+    return referenceOptions(field.targetEntity ?? 'person', `/api/${route}`)
   }
 
   if (field.type === 'boolean') {

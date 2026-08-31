@@ -153,6 +153,7 @@ public static class BackendEmitter
         if (finalized) source.Line($"using {app.Namespace}.Computed;");
         source.Line($"using {app.Namespace}.Entities;");
         if (hooked) source.Line($"using {app.Namespace}.Hooks;");
+        if (FormsEmitter.HasForms(app)) source.Line("using Cordango.Standalone.Forms;");
         source.Line($"using {app.Namespace}.Data;");
         source.Line($"using {app.Namespace}.Security;");
         source.Line($"using {app.Namespace}.Workflows;");
@@ -175,6 +176,9 @@ public static class BackendEmitter
         source.Line();
         source.Line("// What this application contains, for the OpenAPI document and the MCP server.");
         source.Line("services.AddSingleton(AppSchema.Catalogue);");
+        // The forms archetype, when the application has one. Registered here rather than behind a
+        // flag: the endpoints exist exactly when the four roles do.
+        if (FormsEmitter.HasForms(app)) source.Line("services.AddForms(Forms.AppForms.Catalogue);");
         source.Line();
 
         foreach (var entity in app.Entities)
@@ -324,12 +328,13 @@ public static class BackendEmitter
         ArgumentNullException.ThrowIfNull(entity);
 
         var auto = entity.AuthoredFields
-            .Where(f => AppModel.Str(f.Json["auto"]) is "currentUser" or "currentTime")
+            .Where(f => AppModel.Str(f.Json["auto"]) is "currentUser" or "currentTime" or "publicToken")
             .ToList();
 
         if (auto.Count == 0) return null;
 
         var source = new Source();
+        source.Line("using Cordango.Standalone.Forms;");
         source.Line("using Cordango.Standalone.Hooks;");
         source.Line($"using {app.Namespace}.Entities;");
         source.Line();
@@ -342,11 +347,23 @@ public static class BackendEmitter
         foreach (var field in auto)
         {
             var kind = AppModel.Str(field.Json["auto"]);
-            source.Line($"// {field.Label}: {(kind == "currentUser" ? "whoever is writing" : "when they wrote it")}.");
+            source.Line($"// {field.Label}: {kind switch
+            {
+                "currentUser" => "whoever is writing",
+                "publicToken" => "the record's public address, generated and never typed",
+                _ => "when they wrote it",
+            }}.");
 
             if (kind == "currentUser")
             {
                 source.Line($"record.{field.PropertyName} ??= context.User.PersonId;");
+            }
+            else if (kind == "publicToken")
+            {
+                // Every record is born with an inert address: the token exists from the first write,
+                // and PUBLISHING is the separate act of turning the share flag on. Minting it later
+                // would mean a form that is published and briefly has nowhere to be served.
+                source.Line($"record.{field.PropertyName} ??= PublicToken.Mint();");
             }
             else if (field.Type == "date")
             {
