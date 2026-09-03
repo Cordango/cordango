@@ -30,7 +30,14 @@
     "check": "tsc -p tsconfig.json --noEmit && vitest run"
   },
   "devDependencies": {
+    "@types/pg": "^8.23.1",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.8"
+  },
+  "optionalDependencies": {
+    "pg": "*"
   }
 }

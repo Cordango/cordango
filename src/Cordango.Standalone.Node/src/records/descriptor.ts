@@ -48,7 +48,8 @@ export class RecordDescriptor<T extends RecordRow> {
    */
   copy(source: T): T {
     const copy = { id: source.id } as T;
-    for (const field of this.fields) copy[field.key] = source[field.key];
+    const target = copy as Record<string, unknown>;
+    for (const field of this.fields) target[field.key] = source[field.key];
     return copy;
   }
 
@@ -57,9 +58,11 @@ export class RecordDescriptor<T extends RecordRow> {
    * caller's decision.
    */
   apply(incoming: T, target: T, fieldKeys: Iterable<string>): void {
+    const source = incoming as Record<string, unknown>;
+    const destination = target as Record<string, unknown>;
     for (const key of fieldKeys) {
       const field = this.byKey.get(key);
-      if (field) target[field.key] = incoming[field.key];
+      if (field) destination[field.key] = source[field.key];
     }
   }
 }
