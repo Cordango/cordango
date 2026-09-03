@@ -30,6 +30,11 @@ public class CalendarBindingTests
         (JsonObject)AppCompiler.Compile(doc, "app1", At)["entities"]!.AsArray()
             .OfType<JsonObject>().First(e => (string?)e["key"] == entityKey)["calendar"]!;
 
+    private static JsonObject FieldOf(JsonObject doc, string entityKey, string fieldKey) =>
+        (JsonObject)AppCompiler.Compile(doc, "app1", At)["entities"]!.AsArray()
+            .OfType<JsonObject>().First(e => (string?)e["key"] == entityKey)["fields"]!.AsArray()
+            .OfType<JsonObject>().First(f => (string?)f["key"] == fieldKey);
+
     private static JsonObject? MaybeCalendarOf(JsonObject doc, string entityKey) =>
         AppCompiler.Compile(doc, "app1", At)["entities"]!.AsArray()
             .OfType<JsonObject>().First(e => (string?)e["key"] == entityKey)["calendar"] as JsonObject;
@@ -317,6 +322,25 @@ public class CalendarBindingTests
 
         Assert.Empty(Gate.SemanticErrors(doc));
         Assert.Equal("visit_on", (string?)CalendarOf(doc, "visit")["start"]);
+    }
+
+    [Fact]
+    public void The_field_the_calendar_reads_as_who_stays_fillable_despite_its_audit_name()
+    {
+        var f = FieldOf(Doc(TimeOff("true")), "time_off", "requested_by");
+
+        Assert.Equal("currentUser", (string?)f["auto"]);
+        Assert.Null(f["readOnly"]);
+        Assert.Null(f["hideOnCreate"]);
+    }
+
+    [Fact]
+    public void The_same_field_on_an_entity_off_the_calendar_stays_locked_to_the_acting_user()
+    {
+        var f = FieldOf(Doc(TimeOff("false")), "time_off", "requested_by");
+
+        Assert.Equal("currentUser", (string?)f["auto"]);
+        Assert.True((bool?)f["readOnly"]);
     }
 
     [Fact]

@@ -994,9 +994,47 @@ public static class AppCompiler
         {
             if (!CalendarResolver.IsOptedIn(e)) { e.Remove("calendar"); continue; }
             var (binding, _) = CalendarResolver.Resolve(entities, e);
-            if (binding is null) e.Remove("calendar");
-            else e["calendar"] = binding.ToJson();
+            if (binding is null) { e.Remove("calendar"); continue; }
+            e["calendar"] = binding.ToJson();
+            UnlockCalendarOwner(entities, binding);
         }
+    }
+
+    /// <summary>
+    /// A field the calendar reads as <c>who</c> must stay fillable, whatever <see cref="FlagAutoField"/>
+    /// concluded from its name.
+    ///
+    /// <para><b>Two rules disagreed, and the specific one wins.</b> <c>FlagAutoField</c> locks anything
+    /// named like an audit stamp — every <c>*_by</c> key plus <c>owner</c>, <c>requester</c>,
+    /// <c>submitter</c> — to the acting user, because on most entities those record who filed the
+    /// thing. <see cref="CalendarResolver.WhoPrecedence"/> lists several of the same keys
+    /// (<c>requested_by</c>, <c>booked_by</c>, <c>performed_by</c>) as the field that says whose entry
+    /// this IS. Both cannot hold: a leave request whose <c>requested_by</c> is always the caller
+    /// cannot be filed by an HR admin for somebody else, and the calendar's owner filter degenerates
+    /// into "everything I created" — which is how one person's calendar came to show a colleague's
+    /// time off.</para>
+    ///
+    /// <para><b>What is dropped and what is kept.</b> <c>readOnly</c> and <c>hideOnCreate</c> go, so
+    /// the form asks and the API accepts a value. <c>auto:"currentUser"</c> STAYS: filing your own
+    /// leave should still arrive prefilled with you. That combination only means "default" because
+    /// <c>AppDataService.ApplyAutoFields</c> fills an auto field ONLY when the write left it empty —
+    /// the two halves of this fix are one behaviour and neither works alone.</para>
+    ///
+    /// <para>Runs from <see cref="ResolveCalendar"/> rather than inside <c>FlagAutoField</c> because
+    /// only here is the binding resolved: whether a field is a calendar owner is a property of the
+    /// entity and its parent, not of the field's name.</para>
+    /// </summary>
+    private static void UnlockCalendarOwner(JsonArray entities, CalendarBinding binding)
+    {
+        var owner = entities.OfType<JsonObject>()
+            .FirstOrDefault(e => GetStr(e, "key") == binding.WhoEntity);
+        var field = Arr(owner?["fields"]).OfType<JsonObject>()
+            .FirstOrDefault(f => GetStr(f, "key") == binding.Who);
+        // Only ever relaxes what FlagAutoField decided. A field the AUTHOR marked read-only, or a
+        // system base field, is none of this method's business.
+        if (field is null || GetStr(field, "auto") != "currentUser") return;
+        field.Remove("readOnly");
+        field.Remove("hideOnCreate");
     }
 
     /// <summary>Stamp <c>readOnly:true</c> on every computed field. The value is derived (an expr
