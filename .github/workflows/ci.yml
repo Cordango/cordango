@@ -49,6 +49,29 @@ jobs:
       - name: Schema is composed from src/
         run: python schemas/compose.py --check
 
+      # The Node runtime first, because its fixture suites are the fast half and the shared decision
+      # fixtures (permissions, conditions, computed) are the contract every implementation answers
+      # to — a drift there makes every later failure a mystery too.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/Cordango.Standalone.Node/package-lock.json
+
+      - name: Node runtime
+        working-directory: src/Cordango.Standalone.Node
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
+
+      # A dry-run of the pack on every push, because the real one only happens on a tag and a
+      # packaging mistake found there has already burned the version.
+      - name: Node runtime packs
+        working-directory: src/Cordango.Standalone.Node
+        run: |
+          npm run build
+          npm pack --dry-run
+
       - name: Restore
         run: dotnet restore Cordango.slnx
 
@@ -78,6 +101,20 @@ jobs:
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: src/Cordango.Standalone.Node/package-lock.json
+
+      # The Node runtime writes and reads files for a living too, and its tests load the shared
+      # fixtures by path — exactly the platform-shaped surface this matrix exists for.
+      - name: Node runtime
+        working-directory: src/Cordango.Standalone.Node
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
 
       - name: Test
         run: dotnet test tests/Standalone.Tests/Cordango.Standalone.Tests.csproj -c Release

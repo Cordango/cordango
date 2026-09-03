@@ -3,7 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
-namespace Cordango.SourceGen.DotNetVue.Model;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>
 /// The Forms archetype's entity and field keys, resolved once from the definition's roles.

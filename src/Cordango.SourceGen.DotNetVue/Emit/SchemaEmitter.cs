@@ -5,7 +5,7 @@
 
 using System.Text.Json.Nodes;
 using Cordango.Compile;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
 

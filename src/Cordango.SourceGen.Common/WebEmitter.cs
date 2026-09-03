@@ -6,9 +6,8 @@
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Cordango.SourceGen.DotNetVue.Model;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>What the front-end emitter produced, and what it could not.</summary>
 public sealed record WebResult(

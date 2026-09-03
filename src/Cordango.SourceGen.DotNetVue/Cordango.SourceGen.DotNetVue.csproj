@@ -18,6 +18,7 @@
   -->
   <ItemGroup>
     <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
+    <ProjectReference Include="..\Cordango.SourceGen.Common\Cordango.SourceGen.Common.csproj" />
   </ItemGroup>
 
   <!--

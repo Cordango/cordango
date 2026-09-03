@@ -6,6 +6,7 @@
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue;
 
@@ -76,20 +77,10 @@ public static class Scaffold
     /// </summary>
     public static string RuntimeVersion => BuildVersion.Current;
 
-    /// <summary>
-    /// The version of <c>@cordango/web-controls</c> a generated application's front end is built
-    /// against.
-    ///
-    /// <para>NOT the same number as this generator, unlike <see cref="RuntimeVersion"/>. The runtime
-    /// and the generator are one .NET solution published from one tag; the controls are a separate
-    /// npm package on its own release line, so pinning them to <c>BuildVersion</c> would name a
-    /// version that has never existed on the registry.</para>
-    ///
-    /// <para>Exact, with no range operator. A caret would let <c>npm install</c> pick up a control
-    /// this generator has never emitted against, in an application somebody generated months ago,
-    /// on a machine where the only thing that changed was the day.</para>
-    /// </summary>
-    public static string WebControlsVersion => "0.1.5-alpha";
+    /// <summary>The version of <c>@cordango/web-controls</c> the front end is built against. The pin
+    /// and its reasoning live with the shared Vue shell in <see cref="WebScaffold"/>; this forwards
+    /// so existing callers keep one name for it.</summary>
+    public static string WebControlsVersion => WebScaffold.WebControlsVersion;
 
     /// <summary>What the application's project file says about the runtime, in each of the two
     /// shapes. Written here rather than as two template files, because the rest of the project file
@@ -259,6 +250,13 @@ public static class Scaffold
 
             files.Add((target, Read(assembly, name)));
         }
+
+        // The Vue shell lives in Cordango.SourceGen.Common — it is the half every standalone target
+        // shares. Merged here before the sort, so the file order and the fingerprint are exactly what
+        // they were when the web tree was embedded in this assembly: the scaffold version answers
+        // "which scaffold produced this application", and moving a file between assemblies did not
+        // change the scaffold.
+        files.AddRange(WebScaffold.Files);
 
         files.Sort((a, b) => string.CompareOrdinal(a.Path, b.Path));
 

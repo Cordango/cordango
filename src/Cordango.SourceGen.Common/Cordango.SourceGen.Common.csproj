@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.SourceGen.Common</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    WHAT EVERY STANDALONE TARGET SHARES, whatever its backend is written in.
+
+    The manifest reader (AppModel), the naming rules, the source writer, the web emitter and the Vue
+    shell all describe the FRONT half of a generated application and the model both halves read — and
+    none of it names ASP.NET or EF. The web/ tree a generated application carries is a REST client:
+    any backend that honours the HTTP contract serves it unchanged, which is why one emitter and one
+    template tree exist here rather than one copy per target that would drift apart.
+
+    NOT in Cordango.SourceGen, deliberately. The SDK says what a generator IS and must not know that
+    any particular stack exists; this project says what OUR standalone targets share, and it names
+    Vue in every second file. Two different kinds of shared.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
+  </ItemGroup>
+
+  <!--
+    THE VUE SHELL, EMBEDDED. Same mechanics as the dotnet-vue scaffold: RecursiveDir bakes in the
+    build machine's separator, so WebScaffold normalises to '/' on read, and WithCulture="false"
+    keeps a dotted filename from being compiled into a satellite assembly instead of this one — the
+    trap is documented at length in Cordango.SourceGen.DotNetVue.csproj.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\**\*"
+                      LogicalName="WebTemplate/%(RecursiveDir)%(Filename)%(Extension)"
+                      WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Watch Include="Templates\**\*" />
+  </ItemGroup>
+
+</Project>

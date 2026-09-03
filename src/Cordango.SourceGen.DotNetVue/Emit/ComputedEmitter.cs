@@ -5,7 +5,7 @@
 
 using System.Globalization;
 using Cordango.Definition;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
 

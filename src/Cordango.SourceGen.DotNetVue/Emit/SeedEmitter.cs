@@ -10,7 +10,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
 

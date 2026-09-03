@@ -4,7 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Text.Json.Nodes;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue.Emit;
 

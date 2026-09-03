@@ -17,7 +17,8 @@ public class LicenceHeaderTests
             || relative.EndsWith("cord.config.ts", StringComparison.Ordinal));
 
     private static bool IsScaffoldTemplate(string relative) =>
-        relative.Contains("/Cordango.Standalone/Templates/", StringComparison.Ordinal);
+        relative.Contains("/Cordango.Standalone/Templates/", StringComparison.Ordinal)
+        || relative.Contains("/Cordango.SourceGen.Common/Templates/", StringComparison.Ordinal);
 
     public static TheoryData<string> SourceFiles()
     {
@@ -30,6 +31,7 @@ public class LicenceHeaderTests
             if (relative.Contains("/bin/", StringComparison.Ordinal)
                 || relative.Contains("/obj/", StringComparison.Ordinal)
                 || relative.Contains("/node_modules/", StringComparison.Ordinal)
+                || relative.Contains("/Cordango.Standalone.Node/dist/", StringComparison.Ordinal)
                 || relative.StartsWith(".git", StringComparison.Ordinal))
                 continue;
 

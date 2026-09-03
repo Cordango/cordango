@@ -5,7 +5,7 @@
 
 using System.Text;
 
-namespace Cordango.SourceGen.DotNetVue.Model;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>
 /// Turning definition keys into C# and SQL names.

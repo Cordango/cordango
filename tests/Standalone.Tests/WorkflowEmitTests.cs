@@ -8,7 +8,7 @@ using Cordango.Compile;
 using Cordango.SourceGen;
 using Cordango.SourceGen.DotNetVue;
 using Cordango.SourceGen.DotNetVue.Emit;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.Standalone.Tests;
 

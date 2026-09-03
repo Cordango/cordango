@@ -5,7 +5,7 @@
 
 using System.Text.Json.Nodes;
 
-namespace Cordango.SourceGen.DotNetVue.Model;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>
 /// The compiled manifest, read once into shapes the emitters can use.
@@ -100,13 +100,13 @@ public sealed class AppModel
     public IEnumerable<CommandModel> CommandsFor(string entityKey) =>
         Commands.Where(c => c.Entity == entityKey);
 
-    internal static string? Str(JsonNode? node) =>
+    public static string? Str(JsonNode? node) =>
         node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
-    internal static bool Bool(JsonNode? node) =>
+    public static bool Bool(JsonNode? node) =>
         node is JsonValue v && v.TryGetValue<bool>(out var b) && b;
 
-    internal static JsonArray Arr(JsonNode? node) => node as JsonArray ?? [];
+    public static JsonArray Arr(JsonNode? node) => node as JsonArray ?? [];
 }
 
 /// <summary>One entity: what it stores, what it is called, and how one record is laid out.</summary>

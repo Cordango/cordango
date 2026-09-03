@@ -107,3 +107,58 @@ jobs:
           --api-key ${{ steps.login.outputs.NUGET_API_KEY }}
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate
+
+  # THE NODE RUNTIME, SAME TAG, SAME VERSION. A node-vue application pins @cordango/standalone at
+  # the version of the generator that wrote its package.json — the same one-tag rule the NuGet pair
+  # above lives by — so the npm package publishes from the same push.
+  #
+  # The dist-tag is EXPLICIT, both branches. `@cordango/web-controls` shipped prereleases under
+  # `--tag alpha` with no workflow and npm's `latest` sat on a stale alpha while newer versions
+  # shipped past it; spelling the tag out on every publish is the fix, not a preference.
+  #
+  # Like the NuGet job, there is no long-lived token: npmjs.com trusted publishing exchanges this
+  # run's OIDC token. The policy on npmjs.com names this repository and THIS FILE NAME, so renaming
+  # the workflow breaks publishing until the policy is updated to match.
+  publish-npm:
+    runs-on: ubuntu-latest
+
+    environment: npm
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          registry-url: https://registry.npmjs.org
+
+      - name: Version from the tag
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      # The fixture suites are the contract with the C# runtime, and an npm version is as permanent
+      # as a NuGet one: test before publishing, never after.
+      - name: Build and test
+        working-directory: src/Cordango.Standalone.Node
+        run: |
+          npm ci --no-audit --no-fund
+          npm run check
+
+      # The checked-in version is 0.0.0 on purpose — the tag is the version, same as the csproj's
+      # <Version> being only a local default.
+      - name: Stamp the version
+        working-directory: src/Cordango.Standalone.Node
+        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+
+      - name: Publish
+        working-directory: src/Cordango.Standalone.Node
+        run: |
+          case "${{ steps.version.outputs.version }}" in
+            *-*) tag=alpha ;;
+            *)   tag=latest ;;
+          esac
+          npm publish --provenance --access public --tag "$tag"

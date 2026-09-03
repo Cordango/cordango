@@ -5,7 +5,7 @@
 
 using System.Text;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>
 /// Writing a generated file.

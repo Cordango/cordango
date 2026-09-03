@@ -5,7 +5,7 @@
 
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.DotNetVue.Emit;
-using Cordango.SourceGen.DotNetVue.Model;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.SourceGen.DotNetVue;
 
@@ -299,11 +299,11 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
         for (var i = 0; i < app.Workflows.Count; i++)
         {
             var workflow = app.Workflows[i];
-            var key = Model.AppModel.Str(workflow["key"])
+            var key = AppModel.Str(workflow["key"])
                 ?? i.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
             var trigger = workflow["trigger"] as JsonObject;
-            var @event = Model.AppModel.Str(trigger?["event"]);
+            var @event = AppModel.Str(trigger?["event"]);
 
             // A trigger this target does not wire. `schedule` needs a host that is awake and a timer
             // to wake it, which is a different piece of machinery from a hook on a write.
@@ -325,8 +325,8 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                     + "run in cases the definition excludes.",
                     $"$.workflows[{i}].when");
 
-            var unwritten = Model.AppModel.Arr(workflow["effects"]).OfType<JsonObject>()
-                .Select(e => Model.AppModel.Str(e["type"]))
+            var unwritten = AppModel.Arr(workflow["effects"]).OfType<JsonObject>()
+                .Select(e => AppModel.Str(e["type"]))
                 .Where(type => type is null || !Emit.WorkflowEmitter.Emitted.Contains(type))
                 .Select(type => type ?? "an unnamed effect")
                 .Distinct(StringComparer.Ordinal)
@@ -346,9 +346,9 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
             // ones left: both need something outbound, and an application that silently sent
             // nothing would look like one whose mail was being swallowed.
             var unsent = command.Effects
-                .Where(e => Model.AppModel.Str(e["type"]) is not "notify")
+                .Where(e => AppModel.Str(e["type"]) is not "notify")
                 .Where(e => Emit.WorkflowEmitter.Effect(app, command.Entity, e) is null)
-                .Select(e => Model.AppModel.Str(e["type"]) ?? "an unnamed effect")
+                .Select(e => AppModel.Str(e["type"]) ?? "an unnamed effect")
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
 
@@ -412,9 +412,9 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
         foreach (var (leaf, path) in Filters(app.Manifest, "$"))
         {
-            var reason = Model.AppModel.Str(leaf["path"]) is { } hop
+            var reason = AppModel.Str(leaf["path"]) is { } hop
                 ? $"a filter on '{hop}', which reads a field one reference away"
-                : Model.AppModel.Str(leaf["operator"]) is "overlaps"
+                : AppModel.Str(leaf["operator"]) is "overlaps"
                     ? "the 'overlaps' filter, which compares a row's own range against a window"
                     : null;
 

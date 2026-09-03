@@ -14,6 +14,7 @@
   <Project Path="src/Cordango.Compiler/Cordango.Compiler.csproj" />
   <Project Path="src/Cordango.Cli/Cordango.Cli.csproj" />
   <Project Path="src/Cordango.SourceGen/Cordango.SourceGen.csproj" />
+  <Project Path="src/Cordango.SourceGen.Common/Cordango.SourceGen.Common.csproj" />
   <Project Path="src/Cordango.SourceGen.DotNetVue/Cordango.SourceGen.DotNetVue.csproj" />
   <Project Path="src/Cordango.Standalone/Cordango.Standalone.csproj" />
   <Project Path="tests/Compiler.Tests/Cordango.Compiler.Tests.csproj" />
