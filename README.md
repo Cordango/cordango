@@ -23,7 +23,6 @@ today. Node, Python and React are on the way. See [Targets](#targets).
 What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
 no phone home. It's an ordinary project that keeps working whether or not this project does.
 
-> **Status: pre-alpha.** The standalone generator works end to end and nothing here is stable yet.
 
 📖 **[Documentation](https://docs.cordango.com)** · [Quickstart](https://docs.cordango.com/quickstart) · [CLI reference](https://docs.cordango.com/cli/install) · [Concepts](https://docs.cordango.com/concepts) · [Building with an agent](https://docs.cordango.com/ai/overview)
 
@@ -45,6 +44,58 @@ no phone home. It's an ordinary project that keeps working whether or not this p
 - [Security](#security)
 - [Getting help](#getting-help)
 - [License](#license)
+
+## From definition to application
+
+Define the application:
+
+```
+entities:
+  Expense:
+    fields:
+      amount: money
+      category: string
+      submittedAt: datetime
+
+roles:
+  employee:
+    can:
+      - create: Expense
+      - read: Expense
+```
+
+Build it:
+
+```
+cordango build
+```
+
+Get a conventional application:
+
+```
+generated/expenses/
+├── api/        
+├── web/        
+├── Dockerfile
+└── docker-compose.yml
+```
+
+Including:
+
+* REST API + MCP
+* PostgreSQL schema and migrations, more database targets soon
+* authentication
+* server-side permissions
+* workflows and business logic
+* frontend views
+* Docker deployment
+* Webhooks + Events
+* Ready to use
+
+**No Cordango runtime dependency. No licence server. No phone home.**
+
+The generated source code is yours. Run it, modify it, deploy it anywhere.
+
 
 ## Documentation
 
