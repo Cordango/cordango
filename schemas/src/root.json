@@ -36,6 +36,32 @@
       "type": "string",
       "maxLength": 2000
     },
+    "purpose": {
+      "description": "Why this app exists, in its own words — the ONE authored input to its App Contract. Everything else the contract states (entities, events, actions, rules, dependencies) is derived from this document at compile time; this is the part no compiler can know. The generator fills it in at creation from what it was told, and nobody maintains it afterwards. It is not a description of the screens: it is what another app's author, or an agent deciding whether to talk to this app at all, needs to read first.",
+      "type": "object",
+      "required": [
+        "summary"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "summary": {
+          "description": "One sentence naming the job this app does, in the language of the business rather than of the software (e.g. 'Moves sales opportunities through the pipeline and keeps the next activity on every open deal').",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "duties": {
+          "description": "What this app takes responsibility for, one short phrase each ('owns the deal pipeline', 'records every customer touchpoint'). A duty is a claim other apps may rely on, so state what this app OWNS, never what it merely displays.",
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        }
+      }
+    },
     "weekStart": {
       "description": "Which day begins a week, for `weekday()` and `week_of_year()` in computed expressions. Default 'monday' (ISO-8601), where Monday is 1 and Sunday is 7. CHANGING THIS RESTATES EXISTING FIGURES: every stored weekday and week number is recomputed on the next write to its row, so an app whose rows are not all rewritten will hold two conventions at once. Decide it when the app is created, not after it has data.",
       "type": "string",
@@ -76,6 +102,14 @@
           "minLength": 1,
           "maxLength": 300
         }
+      }
+    },
+    "uses": {
+      "description": "The other apps this app deliberately builds on — DECLARED intent, stated once, before any field points anywhere. A reference field's `targetApp` is how a single link is made; this is the app saying which apps it belongs with, so an agent can see the dependency without reading every field and the App Contract can state it. The platform directory (`targetApp: 'platform'` — person, department, group) is never listed: every app has it. The compiler never writes here — a reference to an app this does not name is reported to the author, not quietly added.",
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "$ref": "#/$defs/appDependency"
       }
     },
     "plugins": {
@@ -202,6 +236,34 @@
           ]
         }
       ]
+    },
+    "appDependency": {
+      "description": "One app this app builds on.",
+      "type": "object",
+      "required": [
+        "app"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "app": {
+          "description": "The app's PERMANENT key: a core app's systemKey ('core_organizations', 'core_people', 'core_calendar') or another app's definition key. Never a handle — a handle is a disposable URL address and renaming one must not break a dependency.",
+          "$ref": "#/$defs/identifier"
+        },
+        "entities": {
+          "description": "Which of that app's entities this app uses. Omit to mean all of them. Naming them is what lets an update to the other app be checked against what this one actually relies on.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/identifier"
+          }
+        },
+        "why": {
+          "description": "One phrase on what this app needs from the other ('customers and their contacts live there'). Read by a person deciding whether the dependency is still true.",
+          "type": "string",
+          "maxLength": 200
+        }
+      }
     },
     "pluginRef": {
       "type": "object",

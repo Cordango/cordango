@@ -100,7 +100,7 @@ public sealed class Args
             // none, so the lookahead has to stop at the next `--`.
             if (i + 1 < argv.Length && !argv[i + 1].StartsWith("--", StringComparison.Ordinal)
                 && name is "app" or "scope" or "ops" or "out" or "instance" or "token"
-                    or "target" or "seed" or "seed-date" or "runtime")
+                    or "target" or "seed" or "seed-date" or "runtime" or "limit")
                 args._flags[name] = argv[++i];
             else
                 args._flags[name] = null;

@@ -74,7 +74,8 @@ internal static class CordOpsSchema
                     + "anything omitted is cleared — and touches nothing else. Send several in one call.",
                 ["items"] = new JsonObject
                 {
-                    ["oneOf"] = new JsonArray(UpsertEntity(), UpsertField(), Remove()),
+                    ["oneOf"] = new JsonArray(UpsertEntity(), UpsertField(), Remove(),
+                        SetPurpose(), UpsertUses(), RemoveUses()),
                 },
             },
         },
@@ -83,6 +84,7 @@ internal static class CordOpsSchema
             ["entity"] = Entity(),
             ["field"] = Field(),
             ["aggregate"] = Aggregate(),
+            ["use"] = Use(),
         },
     };
 
@@ -106,6 +108,58 @@ internal static class CordOpsSchema
             ["field"] = Str("Field key. Omit to remove the entity itself."),
         },
         "entity");
+
+    private static JsonObject SetPurpose() => Op("set_purpose",
+        "Why this app exists. State it once, at creation: it is the one thing about an app that "
+        + "cannot be worked out from what is authored.",
+        new JsonObject
+        {
+            ["purpose"] = new JsonObject
+            {
+                ["type"] = "object",
+                ["additionalProperties"] = false,
+                ["required"] = new JsonArray("summary"),
+                ["properties"] = new JsonObject
+                {
+                    ["summary"] = Str("One sentence naming the job it does, in the business's words."),
+                    ["duties"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["description"] = "What it OWNS, one phrase each. Not what it merely displays.",
+                        ["items"] = new JsonObject { ["type"] = "string" },
+                    },
+                },
+            },
+        },
+        "purpose");
+
+    private static JsonObject UpsertUses() => Op("upsert_uses",
+        "Declare that this app builds on another — before adding the reference fields, so the "
+        + "dependency is visible without reading every field.",
+        new JsonObject { ["use"] = Ref("#/$defs/use") }, "use");
+
+    private static JsonObject RemoveUses() => Op("remove_uses",
+        "Withdraw a declaration. Fields pointing at that app are left alone.",
+        new JsonObject { ["app"] = Str("The declared app's key.") }, "app");
+
+    private static JsonObject Use() => new()
+    {
+        ["type"] = "object",
+        ["additionalProperties"] = false,
+        ["required"] = new JsonArray("app"),
+        ["properties"] = new JsonObject
+        {
+            ["app"] = Str("The other app's permanent key: a core app's systemKey "
+                + "(core_people, core_organizations, core_calendar) or another app's key. Not a handle."),
+            ["entities"] = new JsonObject
+            {
+                ["type"] = "array",
+                ["description"] = "Which of its entities this app uses. Omit for all.",
+                ["items"] = new JsonObject { ["type"] = "string" },
+            },
+            ["why"] = Str("One phrase on what this app needs from it."),
+        },
+    };
 
 
 

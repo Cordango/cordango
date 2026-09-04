@@ -47,6 +47,20 @@ public sealed record UpsertField(string Entity, CordField Field) : CordOp;
 public sealed record RemoveEntity(string Entity) : CordOp;
 public sealed record RemoveField(string Entity, string Field) : CordOp;
 
+/// <summary>State why the app exists. Replaces whatever was there, because a purpose is one
+/// statement and a merged one would be two half-statements.</summary>
+public sealed record SetPurpose(CordPurpose Purpose) : CordOp;
+
+/// <summary>Declare that this app builds on another, or restate the declaration it already has for
+/// that app. Keyed by <c>app</c>, so declaring the same one twice revises it rather than repeating
+/// it.</summary>
+public sealed record UpsertUse(CordUse Use) : CordOp;
+
+/// <summary>Withdraw a declaration. Does not touch the fields that point at that app — a reference
+/// is removed by removing the field, and silently rewriting the data model from a statement about
+/// intent is the kind of helpfulness that loses work.</summary>
+public sealed record RemoveUse(string App) : CordOp;
+
 // THERE IS NO `rename`, AND ITS ABSENCE IS THE DELIBERATE PART.
 //
 // It existed and it was wrong: it changed the key and rewrote nothing that pointed at it — not
@@ -168,9 +182,13 @@ public static class CordOps
     /// is being asked a question about the API rather than about their application. <c>rename</c> went
     /// for a different reason — see the note above its former declaration.</para>
     /// </summary>
+    /// <para><c>set_purpose</c>, <c>upsert_uses</c> and <c>remove_uses</c> joined them when the App
+    /// Contract landed. They are domain rather than behaviour because they say what the application
+    /// IS and what it builds on, which is the same question an entity answers one noun at a
+    /// time.</para>
     public static readonly IReadOnlyList<string> DomainOpNames =
     [
-        "upsert_entity", "upsert_field", "remove",
+        "upsert_entity", "upsert_field", "remove", "set_purpose", "upsert_uses", "remove_uses",
     ];
 
     /// <summary>
@@ -329,6 +347,24 @@ public static class CordOps
                         : new RemoveEntity(entity);
                     break;
                 }
+                case "set_purpose":
+                {
+                    if (op["purpose"] is not JsonObject p) { problem = "`purpose` is required"; break; }
+                    result = new SetPurpose(CordWire.Purpose(p));
+                    break;
+                }
+                case "upsert_uses":
+                {
+                    if (op["use"] is not JsonObject u) { problem = "`use` is required"; break; }
+                    result = new UpsertUse(CordWire.Use(u));
+                    break;
+                }
+                case "remove_uses":
+                {
+                    if (Str(op, "app") is not { } usedApp) { problem = "`app` is required"; break; }
+                    result = new RemoveUse(usedApp);
+                    break;
+                }
                 case "upsert_screen":
                 {
                     if (op["screen"] is not JsonObject s) { problem = "`screen` is required"; break; }
@@ -457,6 +493,8 @@ public static class CordOps
         // Cloned rather than shared because the screen arms READ it to decide whether this app carries
         // pages Cord cannot see — see CarriedScreens.
         var rootRaw = draft.Raw is null ? null : (JsonObject)draft.Raw.DeepClone();
+        var purpose = draft.Purpose;
+        var uses = draft.Uses?.ToList();
         var processes = draft.Processes?.ToList();
         var actions = draft.Actions?.ToList();
         var schedules = draft.Schedules?.ToList();
@@ -504,6 +542,25 @@ public static class CordOps
                                 $"'{rmf.Entity}' has no field '{rmf.Field}'", i));
                         return e with { Fields = fields };
                     });
+                    break;
+
+                case SetPurpose sp:
+                    purpose = sp.Purpose;
+                    break;
+
+                case UpsertUse uu:
+                {
+                    uses ??= [];
+                    var at = uses.FindIndex(x => x.App == uu.Use.App);
+                    if (at < 0) uses.Add(uu.Use);
+                    else uses[at] = uu.Use;
+                    break;
+                }
+
+                case RemoveUse rmu:
+                    if (uses is null || uses.RemoveAll(x => x.App == rmu.App) == 0)
+                        errors.Add(new CordError(CordErrorCode.UnknownEntity, $"uses/{rmu.App}",
+                            $"this app does not declare that it uses '{rmu.App}'", i));
                     break;
 
                 case UpsertScreen us:
@@ -665,6 +722,10 @@ public static class CordOps
             Actions = actions,
             Schedules = schedules,
             Roles = roles,
+            Purpose = purpose,
+            // Null when emptied, so withdrawing the last declaration lowers as no `uses` at all
+            // rather than as an empty array claiming the app depends on nothing in particular.
+            Uses = uses is { Count: > 0 } ? uses : null,
             // Null when emptied, so an exhausted overlay disappears rather than lowering as `{}`.
             Raw = rootRaw is { Count: > 0 } ? rootRaw : null,
         }, errors);

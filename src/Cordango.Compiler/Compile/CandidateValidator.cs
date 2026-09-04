@@ -39,6 +39,12 @@ public sealed record CandidateOutcome(
     JsonObject? Manifest,
     bool Coherent = false)
 {
+    /// <summary>What is worth saying that is neither a refusal nor a fill — a reference into an app
+    /// the author never declared, a declared app nothing uses. Typed rather than prose so a tool
+    /// branches on the code instead of on the wording of a sentence, and not positional so every
+    /// existing construction of this record keeps working unchanged.</summary>
+    public IReadOnlyList<DefinitionNote> Notes { get; init; } = [];
+
     internal static CandidateOutcome Rejected(IReadOnlyList<string> errors, JsonNode? definition = null,
         IReadOnlyList<string>? fills = null) =>
         new(false, null, errors, fills ?? [], definition, null);
@@ -171,10 +177,18 @@ public static class CandidateValidator
         // The distinction is reported rather than collapsed, because an incremental author needs to be
         // told "not yet" without being told "wrong" — and because the alternative, letting a session
         // guess from error strings, puts a second interpretation of correctness in the codebase.
-        var smoke = SmokeErrors(doc, manifest);
-        if (smoke.Count > 0) return CandidateOutcome.Incomplete(smoke, doc, fills, manifest);
+        // Dependency notes ride along on every coherent outcome, finished or not: an author who has
+        // just written the reference is exactly who needs to hear that it was never declared.
+        var notes = AppDependencies.Diagnose(doc as JsonObject);
 
-        return new CandidateOutcome(true, DefinitionHash.Of(doc), [], fills, doc, manifest, Coherent: true);
+        var smoke = SmokeErrors(doc, manifest);
+        if (smoke.Count > 0)
+            return CandidateOutcome.Incomplete(smoke, doc, fills, manifest) with { Notes = notes };
+
+        return new CandidateOutcome(true, DefinitionHash.Of(doc), [], fills, doc, manifest, Coherent: true)
+        {
+            Notes = notes,
+        };
     }
 
     /// <summary>

@@ -986,7 +986,7 @@ public class CordOpsTests(ITestOutputHelper output)
         output.WriteLine(report.ToString());
 
         Assert.InRange(report.Bytes, 1, 12_000);
-        Assert.Equal(3, report.Operations);
+        Assert.Equal(6, report.Operations);
     }
 
     [Fact]

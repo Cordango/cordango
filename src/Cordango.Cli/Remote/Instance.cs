@@ -73,6 +73,18 @@ public sealed class Instance : IDisposable
     public Task<InstanceResult> GetAppAsync(string id, CancellationToken ct) => SendAsync(
         () => new HttpRequestMessage(HttpMethod.Get, "api/apps/" + Uri.EscapeDataString(id)), ct);
 
+    /// <summary>
+    /// What every app on this instance offers: the tenant's App Contracts.
+    ///
+    /// <para>A SEARCH, not a listing, when <paramref name="query"/> is given — a workspace author
+    /// asking "is there already something for suppliers" gets the apps that answer that rather than
+    /// the first page of an alphabet. Scoped server-side to what this credential may open.</para>
+    /// </summary>
+    public Task<InstanceResult> ContractsAsync(string? query, int limit, CancellationToken ct) => SendAsync(
+        () => new HttpRequestMessage(HttpMethod.Get,
+            $"api/contracts?full=true&limit={limit}"
+            + (query is { Length: > 0 } ? $"&q={Uri.EscapeDataString(query)}" : "")), ct);
+
     /// <summary>Publish one built App Definition and make it live.</summary>
     public Task<InstanceResult> PublishAsync(JsonNode definition, bool force, CancellationToken ct) => SendAsync(
         () => new HttpRequestMessage(HttpMethod.Post, "api/apps/publish")

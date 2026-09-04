@@ -73,6 +73,26 @@ public static class CordInspect
         var sb = new StringBuilder();
         sb.AppendLine(app.Name ?? app.Key ?? "(unnamed app)");
 
+        // The purpose first, because it is the sentence that makes the rest of the outline mean
+        // something, and the one thing here nobody can re-derive from the entities below it.
+        if (app.Purpose?.Summary is { Length: > 0 } summary)
+        {
+            sb.AppendLine().AppendLine(summary);
+            foreach (var duty in app.Purpose.DutyList) sb.AppendLine($"- owns: {duty}");
+        }
+
+        // What it builds on. Printed even when the app has no entities yet: an author resuming a
+        // draft needs to see that Organizations is already the declared home for customers before
+        // they invent a second one.
+        if (app.UseList.Count > 0)
+        {
+            sb.AppendLine().AppendLine("Uses:");
+            foreach (var use in app.UseList)
+                sb.AppendLine($"- {use.App}"
+                    + (use.EntityList.Count > 0 ? $" ({string.Join(", ", use.EntityList)})" : "")
+                    + (use.Why is { Length: > 0 } why ? $" — {why}" : ""));
+        }
+
         if (app.EntityList.Count == 0)
         {
             sb.AppendLine().AppendLine("No entities yet.");

@@ -7,6 +7,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.Cli.Generate;
+using Cordango.Compile;
 using Cordango.Cli.Workspace;
 using Cordango.SourceGen;
 
@@ -90,6 +91,12 @@ public static class BuildCommand
                 report.Definition!.ToJsonString(Pretty) + "\n");
             AtomicFile.Write(Path.Combine(directory, "manifest.json"),
                 report.Manifest!.ToJsonString(Pretty) + "\n");
+
+            // The contract is written by ContractWriter and never by this method's own formatting:
+            // the platform writes the same bytes for the same definition, and a trailing newline
+            // added here rather than there is exactly how that stops being true.
+            if (report.Contract is { } contract)
+                AtomicFile.Write(Path.Combine(directory, "contract.json"), ContractWriter.Text(contract));
 
             // Diagnostics carry what must NOT influence the hashed artifacts: the real build time,
             // the tool version, and whether the app is finished. Separating them is what lets the

@@ -32,6 +32,15 @@ public sealed record CheckReport(
     JsonObject? Manifest,
     string? DefinitionHashHex)
 {
+    /// <summary>Typed remarks that are neither refusals nor fills — see <see cref="DefinitionNote"/>.
+    /// Not positional, so nothing that already builds a report has to change.</summary>
+    public IReadOnlyList<DefinitionNote> Notes { get; init; } = [];
+
+    /// <summary>The app's public surface, when it compiled to one. Computed with the manifest rather
+    /// than at write time, so <c>check</c> and <c>discover</c> answer from the same projection the
+    /// build writes out.</summary>
+    public JsonObject? Contract { get; init; }
+
     public JsonObject ToJson() => new()
     {
         ["app"] = AppKey,
@@ -41,6 +50,7 @@ public sealed record CheckReport(
         ["definitionHash"] = DefinitionHashHex,
         ["errors"] = new JsonArray([.. Errors.Select(e => (JsonNode)e!)]),
         ["fills"] = new JsonArray([.. Fills.Select(f => (JsonNode)f!)]),
+        ["notes"] = new JsonArray([.. Notes.Select(n => (JsonNode)n.ToJson())]),
     };
 }
 
@@ -113,6 +123,12 @@ public static class Pipeline
             outcome.Fills,
             outcome.Definition,
             outcome.Manifest,
-            outcome.Definition is { } d ? DefinitionHash.Of(d) : null);
+            outcome.Definition is { } d ? DefinitionHash.Of(d) : null)
+        {
+            Notes = outcome.Notes,
+            Contract = outcome.Definition is JsonObject def && outcome.Manifest is { } m
+                ? AppContract.Build(def, m)
+                : null,
+        };
     }
 }

@@ -78,6 +78,78 @@
                 "description": "Field key. Omit to remove the entity itself."
               }
             }
+          },
+          {
+            "title": "set_purpose",
+            "description": "Why this app exists. State it once, at creation: it is the one thing about an app that cannot be worked out from what is authored.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "purpose"
+            ],
+            "properties": {
+              "op": {
+                "const": "set_purpose"
+              },
+              "purpose": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "summary"
+                ],
+                "properties": {
+                  "summary": {
+                    "type": "string",
+                    "description": "One sentence naming the job it does, in the business\u0027s words."
+                  },
+                  "duties": {
+                    "type": "array",
+                    "description": "What it OWNS, one phrase each. Not what it merely displays.",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          {
+            "title": "upsert_uses",
+            "description": "Declare that this app builds on another \u2014 before adding the reference fields, so the dependency is visible without reading every field.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "use"
+            ],
+            "properties": {
+              "op": {
+                "const": "upsert_uses"
+              },
+              "use": {
+                "$ref": "#/$defs/use"
+              }
+            }
+          },
+          {
+            "title": "remove_uses",
+            "description": "Withdraw a declaration. Fields pointing at that app are left alone.",
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "op",
+              "app"
+            ],
+            "properties": {
+              "op": {
+                "const": "remove_uses"
+              },
+              "app": {
+                "type": "string",
+                "description": "The declared app\u0027s key."
+              }
+            }
           }
         ]
       }
@@ -432,6 +504,30 @@
               }
             }
           }
+        }
+      }
+    },
+    "use": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "app"
+      ],
+      "properties": {
+        "app": {
+          "type": "string",
+          "description": "The other app\u0027s permanent key: a core app\u0027s systemKey (core_people, core_organizations, core_calendar) or another app\u0027s key. Not a handle."
+        },
+        "entities": {
+          "type": "array",
+          "description": "Which of its entities this app uses. Omit for all.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "why": {
+          "type": "string",
+          "description": "One phrase on what this app needs from it."
         }
       }
     }

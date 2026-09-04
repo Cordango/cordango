@@ -134,6 +134,40 @@ public static class Gate
 
         var entities = Arr(root["entities"]);
 
+        // `uses` — the apps this one says it builds on. Checked here and never rewritten: an
+        // undeclared reference is reported by the pipeline as a note, because a definition that
+        // links to Organizations without naming it is impolite, not wrong, and refusing it would
+        // break every app written before the block existed.
+        var declaredApps = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var un in Arr(root["uses"]))
+        {
+            if (un is not JsonObject use) continue;
+            var app = Str(use, "app");
+            if (app is null) continue;                                  // the schema already required it
+            if (!declaredApps.Add(app))
+                errors.Add($"SEMANTIC: `uses` names '{app}' twice");
+            if (app == Str(root, "key"))
+                errors.Add($"SEMANTIC: `uses` names this app itself ('{app}') — a dependency is on another app");
+            if (app == "platform")
+                errors.Add("SEMANTIC: `uses` names 'platform' — the platform directory (person, department, "
+                         + "group) is available to every app and is never declared; reference it with "
+                         + "targetApp: 'platform' on a field");
+            var named = Arr(use["entities"]).Select(e => e?.GetValue<string>()).OfType<string>().ToList();
+            if (CoreAppRegistry.Find(app) is { } coreApp)
+            {
+                // A core app ships with the platform, so what it holds is known right here — the same
+                // reason a reference into one is checked without a database.
+                foreach (var want in named.Where(w => !coreApp.EntityKeys.Contains(w)))
+                    errors.Add($"SEMANTIC: `uses` says '{app}' has an entity '{want}', which it does not "
+                             + $"(it has: {string.Join(", ", coreApp.EntityKeys.OrderBy(x => x))})");
+            }
+            else if (app.StartsWith("core_", StringComparison.Ordinal))
+                errors.Add($"SEMANTIC: `uses` names core app '{app}', which does not exist "
+                         + $"(the platform provides: {string.Join(", ", CoreAppRegistry.All.Select(c => c.SystemKey).OrderBy(x => x))})");
+            // Any other key is another app in the tenant. The gate is a single-document function and
+            // cannot see it, exactly as with a reference field's `targetApp`.
+        }
+
         // entity/field lookups + uniqueness
         var entityFields = new Dictionary<string, HashSet<string>>();
         var entityFieldDefs = new Dictionary<string, Dictionary<string, JsonObject>>();

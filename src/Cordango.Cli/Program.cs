@@ -42,6 +42,9 @@ try
         "import" => await ImportCommand.RunAsync(parsed, output, interrupt.Token),
         "build" => BuildCommand.Run(parsed, output),
         "inspect" => InspectCommand.Run(parsed, output),
+        // Offline for the workspace and the core apps, richer when connected — the one command whose
+        // answer legitimately grows with a login rather than requiring one.
+        "discover" => await DiscoverCommand.RunAsync(parsed, output, interrupt.Token),
         "vocabulary" or "vocab" => VocabularyCommand.Run(parsed, output),
         "apply" => ApplyCommand.Run(parsed, output),
         "fmt" => FmtCommand.Run(parsed, output),

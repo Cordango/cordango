@@ -118,6 +118,15 @@ public static class CheckCommand
                     foreach (var error in report.Errors) w.WriteLine($"    still needed: {error}");
 
                 foreach (var fill in report.Fills) w.WriteLine($"    filled: {fill}");
+
+                // Notes are neither errors nor fills: legal, compiling, and still worth saying. An
+                // implicit dependency prints the `uses` entry that would settle it, because the
+                // author's next move is to paste it and the alternative is guessing the syntax.
+                foreach (var note in report.Notes)
+                {
+                    w.WriteLine($"    {note.Severity}: {note.Message}");
+                    if (note.Suggestion is { Length: > 0 } fix) w.WriteLine($"        declare it: {fix}");
+                }
             }
 
             if (reports.Count == 0) w.WriteLine("no apps registered in " + WorkspaceFile.FileName);

@@ -41,6 +41,11 @@ public static class Help
             + "finish, and --runtime source to check the Cordango.Standalone source in as a sibling "
             + "project instead of restoring the package."),
         new("inspect [path] [--app <key>]", "Describe the workspace, one app, or one aggregate."),
+        new("discover [<query>] [--app <key>] [--entities|--events|--actions|--rules] [--limit <n>]",
+            "What already exists: every app's entities, the events it announces, the actions it "
+            + "offers and the rules they carry. Run it BEFORE modelling — if something is already "
+            + "there, link to it instead of declaring it again. Works offline; a login adds the "
+            + "rest of the instance's apps."),
         new("vocabulary [<name>]", "What may be written: Cord's words, or one construct's schema."),
         new("apply <ops.json> --app <key> --scope <kind[:key]>",
             "Apply semantic operations and rewrite the affected source files."),

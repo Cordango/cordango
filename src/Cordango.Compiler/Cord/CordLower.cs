@@ -86,6 +86,39 @@ public static class CordLower
         Put("", "description", app.Description, doc);
         Put("", "schemaVersion", app.SchemaVersion, doc);
 
+        if (app.Purpose is { } purpose)
+        {
+            var o = new JsonObject();
+            Put("/purpose", "summary", purpose.Summary, o);
+            if (purpose.Duties is { Count: > 0 } duties)
+            {
+                o["duties"] = new JsonArray([.. duties.Select(d => (JsonNode)d!)]);
+                semantic.Add("/purpose/duties");
+            }
+            if (o.Count > 0) { doc["purpose"] = o; semantic.Add("/purpose"); }
+        }
+
+        // Emitted in the order the author declared them: `uses` is a statement, and reordering a
+        // statement to look tidy is a diff on every rebuild for no reader's benefit.
+        if (app.Uses is { Count: > 0 } uses)
+        {
+            var arr = new JsonArray();
+            for (var i = 0; i < uses.Count; i++)
+            {
+                var u = new JsonObject();
+                Put($"/uses/{i}", "app", uses[i].App, u);
+                if (uses[i].Entities is { Count: > 0 } picked)
+                {
+                    u["entities"] = new JsonArray([.. picked.Select(e => (JsonNode)e!)]);
+                    semantic.Add($"/uses/{i}/entities");
+                }
+                Put($"/uses/{i}", "why", uses[i].Why, u);
+                arr.Add(u);
+            }
+            doc["uses"] = arr;
+            semantic.Add("/uses");
+        }
+
         if (app.Entities is { } entities)
         {
             var arr = new JsonArray();

@@ -18,7 +18,7 @@ public class SchemaCompositionTests
     public void Embedded_schema_parses_under_JsonSchemaNet()
     {
         Assert.NotNull(Schemas.AppDefinitionSchema);
-        Assert.Equal(82, Defs.Count);
+        Assert.Equal(83, Defs.Count);
     }
 
     [Fact]

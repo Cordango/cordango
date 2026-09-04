@@ -46,6 +46,16 @@ public static class CordImport
         var version = CordJson.TakeString(rest, "version");
         var description = CordJson.TakeString(rest, "description");
         var schemaVersion = CordJson.TakeString(rest, "schemaVersion");
+        var purpose = Purpose(CordJson.TakeObject(rest, "purpose"));
+
+        // All-or-nothing at the array level, like entities: a half-read dependency list would
+        // round-trip as a shorter one, which is worse than carrying the whole thing raw.
+        List<CordUse>? uses = null;
+        if (CordJson.TakeArray(rest, "uses") is { } useArr)
+        {
+            if (useArr.All(x => x is JsonObject)) uses = useArr.Select(x => Use((JsonObject)x!)).ToList();
+            else rest["uses"] = useArr;
+        }
 
         List<CordEntity>? entities = null;
         if (CordJson.TakeArray(rest, "entities") is { } arr)
@@ -64,7 +74,27 @@ public static class CordImport
         return new CordApp(key, name, version, description, schemaVersion, entities,
             Screens: screens,
             Processes: processes, Actions: actions, Schedules: schedules, Roles: roles,
-            Raw: CordJson.Remainder(rest));
+            Raw: CordJson.Remainder(rest),
+            Purpose: purpose, Uses: uses);
+    }
+
+    private static CordPurpose? Purpose(JsonObject? src)
+    {
+        if (src is null) return null;
+        var rest = (JsonObject)src.DeepClone();
+        var summary = CordJson.TakeString(rest, "summary");
+        var duties = CordJson.TakeArray(rest, "duties")?
+            .Select(d => d?.GetValue<string>()).OfType<string>().ToList();
+        return new CordPurpose(summary, duties);
+    }
+
+    private static CordUse Use(JsonObject src)
+    {
+        var rest = (JsonObject)src.DeepClone();
+        var app = CordJson.TakeString(rest, "app");
+        var entities = CordJson.TakeArray(rest, "entities")?
+            .Select(e => e?.GetValue<string>()).OfType<string>().ToList();
+        return new CordUse(app, entities, CordJson.TakeString(rest, "why"));
     }
 
     private static CordEntity Entity(JsonObject src, CordRefIndex refs)

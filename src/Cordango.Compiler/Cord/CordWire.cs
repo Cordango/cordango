@@ -57,6 +57,15 @@ internal static class CordWire
         // a deliberate opt-OUT that an edit can use to take an entity back off the calendar.
         Calendar: o["calendar"] is JsonValue cal && cal.TryGetValue<bool>(out var onCal) ? onCal : null);
 
+    public static CordPurpose Purpose(JsonObject o) => new(
+        Summary: Str(o, "summary"),
+        Duties: Strings(o, "duties"));
+
+    public static CordUse Use(JsonObject o) => new(
+        App: Str(o, "app"),
+        Entities: Strings(o, "entities"),
+        Why: Str(o, "why"));
+
     public static CordField Field(JsonObject o) => new(
         Key: Str(o, "key"),
         Label: Str(o, "label"),
@@ -118,6 +127,12 @@ internal static class CordWire
 
         return null;
     }
+
+    private static IReadOnlyList<string>? Strings(JsonObject o, string key) =>
+        o[key] is JsonArray a
+            ? a.OfType<JsonValue>().Select(v => v.TryGetValue<string>(out var s) ? s : null)
+                .OfType<string>().ToList()
+            : null;
 
     private static string? Str(JsonObject o, string key) =>
         o[key] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;

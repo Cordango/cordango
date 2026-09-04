@@ -58,8 +58,11 @@ public sealed record CordApp(
     IReadOnlyList<CordAction>? Actions = null,
     IReadOnlyList<CordSchedule>? Schedules = null,
     IReadOnlyList<CordRole>? Roles = null,
-    JsonObject? Raw = null)
+    JsonObject? Raw = null,
+    CordPurpose? Purpose = null,
+    IReadOnlyList<CordUse>? Uses = null)
 {
+    public IReadOnlyList<CordUse> UseList => Uses ?? [];
     public IReadOnlyList<CordEntity> EntityList => Entities ?? [];
     public IReadOnlyList<CordProcess> ProcessList => Processes ?? [];
     public IReadOnlyList<CordAction> ActionList => Actions ?? [];
@@ -78,7 +81,41 @@ public sealed record CordApp(
     [
         "key", "name", "version", "description", "schemaVersion", "entities",
         "pages", "views", "processes", "commands", "workflows", "roles",
+        "purpose", "uses",
     ];
+}
+
+/// <summary>
+/// Why the application exists — the one thing about an app that no compiler can work out.
+///
+/// <para>Everything else the App Contract states is derived from what is authored. This is not:
+/// nothing in a list of entities says whether they are there to run a sales pipeline or to record
+/// its aftermath. Written once, when the app is created, by whoever was told what it is for.</para>
+/// </summary>
+/// <param name="Duties">What this app OWNS, which is a claim other apps may build on — not what it
+/// merely displays.</param>
+public sealed record CordPurpose(
+    string? Summary = null,
+    IReadOnlyList<string>? Duties = null)
+{
+    public IReadOnlyList<string> DutyList => Duties ?? [];
+}
+
+/// <summary>
+/// One other application this one deliberately builds on.
+///
+/// <para>Distinct from a reference field pointing at it: the field is a link, this is the statement
+/// that the link is intended. An author declares Organizations once, and every field that points
+/// there is an instance of that decision rather than a decision of its own.</para>
+/// </summary>
+/// <param name="App">A core app's systemKey, or another app's key. Never a handle.</param>
+/// <param name="Entities">Which of its entities are used. Empty means all of them.</param>
+public sealed record CordUse(
+    string? App = null,
+    IReadOnlyList<string>? Entities = null,
+    string? Why = null)
+{
+    public IReadOnlyList<string> EntityList => Entities ?? [];
 }
 
 /// <summary>
