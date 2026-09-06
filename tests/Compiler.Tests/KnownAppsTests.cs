@@ -71,11 +71,40 @@ public class KnownAppsTests
     }
 
     [Fact]
-    public void An_empty_roster_is_a_caller_that_looked_and_found_none()
+    public void An_empty_workspace_is_a_caller_that_looked_and_found_none()
     {
-        var errors = Gate.SemanticErrors(Def(BudgetLineField), KnownApps.Of([]));
+        var errors = Gate.SemanticErrors(Def(BudgetLineField), KnownApps.InWorkspace([]));
 
         Assert.Contains(errors, e => e.Contains("references app 'budget_tracker', which is not here"));
+    }
+
+    [Fact]
+    public void An_app_installs_into_a_tenant_that_does_not_have_its_companion_yet()
+    {
+        Assert.Empty(Gate.SemanticErrors(Def(BudgetLineField), KnownApps.InTenant([])));
+    }
+
+    [Fact]
+    public void A_tenant_still_catches_an_entity_the_installed_app_does_not_have()
+    {
+        var errors = Gate.SemanticErrors(Def("""
+            ,{"key":"line","label":"Line","type":"reference",
+              "targetApp":"budget_tracker","targetEntity":"budgit_line"}
+        """), KnownApps.InTenant([
+            new KnownApp("budget_tracker", "Budget Tracker", ["budget", "budget_line"]),
+        ]));
+
+        Assert.Contains(errors, e => e.Contains("unknown entity 'budgit_line' in app 'budget_tracker'"));
+    }
+
+    [Fact]
+    public void A_tenant_says_a_companion_is_not_installed_yet_rather_than_refusing()
+    {
+        var notes = Cordango.Compile.AppDependencies.Diagnose(
+            Def(BudgetLineField, """[{"app":"budget_tracker"}]"""), KnownApps.InTenant([]));
+
+        var note = Assert.Single(notes, n => n.Code == "dependency.absent");
+        Assert.Contains("not installed here yet", note.Message);
     }
 
     [Fact]

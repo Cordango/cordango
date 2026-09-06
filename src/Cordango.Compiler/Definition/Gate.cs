@@ -488,15 +488,19 @@ public static class Gate
                 }
                 else if (tapp != null)
                 {
-                    // Another app in the workspace or the tenant. Checkable only when the caller could
-                    // see them: `known` is a roster somebody looked up, and its ABSENCE is not the
-                    // claim that there are none.
+                    // Another app. What can be checked depends on what the roster is able to claim: a
+                    // WORKSPACE is a closed set, so a key it does not hold is a typo; a TENANT is not,
+                    // so a key it does not hold is an app that is not installed YET. Refusing the
+                    // second would mean an app naming a companion could only be installed after that
+                    // companion, and every app in a connected suite would stop being installable on
+                    // its own — which is the entire point of shipping them separately. The write path
+                    // still refuses the reference at runtime, so this trusts nothing.
                     if (known.Find(tapp) is { } other)
                     {
                         if (tgt == null || !other.EntityKeys.Contains(tgt))
                             errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references unknown entity '{tgt}' in app '{tapp}' (it has: {string.Join(", ", other.EntityKeys.OrderBy(x => x))})");
                     }
-                    else if (known.Known)
+                    else if (known.Complete)
                         errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references app '{tapp}', which is not here (known: {string.Join(", ", known.Keys)})");
                 }
                 else if (tgt == null || !seenEntities.Contains(tgt))

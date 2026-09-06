@@ -131,7 +131,9 @@ public static class AppDependencies
             if (known.Known && known.Find(dep.App) is null)
             {
                 notes.Add(DefinitionNote.Of(DefinitionNote.Note, "dependency.absent",
-                    $"'{dep.App}' is not in this workspace, so nothing it announces arrives here yet",
+                    known.Complete
+                        ? $"'{dep.App}' is not in this workspace, so nothing it announces arrives here yet"
+                        : $"'{dep.App}' is not installed here yet — install it and this starts working, with nothing to change",
                     path: "/uses"));
                 continue;
             }

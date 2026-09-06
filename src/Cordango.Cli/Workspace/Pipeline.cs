@@ -131,7 +131,9 @@ public static class Pipeline
             var entities = app.EntityList.Select(e => e.Key).OfType<string>().ToList();
             roster.Add(new KnownApp(key, app.Name ?? key, entities, AnnouncedEvents(loaded)));
         }
-        return KnownApps.Of(roster);
+        // A workspace is a closed set: everything that will sit beside this app is on disk here, so
+        // a key that is not is a typo and worth refusing while somebody is looking at it.
+        return KnownApps.InWorkspace(roster);
     }
 
     private static IReadOnlyList<string> AnnouncedEvents(LoadedApp loaded)

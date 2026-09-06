@@ -92,10 +92,23 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
                  + "standalone, or run this application on Cordango Platform"),
             ]),
 
-        // Every trigger the language has. A standalone application runs its own background service
-        // for the scheduled ones rather than borrowing a platform scheduler.
+        // Every trigger a SINGLE application can have. A standalone build runs its own background
+        // service for the scheduled ones rather than borrowing a platform scheduler.
+        //
+        // The two cross-app triggers are withheld rather than unbuilt: they are not missing work, they
+        // are meaningless here. A standalone build is one application, and one application has nobody
+        // to subscribe to — an app that announced into an empty room would be indistinguishable from
+        // one whose subscription silently never fires, which is the failure this whole classification
+        // exists to prevent.
         Triggers: CapabilitySet.Of(
-            ["record.created", "record.updated", "record.deleted", "field.changed", "schedule"]),
+            ["record.created", "record.updated", "record.deleted", "field.changed", "schedule"],
+            fallback: null,
+            ("command.emitted",
+             "a subscription to another application's announcement, and a standalone build is one "
+             + "application — install both on Cordango Platform, where the other one exists to announce"),
+            ("process.state_entered",
+             "a subscription to another application's record entering a state, and a standalone build "
+             + "is one application — install both on Cordango Platform, where the other one exists")),
 
         // Every field type, including attachment: a generated application stores uploads on its own
         // disk rather than in platform media storage.

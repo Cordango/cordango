@@ -27,13 +27,22 @@ public sealed record KnownApp(
 /// <summary>
 /// The other apps a definition is allowed to name, as the caller knows them.
 ///
-/// <para><b>Absence is not emptiness.</b> A gate call with no roster (<see cref="Unknown"/>, and the
-/// default for every caller that does not pass one) accepts an unrecognised <c>targetApp</c> without
-/// checking it — which is what the gate did for every cross-app key before this type existed. That
-/// asymmetry is the whole point: the gate is a single-document function and genuinely cannot see a
-/// tenant's installed apps, so a caller that cannot supply the roster must not have its references
-/// rejected, and a caller that CAN supply it gets a typo caught at check time. `Of([])` is the
-/// caller saying "I looked and there are none" and does refuse.</para>
+/// <para><b>Three states, not two, and the third is the one that matters.</b></para>
+///
+/// <para><see cref="Unknown"/> — no roster at all. A cross-app key is accepted unchecked, which is
+/// what the gate did before this type existed. The gate is a single-document function and genuinely
+/// cannot see a tenant's apps, so a caller that cannot supply a roster must not have its references
+/// refused.</para>
+///
+/// <para><see cref="InWorkspace"/> — a CLOSED set. Every app that will ever sit beside this one is
+/// here, because a workspace is a repository somebody is looking at. An unrecognised key is a typo
+/// and is refused.</para>
+///
+/// <para><see cref="InTenant"/> — an OPEN set. It can say what IS installed, and it cannot say what
+/// will be installed tomorrow. So an unrecognised key is "not yet", never "wrong": refusing it would
+/// mean an app that names a companion could only ever be installed after that companion, which makes
+/// every app in a connected suite un-installable on its own. The write path still fails closed —
+/// <c>data.reference_app_missing</c> — so nothing is trusted, only unrefused.</para>
 ///
 /// <para>Core apps are always folded in: they ship with the platform, so they are known wherever this
 /// runs, and a roster that omitted them would refuse the references that already work.</para>
@@ -42,16 +51,30 @@ public sealed class KnownApps
 {
     /// <summary>No roster: cross-app keys are accepted unchecked. The default, and what a caller that
     /// cannot see the other apps must use.</summary>
-    public static readonly KnownApps Unknown = new(null);
+    public static readonly KnownApps Unknown = new(null, complete: false);
 
     private readonly Dictionary<string, KnownApp>? _byKey;
 
-    private KnownApps(Dictionary<string, KnownApp>? byKey) => _byKey = byKey;
+    private KnownApps(Dictionary<string, KnownApp>? byKey, bool complete)
+    {
+        _byKey = byKey;
+        Complete = complete;
+    }
 
-    /// <summary>A roster the gate will hold references to. Core apps are added automatically; an entry
-    /// that repeats a core systemKey is ignored in its favour, because the platform's copy is the one
-    /// that will actually be provisioned.</summary>
-    public static KnownApps Of(IEnumerable<KnownApp> apps)
+    /// <summary>The apps of one WORKSPACE — a closed set, so a key that is not here is a mistake.
+    /// Core apps are added automatically; an entry that repeats a core systemKey is ignored in its
+    /// favour, because the platform's copy is the one that will actually be provisioned.</summary>
+    public static KnownApps InWorkspace(IEnumerable<KnownApp> apps) => Build(apps, complete: true);
+
+    /// <summary>The apps a TENANT has installed — an open set. Resolves what is there and tolerates
+    /// what is not, because install order is a fact of life and every app in a suite is meant to be
+    /// installable on its own.</summary>
+    public static KnownApps InTenant(IEnumerable<KnownApp> apps) => Build(apps, complete: false);
+
+    /// <inheritdoc cref="InWorkspace"/>
+    public static KnownApps Of(IEnumerable<KnownApp> apps) => InWorkspace(apps);
+
+    private static KnownApps Build(IEnumerable<KnownApp> apps, bool complete)
     {
         ArgumentNullException.ThrowIfNull(apps);
         var byKey = new Dictionary<string, KnownApp>(StringComparer.Ordinal);
@@ -60,11 +83,15 @@ public sealed class KnownApps
                 byKey[app.Key] = app;
         foreach (var core in CoreAppRegistry.All)
             byKey[core.SystemKey] = new KnownApp(core.SystemKey, core.Name, [.. core.EntityKeys]);
-        return new KnownApps(byKey);
+        return new KnownApps(byKey, complete);
     }
 
     /// <summary>True when this roster can answer "is there an app called x" at all.</summary>
     public bool Known => _byKey is not null;
+
+    /// <summary>True when a key this roster does not hold is genuinely absent rather than merely not
+    /// installed yet. Only a workspace can say that.</summary>
+    public bool Complete { get; }
 
     public KnownApp? Find(string? key) =>
         key is not null && _byKey is not null && _byKey.TryGetValue(key, out var app) ? app : null;
