@@ -75,7 +75,8 @@ internal static class CordWireBehaviour
         Name: Str(o, "name"),
         // Flattened on the wire: `on` + `entity` + optional `field`/`cron`, rather than a nested
         // trigger object whose only job is to hold them.
-        Trigger: new CordTrigger(Str(o, "on"), Str(o, "entity"), Str(o, "field"), Str(o, "cron")),
+        Trigger: new CordTrigger(Str(o, "on"), Str(o, "entity"), Str(o, "field"), Str(o, "cron"),
+            Str(o, "app"), Str(o, "event")),
         When: o["when"] is JsonObject w ? When(w) : null,
         Effects: o["effects"] is JsonArray e ? e.OfType<JsonObject>().Select(Effect).ToList() : null);
 
@@ -100,6 +101,7 @@ internal static class CordWireBehaviour
 
     private static CordEffect Effect(JsonObject o) => new(
         Type: Str(o, "type"),
+        App: Str(o, "app"),
         Target: o["target"]?.DeepClone(),
         Set: o["set"] as JsonObject is { } set ? (JsonObject)set.DeepClone() : null,
         SetIfEmpty: Bool(o, "setIfEmpty"),

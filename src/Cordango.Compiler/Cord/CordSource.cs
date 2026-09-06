@@ -159,6 +159,11 @@ public static class CordSource
             if (source.Remove("trigger", out var trigger) && trigger is JsonObject t)
             {
                 if (t.Remove("event", out var evt)) source["trigger"] = evt;
+                // The announced name is `event:` in a file and `name` in the document. It cannot keep
+                // its document spelling here: `name` at the top of an automation file is already the
+                // automation's own label, and spreading the trigger over it would silently rename
+                // every subscription to the event it listens for.
+                if (t.Remove("name", out var announced)) source["event"] = announced;
                 foreach (var (name, value) in t) source[name] = value?.DeepClone();
             }
             files.Add(Identify(source, "automation", key, $"workflows/automations/{key}"));
@@ -282,7 +287,8 @@ public static class CordSource
             var automation = Unrename(source, AutomationNames);
             var trigger = new JsonObject();
             if (automation.Remove("trigger", out var evt)) trigger["event"] = evt;
-            foreach (var name in new[] { "entity", "field", "cron" })
+            if (automation.Remove("event", out var announced)) trigger["name"] = announced;
+            foreach (var name in new[] { "entity", "field", "cron", "app" })
                 if (automation.Remove(name, out var value)) trigger[name] = value;
             if (trigger.Count > 0) automation["trigger"] = trigger;
             return automation;

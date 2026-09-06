@@ -328,6 +328,11 @@ public static class CordDocument
             Set(o, "entity", trigger.Entity);
             Set(o, "field", trigger.Field);
             Set(o, "cron", trigger.Cron);
+            // `app` and `event` sit BESIDE `on`, the same way `cron` does. A nested object here would
+            // be the one shape YAML 1.1 punishes: `on:` unquoted is the boolean true, which is how the
+            // hand-authored specimen silently lost the trigger from all six of its automations.
+            Set(o, "app", trigger.App);
+            Set(o, "event", trigger.Name);
         }
         if (When(s.When, $"{at}/when", unwritable) is { } w) o["when"] = w;
         if (Effects(s.Effects, $"{at}/effects", unwritable) is { } e) o["effects"] = e;
@@ -419,6 +424,7 @@ public static class CordDocument
             if (e.Target is { } target) o["target"] = target.DeepClone();
             if (e.Set is { } set) o["set"] = (JsonObject)set.DeepClone();
             Set(o, "setIfEmpty", e.SetIfEmpty);
+            Set(o, "app", e.App);
             Set(o, "entity", e.Entity);
             Set(o, "source", e.Source);
             Set(o, "key", e.Key);

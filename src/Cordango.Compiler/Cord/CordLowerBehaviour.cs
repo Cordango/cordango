@@ -197,6 +197,8 @@ internal static class CordLowerBehaviour
                     Put($"{at}/trigger", "entity", tr.Entity, t);
                     Put($"{at}/trigger", "field", tr.Field, t);
                     Put($"{at}/trigger", "cron", tr.Cron, t);
+                    Put($"{at}/trigger", "app", tr.App, t);
+                    Put($"{at}/trigger", "name", tr.Name, t);
                     Overlay($"{at}/trigger", tr.Raw, t);
                     o["trigger"] = t;
                     semantic.Add($"{at}/trigger");
@@ -388,6 +390,7 @@ internal static class CordLowerBehaviour
             if (e.Target is not null) o["target"] = e.Target.DeepClone();
             if (e.Set is not null) o["set"] = e.Set.DeepClone();
             if (e.SetIfEmpty is { } s) o["setIfEmpty"] = s;
+            if (e.App is not null) o["app"] = e.App;
             if (e.Entity is not null) o["entity"] = e.Entity;
             if (e.Source is not null) o["source"] = e.Source;
             if (e.Key is not null) o["key"] = e.Key;

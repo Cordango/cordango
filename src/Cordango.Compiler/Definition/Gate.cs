@@ -119,16 +119,22 @@ public static class Gate
 
     /// <summary>Full gate: structural first; semantic only if the structure is sound; then the
     /// design layer (component configs vs the ComponentCatalog contract) once the domain is sound.</summary>
-    public static List<string> Validate(JsonNode? doc)
+    /// <param name="knownApps">The other apps this definition may name, when the caller can see them —
+    /// a workspace's sibling apps, or a tenant's installed ones. Omit it and a cross-app
+    /// <c>targetApp</c> is accepted unchecked, which is what the gate has always done: it is a
+    /// single-document function, and a caller that cannot supply the roster must not have its
+    /// references refused. See <see cref="KnownApps"/>.</param>
+    public static List<string> Validate(JsonNode? doc, KnownApps? knownApps = null)
     {
         var structural = StructuralErrors(doc);
         if (structural.Count > 0) return structural;
-        var semantic = SemanticErrors(doc);
+        var semantic = SemanticErrors(doc, knownApps);
         return semantic.Count > 0 ? semantic : DesignErrors(doc);
     }
 
-    public static List<string> SemanticErrors(JsonNode? doc)
+    public static List<string> SemanticErrors(JsonNode? doc, KnownApps? knownApps = null)
     {
+        var known = knownApps ?? KnownApps.Unknown;
         var errors = new List<string>();
         if (doc is not JsonObject root) return new List<string> { "SEMANTIC: document is not an object" };
 
@@ -164,8 +170,16 @@ public static class Gate
             else if (app.StartsWith("core_", StringComparison.Ordinal))
                 errors.Add($"SEMANTIC: `uses` names core app '{app}', which does not exist "
                          + $"(the platform provides: {string.Join(", ", CoreAppRegistry.All.Select(c => c.SystemKey).OrderBy(x => x))})");
-            // Any other key is another app in the tenant. The gate is a single-document function and
-            // cannot see it, exactly as with a reference field's `targetApp`.
+            else if (known.Find(app) is { } declared)
+            {
+                foreach (var want in named.Where(w => !declared.EntityKeys.Contains(w)))
+                    errors.Add($"SEMANTIC: `uses` says '{app}' has an entity '{want}', which it does not "
+                             + $"(it has: {string.Join(", ", declared.EntityKeys.OrderBy(x => x))})");
+            }
+            // An app that is not here is NOT an error. `uses` is the author's intent, and intending to
+            // build on an app this workspace has not installed is the ordinary case for a suite that
+            // spans several of them — refusing it would make the block unusable for exactly the thing
+            // it exists to say. AppDependencies reports it as a note instead.
         }
 
         // entity/field lookups + uniqueness
@@ -472,7 +486,19 @@ public static class Gate
                     if (tgt == null || !core.EntityKeys.Contains(tgt))
                         errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references unknown entity '{tgt}' in core app '{tapp}' (known: {string.Join(", ", core.EntityKeys.OrderBy(x => x))})");
                 }
-                else if (tapp != null) { /* an arbitrary app key — general cross-app refs are not supported */ }
+                else if (tapp != null)
+                {
+                    // Another app in the workspace or the tenant. Checkable only when the caller could
+                    // see them: `known` is a roster somebody looked up, and its ABSENCE is not the
+                    // claim that there are none.
+                    if (known.Find(tapp) is { } other)
+                    {
+                        if (tgt == null || !other.EntityKeys.Contains(tgt))
+                            errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references unknown entity '{tgt}' in app '{tapp}' (it has: {string.Join(", ", other.EntityKeys.OrderBy(x => x))})");
+                    }
+                    else if (known.Known)
+                        errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references app '{tapp}', which is not here (known: {string.Join(", ", known.Keys)})");
+                }
                 else if (tgt == null || !seenEntities.Contains(tgt))
                     errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' references unknown entity '{tgt}'");
 
@@ -615,14 +641,61 @@ public static class Gate
             var wkey = Str(wf, "key") ?? "";
             if (!seenWf.Add(wkey)) errors.Add($"SEMANTIC: duplicate workflow key '{wkey}'");
             var trigger = wf["trigger"] as JsonObject;
-            var ctx = Str(trigger, "entity");
-            if (ctx != null && !seenEntities.Contains(ctx)) errors.Add($"SEMANTIC: workflow '{wkey}' trigger entity '{ctx}' is unknown");
             var where = $"workflow '{wkey}'";
+
+            // A SUBSCRIPTION: the trigger names another app, so everything it talks about — the
+            // entity, the fields a `when` reads — belongs to that app and cannot be resolved against
+            // this document. What can be checked is checked (does that app exist, does it have that
+            // entity); the rest is the source app's own gate's business.
+            var sourceApp = Str(trigger, "app");
+            if (sourceApp is not null)
+            {
+                if (sourceApp == Str(root, "key"))
+                    errors.Add($"SEMANTIC: {where} subscribes to '{sourceApp}', which is this app — "
+                             + "drop `app` to react to its own events");
+                else if (known.Find(sourceApp) is { } src && Str(trigger, "entity") is { } srcEntity
+                         && !src.EntityKeys.Contains(srcEntity))
+                    errors.Add($"SEMANTIC: {where} subscribes to entity '{srcEntity}' in app '{sourceApp}', "
+                             + $"which it does not have (it has: {string.Join(", ", src.EntityKeys.OrderBy(x => x))})");
+            }
+
+            var ctx = sourceApp is null ? Str(trigger, "entity") : null;
+            if (ctx != null && !seenEntities.Contains(ctx)) errors.Add($"SEMANTIC: workflow '{wkey}' trigger entity '{ctx}' is unknown");
             if (wf["when"] is JsonObject wfWhen)
             {
-                if (ctx == null) errors.Add($"SEMANTIC: {where} has a 'when' guard but its trigger has no entity to resolve it against");
-                else ValidateCondition(wfWhen, ctx, where, behavior, errors);
+                if (ctx != null) ValidateCondition(wfWhen, ctx, where, behavior, errors);
+                else if (sourceApp is null)
+                    errors.Add($"SEMANTIC: {where} has a 'when' guard but its trigger has no entity to resolve it against");
             }
+
+            // A cross-app write is only reachable from a cross-app trigger. Without that rule an
+            // ordinary automation could write into any installed app on its own authority, which is
+            // the subscribing owner's grants spent on something they never declared.
+            foreach (var en2 in Arr(wf["effects"]))
+            {
+                if (en2 is not JsonObject effect) continue;
+                if (Str(effect, "app") is not { Length: > 0 } targetApp2)
+                {
+                    // A LOCAL effect inside a subscription. Its entity is this app's and is checked
+                    // here, because the shared effect validator below only runs for a workflow with a
+                    // local trigger entity — without this a subscription could insert into an entity
+                    // that does not exist and nothing would say so until it fired.
+                    if (sourceApp is not null && Str(effect, "type") == "createRecord"
+                        && Str(effect, "entity") is { } localEntity && !seenEntities.Contains(localEntity))
+                        errors.Add($"SEMANTIC: {where} creates unknown entity '{localEntity}'");
+                    continue;
+                }
+                if (targetApp2 == Str(root, "key"))
+                    errors.Add($"SEMANTIC: {where} effect writes into '{targetApp2}', which is this app — drop `app`");
+                else if (sourceApp is null)
+                    errors.Add($"SEMANTIC: {where} writes into app '{targetApp2}' but is not subscribed to anything — "
+                             + "a cross-app write is only reachable from a workflow whose trigger names an app");
+                else if (known.Find(targetApp2) is { } dst && Str(effect, "entity") is { } dstEntity
+                         && !dst.EntityKeys.Contains(dstEntity))
+                    errors.Add($"SEMANTIC: {where} writes unknown entity '{dstEntity}' in app '{targetApp2}' "
+                             + $"(it has: {string.Join(", ", dst.EntityKeys.OrderBy(x => x))})");
+            }
+
             if (ctx != null && seenEntities.Contains(ctx))
                 ValidateEffects(wf["effects"], ctx, where, behavior, errors, Str(trigger, "event"));
         }

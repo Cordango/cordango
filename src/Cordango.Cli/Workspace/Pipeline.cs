@@ -94,25 +94,79 @@ public static class Pipeline
     /// downstream check while quietly not being what the files say. Silently ignoring part of the
     /// source is the one failure mode a file-backed workspace cannot have.</para>
     /// </summary>
-    public static CheckReport Check(LoadedApp loaded)
+    public static CheckReport Check(LoadedApp loaded) => Check(loaded, null);
+
+    /// <param name="knownApps">The other apps this one may point at — see <see cref="Roster"/>. Null
+    /// leaves a cross-app <c>targetApp</c> unchecked, which is right for a caller looking at one app
+    /// with no view of its siblings.</param>
+    public static CheckReport Check(LoadedApp loaded, KnownApps? knownApps)
     {
         if (loaded.App is null || loaded.Problems.Count > 0)
             return new CheckReport(loaded.Key, loaded.Path, false, false, loaded.Problems, [], null, null, null);
 
-        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty);
+        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty, knownApps);
+    }
+
+    /// <summary>
+    /// The apps of one workspace, as the roster the gate checks cross-app references against.
+    ///
+    /// <para><b>Entity keys come from the loaded model, not from a compile.</b> A sibling that does
+    /// not compile still tells you what it holds, so an app referencing it reports only its OWN
+    /// errors rather than a cascade of "that app does not exist" caused by a fault next door.</para>
+    ///
+    /// <para><b>Announced events do need the compile</b>, because the contract is the one place that
+    /// says what an app emits and re-deriving it here would be a second opinion about it. That pass
+    /// is best-effort: a sibling that fails to compile contributes its entities and no events, and a
+    /// subscription naming one of its events is then left unjudged rather than wrongly refused.</para>
+    /// </summary>
+    public static KnownApps Roster(IEnumerable<LoadedApp> apps)
+    {
+        ArgumentNullException.ThrowIfNull(apps);
+        var roster = new List<KnownApp>();
+        foreach (var loaded in apps)
+        {
+            if (loaded.App is not { } app) continue;
+            var key = app.Key ?? loaded.Key;
+            if (string.IsNullOrEmpty(key)) continue;
+            var entities = app.EntityList.Select(e => e.Key).OfType<string>().ToList();
+            roster.Add(new KnownApp(key, app.Name ?? key, entities, AnnouncedEvents(loaded)));
+        }
+        return KnownApps.Of(roster);
+    }
+
+    private static IReadOnlyList<string> AnnouncedEvents(LoadedApp loaded)
+    {
+        try
+        {
+            var contract = Check(loaded, null).Contract;
+            return [.. (contract?["events"] as JsonArray ?? [])
+                .OfType<JsonObject>()
+                .Select(e => e["name"]?.GetValue<string>())
+                .OfType<string>()];
+        }
+        catch (Exception)
+        {
+            // A sibling that cannot be projected says nothing about what it announces. That is a
+            // smaller answer than the truth, never a wrong one — and this app's own check reports it.
+            return [];
+        }
     }
 
     /// <param name="map">Rewrites App Definition pointers in the validator's errors back into Cord
     /// paths. Available only when a change was just prepared; a plain load has none, and a raw
     /// pointer is still better than a rewritten guess.</param>
-    public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map)
+    public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map) =>
+        Check(app, appKey, appPath, map, null);
+
+    public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map,
+        KnownApps? knownApps)
     {
         var lowered = CordLower.Lower(app);
 
         // appId: the app KEY, because in a workspace the key is the durable identity (CordyOSS §3.2)
         // and the manifest has to name something stable across machines. The hosted product passes a
         // row id here for the opposite reason — there, a model must not be able to name its own app.
-        var outcome = CandidateValidator.Run(lowered, appKey, DeterministicBuiltAt);
+        var outcome = CandidateValidator.Run(lowered, appKey, DeterministicBuiltAt, knownApps);
 
         return new CheckReport(
             appKey,

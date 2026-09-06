@@ -51,7 +51,7 @@ public static class CheckCommand
                     code: ExitCodes.Usage);
         }
 
-        var reports = selection.Apps.Select(Pipeline.Check).ToList();
+        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).ToList();
 
         // Capability checking needs a definition, which an incoherent app does not have. It is not
         // skipped quietly: an app that fails below never reaches the "compatible" line either.

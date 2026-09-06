@@ -134,6 +134,8 @@ public static class CordVocabulary
         ("record.updated", "record.updated"),
         ("record.deleted", "record.deleted"),
         ("schedule.daily", "schedule"),
+        ("event.emitted", "command.emitted"),
+        ("state.entered", "process.state_entered"),
     ])
     {
         Withheld =

@@ -100,7 +100,7 @@ public static class DiscoverCommand
 
     /// <summary>Every readable app in the workspace, as the contract its source compiles to.</summary>
     private static List<JsonObject> Local(Selection selection) =>
-        [.. selection.Apps.Select(Pipeline.Check).Select(r => r.Contract).OfType<JsonObject>()];
+        [.. selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).Select(r => r.Contract).OfType<JsonObject>()];
 
     /// <summary>
     /// The apps the platform provides to every workspace, in the shape everything else here speaks.

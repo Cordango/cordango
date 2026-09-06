@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using Cordango.Cli.Workspace;
+using Cordango.Definition;
 
 namespace Cordango.Cli.Commands;
 
@@ -17,6 +18,20 @@ namespace Cordango.Cli.Commands;
 /// </summary>
 public sealed record Selection(WorkspaceFile Workspace, IReadOnlyList<LoadedApp> Apps)
 {
+    /// <summary>
+    /// Every app in the workspace, whether or not <c>--app</c> narrowed the work to one.
+    ///
+    /// <para>The distinction matters for exactly one thing: a cross-app reference is resolved against
+    /// the WORKSPACE, not against the selection. `check --app purchase_requests` must still know that
+    /// budget_tracker is next door, or narrowing the work would invent errors.</para>
+    /// </summary>
+    public IReadOnlyList<LoadedApp> AllApps { get; init; } = Apps;
+
+    /// <summary>The workspace's apps as the roster the gate checks cross-app references against.
+    /// Computed once: it compiles each sibling to read its announced events.</summary>
+    public KnownApps Roster => _roster ??= Pipeline.Roster(AllApps);
+    private KnownApps? _roster;
+
     /// <returns>Null when the command should stop; <paramref name="exit"/> then holds the code and
     /// the message has already been written.</returns>
     public static Selection? Resolve(Args args, Output output, out int exit)
@@ -38,6 +53,7 @@ public sealed record Selection(WorkspaceFile Workspace, IReadOnlyList<LoadedApp>
         if (args.Value("app") is not { Length: > 0 } wanted)
             return new Selection(workspace, loaded);
 
+
         // Matched on the app KEY first, then the directory name — the key is authoritative, but
         // somebody typing the folder they are standing in should not get "no such app".
         var narrowed = loaded
@@ -52,7 +68,7 @@ public sealed record Selection(WorkspaceFile Workspace, IReadOnlyList<LoadedApp>
             return null;
         }
 
-        return new Selection(workspace, narrowed);
+        return new Selection(workspace, narrowed) { AllApps = loaded };
     }
 
     /// <summary>Apps whose files could not be assembled at all. Every command reports these before

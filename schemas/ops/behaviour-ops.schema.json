@@ -304,7 +304,9 @@
                       "record.created",
                       "record.updated",
                       "record.deleted",
-                      "schedule.daily"
+                      "schedule.daily",
+                      "event.emitted",
+                      "state.entered"
                     ],
                     "description": "What sets it off. schedule.daily needs a cron; record.updated with a \u0060field\u0060 means only when THAT field changes."
                   },

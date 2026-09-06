@@ -72,7 +72,7 @@ public static class BuildCommand
                     new JsonObject { ["target"] = requested });
         }
 
-        var reports = selection.Apps.Select(Pipeline.Check).ToList();
+        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).ToList();
         var incoherent = reports.Where(r => !r.Coherent).ToList();
 
         if (incoherent.Count > 0)

@@ -4970,7 +4970,9 @@
                 "record.updated",
                 "record.deleted",
                 "field.changed",
-                "schedule"
+                "schedule",
+                "command.emitted",
+                "process.state_entered"
               ]
             },
             "entity": {
@@ -4981,6 +4983,15 @@
             },
             "cron": {
               "type": "string"
+            },
+            "app": {
+              "description": "The app whose event this workflow subscribes to. Omit for this app's own — the ordinary case, and what every workflow written before cross-app subscriptions meant. Another app's key makes this a SUBSCRIPTION: the source app announces, this one reacts, and the source knows nothing about it. The reaction runs under the grants of THIS app's owner, never the actor who caused the event.",
+              "$ref": "#/$defs/identifier"
+            },
+            "name": {
+              "description": "The announced name to subscribe to. For 'command.emitted' it is a name a command declares in its `emits`, e.g. 'purchase.approved'. For 'process.state_entered' it is '<entity>.<state>', e.g. 'purchase_request.approved' — the event the runtime publishes whenever a record enters that state, whichever transition took it there. That is the one to use when several transitions reach one state: a name may be emitted by only one command, and three approval hops that all end in 'approved' are three commands announcing the same fact.",
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$"
             }
           },
           "allOf": [
@@ -5029,6 +5040,26 @@
               "then": {
                 "required": [
                   "entity"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "event": {
+                    "enum": [
+                      "command.emitted",
+                      "process.state_entered"
+                    ]
+                  }
+                },
+                "required": [
+                  "event"
+                ]
+              },
+              "then": {
+                "required": [
+                  "name"
                 ]
               }
             }
@@ -5363,8 +5394,12 @@
         "type": {
           "const": "createRecord"
         },
+        "app": {
+          "description": "The app to insert into. Omit for this app — the ordinary case. Another app's key makes this a cross-app write, and it is only reachable from a workflow whose trigger names that app or an event of it: the reaction runs under the grants of the SUBSCRIBING app's owner, and writing somewhere its author never declared would be that owner's authority spent on something they never agreed to. Only `createRecord` takes it: updating a record in another app means FINDING it first, which needs a cross-app query and is deliberately not here yet.",
+          "$ref": "#/$defs/identifier"
+        },
         "entity": {
-          "description": "The entity to insert into.",
+          "description": "The entity to insert into — in `app` when one is named, in this app otherwise.",
           "$ref": "#/$defs/identifier"
         },
         "set": {

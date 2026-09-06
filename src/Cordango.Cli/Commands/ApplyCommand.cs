@@ -80,7 +80,7 @@ public static class ApplyCommand
         // Cord having read the operations is emphatically not enough: CordCheck omits nearly every
         // gate rule, so accepting on its word would let a gate-invalid change become the thing the
         // next operation edits.
-        var report = Pipeline.Check(change.NextCandidate!, loaded.Key, loaded.Path, change.Map);
+        var report = Pipeline.Check(change.NextCandidate!, loaded.Key, loaded.Path, change.Map, selection.Roster);
         if (!report.Coherent)
         {
             return output.Fail($"refused — the result does not hold together, {loaded.Key} is unchanged",

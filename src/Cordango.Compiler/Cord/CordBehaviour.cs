@@ -188,14 +188,23 @@ public sealed record CordSchedule(
 /// <param name="Event">The record event, e.g. <c>record.created</c>, <c>record.updated</c>.</param>
 /// <param name="Field">For a field-scoped update event: which field changing counts.</param>
 /// <param name="Cron">A clock schedule instead of a record event.</param>
+/// <param name="App">The app whose event this subscribes to. Null is this app's own — the ordinary
+/// case, and what every automation written before subscriptions meant. Naming another app is the
+/// whole of "these two apps work together": the source announces and knows nothing about who
+/// listens.</param>
+/// <param name="Name">For <c>command.emitted</c>: the announced name being subscribed to, e.g.
+/// <c>purchase.approved</c>. Deliberately the ONLY thing a subscription names about the other app —
+/// not its entities, not its fields — so the source can be rewritten without breaking it.</param>
 public sealed record CordTrigger(
     string? Event = null,
     string? Entity = null,
     string? Field = null,
     string? Cron = null,
+    string? App = null,
+    string? Name = null,
     JsonObject? Raw = null)
 {
-    public static readonly string[] Modelled = ["event", "entity", "field", "cron"];
+    public static readonly string[] Modelled = ["event", "entity", "field", "cron", "app", "name"];
 }
 
 /// <summary>
@@ -239,12 +248,13 @@ public sealed record CordEffect(
     string? Title = null,
     string? Message = null,
     string? Link = null,
+    string? App = null,
     JsonObject? Raw = null)
 {
     public static readonly string[] Modelled =
     [
         "type", "target", "set", "setIfEmpty", "entity", "source", "key",
-        "to", "title", "message", "link",
+        "to", "title", "message", "link", "app",
     ];
 }
 

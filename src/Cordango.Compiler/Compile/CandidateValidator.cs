@@ -97,7 +97,10 @@ public static class CandidateValidator
     /// the caller so a parse failure is reported in the same shape as every other failure.</param>
     /// <param name="appId">The draft's app id, from the JOB ROW. Never from model output: a
     /// definition that could name its own app id could compile itself into someone else's app.</param>
-    public static CandidateOutcome Run(string? definitionJson, string appId, DateTimeOffset builtAt)
+    /// <param name="knownApps">The other apps this definition may point at, when the caller can see
+    /// them. Threaded straight to <see cref="Gate"/>; omitting it leaves cross-app keys unchecked.</param>
+    public static CandidateOutcome Run(string? definitionJson, string appId, DateTimeOffset builtAt,
+        KnownApps? knownApps = null)
     {
         JsonNode? parsed;
         try
@@ -109,10 +112,11 @@ public static class CandidateValidator
             return CandidateOutcome.Rejected([$"PARSE: {ex.Message}"]);
         }
         if (parsed is null) return CandidateOutcome.Rejected(["PARSE: the candidate is empty"]);
-        return Run(parsed, appId, builtAt);
+        return Run(parsed, appId, builtAt, knownApps);
     }
 
-    public static CandidateOutcome Run(JsonNode definition, string appId, DateTimeOffset builtAt)
+    public static CandidateOutcome Run(JsonNode definition, string appId, DateTimeOffset builtAt,
+        KnownApps? knownApps = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         // The caller's node is never touched: a rejected candidate must leave whatever it was handed
@@ -140,7 +144,7 @@ public static class CandidateValidator
             repairs.Add($"set schemaVersion to {AppSchemaVersion.Current} "
                       + $"(the candidate declared '{mislabelled}')");
 
-        var errors = Gate.Validate(doc);
+        var errors = Gate.Validate(doc, knownApps);
         if (errors.Count > 0) return CandidateOutcome.Rejected(errors, doc, repairs);
 
         // ---- deterministic completion, inside the validated window -------------------------------
@@ -150,7 +154,7 @@ public static class CandidateValidator
         // the fill that is safe without a plan to read intent from.
         var fills = repairs.Concat(doc is JsonObject obj ? DesignDefaults.Apply(doc, plan: null, obj) : []).ToList();
 
-        errors = Gate.Validate(doc);
+        errors = Gate.Validate(doc, knownApps);
         if (errors.Count > 0)
         {
             // A fill broke the document. That is a bug HERE, not in the candidate, and it must never
@@ -179,7 +183,7 @@ public static class CandidateValidator
         // guess from error strings, puts a second interpretation of correctness in the codebase.
         // Dependency notes ride along on every coherent outcome, finished or not: an author who has
         // just written the reference is exactly who needs to hear that it was never declared.
-        var notes = AppDependencies.Diagnose(doc as JsonObject);
+        var notes = AppDependencies.Diagnose(doc as JsonObject, knownApps);
 
         var smoke = SmokeErrors(doc, manifest);
         if (smoke.Count > 0)

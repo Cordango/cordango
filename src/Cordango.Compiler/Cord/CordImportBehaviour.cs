@@ -260,6 +260,8 @@ internal static class CordImportBehaviour
             CordJson.TakeString(copy, "entity"),
             CordJson.TakeString(copy, "field"),
             CordJson.TakeString(copy, "cron"),
+            CordJson.TakeString(copy, "app"),
+            CordJson.TakeString(copy, "name"),
             CordJson.Remainder(copy));
         rest.Remove("trigger");
         return trigger;
@@ -387,6 +389,7 @@ internal static class CordImportBehaviour
                 CordJson.TakeString(copy, "title"),
                 CordJson.TakeString(copy, "message"),
                 CordJson.TakeString(copy, "link"),
+                CordJson.TakeString(copy, "app"),
                 CordJson.Remainder(copy)));
         }
         rest.Remove(key);

@@ -326,7 +326,11 @@ public static class ImportCommand
         // Checked through the same pipeline everything else uses, and reported rather than asserted:
         // a definition that was coherent stays coherent, and if it does not, that is a round-trip
         // defect the person importing should see immediately rather than at their next build.
-        var report = Pipeline.Check(AppFolder.Load(workspace.Root, appPath));
+        // Reloaded from the SAVED workspace so the roster holds the app being imported alongside the
+        // ones already here — an import that references a sibling is checked against it immediately.
+        var saved = WorkspaceFile.Find(Directory.GetCurrentDirectory(), out _) ?? workspace;
+        var siblings = saved.Apps.Select(path => AppFolder.Load(saved.Root, path)).ToList();
+        var report = Pipeline.Check(AppFolder.Load(workspace.Root, appPath), Pipeline.Roster(siblings));
 
         return output.Ok(
             new JsonObject

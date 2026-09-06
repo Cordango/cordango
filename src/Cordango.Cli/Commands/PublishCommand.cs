@@ -39,7 +39,7 @@ public static class PublishCommand
         var target = Connection.Resolve(args, selection.Workspace, output, out var offline);
         if (target is null) return offline;
 
-        var reports = selection.Apps.Select(Pipeline.Check).ToList();
+        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).ToList();
         if (reports.Where(r => !r.Coherent).ToList() is { Count: > 0 } broken)
         {
             return output.Fail("nothing was published — the source does not hold together",

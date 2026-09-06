@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Text.Json.Nodes;
+using Cordango.Definition;
 
 namespace Cordango.Compile;
 
@@ -112,13 +113,28 @@ public static class AppDependencies
 
     /// <summary>What is worth saying about those dependencies: a reference into an app the author
     /// never named, and a named app nothing points at.</summary>
-    public static IReadOnlyList<DefinitionNote> Diagnose(JsonObject? definition)
+    public static IReadOnlyList<DefinitionNote> Diagnose(JsonObject? definition) =>
+        Diagnose(definition, null);
+
+    /// <param name="knownApps">The apps the caller can see. With one, a dependency on an app that is
+    /// not there is reported — as a NOTE, because a suite spanning several workspaces declares
+    /// exactly that on purpose and the runtime already fails closed when the app is absent.</param>
+    public static IReadOnlyList<DefinitionNote> Diagnose(JsonObject? definition, KnownApps? knownApps)
     {
         if (definition is null) return [];
+        var known = knownApps ?? KnownApps.Unknown;
         var notes = new List<DefinitionNote>();
         foreach (var dep in Of(definition))
         {
             if (dep.App == PlatformApp) continue;      // every app has the directory; saying so is noise
+
+            if (known.Known && known.Find(dep.App) is null)
+            {
+                notes.Add(DefinitionNote.Of(DefinitionNote.Note, "dependency.absent",
+                    $"'{dep.App}' is not in this workspace, so nothing it announces arrives here yet",
+                    path: "/uses"));
+                continue;
+            }
             if (dep.Source == AppDependency.Reference)
                 notes.Add(DefinitionNote.Of(DefinitionNote.Note, "dependency.implicit",
                     $"'{dep.App}' is referenced by {Join(dep.Fields)} but is not declared in `uses`",
@@ -167,6 +183,32 @@ public static class AppDependencies
                     map[app] = seen = new Observed(new HashSet<string>(StringComparer.Ordinal), []);
                 if (Str(field, "targetEntity") is { Length: > 0 } target) seen.Entities.Add(target);
                 seen.Fields.Add($"{ekey}.{Str(field, "key")}");
+            }
+        }
+
+        // A subscription is a dependency too, and a heavier one than a reference: this app runs code
+        // when the other one moves. Observed the same way so a workflow naming an app nobody declared
+        // is reported in the same sentence as a field that does.
+        foreach (var w in definition["workflows"] as JsonArray ?? [])
+        {
+            if (w is not JsonObject workflow || Str(workflow, "key") is not { Length: > 0 } wkey) continue;
+
+            if (workflow["trigger"] is JsonObject trigger && Str(trigger, "app") is { Length: > 0 } source)
+            {
+                if (!map.TryGetValue(source, out var seen))
+                    map[source] = seen = new Observed(new HashSet<string>(StringComparer.Ordinal), []);
+                if (Str(trigger, "entity") is { Length: > 0 } entity) seen.Entities.Add(entity);
+                seen.Fields.Add($"workflow {wkey} subscribes to {Str(trigger, "name") ?? Str(trigger, "event") ?? "it"}");
+            }
+
+            foreach (var n in workflow["effects"] as JsonArray ?? [])
+            {
+                if (n is not JsonObject effect || Str(effect, "app") is not { Length: > 0 } target) continue;
+                if (!map.TryGetValue(target, out var seen))
+                    map[target] = seen = new Observed(new HashSet<string>(StringComparer.Ordinal), []);
+                var written = Str(effect, "entity");
+                if (written is { Length: > 0 }) seen.Entities.Add(written);
+                seen.Fields.Add($"workflow {wkey} writes {written ?? "a record"}");
             }
         }
         return map;
