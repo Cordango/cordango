@@ -36,7 +36,8 @@
       "defaultRole": "member",
       "versions": [
         "v1",
-        "v2"
+        "v2",
+        "v3"
       ]
     }
   ]
