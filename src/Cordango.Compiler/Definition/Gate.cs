@@ -2016,22 +2016,34 @@ public static class Gate
                     { errors.Add($"SEMANTIC: {cw} rollup entity '{re}' is unknown"); continue; }
                     // `match` turns the rollup sideways: the aggregated rows point at a record THIS
                     // record also points at, rather than at this record. So `via` must target whatever
-                    // `match` targets — not this entity.
+                    // `match` targets — not this entity. The shared record may live anywhere the two
+                    // references can both reach: a local parent, or a platform or core-app record.
+                    // The runtime only ever compares the two stored ids, so an allowance summing the
+                    // absences of ITS person through the directory is the same operation as a period
+                    // summing the hires of its scenario — refusing it forced an explicit link that
+                    // somebody then had to fill in.
                     var match = Str(rollup, "match");
                     var expectedTarget = ent;
+                    string? expectedApp = null;
                     if (match != null)
                     {
                         if (!ctx.FieldDefs.TryGetValue(ent, out var own) || !own.TryGetValue(match, out var matchDef)
-                            || Str(matchDef, "type") != "reference" || Str(matchDef, "targetApp") != null)
-                            errors.Add($"SEMANTIC: {cw} rollup match '{match}' must be a local reference field on '{ent}'");
+                            || Str(matchDef, "type") != "reference")
+                            errors.Add($"SEMANTIC: {cw} rollup match '{match}' must be a reference field on '{ent}'");
                         else
+                        {
                             expectedTarget = Str(matchDef, "targetEntity") ?? ent;
+                            expectedApp = Str(matchDef, "targetApp");
+                        }
                     }
                     if (via == null || !ctx.FieldDefs.TryGetValue(re, out var refs) || !refs.TryGetValue(via, out var viaDef)
-                        || Str(viaDef, "type") != "reference" || Str(viaDef, "targetApp") != null || Str(viaDef, "targetEntity") != expectedTarget)
+                        || Str(viaDef, "type") != "reference" || Str(viaDef, "targetApp") != expectedApp || Str(viaDef, "targetEntity") != expectedTarget)
+                    {
+                        var target = expectedApp == null ? $"'{expectedTarget}'" : $"'{expectedTarget}' in '{expectedApp}'";
                         errors.Add(match == null
                             ? $"SEMANTIC: {cw} rollup via '{via}' must be a local reference field on '{re}' pointing at '{ent}'"
-                            : $"SEMANTIC: {cw} rollup via '{via}' must be a local reference field on '{re}' pointing at '{expectedTarget}' — the same entity match '{match}' points at, since that is what makes the two records siblings");
+                            : $"SEMANTIC: {cw} rollup via '{via}' must be a reference field on '{re}' pointing at {target} — the same record match '{match}' points at, since that is what makes the two records siblings");
+                    }
 
                     // A window is only meaningful over dates, and a mistyped field here would silently
                     // aggregate nothing rather than fail — the worst outcome for a plan.
@@ -2524,8 +2536,26 @@ public static class Gate
                 }
                 case "intake":
                 {
-                    if (binding != "collection")
-                    { errors.Add($"SEMANTIC: {where}: block kind 'intake' is only valid on pages — it is the list of forms to pick from"); break; }
+                    // Two homes. On a page it is the front door: pick a form, file something. Inside
+                    // a record's detail — with `via` naming the submission's reference to that
+                    // record — it is the same form filled in ABOUT the record it sits on: an
+                    // inspection against an asset, a questionnaire against a feedback request. The
+                    // submission carries the link; without `via` there is nothing to carry it and
+                    // the block stays a page block.
+                    var ivia = Str(b, "via");
+                    if (ivia is null && binding != "collection")
+                    { errors.Add($"SEMANTIC: {where}: block kind 'intake' is only valid on pages — it is the list of forms to pick from (give it 'via' to file a form against the record it sits on)"); break; }
+                    if (ivia is not null && binding != "record")
+                    { errors.Add($"SEMANTIC: {where}: an intake block with 'via' files a form against a record, so it belongs in a record detail, not on a page"); break; }
+                    if (ivia is not null)
+                    {
+                        var responses = ctx.WithRole("formResponse");
+                        if (responses.Count == 0)
+                            errors.Add($"SEMANTIC: {where}: intake via '{ivia}' needs an entity with role 'formResponse' — there are no submissions to link");
+                        else if (!ctx.FieldDefs.TryGetValue(responses[0], out var rfs) || !rfs.TryGetValue(ivia, out var rvia)
+                                 || Str(rvia, "type") != "reference" || Str(rvia, "targetApp") != null || Str(rvia, "targetEntity") != boundEntity)
+                            errors.Add($"SEMANTIC: {where}: intake via '{responses[0]}.{ivia}' must be a reference to '{boundEntity}', the record the form is filled in against");
+                    }
                     var templates = ctx.WithRole("formTemplate");
                     var ient = Str(b, "entity");
                     if (ient is not null)

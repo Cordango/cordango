@@ -48,7 +48,7 @@
       }
     },
     "formBlock": {
-      "description": "A form-layout node: 'section' (labeled group) or 'fields' (editable field keys, optionally in 2 columns). The runtime always drops system/readOnly/auto fields and hideOnCreate fields on create, regardless of the authored layout.",
+      "description": "A form-layout node: 'section' (labeled group) or 'fields' (editable field keys, optionally in 2 columns). The runtime always drops system/readOnly/auto fields and hideOnCreate fields on create, regardless of the authored layout. A field a command collects or writes is left off a DERIVED form; an authored form that lists it is believed — a renewal date is typed when a contract is registered and set again by Renew.",
       "type": "object",
       "required": [
         "kind"
@@ -3915,7 +3915,7 @@
       }
     },
     "block_intake": {
-      "description": "The front door: the forms someone can fill in, and the form itself once they pick one. This is how a person who may NOT create tickets still files one — submitting needs only the right to respond. Collection binding (a page). Pair it with a filter so retired forms stay off the list.",
+      "description": "The front door: the forms someone can fill in, and the form itself once they pick one. This is how a person who may NOT create tickets still files one — submitting needs only the right to respond. Collection binding (a page). Pair it with a filter so retired forms stay off the list. In a record detail, give `via` and the form is filled in ABOUT that record.",
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -3931,6 +3931,10 @@
         },
         "entity": {
           "description": "The formTemplate entity to list. Omit and the app's single formTemplate entity is used.",
+          "$ref": "#/$defs/identifier"
+        },
+        "via": {
+          "description": "Record binding only: the formResponse entity's reference to the bound record's entity. The submission carries that link.",
           "$ref": "#/$defs/identifier"
         },
         "filters": {

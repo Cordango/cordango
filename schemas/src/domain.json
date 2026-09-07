@@ -354,7 +354,7 @@
                   "$ref": "#/$defs/identifier"
                 },
                 "match": {
-                  "description": "A reference field on THIS entity. When set, rows are aggregated when their 'via' equals this record's 'match' rather than this record's id — a SIBLING aggregation. Both must target the same entity. This is how a period sums the hiring lines of its own scenario: neither owns the other, they share a parent.",
+                  "description": "A reference field on THIS entity. When set, rows are aggregated when their 'via' equals this record's 'match' rather than this record's id — a SIBLING aggregation. Both must point at the same target, which may be a local entity or a platform/core-app one: a period sums the hiring lines of its own scenario, and a leave allowance sums the absences of its own person through the directory. Neither owns the other; they share a record.",
                   "$ref": "#/$defs/identifier"
                 },
                 "window": {

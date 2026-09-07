@@ -68,13 +68,16 @@ public class PageEditorSchemaTests
     /// <item>96,500 → 97,400: `action.entity` + `action.keys`, the self-anchoring form that lets a
     /// button name its own record. +641 bytes after the descriptions were trimmed to match their
     /// neighbours; two properties on one variant, nothing shared was inlined.</item>
+    /// <item>97,400 → 97,700: `intake.via`, the record-bound form — a questionnaire answered against
+    /// the record it sits on. One property on one variant plus a sentence in the block's own
+    /// description; nothing shared was inlined.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 97_400);
+        Assert.InRange(pruned, 1, 97_700);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

@@ -239,7 +239,22 @@ public static class AppCompiler
 
         // A process/status field or an approval-side field is noise on the CREATE form (the record
         // starts at its default / is decided later). Hide there, but keep it editable afterwards.
-        var hideOnCreate = GetStr(f, "role") == "status" || HideOnCreateKeys.Contains(key);
+        //
+        // A field with `initial` rules is worked out from the new record at insert — an approval
+        // tier from the amount, whether a leave type counts against the allowance — and the rules
+        // say so: "the field must not be one the user fills in". Asking anyway puts a question on
+        // the form whose answer the server then overrides, which reads as a control that does nothing.
+        //
+        // The one exception cuts the other way: a REQUIRED field with nothing else to fill it is
+        // asked for on create no matter what it is called, because the create form is the only
+        // place it can be filled. A feedback request's 'reviewer' is the person being asked — the
+        // whole record — and hiding it because approvals have reviewers too left a New button that
+        // could only ever say "Reviewer is required" (live 2026-09-06).
+        var required = f["required"]?.GetValue<bool>() == true;
+        var filledWithout = f["default"] is not null || f["initial"] is JsonArray;
+        var hideOnCreate = GetStr(f, "role") == "status"
+            || f["initial"] is JsonArray
+            || (HideOnCreateKeys.Contains(key) && (!required || filledWithout));
         if (hideOnCreate) f["hideOnCreate"] = true;
 
         var canHoldCurrentUser = GetStr(f, "type") is "reference" or "text";
@@ -1050,12 +1065,24 @@ public static class AppCompiler
     }
 
     /// <summary>
-    /// Stamp <c>setByCommand:true</c> on every entity field a command collects via
-    /// <c>input.fields</c>. Such a field is the command's to write (a decline reason is set when you
-    /// decline, an assignee when you assign) — it must not appear as a freely-editable control on the
-    /// generic create OR edit form, nor be inline-editable in a cell/board. The command dialog still
-    /// collects it (it reads <c>command.input.fields</c> directly). Runs after SynthesizeCommands so it
-    /// sees authored and synthesized commands alike; manifest-only flag, like <c>governedBy</c>.
+    /// Stamp <c>setByCommand:true</c> on every entity field a command owns: one it collects via
+    /// <c>input.fields</c>, or one it WRITES through an <c>updateRecord</c> effect on the record it
+    /// runs on. Such a field is the command's to set (a decline reason is set when you decline, an
+    /// assignee when you assign, an approver when somebody approves) — it must not appear as a
+    /// freely-editable control on the generic create OR edit form, nor be inline-editable in a
+    /// cell/board. The command dialog still collects its inputs (it reads
+    /// <c>command.input.fields</c> directly). Runs after SynthesizeCommands so it sees authored and
+    /// synthesized commands alike; manifest-only flag, like <c>governedBy</c>.
+    ///
+    /// <para><b>A written field is the command's authority, and it beats a guess from the name.</b>
+    /// <see cref="FlagAutoField"/> reads <c>confirmed_by</c> or <c>submitted_at</c> as an audit stamp
+    /// of whoever created the record and makes it read-only. When a transition's effect sets that
+    /// same field — <c>confirmed_by: {{actor.id}}</c> on Confirm, <c>submitted_at: {{now}}</c> on
+    /// Submit — the author has said exactly when and by whom it is written, and the guess is wrong
+    /// twice over: the runtime stamps the creator at insert, and <c>ValidateAndCopy</c> then drops
+    /// the effect's write because the field is read-only. An allocation read "confirmed by" the
+    /// person who merely asked for it (live 2026-09-06). So a written field loses the heuristic's
+    /// <c>auto</c> and <c>readOnly</c>; the command writes it, and nothing else asks for it.</para>
     ///
     /// <para><b>A field required at create time is never command-owned.</b> The flag says "there is a
     /// better way to set this than the create form", and for a required field there is no other way at
@@ -1074,19 +1101,38 @@ public static class AppCompiler
         foreach (var c in Arr(manifest["commands"]).OfType<JsonObject>())
         {
             if (GetStr(c, "entity") is not { } ent || !fieldsByEntity.TryGetValue(ent, out var fields)) continue;
+
+            var owned = new List<(string Key, bool Written)>();
             foreach (var fn in Arr(c["input"]?["fields"]))
+                if (fn?.GetValue<string>() is { } fk) owned.Add((fk, false));
+            // Only writes to the record the command runs on. An effect aimed at a referenced record
+            // (`target: { field }`) owns nothing here — that is another entity's field.
+            foreach (var eff in Arr(c["effects"]).OfType<JsonObject>())
+                if (GetStr(eff, "type") == "updateRecord" && TargetsSelf(eff))
+                    foreach (var (fk, _) in eff["set"] as JsonObject ?? new JsonObject())
+                        owned.Add((fk, true));
+
+            foreach (var (fk, written) in owned)
             {
-                if (fn?.GetValue<string>() is not { } fk) continue;
                 if (fields.FirstOrDefault(x => GetStr(x, "key") == fk) is not { } f) continue;
-                if (f["system"]?.GetValue<bool>() == true) continue;
+                if (f["system"]?.GetValue<bool>() == true || f["computed"] is JsonObject) continue;
                 // Required, and not hidden on create: the create form is the only place it can be
                 // filled, so a command may ALSO collect it but may not own it.
                 if (f["required"]?.GetValue<bool>() == true
                     && f["hideOnCreate"]?.GetValue<bool>() != true) continue;
                 f["setByCommand"] = true;
+                if (written && GetStr(f, "auto") is "currentUser" or "currentTime")
+                {
+                    f.Remove("auto");
+                    f.Remove("readOnly");
+                }
             }
         }
     }
+
+    private static bool TargetsSelf(JsonObject effect) =>
+        effect["target"] is null
+        || (effect["target"] is JsonValue v && v.TryGetValue<string>(out var s) && s == "self");
 
     /// <summary>An editable CELL writes its field straight through, so the field must be one the runtime
     /// would actually accept. The gate already rejects system/readOnly/auto — but `governedBy` /

@@ -206,4 +206,38 @@ public class FormIntakeGateTests
         Assert.Contains(Gate.SemanticErrors(doc), e =>
             e.Contains("block kind 'intake' is only valid on pages"));
     }
+
+    private static void LinkSubmissionToTicket(JsonObject doc) =>
+        ((JsonArray)Entity(doc, "submission")["fields"]!).Add(JsonNode.Parse(
+            """{ "key": "about", "label": "About", "type": "reference", "targetEntity": "ticket", "onDelete": "setNull" }"""));
+
+    [Fact]
+    public void Intake_with_via_files_the_form_against_the_record_it_sits_on()
+    {
+        var doc = IntakeApp();
+        LinkSubmissionToTicket(doc);
+        SetTicketDetail(doc, """[{ "kind": "intake", "via": "about", "label": "Inspect" }]""");
+        Assert.Empty(Gate.Validate(doc));
+    }
+
+    [Fact]
+    public void Intake_via_must_be_the_submissions_link_to_the_bound_record()
+    {
+        var doc = IntakeApp();
+        SetTicketDetail(doc, """[{ "kind": "intake", "via": "form" }]""");
+        Assert.Contains(Gate.SemanticErrors(doc), e =>
+            e.Contains("intake via 'submission.form' must be a reference to 'ticket'"));
+    }
+
+    [Fact]
+    public void Intake_with_via_does_not_belong_on_a_page()
+    {
+        var doc = IntakeApp();
+        LinkSubmissionToTicket(doc);
+        SetPages(doc, """
+          [{ "key": "file", "label": "File", "entity": "form", "blocks": [{ "kind": "intake", "via": "about" }] }]
+          """);
+        Assert.Contains(Gate.SemanticErrors(doc), e =>
+            e.Contains("an intake block with 'via' files a form against a record"));
+    }
 }
