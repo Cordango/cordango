@@ -134,6 +134,10 @@ public static class AppContract
         ["key"] = Str(e, "key"),
         ["label"] = Str(e, "label"),
         ["labelPlural"] = Str(e, "labelPlural"),
+        // What the entity is FOR, which a name does not carry. An agent told only that an app has an
+        // `organization` still has to guess whether that is a customer, a supplier or a legal entity,
+        // and a wrong guess is a second entity modelling the same thing.
+        ["description"] = Str(e, "description"),
         ["displayField"] = Str(e, "displayField"),
         ["kind"] = Str(e, "kind"),
         ["ownedBy"] = e["ownedBy"] is JsonObject owned ? Str(owned, "parent") : null,

@@ -7,15 +7,6 @@ using System.Text.Json.Nodes;
 
 namespace Cordango.Definition;
 
-/// <summary>One shipped version of a core app's definition.</summary>
-/// <param name="Version">The definition's own <c>version</c> field, e.g. <c>1.0.0</c>.</param>
-/// <param name="Json">The definition document as authored.</param>
-public sealed record CoreAppVersion(string Version, string Json)
-{
-    public JsonNode Node() => JsonNode.Parse(Json)
-        ?? throw new InvalidOperationException($"core definition '{Version}' is not valid JSON");
-}
-
 /// <summary>One entity inside a core app — what a cross-app reference is allowed to target.</summary>
 /// <param name="Key">The <c>targetEntity</c> value. Not the label: Organizations declares
 /// <c>organization</c> and labels it "Company", and an author who sees only the label guesses wrong.</param>
@@ -27,79 +18,39 @@ public sealed record CoreEntity(
     string? Description,
     IReadOnlyList<string> FieldKeys);
 
-/// <summary>A core app as declared in <c>schema/core/registry.json</c>.</summary>
+/// <summary>
+/// A core app, as its published CONTRACT describes it.
+///
+/// <para><b>This is what the app OFFERS, not how it is built.</b> The full definitions — field types,
+/// options, roles, pages, processes, workflows — are not in this repository, and their absence is
+/// deliberate rather than an oversight. <see cref="Cordango.Compile.AppCompiler"/> and the standalone
+/// generator are both here and both Apache-2.0, so a published definition is not a description of an
+/// application, it is a buildable copy of one. A contract carries no field types, so it cannot be
+/// compiled: the boundary enforces itself rather than relying on a rule somebody has to remember.</para>
+///
+/// <para>What is here is exactly what an author or an agent needs in order to REFERENCE a core app
+/// instead of re-modelling it — which is the whole reason the gate knows about core apps at all.</para>
+/// </summary>
 /// <param name="SystemKey">Permanent logical identity, e.g. <c>core_organizations</c>. This is what
 /// an app definition puts in <c>targetApp</c>; it is never the handle.</param>
-/// <param name="DefaultAccess"><c>AllMembersRead</c> or <c>AdminOnly</c>.</param>
-/// <param name="DefaultRole">The definition role key every tenant member implicitly holds under
-/// <c>AllMembersRead</c>.</param>
-/// <param name="Versions">Every shipped version, oldest first. All of them are kept so the
-/// compatibility validator can replay the real upgrade path.</param>
-public sealed record CoreApp(
-    string SystemKey,
-    string Name,
-    string DefaultAccess,
-    string DefaultRole,
-    IReadOnlyList<CoreAppVersion> Versions)
+public sealed record CoreApp(string SystemKey, string Name, IReadOnlyList<CoreEntity> Entities)
 {
-    public const string AccessAllMembersRead = "AllMembersRead";
-    public const string AccessAdminOnly = "AdminOnly";
-
-    /// <summary>The version that gets provisioned — the last one shipped.</summary>
-    public CoreAppVersion Current => Versions[^1];
-
-    /// <summary>Every tenant member reaches this app without a grant row.</summary>
-    public bool AllMembersRead => DefaultAccess == AccessAllMembersRead;
-
-    /// <summary>
-    /// The entities the current definition declares, in authored order.
-    ///
-    /// <para><b>Described, not just named, because naming them was not enough.</b> The gate has always
-    /// been able to check a reference into a core app against this list — but nothing an author could
-    /// run ever printed it, so an agent asked to link tasks to organizations declared its own
-    /// <c>organization</c> entity instead. It was the correct inference from what it could see. This is
-    /// what <c>cord inspect</c> and <c>cord vocabulary</c> read so that stops being true.</para>
-    /// </summary>
-    public IReadOnlyList<CoreEntity> Entities => _entities ??= LoadEntities();
-    private IReadOnlyList<CoreEntity>? _entities;
-
-    /// <summary>The entity keys the current definition declares — what a cross-app reference to this
-    /// core app is allowed to target. Static, so <see cref="Gate"/> can validate a reference without
-    /// touching a database.</summary>
+    /// <summary>The entity keys the contract declares — what a cross-app reference to this core app
+    /// is allowed to target. Static, so <see cref="Gate"/> can validate a reference without touching
+    /// a database.</summary>
     public IReadOnlySet<string> EntityKeys =>
         _entityKeys ??= new HashSet<string>(Entities.Select(e => e.Key), StringComparer.Ordinal);
     private IReadOnlySet<string>? _entityKeys;
-
-    private IReadOnlyList<CoreEntity> LoadEntities()
-    {
-        var list = new List<CoreEntity>();
-        if (Current.Node()["entities"] is not JsonArray entities) return list;
-
-        foreach (var e in entities)
-        {
-            if (e?["key"]?.GetValue<string>() is not { } key) continue;
-            var fields = new List<string>();
-            if (e["fields"] is JsonArray fs)
-                foreach (var f in fs)
-                    if (f?["key"]?.GetValue<string>() is { } fk) fields.Add(fk);
-
-            list.Add(new CoreEntity(
-                key,
-                e["label"]?.GetValue<string>() ?? key,
-                e["description"]?.GetValue<string>(),
-                fields));
-        }
-        return list;
-    }
 }
 
 /// <summary>
-/// The platform's core apps, read once from the embedded <c>schema/core/registry.json</c>.
+/// The platform's core apps, read once from the embedded <c>schema/core/registry.json</c> and the
+/// contract beside each entry.
 ///
 /// Deliberately STATIC data with no dependencies: <see cref="Gate"/> validates cross-app references
 /// against it and must stay a pure single-document function — a gate that reached for a database
-/// would make validity depend on which environment happened to run it. Callers that provision or
-/// serve core apps take the registration list as a parameter, so tests can drive them with their own.
+/// would make validity depend on which environment happened to run it. Callers that serve core apps
+/// take the registration list as a parameter, so tests can drive them with their own.
 /// </summary>
 public static class CoreAppRegistry
 {
@@ -119,32 +70,43 @@ public static class CoreAppRegistry
     {
         var doc = JsonNode.Parse(Schemas.LoadResource("core/registry.json"))
             ?? throw new InvalidOperationException("core/registry.json is not valid JSON");
+
         var apps = new List<CoreApp>();
         foreach (var node in doc["apps"] as JsonArray ?? new JsonArray())
         {
             if (node is not JsonObject a) continue;
-            var key = Str(a, "systemKey") ?? throw new InvalidOperationException("core app entry has no systemKey");
-            var versions = new List<CoreAppVersion>();
-            foreach (var v in a["versions"] as JsonArray ?? new JsonArray())
-            {
-                if (v?.GetValue<string>() is not { Length: > 0 } label)
-                    throw new InvalidOperationException($"core app '{key}' has a non-string version entry");
-                var json = Schemas.LoadResource($"core/{key}.{label}.json");
-                var declared = JsonNode.Parse(json)?["version"]?.GetValue<string>()
-                    ?? throw new InvalidOperationException($"core definition '{key}.{label}' declares no version");
-                versions.Add(new CoreAppVersion(declared, json));
-            }
-            if (versions.Count == 0)
-                throw new InvalidOperationException($"core app '{key}' lists no versions");
+            var key = Str(a, "systemKey")
+                ?? throw new InvalidOperationException("core app entry has no systemKey");
+
+            var contract = JsonNode.Parse(Schemas.LoadResource($"core/{key}.contract.json"))
+                ?? throw new InvalidOperationException($"core contract '{key}' is not valid JSON");
+
             apps.Add(new CoreApp(
                 key,
-                Str(a, "name") ?? key,
-                Str(a, "defaultAccess") ?? CoreApp.AccessAdminOnly,
-                Str(a, "defaultRole") ?? "viewer",
-                versions));
+                Str(a, "name") ?? Str(contract["identity"] as JsonObject, "name") ?? key,
+                Entities(contract)));
         }
         return apps;
     }
 
-    private static string? Str(JsonObject o, string key) => o[key]?.GetValue<string>();
+    /// <summary>The contract's entities, flattened to what a reference needs: the key it may target,
+    /// a label to print, why the entity exists, and the field names it holds.</summary>
+    private static IReadOnlyList<CoreEntity> Entities(JsonNode contract)
+    {
+        var list = new List<CoreEntity>();
+        foreach (var e in contract["entities"] as JsonArray ?? new JsonArray())
+        {
+            if (e is not JsonObject entity) continue;
+            if (Str(entity, "key") is not { } key) continue;
+
+            var fields = new List<string>();
+            foreach (var f in entity["fields"] as JsonArray ?? new JsonArray())
+                if (f?["key"]?.GetValue<string>() is { } fk) fields.Add(fk);
+
+            list.Add(new CoreEntity(key, Str(entity, "label") ?? key, Str(entity, "description"), fields));
+        }
+        return list;
+    }
+
+    private static string? Str(JsonObject? o, string key) => o?[key]?.GetValue<string>();
 }

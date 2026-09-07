@@ -126,49 +126,8 @@ public class CoreDefinitionCompatibilityTests
         Assert.Contains(report.Review, e => e.Contains("default changed"));
     }
 
-    [Fact]
-    public void Every_shipped_core_version_upgrades_cleanly_to_the_current_one()
-    {
-        foreach (var app in CoreAppRegistry.All)
-        {
-            var current = app.Current;
-            foreach (var previous in app.Versions.Where(v => v.Version != current.Version))
-            {
-                var report = CoreDefinitionCompatibility.Check(previous.Node(), current.Node());
-                Assert.True(report.Ok,
-                    $"{app.SystemKey} {previous.Version} -> {current.Version} is not upgradable:\n"
-                    + string.Join("\n", report.Breaking));
-            }
-        }
-    }
-
-    [Fact]
-    public void Core_versions_are_distinct_and_the_current_one_is_last()
-    {
-        foreach (var app in CoreAppRegistry.All)
-        {
-            var versions = app.Versions.Select(v => v.Version).ToList();
-            Assert.Equal(versions.Distinct().Count(), versions.Count);
-            Assert.Equal(versions[^1], app.Current.Version);
-        }
-    }
-
-    [Fact]
-    public void Every_core_definition_passes_the_gate()
-    {
-        foreach (var app in CoreAppRegistry.All)
-        foreach (var version in app.Versions)
-            Assert.Empty(Gate.Validate(version.Node()));
-    }
-
-    [Fact]
-    public void Default_role_exists_in_the_current_definition()
-    {
-        foreach (var app in CoreAppRegistry.All.Where(a => a.AllMembersRead))
-        {
-            var roles = app.Current.Node()["roles"] as JsonArray;
-            Assert.NotNull(roles);
-            Assert.Contains(roles!, r => (string?)r?["key"] == app.DefaultRole);
-        }
-    }
+    // The tests that walked every SHIPPED core definition moved to the platform repository with the
+    // definitions themselves (AppBuilder.Api.Tests/CoreAppGateTests). This file keeps what belongs
+    // here: the rules CoreDefinitionCompatibility applies, exercised against a synthetic app, so the
+    // validator is covered in a plain clone with no private definitions to read.
 }

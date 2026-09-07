@@ -1,0 +1,1227 @@
+{
+  "contractVersion": "1.0",
+  "kind": "app-contract",
+  "identity": {
+    "key": "core_calendar",
+    "name": "Calendar",
+    "version": "1.3.0",
+    "schemaVersion": "2.0",
+    "definitionHash": "c435f1b38eb2a98bb7dc28ad87e346bdb6f4bb6b0eb0e12a29878efcde1d0d44",
+    "contractHash": "d629f4b53f946acd91f18a4d697da14890b8421321a0aef2be3b51b3aaa4e0b5"
+  },
+  "purpose": null,
+  "entities": [
+    {
+      "key": "calendar_source",
+      "label": "Calendar",
+      "labelPlural": "Calendars",
+      "description": "One connected calendar. This is what makes 'I have several calendars' first class rather than a pile of events with a provider column: colour, visibility and the booking target all hang off the source, and turning one off hides its events everywhere at once.",
+      "displayField": "name",
+      "kind": "config",
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "provider",
+          "label": "Provider",
+          "type": "select",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "microsoft",
+              "label": "Outlook",
+              "color": "#0078d4"
+            },
+            {
+              "value": "google",
+              "label": "Google",
+              "color": "#ea4335"
+            },
+            {
+              "value": "local",
+              "label": "Cordango",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "ical",
+              "label": "iCal link",
+              "color": "#7c3aed"
+            }
+          ]
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "color",
+          "label": "Colour",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "is_visible",
+          "label": "Shown",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "is_default_target",
+          "label": "Default for bookings",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "feed_url",
+          "label": "iCal address",
+          "type": "url",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "feed_time_zone",
+          "label": "Feed time zone",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "external_id",
+          "label": "External id",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "sync_status",
+          "label": "Sync status",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "ok",
+              "label": "OK",
+              "color": "#16a34a"
+            },
+            {
+              "value": "needs_reauth",
+              "label": "Needs sign-in",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "error",
+              "label": "Error",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "last_synced_at",
+          "label": "Last synced",
+          "type": "datetime",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "last_error",
+          "label": "Last error",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "calendar_event",
+      "label": "Event",
+      "labelPlural": "Events",
+      "description": "One appointment, at one instant, on one calendar. Recurring series arrive already EXPANDED into their individual occurrences — the provider does that expansion and applies each per-instance override, and re-deriving it from a rule would mean disagreeing with the user's own Outlook, which is the reference they will compare against.",
+      "displayField": "title",
+      "kind": null,
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "calendar",
+          "label": "Calendar",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "calendar_source",
+          "options": null
+        },
+        {
+          "key": "starts_at",
+          "label": "Starts",
+          "type": "datetime",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "ends_at",
+          "label": "Ends",
+          "type": "datetime",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "is_all_day",
+          "label": "All day",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "time_zone",
+          "label": "Time zone",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "location",
+          "label": "Location",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "meeting_url",
+          "label": "Meeting link",
+          "type": "url",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "description",
+          "label": "Notes",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "organizer_email",
+          "label": "Organizer",
+          "type": "email",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "attendee_count",
+          "label": "Attendees",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "show_as",
+          "label": "Shows as",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "free",
+              "label": "Free",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "tentative",
+              "label": "Tentative",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "busy",
+              "label": "Busy",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "out_of_office",
+              "label": "Out of office",
+              "color": "#dc2626"
+            },
+            {
+              "value": "working_elsewhere",
+              "label": "Working elsewhere",
+              "color": "#0891b2"
+            }
+          ]
+        },
+        {
+          "key": "sensitivity",
+          "label": "Sensitivity",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "normal",
+              "label": "Normal",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "private",
+              "label": "Private",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "confidential",
+              "label": "Confidential",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "is_cancelled",
+          "label": "Cancelled",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "origin",
+          "label": "Origin",
+          "type": "select",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "imported",
+              "label": "Imported",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "local",
+              "label": "Cordango",
+              "color": "#0ea5e9"
+            }
+          ]
+        },
+        {
+          "key": "external_id",
+          "label": "External id",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "external_series_id",
+          "label": "Series id",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "external_etag",
+          "label": "ETag",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "synced_at",
+          "label": "Synced",
+          "type": "datetime",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "calendar_share",
+      "label": "Share",
+      "labelPlural": "Shared with",
+      "description": "One colleague this calendar is shown to. A calendar is private to its owner and this is the ONLY thing that widens that — there is no role, and no administrator, that reaches somebody else’s calendar without a row here. Sharing is read-only by construction: the entries stay their owner’s to change.",
+      "displayField": "person",
+      "kind": "config",
+      "ownedBy": "calendar_source",
+      "fields": [
+        {
+          "key": "calendar",
+          "label": "Calendar",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "calendar_source",
+          "options": null
+        },
+        {
+          "key": "person",
+          "label": "Colleague",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "event_guest",
+      "label": "Guest",
+      "labelPlural": "Guests",
+      "description": "Somebody invited to an appointment. A child record rather than a field, because there is no multi-reference field type and a multiselect holds only a closed option list — 'several people on one meeting' has no other shape here. It is also the shape Outlook and Google both hand back, so an imported attendee and an invited colleague land in the same place instead of two that disagree.",
+      "displayField": "email",
+      "kind": null,
+      "ownedBy": "calendar_event",
+      "fields": [
+        {
+          "key": "event",
+          "label": "Event",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "calendar_event",
+          "options": null
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "person",
+          "label": "Colleague",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "response",
+          "label": "Response",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "needs_action",
+              "label": "No reply",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "accepted",
+              "label": "Yes",
+              "color": "#16a34a"
+            },
+            {
+              "value": "tentative",
+              "label": "Maybe",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "declined",
+              "label": "No",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "is_organizer",
+          "label": "Organizer",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "booking_page",
+      "label": "Booking page",
+      "labelPlural": "Booking pages",
+      "description": "A shareable link that lets someone outside the workspace pick a free slot. The rules of engagement live here — how long, how much notice, which hours, how much buffer — so the public page computes them rather than being told what to offer.",
+      "displayField": "name",
+      "kind": null,
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "slug",
+          "label": "Link",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "duration_minutes",
+          "label": "Default length",
+          "type": "integer",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "duration_choices",
+          "label": "Lengths offered",
+          "type": "multiselect",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "15",
+              "label": "15 min",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "30",
+              "label": "30 min",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "45",
+              "label": "45 min",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "60",
+              "label": "1 hour",
+              "color": "#ec4899"
+            },
+            {
+              "value": "90",
+              "label": "1½ hours",
+              "color": "#14b8a6"
+            },
+            {
+              "value": "120",
+              "label": "2 hours",
+              "color": "#f97316"
+            }
+          ]
+        },
+        {
+          "key": "buffer_before_minutes",
+          "label": "Buffer before",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "buffer_after_minutes",
+          "label": "Buffer after",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "min_notice_hours",
+          "label": "Minimum notice",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "max_days_ahead",
+          "label": "How far ahead",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "time_zone",
+          "label": "Time zone",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "availability",
+          "label": "When people can book",
+          "type": "json",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "target_calendar",
+          "label": "Add bookings to",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "calendar_source",
+          "options": null
+        },
+        {
+          "key": "location_kind",
+          "label": "How you meet",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "online",
+              "label": "Online",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "phone",
+              "label": "Phone",
+              "color": "#16a34a"
+            },
+            {
+              "value": "in_person",
+              "label": "In person",
+              "color": "#7c3aed"
+            }
+          ]
+        },
+        {
+          "key": "location_detail",
+          "label": "Address, number or link",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "is_published",
+          "label": "Published",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "booking_contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "description": "Somebody outside the workspace who booked time. Deliberately an ordinary app record and NOT a platform person: external people are not colleagues, they have no login, no seat and no grants, and minting an account per stranger would be account enumeration wearing a data model.",
+      "displayField": "name",
+      "kind": "config",
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "company",
+          "label": "Company",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "first_seen_at",
+          "label": "First booked",
+          "type": "datetime",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "booking",
+      "label": "Booking",
+      "labelPlural": "Bookings",
+      "description": "One appointment somebody booked through a public page. Stays 'pending' until the emailed link is clicked — which is both correct behaviour and the strongest cheap defence there is, because it costs a spammer a working mailbox per attempt.",
+      "displayField": "summary",
+      "kind": null,
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "summary",
+          "label": "Summary",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "page",
+          "label": "Booking page",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "booking_page",
+          "options": null
+        },
+        {
+          "key": "contact",
+          "label": "Booked by",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "booking_contact",
+          "options": null
+        },
+        {
+          "key": "starts_at",
+          "label": "Starts",
+          "type": "datetime",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "ends_at",
+          "label": "Ends",
+          "type": "datetime",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "pending",
+              "label": "Awaiting confirmation",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "confirmed",
+              "label": "Confirmed",
+              "color": "#16a34a"
+            },
+            {
+              "value": "cancelled",
+              "label": "Cancelled",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "visitor_time_zone",
+          "label": "Visitor time zone",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "confirmed_at",
+          "label": "Confirmed",
+          "type": "datetime",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "cancelled_at",
+          "label": "Cancelled",
+          "type": "datetime",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "write_back_state",
+          "label": "In calendar",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "not_applicable",
+              "label": "Not applicable",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "pending",
+              "label": "Pending",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "done",
+              "label": "Created",
+              "color": "#16a34a"
+            },
+            {
+              "value": "failed",
+              "label": "Failed",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "calendar_event",
+          "label": "Calendar entry",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "calendar_event",
+          "options": null
+        },
+        {
+          "key": "write_back_error",
+          "label": "Write-back error",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "external_event_id",
+          "label": "External event id",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "app": "platform",
+      "entities": [
+        "person"
+      ],
+      "source": "reference",
+      "fields": [
+        "booking_page.owner",
+        "calendar_share.person",
+        "calendar_source.owner",
+        "event_guest.person"
+      ],
+      "why": null
+    }
+  ],
+  "events": [
+    {
+      "type": "record.created",
+      "entity": "booking",
+      "description": "A Booking was created",
+      "name": "booking.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "booking",
+      "description": "A Booking was deleted",
+      "name": "booking.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "booking",
+      "description": "A Booking changed",
+      "name": "booking.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "booking_contact",
+      "description": "A Contact was created",
+      "name": "booking_contact.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "booking_contact",
+      "description": "A Contact was deleted",
+      "name": "booking_contact.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "booking_contact",
+      "description": "A Contact changed",
+      "name": "booking_contact.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "booking_page",
+      "description": "A Booking page was created",
+      "name": "booking_page.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "booking_page",
+      "description": "A Booking page was deleted",
+      "name": "booking_page.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "booking_page",
+      "description": "A Booking page changed",
+      "name": "booking_page.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "calendar_event",
+      "description": "A Event was created",
+      "name": "calendar_event.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "calendar_event",
+      "description": "A Event was deleted",
+      "name": "calendar_event.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "calendar_event",
+      "description": "A Event changed",
+      "name": "calendar_event.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "calendar_share",
+      "description": "A Share was created",
+      "name": "calendar_share.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "calendar_share",
+      "description": "A Share was deleted",
+      "name": "calendar_share.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "calendar_share",
+      "description": "A Share changed",
+      "name": "calendar_share.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "calendar_source",
+      "description": "A Calendar was created",
+      "name": "calendar_source.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "calendar_source",
+      "description": "A Calendar was deleted",
+      "name": "calendar_source.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "calendar_source",
+      "description": "A Calendar changed",
+      "name": "calendar_source.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "event_guest",
+      "description": "A Guest was created",
+      "name": "event_guest.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "event_guest",
+      "description": "A Guest was deleted",
+      "name": "event_guest.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "event_guest",
+      "description": "A Guest changed",
+      "name": "event_guest.updated"
+    }
+  ],
+  "actions": [
+    {
+      "id": "booking_page.publish",
+      "key": "publish",
+      "entity": "booking_page",
+      "label": "Publish",
+      "description": "Make the link answer. Until it is published the address behaves as if the page did not exist.",
+      "synthesized": false,
+      "transition": null,
+      "input": null,
+      "requires": [
+        "booking_page.publish.when"
+      ],
+      "emits": [],
+      "causes": []
+    },
+    {
+      "id": "booking_page.unpublish",
+      "key": "unpublish",
+      "entity": "booking_page",
+      "label": "Unpublish",
+      "description": "Stop taking bookings. Appointments already made are untouched — this only closes the door, it does not cancel anybody.",
+      "synthesized": false,
+      "transition": null,
+      "input": null,
+      "requires": [
+        "booking_page.unpublish.when"
+      ],
+      "emits": [],
+      "causes": []
+    }
+  ],
+  "rules": [
+    {
+      "id": "booking_page.publish.when",
+      "entity": "booking_page",
+      "on": [
+        "command:publish"
+      ],
+      "kind": "guard",
+      "effect": "stop",
+      "condition": null,
+      "source": "synthesized"
+    },
+    {
+      "id": "booking_page.unpublish.when",
+      "entity": "booking_page",
+      "on": [
+        "command:unpublish"
+      ],
+      "kind": "guard",
+      "effect": "stop",
+      "condition": null,
+      "source": "synthesized"
+    }
+  ]
+}

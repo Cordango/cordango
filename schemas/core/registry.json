@@ -1,44 +1,20 @@
 {
-  "description": "The core-app registry: the ONE place a platform-provided core app is declared. A core app is an ordinary App Definition that the platform provisions into every tenant, addressed by its permanent `systemKey` (never by its handle, which stays a disposable URL-facing address). Adding a core app must cost exactly one entry here plus its definition file — if it ever costs more, the core-app architecture has failed.",
+  "description": "The core apps the platform provides, as CONTRACTS. Each entry names a <systemKey>.contract.json beside this file: what the app offers, so that a cross-app reference to it can be validated and an agent can discover it instead of re-modelling it. The full definitions are not here — a contract states what an app offers, not how it is built.",
   "conventions": {
-    "definitions": "Each version listed in `versions` must exist as schema/core/<systemKey>.<version>.json. EVERY shipped version stays checked in: the compatibility validator replays each previous version against the current one, and a validator that can only see the current definition cannot tell an append from a breaking change.",
-    "current": "The LAST entry of `versions` is the one provisioned. Versions are append-only; never edit a shipped file in place.",
-    "defaultAccess": "AllMembersRead = every tenant member reaches the app with no grant row, holding `defaultRole`. AdminOnly = platform admins only; members need an explicit grant.",
-    "defaultRole": "The app-definition role key implicitly held by every tenant member under AllMembersRead. It must exist in the definition's `roles`."
+    "contracts": "Each entry must exist as core/<systemKey>.contract.json. Generated from the private definition by tools/CoreContracts in the platform repository; never hand-edited."
   },
   "apps": [
     {
       "systemKey": "core_people",
-      "name": "People",
-      "defaultAccess": "AllMembersRead",
-      "defaultRole": "employee",
-      "versions": [
-        "v1"
-      ]
+      "name": "People"
     },
     {
       "systemKey": "core_organizations",
-      "name": "Organizations",
-      "defaultAccess": "AllMembersRead",
-      "defaultRole": "viewer",
-      "versions": [
-        "v1",
-        "v2",
-        "v3",
-        "v4",
-        "v5"
-      ]
+      "name": "Organizations"
     },
     {
       "systemKey": "core_calendar",
-      "name": "Calendar",
-      "defaultAccess": "AllMembersRead",
-      "defaultRole": "member",
-      "versions": [
-        "v1",
-        "v2",
-        "v3"
-      ]
+      "name": "Calendar"
     }
   ]
 }

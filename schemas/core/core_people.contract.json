@@ -1,0 +1,1332 @@
+{
+  "contractVersion": "1.0",
+  "kind": "app-contract",
+  "identity": {
+    "key": "core_people",
+    "name": "People",
+    "version": "1.0.0",
+    "schemaVersion": "2.0",
+    "definitionHash": "7f6217c0f239b671d39044f765daeb553dc2ba08b07b355b1f031e117d743469",
+    "contractHash": "9d3da63321cdfa86a85e9ed50cef49f68bf7c0e168c443427375e25210f15d49"
+  },
+  "purpose": null,
+  "entities": [
+    {
+      "key": "employee",
+      "label": "Employee",
+      "labelPlural": "Employees",
+      "description": null,
+      "displayField": "full_name",
+      "kind": null,
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "person",
+          "label": "Person",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#f43f5e"
+            },
+            {
+              "value": "delivery",
+              "label": "Delivery",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#16a34a"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#d97706"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#db2777"
+            },
+            {
+              "value": "devops",
+              "label": "DevOps",
+              "color": "#0891b2"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#059669"
+            }
+          ]
+        },
+        {
+          "key": "seniority",
+          "label": "Seniority",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "junior",
+              "label": "Junior",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "mid",
+              "label": "Mid",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "senior",
+              "label": "Senior",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "principal",
+              "label": "Principal",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment type",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-time",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-time",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "contractor",
+              "label": "Contractor",
+              "color": "#64748b"
+            },
+            {
+              "value": "working_student",
+              "label": "Working student",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "contract_type",
+          "label": "Contract",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "permanent",
+              "label": "Permanent",
+              "color": "#16a34a"
+            },
+            {
+              "value": "fixed_term",
+              "label": "Fixed term",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "freelance",
+              "label": "Freelance",
+              "color": "#8b5cf6"
+            }
+          ]
+        },
+        {
+          "key": "work_location",
+          "label": "Work location",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "berlin",
+              "label": "Berlin",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "hamburg",
+              "label": "Hamburg",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "remote",
+              "label": "Remote",
+              "color": "#16a34a"
+            }
+          ]
+        },
+        {
+          "key": "manager",
+          "label": "Reports to",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "start_date",
+          "label": "Start date",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "employment_status",
+          "label": "Status",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a"
+            },
+            {
+              "value": "on_leave",
+              "label": "On leave",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "alumni",
+              "label": "Alumni",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "employee_number",
+          "label": "Employee no.",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "weekly_hours",
+          "label": "Weekly hours",
+          "type": "integer",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "probation_end",
+          "label": "Probation ends",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "preferred_name",
+          "label": "Preferred name",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "date_of_birth",
+          "label": "Date of birth",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "gender",
+          "label": "Gender",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "female",
+              "label": "Female",
+              "color": "#f472b6"
+            },
+            {
+              "value": "male",
+              "label": "Male",
+              "color": "#60a5fa"
+            },
+            {
+              "value": "non_binary",
+              "label": "Non-binary",
+              "color": "#a78bfa"
+            },
+            {
+              "value": "prefer_not_to_say",
+              "label": "Prefer not to say",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "nationality",
+          "label": "Nationality",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "US",
+              "label": "American",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "AT",
+              "label": "Austrian",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "BG",
+              "label": "Bulgarian",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "GB",
+              "label": "British",
+              "color": "#ec4899"
+            },
+            {
+              "value": "CN",
+              "label": "Chinese",
+              "color": "#14b8a6"
+            },
+            {
+              "value": "HR",
+              "label": "Croatian",
+              "color": "#f97316"
+            },
+            {
+              "value": "CZ",
+              "label": "Czech",
+              "color": "#64748b"
+            },
+            {
+              "value": "DK",
+              "label": "Danish",
+              "color": "#22c55e"
+            },
+            {
+              "value": "NL",
+              "label": "Dutch",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "FI",
+              "label": "Finnish",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "FR",
+              "label": "French",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "DE",
+              "label": "German",
+              "color": "#ec4899"
+            },
+            {
+              "value": "GR",
+              "label": "Greek",
+              "color": "#14b8a6"
+            },
+            {
+              "value": "HU",
+              "label": "Hungarian",
+              "color": "#f97316"
+            },
+            {
+              "value": "IN",
+              "label": "Indian",
+              "color": "#64748b"
+            },
+            {
+              "value": "IE",
+              "label": "Irish",
+              "color": "#22c55e"
+            },
+            {
+              "value": "IT",
+              "label": "Italian",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "JP",
+              "label": "Japanese",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "LB",
+              "label": "Lebanese",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "NO",
+              "label": "Norwegian",
+              "color": "#ec4899"
+            },
+            {
+              "value": "PL",
+              "label": "Polish",
+              "color": "#14b8a6"
+            },
+            {
+              "value": "PT",
+              "label": "Portuguese",
+              "color": "#f97316"
+            },
+            {
+              "value": "RO",
+              "label": "Romanian",
+              "color": "#64748b"
+            },
+            {
+              "value": "ES",
+              "label": "Spanish",
+              "color": "#22c55e"
+            },
+            {
+              "value": "SE",
+              "label": "Swedish",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "CH",
+              "label": "Swiss",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "TR",
+              "label": "Turkish",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "UA",
+              "label": "Ukrainian",
+              "color": "#ec4899"
+            }
+          ]
+        },
+        {
+          "key": "personal_email",
+          "label": "Personal email",
+          "type": "email",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "personal_phone",
+          "label": "Personal phone",
+          "type": "phone",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "home_address",
+          "label": "Home address",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "iban",
+          "label": "IBAN",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "employment",
+      "label": "Employment record",
+      "labelPlural": "Employment history",
+      "description": null,
+      "displayField": "job_title",
+      "kind": null,
+      "ownedBy": "employee",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "employee",
+          "options": null
+        },
+        {
+          "key": "effective_from",
+          "label": "Effective from",
+          "type": "date",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "effective_to",
+          "label": "Until",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "department",
+          "label": "Department",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "engineering",
+              "label": "Engineering",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#f43f5e"
+            },
+            {
+              "value": "delivery",
+              "label": "Delivery",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "sales",
+              "label": "Sales",
+              "color": "#16a34a"
+            },
+            {
+              "value": "marketing",
+              "label": "Marketing",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "finance",
+              "label": "Finance",
+              "color": "#d97706"
+            },
+            {
+              "value": "hr",
+              "label": "HR",
+              "color": "#db2777"
+            },
+            {
+              "value": "devops",
+              "label": "DevOps",
+              "color": "#0891b2"
+            },
+            {
+              "value": "operations",
+              "label": "Operations",
+              "color": "#059669"
+            }
+          ]
+        },
+        {
+          "key": "seniority",
+          "label": "Seniority",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "junior",
+              "label": "Junior",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "mid",
+              "label": "Mid",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "senior",
+              "label": "Senior",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lead",
+              "label": "Lead",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "principal",
+              "label": "Principal",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "employment_type",
+          "label": "Employment type",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "full_time",
+              "label": "Full-time",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "part_time",
+              "label": "Part-time",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "contractor",
+              "label": "Contractor",
+              "color": "#64748b"
+            },
+            {
+              "value": "working_student",
+              "label": "Working student",
+              "color": "#f59e0b"
+            }
+          ]
+        },
+        {
+          "key": "change_reason",
+          "label": "Reason",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "hire",
+              "label": "Hire",
+              "color": "#16a34a"
+            },
+            {
+              "value": "promotion",
+              "label": "Promotion",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "lateral_move",
+              "label": "Lateral move",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "reorg",
+              "label": "Reorg",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "contract_change",
+              "label": "Contract change",
+              "color": "#64748b"
+            },
+            {
+              "value": "status_change",
+              "label": "Status change",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "compensation",
+      "label": "Compensation record",
+      "labelPlural": "Compensation history",
+      "description": null,
+      "displayField": "change_reason",
+      "kind": null,
+      "ownedBy": "employee",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "employee",
+          "options": null
+        },
+        {
+          "key": "effective_from",
+          "label": "Effective from",
+          "type": "date",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "annual_salary",
+          "label": "Annual salary",
+          "type": "money",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "pay_grade",
+          "label": "Pay grade",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "a",
+              "label": "Grade A",
+              "color": "#94a3b8"
+            },
+            {
+              "value": "b",
+              "label": "Grade B",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "c",
+              "label": "Grade C",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "d",
+              "label": "Grade D",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "e",
+              "label": "Grade E",
+              "color": "#dc2626"
+            }
+          ]
+        },
+        {
+          "key": "bonus_target_pct",
+          "label": "Bonus target %",
+          "type": "decimal",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "change_reason",
+          "label": "Reason",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "hire",
+              "label": "Hire",
+              "color": "#16a34a"
+            },
+            {
+              "value": "annual_review",
+              "label": "Annual review",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "promotion",
+              "label": "Promotion",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "market_adjustment",
+              "label": "Market adjustment",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "role_change",
+              "label": "Role change",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "emergency_contact",
+      "label": "Emergency contact",
+      "labelPlural": "Emergency contacts",
+      "description": null,
+      "displayField": "name",
+      "kind": null,
+      "ownedBy": "employee",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "employee",
+          "options": null
+        },
+        {
+          "key": "name",
+          "label": "Contact name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "relationship",
+          "label": "Relationship",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "partner",
+              "label": "Partner",
+              "color": "#f472b6"
+            },
+            {
+              "value": "parent",
+              "label": "Parent",
+              "color": "#60a5fa"
+            },
+            {
+              "value": "sibling",
+              "label": "Sibling",
+              "color": "#a78bfa"
+            },
+            {
+              "value": "child",
+              "label": "Child",
+              "color": "#34d399"
+            },
+            {
+              "value": "friend",
+              "label": "Friend",
+              "color": "#22d3ee"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "is_primary",
+          "label": "Primary contact",
+          "type": "boolean",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "document",
+      "label": "Document",
+      "labelPlural": "Documents",
+      "description": null,
+      "displayField": "title",
+      "kind": null,
+      "ownedBy": "employee",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "employee",
+          "options": null
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "doc_type",
+          "label": "Type",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "contract",
+              "label": "Contract",
+              "color": "#4f46e5"
+            },
+            {
+              "value": "id",
+              "label": "ID document",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "passport",
+              "label": "Passport",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "visa",
+              "label": "Visa / permit",
+              "color": "#f59e0b"
+            },
+            {
+              "value": "certificate",
+              "label": "Certificate",
+              "color": "#16a34a"
+            },
+            {
+              "value": "nda",
+              "label": "NDA",
+              "color": "#64748b"
+            },
+            {
+              "value": "review",
+              "label": "Review",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "payslip",
+              "label": "Payslip",
+              "color": "#db2777"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "file",
+          "label": "File",
+          "type": "attachment",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "issued_on",
+          "label": "Issued",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "expires_on",
+          "label": "Expires",
+          "type": "date",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    },
+    {
+      "key": "hr_note",
+      "label": "HR note",
+      "labelPlural": "HR notes",
+      "description": null,
+      "displayField": "note",
+      "kind": null,
+      "ownedBy": "employee",
+      "fields": [
+        {
+          "key": "employee",
+          "label": "Employee",
+          "type": "reference",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": "employee",
+          "options": null
+        },
+        {
+          "key": "author",
+          "label": "Author",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "note",
+          "label": "Note",
+          "type": "longtext",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "app": "platform",
+      "entities": [
+        "person"
+      ],
+      "source": "reference",
+      "fields": [
+        "employee.manager",
+        "employee.person",
+        "hr_note.author"
+      ],
+      "why": null
+    }
+  ],
+  "events": [
+    {
+      "type": "record.created",
+      "entity": "compensation",
+      "description": "A Compensation record was created",
+      "name": "compensation.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "compensation",
+      "description": "A Compensation record was deleted",
+      "name": "compensation.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "compensation",
+      "description": "A Compensation record changed",
+      "name": "compensation.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "document",
+      "description": "A Document was created",
+      "name": "document.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "document",
+      "description": "A Document was deleted",
+      "name": "document.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "document",
+      "description": "A Document changed",
+      "name": "document.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "emergency_contact",
+      "description": "A Emergency contact was created",
+      "name": "emergency_contact.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "emergency_contact",
+      "description": "A Emergency contact was deleted",
+      "name": "emergency_contact.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "emergency_contact",
+      "description": "A Emergency contact changed",
+      "name": "emergency_contact.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "employee",
+      "description": "A Employee was created",
+      "name": "employee.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "employee",
+      "description": "A Employee was deleted",
+      "name": "employee.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "employee",
+      "description": "A Employee changed",
+      "name": "employee.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "employment",
+      "description": "A Employment record was created",
+      "name": "employment.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "employment",
+      "description": "A Employment record was deleted",
+      "name": "employment.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "employment",
+      "description": "A Employment record changed",
+      "name": "employment.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "hr_note",
+      "description": "A HR note was created",
+      "name": "hr_note.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "hr_note",
+      "description": "A HR note was deleted",
+      "name": "hr_note.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "hr_note",
+      "description": "A HR note changed",
+      "name": "hr_note.updated"
+    }
+  ],
+  "actions": [
+    {
+      "id": "employee.mark_inactive",
+      "key": "mark_inactive",
+      "entity": "employee",
+      "label": "Disable",
+      "description": "Mark this employee inactive (alumni) — they leave the active team but stay in the directory.",
+      "synthesized": false,
+      "transition": null,
+      "input": null,
+      "requires": [
+        "employee.mark_inactive.when"
+      ],
+      "emits": [],
+      "causes": []
+    }
+  ],
+  "rules": [
+    {
+      "id": "employee.mark_inactive.when",
+      "entity": "employee",
+      "on": [
+        "command:mark_inactive"
+      ],
+      "kind": "guard",
+      "effect": "stop",
+      "condition": null,
+      "source": "synthesized"
+    }
+  ]
+}

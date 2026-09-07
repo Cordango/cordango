@@ -50,7 +50,7 @@
     <EmbeddedResource Include="..\..\schemas\blueprint.schema.json" Link="blueprint.schema.json" LogicalName="blueprint.schema.json" />
     <!-- Core apps: the registry plus EVERY shipped version of each definition (the compatibility
          validator replays the real upgrade path, so old versions are not dead weight). Flat file
-         names — schemas/core/<systemKey>.<version>.json — keep the logical resource names stable
+         names — schemas/core/<systemKey>.contract.json — keep the logical resource names stable
          across platforms; MSBuild's RecursiveDir would bake in Windows separators. -->
     <EmbeddedResource Include="..\..\schemas\core\*.json" LogicalName="core/%(Filename)%(Extension)" />
   </ItemGroup>
