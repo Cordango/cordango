@@ -13,6 +13,21 @@ public enum ComputedValueKind
     Number,
     Boolean,
     Date,
+
+    /// <summary>
+    /// A coded string: the value of a <c>select</c>, or a <c>text</c> field read as itself.
+    ///
+    /// <para>Compared, never combined. There is no concatenation, no case folding and no ordering —
+    /// <c>==</c> and <c>!=</c> and nothing else, because everything else invites an expression to
+    /// BUILD a label, and a label built in an expression is one nobody can translate.</para>
+    ///
+    /// <para>It exists because a closed set is stored as a code (see the field-typing decision: a
+    /// closed set becomes a coded select, and storage stays string-coded on purpose). Without this
+    /// kind, nothing computed could branch on one — a tax table keyed by Bundesland, a rate keyed by
+    /// plan, a fee keyed by country were all simply unwritable, and the author's only move was to
+    /// type the answer in by hand on every row.</para>
+    /// </summary>
+    Text,
 }
 
 /// <summary>The statically checked shape of an expression, including every field it reads.</summary>
@@ -23,7 +38,8 @@ public sealed record ComputedExprValidation(
 
 /// <summary>
 /// A small, typed expression language: numeric arithmetic, comparisons that return booleans, boolean
-/// logic, date durations, <c>pow</c>, and the two-value bounds <c>min</c>/<c>max</c>.
+/// logic, date durations, <c>pow</c>, the two-value bounds <c>min</c>/<c>max</c>, coded text compared
+/// for equality, and one branch — <c>if</c>.
 ///
 /// <para><b>This is the language, not an engine for it.</b> What lives here is the grammar, the
 /// parser, the typed AST and the static checking — everything needed to tell an author their
@@ -99,14 +115,41 @@ public static class ComputedExpr
     /// duration functions which take bare date field names.
     ///
     /// <para><c>min</c> and <c>max</c> are how a row states a BOUND on one of its own figures — a
-    /// usage charge capped at a plan's ceiling, a balance floored at zero. There is no conditional in
-    /// this language and booleans deliberately do not coerce to numbers, so the arithmetic dodge
-    /// <c>(a &lt; b) * a + (a &gt;= b) * b</c> is rejected too: without these a cap simply cannot be
-    /// written, and the author's only remaining move is to type the clamped number by hand every
-    /// month, which is exactly what a computed field exists to stop.</para>
+    /// usage charge capped at a plan's ceiling, a balance floored at zero. Booleans deliberately do
+    /// not coerce to numbers, so the arithmetic dodge <c>(a &lt; b) * a + (a &gt;= b) * b</c> is
+    /// rejected: without these a cap simply cannot be written, and the author's only remaining move
+    /// is to type the clamped number by hand every month, which is exactly what a computed field
+    /// exists to stop.</para>
+    ///
+    /// <para>They keep that job now that <see cref="ConditionalFunc"/> exists, and are still the
+    /// better way to say it: <c>min(usage, plan.cap)</c> is a bound, while
+    /// <c>if(usage &gt; plan.cap, plan.cap, usage)</c> is a bound spelled out three times.</para>
     /// </summary>
     public static readonly IReadOnlySet<string> MathFuncs =
         new HashSet<string>(StringComparer.Ordinal) { "pow", "min", "max" };
+
+    /// <summary>
+    /// <c>if(test, when_true, when_false)</c> — the one branch in the language.
+    ///
+    /// <para><b>It was deliberately absent, and that decision is reversed here rather than
+    /// forgotten.</b> <see cref="MathFuncs"/> gained <c>min</c>/<c>max</c> precisely because a CAP
+    /// was the only branch anyone needed, and a bound reads better than a conditional. What broke
+    /// the rule was a rate TABLE: a contribution ceiling that differs by Bundesland, a rate that
+    /// differs by number of children, a bracket that differs by tax class. None of those is a bound,
+    /// none is expressible as arithmetic over booleans while booleans stay uncoerced, and every one
+    /// of them is ordinary in the kind of application this language exists for.</para>
+    ///
+    /// <para><b>The test is a boolean, and the two answers are the same kind as each other</b> —
+    /// that kind is the result. So this is not a fourth numeric function: it serves dates and text as
+    /// readily as numbers, and it is the only place a <see cref="ComputedValueKind"/> is decided by
+    /// two sub-expressions agreeing rather than by the operator.</para>
+    ///
+    /// <para><b>Only the branch taken is worked out.</b> That is not an optimisation — it is what
+    /// makes <c>if(months == 0, 0, costs / months)</c> mean what it reads as. Working out both sides
+    /// would let the division's unknown spread into an answer the author had explicitly guarded
+    /// against, which would make the guard worse than useless.</para>
+    /// </summary>
+    public const string ConditionalFunc = "if";
 
     /// <summary>
     /// <c>prev(field)</c> or <c>prev(field, seed)</c> — the value of <c>field</c> on the PREVIOUS row
@@ -172,7 +215,8 @@ public static class ComputedExpr
             var t = tokens[i];
             if (!IsIdentifier(t) || Keywords.Contains(t)) continue;
             if (i + 1 < tokens.Count && tokens[i + 1] == "("
-                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t) || t == PrevFunc))
+                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t)
+                    || t == PrevFunc || t == ConditionalFunc))
             {
                 // Skip prev's FIRST argument — it belongs to the previous row.
                 if (t == PrevFunc && i + 2 < tokens.Count && IsIdentifier(tokens[i + 2])) i += 2;
@@ -194,7 +238,8 @@ public static class ComputedExpr
             var t = tokens[i];
             if (!IsIdentifier(t) || Keywords.Contains(t)) continue;
             if (i + 1 < tokens.Count && tokens[i + 1] == "("
-                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t) || t == PrevFunc))
+                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t)
+                    || t == PrevFunc || t == ConditionalFunc))
                 continue;
             result.Add(t);
         }
@@ -240,6 +285,14 @@ public static class ComputedExpr
     public sealed record NumberNode(decimal Value) : Node(ComputedValueKind.Number);
 
     public sealed record BooleanNode(bool Value) : Node(ComputedValueKind.Boolean);
+
+    /// <summary>A quoted code: <c>'sachsen'</c>. The value is what was between the quotes, with no
+    /// unescaping to do — the grammar has no escapes.</summary>
+    public sealed record TextNode(string Value) : Node(ComputedValueKind.Text);
+
+    /// <summary><c>if(test, when_true, when_false)</c>. The result kind is whatever the two answers
+    /// agreed on, which the parser has already checked they do.</summary>
+    public sealed record ConditionalNode(Node Condition, Node Then, Node Else) : Node(Then.Kind);
 
     /// <summary>A reference to a field: this record's own, or <c>reference.field</c> for one hop.</summary>
     public sealed record FieldNode(string Key, ComputedValueKind FieldKind) : Node(FieldKind);
@@ -403,6 +456,7 @@ public static class ComputedExpr
                 Error = $"'{token}' isn't a number";
                 return null;
             }
+            if (IsTextLiteral(token)) return new TextNode(token[1..^1]);
             if (!IsIdentifier(token)) { Error = $"unexpected '{token}'"; return null; }
             if (Peek() == "(") return Function(token);
 
@@ -410,7 +464,7 @@ public static class ComputedExpr
             if (_identError(token) is { } identError) { Error = identError; return null; }
             if (_fieldKind(token) is not { } kind)
             {
-                Error = $"'{token}' is not a numeric, boolean, or date field";
+                Error = $"'{token}' is not a numeric, boolean, date, or text field";
                 return null;
             }
             return new FieldNode(token, kind);
@@ -420,12 +474,35 @@ public static class ComputedExpr
         {
             if (!MathFuncs.Contains(name) && !DurationFuncs.Contains(name)
                 && !DatePartFuncs.Contains(name) && !DateBoundaryFuncs.Contains(name)
-                && name != PrevFunc)
+                && name != PrevFunc && name != ConditionalFunc)
             {
                 Error = $"'{name}' is not a known function";
                 return null;
             }
             _pos++; // '('
+            if (name == ConditionalFunc)
+            {
+                var test = Or();
+                if (!Take(",")) { Error ??= Arity(name); return null; }
+                var whenTrue = Or();
+                if (!Take(",")) { Error ??= Arity(name); return null; }
+                var whenFalse = Or();
+                if (Peek() == ",") { Error = Arity(name); return null; }
+                if (!Take(")")) { Error ??= $"'{name}(' is missing its closing parenthesis"; return null; }
+                if (test is null || whenTrue is null || whenFalse is null) return null;
+                if (test.Kind != ComputedValueKind.Boolean)
+                { Error = $"'{name}' tests something true or false, not a {Name(test.Kind)}"; return null; }
+                // Both answers, one kind. Without this a field typed `money` could be handed a text
+                // on one branch, and the mismatch would surface as a build error inside generated
+                // source rather than as a sentence about the expression somebody wrote.
+                if (whenTrue.Kind != whenFalse.Kind)
+                {
+                    Error = $"'{name}' must answer the same kind of thing either way, "
+                          + $"not a {Name(whenTrue.Kind)} and a {Name(whenFalse.Kind)}";
+                    return null;
+                }
+                return new ConditionalNode(test, whenTrue, whenFalse);
+            }
             if (name == PrevFunc)
             {
                 // The first argument is a FIELD NAME, not a value — `prev` reads that field on the
@@ -519,10 +596,14 @@ public static class ComputedExpr
             _pos++;
             return true;
         }
+        private static string Arity(string name) =>
+            $"'{name}' takes three arguments: a test, and one answer for each way it can go";
+
         private static string Name(ComputedValueKind kind) => kind switch
         {
             ComputedValueKind.Number => "number",
             ComputedValueKind.Boolean => "boolean",
+            ComputedValueKind.Text => "text",
             _ => "date",
         };
     }
@@ -540,6 +621,24 @@ public static class ComputedExpr
             if (i + 1 < source.Length && source.Substring(i, 2) is "<=" or ">=" or "==" or "!=")
             { tokens.Add(source.Substring(i, 2)); i += 2; continue; }
             if ("()+-*/!,<>".Contains(c)) { tokens.Add(c.ToString()); i++; continue; }
+
+            // A TEXT LITERAL, kept whole — quotes included — so it stays distinguishable from an
+            // identifier by its first character alone. That is what keeps `Identifiers` and
+            // `LocalIdentifiers` from reporting 'sachsen' as a field this expression depends on.
+            //
+            // Either quote, and no escapes: a value that needs one quote is written with the other,
+            // and a value needing both is not a select code. Codes are what this compares.
+            if (c is '\'' or '"')
+            {
+                var close = source.IndexOf(c, i + 1);
+                if (close < 0)
+                { error = $"a text value opened with {c} is never closed"; return tokens; }
+                if (source[(i + 1)..close].AsSpan().IndexOfAny('\n', '\r') >= 0)
+                { error = "a text value cannot span lines"; return tokens; }
+                tokens.Add(source[i..(close + 1)]);
+                i = close + 1;
+                continue;
+            }
             if (c == '=') { error = "'=' isn't valid in an expression; use '==' for equality"; return tokens; }
             if (char.IsAsciiDigit(c))
             {
@@ -569,6 +668,12 @@ public static class ComputedExpr
         }
         return tokens;
     }
+
+    /// <summary>A token the tokenizer kept its quotes on. Checked before <see cref="IsIdentifier"/>
+    /// everywhere, and mutually exclusive with it by construction: no identifier starts with a
+    /// quote.</summary>
+    private static bool IsTextLiteral(string token) =>
+        token.Length >= 2 && token[0] is '\'' or '"' && token[^1] == token[0];
 
     private static bool IsIdentifier(string token) => token.Length > 0 &&
         (char.IsAsciiLetter(token[0]) || token[0] == '_') &&

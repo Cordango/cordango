@@ -106,6 +106,24 @@ public static class Calc
     public static bool? Different(bool? left, bool? right) =>
         left is { } a && right is { } b ? a != b : null;
 
+    /// <summary>
+    /// Two codes compared exactly — ordinal, case-sensitive, no culture.
+    ///
+    /// <para>These are stored codes, not prose: a select's value is <c>sachsen</c>, and it is the
+    /// same string on every machine. Culture-aware comparison would make the answer depend on the
+    /// server's locale, and case folding would quietly accept a code the dropdown cannot produce —
+    /// hiding the authoring mistake that a field holds something no option offers.</para>
+    ///
+    /// <para>Null is unknown, never a value: a blank field has already been read as the empty string
+    /// before it reaches here, so the only way to get a null is an <c>if</c> whose test nobody could
+    /// work out.</para>
+    /// </summary>
+    public static bool? Same(string? left, string? right) =>
+        left is { } a && right is { } b ? string.Equals(a, b, StringComparison.Ordinal) : null;
+
+    public static bool? Different(string? left, string? right) =>
+        left is { } a && right is { } b ? !string.Equals(a, b, StringComparison.Ordinal) : null;
+
     /// <summary>Whole and fractional days between two instants, the way the definition means it:
     /// null unless both ends are known.</summary>
     public static decimal? Days(DateTimeOffset? from, DateTimeOffset? to) =>

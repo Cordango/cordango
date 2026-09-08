@@ -111,9 +111,18 @@ public class GeneratedComputedTests
                         $"expected {flag.GetValue<bool>()}, got {Show(actual)}.\n{where}");
                     break;
 
+                // A JSON string is either a date or a CODE. Which one is settled by what the
+                // generated method returns, not by the fixture: the language decided the kind at
+                // build time, and this arm only has to agree with it.
                 case JsonValue text when text.GetValueKind() is JsonValueKind.String:
+                    if (actual is string code)
+                    {
+                        Assert.True(text.GetValue<string>() == code,
+                            $"expected '{text.GetValue<string>()}', got '{code}'.\n{where}");
+                        break;
+                    }
                     Assert.True(actual is DateOnly,
-                        $"expected a date, the generated method returned {Show(actual)} "
+                        $"expected a date or a text, the generated method returned {Show(actual)} "
                         + $"({method.ReturnType}).\n{where}");
                     Assert.True(
                         DateOnly.ParseExact(text.GetValue<string>(), "yyyy-MM-dd").Equals(actual),
@@ -164,6 +173,10 @@ public class GeneratedComputedTests
     private static JsonObject Definition(out List<FieldSpec> baseFields, out List<string> caseKeys)
     {
         var declared = new SortedDictionary<string, (string Type, bool Required)>(StringComparer.Ordinal);
+        // A select's allowed values, which the Gate requires it to have. Declared in the fixture
+        // because the codes an expression compares against have to BE the field's options — a case
+        // branching on a value the dropdown cannot produce would pin nothing worth pinning.
+        var options = new SortedDictionary<string, List<string>>(StringComparer.Ordinal);
         var computed = new List<(string Key, string Expr)>();
 
         foreach (var path in FixtureFiles())
@@ -182,6 +195,9 @@ public class GeneratedComputedTests
                         + $"{fileName}. One entity carries them all, so a field must mean one thing.");
 
                 declared[key] = (type, required);
+
+                if (spec?["options"] is JsonArray choices)
+                    options[key] = [.. choices.Select(c => c!.GetValue<string>())];
             }
 
             var cases = fixture["cases"]!.AsArray();
@@ -200,13 +216,19 @@ public class GeneratedComputedTests
         };
 
         foreach (var (key, spec) in declared)
-            fields.Add(new JsonObject
+        {
+            var field = new JsonObject
             {
                 ["key"] = key,
                 ["label"] = Label(key),
                 ["type"] = spec.Type,
                 ["required"] = spec.Required,
-            });
+            };
+            if (options.TryGetValue(key, out var choices))
+                field["options"] = new JsonArray([.. choices.Select(value =>
+                    (JsonNode)new JsonObject { ["value"] = value, ["label"] = Label(value) })]);
+            fields.Add(field);
+        }
 
         foreach (var (key, expr) in computed)
         {
@@ -215,12 +237,14 @@ public class GeneratedComputedTests
                 {
                     "boolean" => ComputedValueKind.Boolean,
                     "date" or "datetime" => ComputedValueKind.Date,
+                    "text" or "longtext" or "select" or "email" or "url" or "phone" => ComputedValueKind.Text,
                     _ => ComputedValueKind.Number,
                 }
                 : ComputedValueKind.Number).ResultKind;
 
             Assert.True(
-                kind is ComputedValueKind.Number or ComputedValueKind.Boolean or ComputedValueKind.Date,
+                kind is ComputedValueKind.Number or ComputedValueKind.Boolean or ComputedValueKind.Date
+                    or ComputedValueKind.Text,
                 $"'{expr}' infers as {kind?.ToString() ?? "nothing"}, which this harness has no column "
                 + "type for. Add one, or drop the case.");
 
@@ -228,10 +252,14 @@ public class GeneratedComputedTests
             {
                 ["key"] = key,
                 ["label"] = Label(key),
+                // Never `select`, even for an expression that answers a code: a computed select
+                // would have to declare options nothing checks the answer against. The Gate says
+                // the same, and `text` is what it allows.
                 ["type"] = kind switch
                 {
                     ComputedValueKind.Boolean => "boolean",
                     ComputedValueKind.Date => "date",
+                    ComputedValueKind.Text => "text",
                     _ => "decimal",
                 },
                 ["computed"] = new JsonObject { ["expr"] = expr },

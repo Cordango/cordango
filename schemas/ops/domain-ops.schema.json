@@ -379,7 +379,7 @@
         },
         "expr": {
           "type": "string",
-          "description": "Worked out from this record\u0027s own fields, recalculated on every write: \u0060gross_salary * (1 \u002B employer_cost_rate / 100)\u0060. Arithmetic, comparisons, and/or/not, pow(). On a series entity, \u0060prev(field, seed)\u0060 reads the row before this one \u2014 that is how a running balance is expressed. A field with expr is never typed in."
+          "description": "Worked out from this record\u0027s own fields, recalculated on every write: \u0060gross_salary * (1 \u002B employer_cost_rate / 100)\u0060. Arithmetic, comparisons, and/or/not, pow(), min(), max(). Branch with \u0060if(test, a, b)\u0060: both answers the same kind, and only the branch taken runs, so \u0060if(months == 0, 0, costs / months)\u0060 is safe. Compare a select or text field to a quoted code \u2014 \u0060if(state == \u0027sachsen\u0027, 8450, 9180)\u0060 \u2014 with == or != only; text is never joined, ordered or case-folded. Reads number, boolean, date and text fields of this record, or one hop across a reference. On a series entity, \u0060prev(field, seed)\u0060 reads the row before this one \u2014 that is how a running balance is expressed. Never typed in; typed integer/decimal/money/boolean/date/text."
         },
         "aggregate": {
           "$ref": "#/$defs/aggregate"

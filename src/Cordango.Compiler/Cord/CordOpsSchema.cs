@@ -294,8 +294,13 @@ internal static class CordOpsSchema
             ["expr"] = Str(
                 "Worked out from this record's own fields, recalculated on every write: "
                 + "`gross_salary * (1 + employer_cost_rate / 100)`. Arithmetic, comparisons, and/or/not, "
-                + "pow(). On a series entity, `prev(field, seed)` reads the row before this one — that is "
-                + "how a running balance is expressed. A field with expr is never typed in."),
+                + "pow(), min(), max(). Branch with `if(test, a, b)`: both answers the same kind, and "
+                + "only the branch taken runs, so `if(months == 0, 0, costs / months)` is safe. Compare "
+                + "a select or text field to a quoted code — `if(state == 'sachsen', 8450, 9180)` — with "
+                + "== or != only; text is never joined, ordered or case-folded. Reads number, boolean, "
+                + "date and text fields of this record, or one hop across a reference. On a series "
+                + "entity, `prev(field, seed)` reads the row before this one — that is how a running "
+                + "balance is expressed. Never typed in; typed integer/decimal/money/boolean/date/text."),
             ["aggregate"] = Ref("#/$defs/aggregate"),
         },
     };

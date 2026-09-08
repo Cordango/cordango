@@ -1815,12 +1815,82 @@ public class GateTests
             e => e.Contains("exactly one of 'expr' or 'rollup'"));
 
     [Fact]
-    public void Computed_is_rejected_on_a_text_field() =>
+    public void A_computed_text_field_must_answer_text() =>
         Assert.Contains(
             Gate.SemanticErrors(WithComputed(invoiceExtra: """
                 , { "key": "x", "label": "X", "type": "text", "computed": { "expr": "tax_rate" } }
                 """)),
-            e => e.Contains("only valid on integer/decimal/money/boolean"));
+            e => e.Contains("expr returns a number, not a text"));
+
+    [Fact]
+    public void Computed_is_rejected_on_a_select_field() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(invoiceExtra: """
+                , { "key": "x", "label": "X", "type": "select",
+                    "options": [ { "value": "a", "label": "A" } ],
+                    "computed": { "expr": "if(tax_rate > 0, 'a', 'a')" } }
+                """)),
+            e => e.Contains("only valid on integer/decimal/money/boolean/date/text"));
+
+    [Fact]
+    public void A_computed_text_field_can_choose_between_two_codes() =>
+        Assert.Empty(Gate.Validate(WithComputed(lineExtra: """
+            , { "key": "band", "label": "Band", "type": "text",
+                "computed": { "expr": "if(kind == 'service', 'billable', 'passthrough')" } }
+            """)));
+
+    [Fact]
+    public void A_money_field_can_branch_on_a_select() =>
+        Assert.Empty(Gate.Validate(WithComputed(lineExtra: """
+            , { "key": "surcharge", "label": "Surcharge", "type": "money",
+                "computed": { "expr": "if(kind == 'expense', unit_price * 0.1, 0)" } }
+            """)));
+
+    [Fact]
+    public void An_if_must_answer_the_same_kind_either_way() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "money",
+                    "computed": { "expr": "if(kind == 'expense', 1, 'none')" } }
+                """)),
+            e => e.Contains("same kind of thing either way"));
+
+    [Fact]
+    public void An_if_tests_a_boolean_not_a_code() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "money",
+                    "computed": { "expr": "if(kind, 1, 2)" } }
+                """)),
+            e => e.Contains("tests something true or false, not a text"));
+
+    [Fact]
+    public void Text_has_no_ordering() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean",
+                    "computed": { "expr": "kind < 'service'" } }
+                """)),
+            e => e.Contains("requires two numbers or two dates"));
+
+    [Fact]
+    public void A_text_value_must_be_closed() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean",
+                    "computed": { "expr": "kind == 'service" } }
+                """)),
+            e => e.Contains("is never closed"));
+
+    [Fact]
+    public void A_multiselect_is_not_a_code_an_expression_may_compare() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "tags", "label": "Tags", "type": "multiselect",
+                    "options": [ { "value": "rush", "label": "Rush" } ] }
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "tags == 'rush'" } }
+                """)),
+            e => e.Contains("'tags' is not a numeric, boolean, date, or text field"));
 
     [Fact]
     public void Computed_cannot_combine_with_default() =>
@@ -1839,12 +1909,12 @@ public class GateTests
             e => e.Contains("'nonesuch' is not a field"));
 
     [Fact]
-    public void Expr_referencing_a_non_numeric_field_is_rejected() =>
+    public void Text_is_compared_never_combined() =>
         Assert.Contains(
             Gate.SemanticErrors(WithComputed(invoiceExtra: """
                 , { "key": "x", "label": "X", "type": "money", "computed": { "expr": "number * 2" } }
                 """)),
-            e => e.Contains("'number' is not a numeric, boolean, or date field"));
+            e => e.Contains("operator '*' requires numbers"));
 
     [Fact]
     public void Expr_referencing_another_expr_field_is_accepted() =>

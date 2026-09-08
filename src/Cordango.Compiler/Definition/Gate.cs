@@ -1791,7 +1791,37 @@ public static class Gate
     /// one. Deliberately NOT <c>datetime</c>: nothing in the language produces an instant, so allowing
     /// it would advertise a column no expression can fill.</summary>
     private static readonly HashSet<string> ComputedOutputTypes =
-        new() { "integer", "decimal", "money", "boolean", "date" };
+        new() { "integer", "decimal", "money", "boolean", "date", "text" };
+
+    /// <summary>What an expression may READ as text. Every closed set is stored as a code, so
+    /// <c>select</c> is the one that matters; the free-text types are here because refusing them
+    /// would be an arbitrary line an author would only discover by hitting it.
+    ///
+    /// <para><c>multiselect</c> is deliberately absent — it holds several codes, and <c>==</c>
+    /// against one of them would answer a question nobody asked. So are <c>json</c>,
+    /// <c>attachment</c> and <c>reference</c>: comparing a stored id in an expression is how an
+    /// opaque key becomes load-bearing.</para></summary>
+    private static readonly HashSet<string> ComputedTextTypes =
+        new() { "text", "longtext", "select", "email", "url", "phone" };
+
+    /// <summary>A computed field may only be typed <c>text</c>, never <c>select</c>: a select
+    /// carries options, and nothing checks that a computed value is one of them — so a computed
+    /// select would render a code the dropdown does not contain.</summary>
+    private const string ComputedTextOutputType = "text";
+
+    /// <summary>Whether an expression may READ a field of this type at all. Wider than
+    /// <see cref="ComputedOutputTypes"/> on purpose: <c>datetime</c> and <c>select</c> can both be
+    /// read, and neither can be the type of a computed column.</summary>
+    private static bool ComputedReadable(string? type) =>
+        ComputedNumericTypes.Contains(type ?? "") || ComputedTextTypes.Contains(type ?? "")
+        || type is "boolean" or "date" or "datetime";
+
+    private static ComputedValueKind? ComputedKindOf(string? type) =>
+        ComputedNumericTypes.Contains(type ?? "") ? ComputedValueKind.Number
+        : type == "boolean" ? ComputedValueKind.Boolean
+        : type is "date" or "datetime" ? ComputedValueKind.Date
+        : ComputedTextTypes.Contains(type ?? "") ? ComputedValueKind.Text
+        : null;
     // Always-present system datetime columns the compiler stamps — usable as date-diff args (ticket age
     // from created_at) even though they aren't authored fields.
     private static readonly HashSet<string> SystemDateFields = new() { "created_at", "updated_at" };
@@ -1871,7 +1901,7 @@ public static class Gate
                 var cw = $"field '{ent}.{fk}' computed";
 
                 if (!ComputedOutputTypes.Contains(Str(fd, "type") ?? ""))
-                    errors.Add($"SEMANTIC: {cw} is only valid on integer/decimal/money/boolean/date fields, not '{Str(fd, "type")}'");
+                    errors.Add($"SEMANTIC: {cw} is only valid on integer/decimal/money/boolean/date/text fields, not '{Str(fd, "type")}'");
                 if (fd["default"] is not null || fd["initial"] is not null)
                     errors.Add($"SEMANTIC: {cw} cannot combine with 'default'/'initial' — the computation IS the value");
                 if (fd["options"] is not null)
@@ -1914,11 +1944,7 @@ public static class Gate
                     var validation = ComputedExpr.Validate(expr, fieldKind: ident =>
                     {
                         if (Resolve(ident) is not { } at) return null;
-                        var type = ctx.FieldType(at.Entity, at.Field);
-                        return ComputedNumericTypes.Contains(type ?? "") ? ComputedValueKind.Number
-                            : type == "boolean" ? ComputedValueKind.Boolean
-                            : type is "date" or "datetime" ? ComputedValueKind.Date
-                            : null;
+                        return ComputedKindOf(ctx.FieldType(at.Entity, at.Field));
                     }, identError: ident =>
                     {
                         if (ComputedExpr.Hop(ident) is { } hop)
@@ -1928,9 +1954,8 @@ public static class Gate
                                      + $"'{ident}' cannot be read";
                             if (!ctx.FieldExists(at.Entity, at.Field))
                                 return $"'{at.Field}' is not a field of '{at.Entity}'";
-                            if (!ComputedOutputTypes.Contains(ctx.FieldType(at.Entity, at.Field) ?? "")
-                                && ctx.FieldType(at.Entity, at.Field) is not ("date" or "datetime"))
-                                return $"'{ident}' is not a numeric, boolean, or date field";
+                            if (!ComputedReadable(ctx.FieldType(at.Entity, at.Field)))
+                                return $"'{ident}' is not a numeric, boolean, date, or text field";
                             // One hop only. Two would mean a join whose cost nothing here can see, and
                             // whose invalidation nothing here can track.
                             if (at.Field.Contains('.'))
@@ -1939,9 +1964,8 @@ public static class Gate
                         }
                         if (ident == fk) return $"'{ident}' is the computed field itself";
                         if (!ctx.FieldExists(ent, ident)) return $"'{ident}' is not a field of '{ent}'";
-                        if (!ComputedOutputTypes.Contains(ctx.FieldType(ent, ident) ?? "")
-                            && ctx.FieldType(ent, ident) is not ("date" or "datetime"))
-                            return $"'{ident}' is not a numeric, boolean, or date field";
+                        if (!ComputedReadable(ctx.FieldType(ent, ident)))
+                            return $"'{ident}' is not a numeric, boolean, date, or text field";
                         return null;
                     }, prevArgError: prevArg =>
                     {
@@ -1990,13 +2014,15 @@ public static class Gate
                         errors.Add($"SEMANTIC: {cw} expr — {validation.Error}");
                     else
                     {
-                        // A computed field is a number, a boolean, or — since start_of_week and its
-                        // siblings — a DATE. The type of the column decides which, so an expression
-                        // answering the wrong one is caught here rather than at `dotnet build`.
+                        // A computed field is a number, a boolean, a DATE (since start_of_week and
+                        // its siblings), or TEXT (since `if` could choose between two codes). The
+                        // type of the column decides which, so an expression answering the wrong one
+                        // is caught here rather than at `dotnet build`.
                         var expected = Str(fd, "type") switch
                         {
                             "boolean" => ComputedValueKind.Boolean,
                             "date" => ComputedValueKind.Date,
+                            ComputedTextOutputType => ComputedValueKind.Text,
                             _ => ComputedValueKind.Number,
                         };
                         if (validation.ResultKind != expected)
@@ -2138,6 +2164,7 @@ public static class Gate
         {
             ComputedValueKind.Boolean => "boolean",
             ComputedValueKind.Date => "date",
+            ComputedValueKind.Text => "text",
             _ => "number",
         };
 

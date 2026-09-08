@@ -866,9 +866,13 @@ public static class BackendEmitter
     private static string Result(FieldModel field) => field.Type switch
     {
         "boolean" => "bool?",
-        // The one non-numeric answer: start_of_week and its siblings give the DATE a period begins
-        // on, and a date narrowed through decimal would not survive the trip.
+        // Not numeric: start_of_week and its siblings give the DATE a period begins on, and a date
+        // narrowed through decimal would not survive the trip.
         "date" => "DateOnly?",
+        // Also not numeric: an `if` choosing between two codes answers a string, and the column
+        // holding it is a text. Declaring this decimal? emitted a method whose body was a string —
+        // six compile errors in an application the definition was entitled to describe.
+        "text" => "string?",
         _ => "decimal?",
     };
 

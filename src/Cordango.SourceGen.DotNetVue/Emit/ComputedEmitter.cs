@@ -131,8 +131,20 @@ public static class ComputedEmitter
         {
             "boolean" => ComputedValueKind.Boolean,
             "date" or "datetime" => ComputedValueKind.Date,
+            "text" or "longtext" or "select" or "email" or "url" or "phone" => ComputedValueKind.Text,
             _ => ComputedValueKind.Number,
         };
+
+    /// <summary>The nullable CLR type a value of this kind is held in. Needed only by <c>if</c>,
+    /// whose arms must be given a common type explicitly: two <c>decimal</c> branches and a
+    /// <c>null</c> have no best common type in C#, so the switch expression would not compile.</summary>
+    private static string ClrType(ComputedValueKind kind) => kind switch
+    {
+        ComputedValueKind.Boolean => "bool?",
+        ComputedValueKind.Date => "DateTimeOffset?",
+        ComputedValueKind.Text => "string?",
+        _ => "decimal?",
+    };
 
     private static string? Render(Scope scope, ComputedExpr.Node node) => node switch
     {
@@ -142,6 +154,11 @@ public static class ComputedEmitter
         ComputedExpr.NumberNode n => Literal(n.Value),
 
         ComputedExpr.BooleanNode b => b.Value ? "true" : "false",
+
+        // The grammar has no escapes, so the value is exactly what stood between the quotes — but it
+        // is going into C# source, where a quote or a backslash inside it would end the literal early
+        // and emit an application that does not build.
+        ComputedExpr.TextNode t => $"\"{t.Value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"",
 
         ComputedExpr.FieldNode f => Field(scope, f),
 
@@ -161,6 +178,20 @@ public static class ComputedEmitter
         ComputedExpr.FunctionNode f => Pair(scope, f.Left, f.Right) is (
                 { } functionLeft, { } functionRight)
             ? $"Calc.{f.Name switch { "pow" => "Power", "min" => "Min", _ => "Max" }}({functionLeft}, {functionRight})"
+            : null,
+
+        // A C# switch expression rather than `Calc.If(...)`, and that is the whole point: arguments
+        // are worked out BEFORE a call, so a helper would evaluate the branch not taken. The guard
+        // `if(months == 0, 0, costs / months)` would then divide by zero anyway, `Calc.Divide` would
+        // answer unknown, and the answer the author explicitly guarded against would come back.
+        //
+        // The cast on the first arm is not decoration: `true => 0m, false => 1m, _ => null` has no
+        // best common type and does not compile.
+        ComputedExpr.ConditionalNode c
+            => Render(scope, c.Condition) is { } test
+                && Render(scope, c.Then) is { } whenTrue
+                && Render(scope, c.Else) is { } whenFalse
+            ? $"({test} switch {{ true => ({ClrType(c.Kind)}){whenTrue}, false => {whenFalse}, _ => null }})"
             : null,
 
         ComputedExpr.DurationNode d => Read(scope, d.From) is { } from && Read(scope, d.To) is { } to
@@ -280,6 +311,7 @@ public static class ComputedEmitter
             {
                 ComputedValueKind.Number => $"((decimal?){read} ?? 0m)",
                 ComputedValueKind.Boolean => $"({read} ?? false)",
+                ComputedValueKind.Text => $"({read} ?? \"\")",
                 _ => read,
             };
 
@@ -290,6 +322,10 @@ public static class ComputedEmitter
             (ComputedValueKind.Number, true) => read,
 
             (ComputedValueKind.Boolean, false) => $"({read} ?? false)",
+
+            // The same rule the number and the boolean follow: a field nobody filled in is the empty
+            // one, so `state == 'sachsen'` on a blank record is definitely false rather than unknown.
+            (ComputedValueKind.Text, false) => $"({read} ?? \"\")",
 
             _ => read,
         };

@@ -1,0 +1,182 @@
+{
+  "name": "if() chooses without working out the branch it did not take, and text is compared as a code",
+  "why": "These two arrived together because neither is useful alone. A rate table is the case that broke the old rule: a contribution ceiling that differs by Bundesland, a rate that differs by number of children. Branching needs a conditional, and the thing branched on is a select, whose value is a stored code. The sharp part is laziness: `if(months == 0, 0, costs / months)` must answer zero, and an implementation that works out both arms gets the division's unknown instead — turning a guard into the very thing it guards against. The other sharp part is that a blank text field is the empty code, not unknown, so a record nobody has set a state on answers a definite false rather than spreading unknown through the whole table.",
+  "fields": {
+    "state": {
+      "type": "select",
+      "options": [
+        "sachsen",
+        "thueringen",
+        "bayern",
+        "berlin",
+        "bremen"
+      ]
+    },
+    "children": {
+      "type": "select",
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3_or_more"
+      ]
+    },
+    "label": {
+      "type": "text"
+    },
+    "costs": {
+      "type": "decimal"
+    },
+    "months": {
+      "type": "integer"
+    },
+    "gross": {
+      "type": "decimal"
+    },
+    "flagged": {
+      "type": "boolean"
+    }
+  },
+  "cases": [
+    {
+      "why": "The case the whole file exists for. A ceiling that differs by Bundesland was simply unwritable before: no conditional, and no way to compare a select to its code.",
+      "record": {
+        "state": "sachsen"
+      },
+      "expr": "if(state == 'sachsen', 8450, 9180)",
+      "expect": 8450
+    },
+    {
+      "record": {
+        "state": "bayern"
+      },
+      "expr": "if(state == 'sachsen', 8450, 9180)",
+      "expect": 9180
+    },
+    {
+      "why": "A blank select is the EMPTY code, exactly as a blank number is zero. So the test is definitely false and the else branch is taken — not unknown. An implementation answering null here has treated an unfilled field as an unworkable figure.",
+      "record": {},
+      "expr": "if(state == 'sachsen', 8450, 9180)",
+      "expect": 9180
+    },
+    {
+      "why": "Codes are compared exactly. Case folding would quietly accept a value no option offers, hiding the authoring mistake rather than showing it.",
+      "record": {
+        "state": "Sachsen"
+      },
+      "expr": "state == 'sachsen'",
+      "expect": false
+    },
+    {
+      "why": "Either quote delimits a literal. They are the same literal.",
+      "record": {
+        "state": "sachsen"
+      },
+      "expr": "state == \"sachsen\"",
+      "expect": true
+    },
+    {
+      "why": "LAZINESS, and it is not an optimisation. Both arms worked out means the division by zero happens anyway, `costs / months` is unknown, and the answer comes back unknown — from an expression whose author explicitly guarded against exactly that. The guard would be worse than useless.",
+      "record": {
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "if(months == 0, 0, costs / months)",
+      "expect": 0
+    },
+    {
+      "why": "And the other way, so the case above is not passing because the else branch is broken.",
+      "record": {
+        "costs": 500,
+        "months": 4
+      },
+      "expr": "if(months == 0, 0, costs / months)",
+      "expect": 125
+    },
+    {
+      "why": "A test nobody could work out makes the whole conditional unknown. Neither answer is chosen, because choosing either would be inventing which way it went.",
+      "record": {
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "if((costs / months) > 100, 1, 2)",
+      "expect": null
+    },
+    {
+      "why": "Nested, which is how a table with more than two rows is written.",
+      "record": {
+        "children": "2"
+      },
+      "expr": "if(children == '3_or_more', 0, if(children == '2', 15, 18))",
+      "expect": 15
+    },
+    {
+      "record": {
+        "children": "3_or_more"
+      },
+      "expr": "if(children == '3_or_more', 0, if(children == '2', 15, 18))",
+      "expect": 0
+    },
+    {
+      "why": "Boolean logic over several codes — the shape a west/east split actually takes.",
+      "record": {
+        "state": "thueringen"
+      },
+      "expr": "if(state == 'sachsen' or state == 'thueringen', 8450, 9180)",
+      "expect": 8450
+    },
+    {
+      "why": "An `if` answering TEXT rather than a number. The two answers agree on their kind, and that kind is the result.",
+      "record": {
+        "gross": 400
+      },
+      "expr": "if(gross <= 538, 'minijob', 'regular')",
+      "expect": "minijob"
+    },
+    {
+      "why": "A text answer can also be unknown, which is the only way a text ever is — every text FIELD reads as a code or as the blank.",
+      "record": {
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "if((costs / months) > 1, 'over', 'under')",
+      "expect": null
+    },
+    {
+      "why": "Two text fields compared to each other, not to a literal.",
+      "record": {
+        "state": "berlin",
+        "label": "berlin"
+      },
+      "expr": "state == label",
+      "expect": true
+    },
+    {
+      "why": "!= is the negation of == once both sides are known, and both sides are always known when they are fields.",
+      "record": {
+        "state": "berlin",
+        "label": "bremen"
+      },
+      "expr": "state != label",
+      "expect": true
+    },
+    {
+      "why": "A conditional answering a boolean, so `if` is not a numeric function wearing three arguments.",
+      "record": {
+        "state": "sachsen",
+        "flagged": true
+      },
+      "expr": "if(state == 'sachsen', flagged, false)",
+      "expect": true
+    },
+    {
+      "why": "The bound is still the better way to write a bound. min/max did not become redundant when the branch arrived.",
+      "record": {
+        "costs": 900,
+        "gross": 500
+      },
+      "expr": "if(costs > gross, gross, costs)",
+      "expect": 500
+    }
+  ]
+}

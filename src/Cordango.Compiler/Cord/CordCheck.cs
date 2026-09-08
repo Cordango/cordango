@@ -111,8 +111,8 @@ public static class CordCheck
                 // <para>Only the resolution is mirrored, not the rules. Whether two hops are allowed,
                 // whether a cross-app reference may be read, what the error should say — all the gate's,
                 // which is why an unresolvable hop returns null here rather than an error. The parser
-                // then says the identifier is not a numeric, boolean or date field, and the gate says
-                // precisely why.
+                // then says the identifier is not a numeric, boolean, date or text field, and the gate
+                // says precisely why.
                 // </summary>
                 string? TypeOf(string ident)
                 {
@@ -177,14 +177,20 @@ public static class CordCheck
         }
     }
 
-    /// <summary>Field type → what an expression can do with it. The same three-way split
-    /// <c>Gate</c> uses; an unrecognised type is null, which lets <c>ComputedExpr</c> report it in its
-    /// own words rather than having Cord invent a message for it.</summary>
+    /// <summary>Field type → what an expression can do with it. The same split <c>Gate</c> uses; an
+    /// unrecognised type is null, which lets <c>ComputedExpr</c> report it in its own words rather
+    /// than having Cord invent a message for it.
+    ///
+    /// <para><c>multiselect</c>, <c>json</c> and <c>attachment</c> are absent deliberately, and so is
+    /// <c>reference</c>: a multiselect holds several codes at once, and the rest are not values an
+    /// expression should be comparing. See the Gate, which states the same list as the rule.</para>
+    /// </summary>
     private static ComputedValueKind? Kind(string? type) => type switch
     {
         "integer" or "decimal" or "money" => ComputedValueKind.Number,
         "boolean" => ComputedValueKind.Boolean,
         "date" or "datetime" => ComputedValueKind.Date,
+        "text" or "longtext" or "select" or "email" or "url" or "phone" => ComputedValueKind.Text,
         _ => null,
     };
 
