@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_calendar",
     "name": "Calendar",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "schemaVersion": "2.0",
-    "definitionHash": "c435f1b38eb2a98bb7dc28ad87e346bdb6f4bb6b0eb0e12a29878efcde1d0d44",
-    "contractHash": "d629f4b53f946acd91f18a4d697da14890b8421321a0aef2be3b51b3aaa4e0b5"
+    "definitionHash": "376c5ebf808534d79d840f32f6003d67500ce1e8d74496a12751d2ccd5b29753",
+    "contractHash": "daf73b3a38a757ce7aa18b1cd90fcd4e18f045286ccf244f1482cb034d0ef397"
   },
   "purpose": null,
   "entities": [
@@ -756,6 +756,16 @@
           "key": "location_detail",
           "label": "Address, number or link",
           "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "notify_email",
+          "label": "Email a copy to",
+          "type": "email",
           "required": false,
           "computed": false,
           "targetApp": null,
