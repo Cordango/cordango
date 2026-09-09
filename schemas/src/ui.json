@@ -137,6 +137,48 @@
         }
       }
     },
+    "column": {
+      "description": "A COLUMN of a list surface. A bare field key lets the column size itself to its content, which is right until one long value pushes every other column off the screen. The object form fixes the width and says what a value too long for it does: 'clip' keeps the row one line high and ends the value in an ellipsis; 'wrap' breaks it over further lines and grows the row. A column that says nothing keeps the old behaviour: one line, sized by content.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/identifier"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/identifier"
+            },
+            "width": {
+              "description": "The column's fixed width: a pixel number (240) or a CSS length ('18rem', '20%'). Applied to the header and the body cells alike, so the column stops negotiating its size with its content.",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 40,
+                  "maximum": 1200
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?(px|rem|em|ch|%)$"
+                }
+              ]
+            },
+            "overflow": {
+              "description": "What a value too wide for the column does: 'clip' (the default once a width is set) ends it in an ellipsis on one line; 'wrap' breaks it onto further lines and lets the row grow taller.",
+              "type": "string",
+              "enum": [
+                "clip",
+                "wrap"
+              ]
+            }
+          }
+        }
+      ]
+    },
     "blockSource": {
       "description": "Where a block's rows come from. Give EXACTLY ONE origin. 'entity' iterates records — the usual case. The other three iterate things that are NOT records, which is what makes a second axis possible: a grid needs its columns to be days or statuses, and those have no table. Without a non-record axis every surface collapses to a list of one collection.",
       "type": "object",
@@ -1773,12 +1815,12 @@
           "type": "boolean"
         },
         "fields": {
-          "description": "Curated columns for a 'table' child, in order. Omit to show every declared field (minus the parent link and long text). Use when the default column set is too wide for the surface — a Subtasks table inside a task's panel wants 4-5 columns, not 10.",
+          "description": "Curated columns for a 'table' child, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to show every declared field (minus the parent link and long text). Use when the default column set is too wide for the surface — a Subtasks table inside a task's panel wants 4-5 columns, not 10.",
           "type": "array",
           "minItems": 1,
           "maxItems": 12,
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "filterBar": {
@@ -3405,10 +3447,10 @@
           "$ref": "#/$defs/blockSource"
         },
         "fields": {
-          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "description": "The COLUMNS of this list, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to render all declared fields.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "openDetail": {
@@ -3647,10 +3689,10 @@
           }
         },
         "fields": {
-          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "description": "The COLUMNS of this list, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to render all declared fields.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "as": {

@@ -108,17 +108,27 @@ const editing = ref(null)
 const confirming = ref(null)
 const pending = ref(null)
 
+// A column is a field key, or an object that also fixes the column's width and says whether a value
+// too long for it clips or wraps. Both name the field in the same place — and reading only the bare
+// form is not a cosmetic loss but a blank table, because a key that is an OBJECT matches no field
+// and every column drops out of the list.
+const columnKey = (c) => (c && typeof c === 'object' ? c.key : c)
+
 const columns = computed(() => {
-  const keys = definition.value?.config?.columns
+  const authored = definition.value?.config?.columns
     ?? definition.value?.columns
     // No columns named means every field somebody could have entered. Not every field: the audit
     // stamps would push the ones people care about off the right of the screen.
     ?? entity.value?.fields.filter((f) => !f.system).slice(0, 6).map((f) => f.key)
     ?? []
-  return keys
-    .map((key) => entity.value?.fields.find((f) => f.key === key))
+  return authored
+    .map((c) => {
+      const field = entity.value?.fields.find((f) => f.key === columnKey(c))
+      if (!field) return null
+      const sizing = c && typeof c === 'object' ? { width: c.width ?? null, overflow: c.overflow ?? null } : {}
+      return { key: field.key, title: field.label, field, ...sizing }
+    })
     .filter(Boolean)
-    .map((field) => ({ key: field.key, title: field.label, field }))
 })
 
 const rowCommands = computed(() =>

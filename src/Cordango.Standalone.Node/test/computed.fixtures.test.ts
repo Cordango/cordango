@@ -53,8 +53,11 @@ describe("computed expression fixtures", () => {
             expect(value, detail).toBeInstanceOf(Dec);
             expect((value as Dec).eq(Dec.from(scenario.expect)!), detail).toBe(true);
           } else if (typeof scenario.expect === "string") {
-            expect(value, detail).toBeInstanceOf(PlainDate);
-            expect((value as PlainDate).toString(), detail).toBe(scenario.expect);
+            if (typeof value === "string") expect(value, detail).toBe(scenario.expect);
+            else {
+              expect(value, detail).toBeInstanceOf(PlainDate);
+              expect((value as PlainDate).toString(), detail).toBe(scenario.expect);
+            }
           } else expect.unreachable(detail);
         });
       }

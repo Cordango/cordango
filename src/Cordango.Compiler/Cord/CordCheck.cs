@@ -92,7 +92,18 @@ public static class CordCheck
                     identError: ident =>
                         ident.Contains('.') || types.ContainsKey(ident)
                             ? null
-                            : $"'{ident}' is not a field on '{entityKey}'");
+                            : $"'{ident}' is not a field on '{entityKey}'",
+                    // The same two sources the Gate's OptionValuesOf looks in, and it has to stay that
+                    // way. An authoring layer that accepts what the gate then refuses is worse than one
+                    // that checks nothing, because by then the author has moved on.
+                    codeError: (ident, literal) =>
+                    {
+                        var codes = CodesOf(ident);
+                        if (codes.Count == 0 || codes.Contains(literal)) return null;
+                        return $"'{literal}' is not an option of '{ident}' — the codes are "
+                             + string.Join(", ", codes.OrderBy(c => c, StringComparer.Ordinal)
+                                 .Select(c => $"'{c}'"));
+                    });
 
                 if (result.Error is { } message)
                     errors.Add(new CordError(CordErrorCode.InvalidExpression, where, message));
@@ -128,6 +139,38 @@ public static class CordCheck
                     return app.EntityList
                         .FirstOrDefault(e => e.Key == target)?.FieldList
                         .FirstOrDefault(f => f.Key == hop.Field)?.Type;
+                }
+
+                // <summary>
+                // The legal values of a select, following the same one hop as TypeOf.
+                //
+                // <para>Two sources, because a select does not always carry its own options: where a
+                // PROCESS governs the field, the states are the options and the field carries none.
+                // Empty means "no closed set here" — a free text field, or a hop this model cannot
+                // resolve — and an empty set checks nothing rather than refusing everything.
+                // </summary>
+                IReadOnlyCollection<string> CodesOf(string ident)
+                {
+                    var owner = entity;
+                    var key = ident;
+                    if (ComputedExpr.Hop(ident) is { } hop)
+                    {
+                        var reference = entity.FieldList.FirstOrDefault(f => f.Key == hop.Reference);
+                        if (reference is not { Type: "reference", TargetApp: null, TargetEntity: { } target })
+                            return [];
+                        if (app.EntityList.FirstOrDefault(e => e.Key == target) is not { } hopped)
+                            return [];
+                        owner = hopped;
+                        key = hop.Field;
+                    }
+
+                    var governed = app.ProcessList
+                        .FirstOrDefault(pr => pr.Entity == owner.Key && pr.StateField == key);
+                    if (governed is not null && governed.StateList.Count > 0)
+                        return [.. governed.StateList.Select(st => st.Key)];
+
+                    return [.. (owner.FieldList.FirstOrDefault(f => f.Key == key)?.Options ?? [])
+                        .Select(o => o.Value)];
                 }
             }
 

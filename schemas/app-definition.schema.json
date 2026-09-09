@@ -659,7 +659,7 @@
           "additionalProperties": false,
           "properties": {
             "expr": {
-              "description": "Typed expression over this record: arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses. THE COMPLETE FUNCTION LIST, and there are no others: pow(base, exponent), min(a, b), max(a, b); prev(field) or prev(field, seed) inside an ordered series; the durations days_between(a, b), hours_between(a, b), minutes_between(a, b), whose two arguments are bare date/datetime field names and may be one of each; the date parts weekday(d), week_of_year(d), month_of(d), day_of_month(d), day_of_year(d), year_of(d), hour_of(d), each taking one bare date/datetime field name and answering a number; and the date boundaries start_of_week(d), end_of_week(d), start_of_month(d), end_of_month(d), which take the same argument and answer a DATE — put one in a field typed `date`, which is the only computed field that is neither a number nor a boolean. Both ends of a boundary are inclusive: end_of_week is the last day of the week, not the first day of the next. weekday and week_of_year follow the app's `weekStart` (Monday by default, so Monday is 1 and Sunday is 7); hour_of needs a datetime, because a plain date has no time of day. THERE IS NO today() OR now(), deliberately: a computed field is worked out when its row is written and stored beside it, so a figure derived from the current time would be right on the day it saved and silently wrong every day after — ask that question in a filter or a report, which run when somebody looks. There is also no date CONSTRUCTION, and a boolean is never a number, so min/max stay the way to clamp: a usage charge capped at a ceiling is min(raw_usage, cap), a balance floored at zero is max(0, balance). Branch with if(test, when_true, when_false): the test is a boolean, the two answers must be the same kind as each other, and that kind is the result, so an if may answer a number, a boolean, a date or a text. Only the branch taken is worked out, which is what makes if(months == 0, 0, costs / months) safe. TEXT is the fourth kind: a select or text field read as its stored code, compared with == or != against a quoted literal ('sachsen' or \"sachsen\") and nothing else - no concatenation, no ordering, no case folding, and no comparison against a multiselect, json, attachment or reference field. A blank text field reads as the empty code, exactly as a blank number reads as zero. A computed field may be typed text, but never select: nothing checks that a computed value is one of the options. Field keys may reference other computed fields when the dependency graph is acyclic.",
+              "description": "Typed expression over this record: arithmetic (+ - * /), numeric or date comparisons (< <= > >= == !=), boolean logic (and/or/not), true/false, parentheses. THE COMPLETE FUNCTION LIST, and there are no others: pow(base, exponent), min(a, b), max(a, b); the three branching forms if, switch and case described below; prev(field) or prev(field, seed) inside an ordered series; the durations days_between(a, b), hours_between(a, b), minutes_between(a, b), whose two arguments are bare date/datetime field names and may be one of each; the date parts weekday(d), week_of_year(d), month_of(d), day_of_month(d), day_of_year(d), year_of(d), hour_of(d), each taking one bare date/datetime field name and answering a number; and the date boundaries start_of_week(d), end_of_week(d), start_of_month(d), end_of_month(d), which take the same argument and answer a DATE — put one in a field typed `date`, which is the only computed field that is neither a number nor a boolean. Both ends of a boundary are inclusive: end_of_week is the last day of the week, not the first day of the next. weekday and week_of_year follow the app's `weekStart` (Monday by default, so Monday is 1 and Sunday is 7); hour_of needs a datetime, because a plain date has no time of day. THERE IS NO today() OR now(), deliberately: a computed field is worked out when its row is written and stored beside it, so a figure derived from the current time would be right on the day it saved and silently wrong every day after — ask that question in a filter or a report, which run when somebody looks. There is also no date CONSTRUCTION, and a boolean is never a number, so min/max stay the way to clamp: a usage charge capped at a ceiling is min(raw_usage, cap), a balance floored at zero is max(0, balance). Branch with if(test, when_true, when_false): the test is a boolean, the two answers must be the same kind as each other, and that kind is the result, so an if may answer a number, a boolean, a date or a text. Only the branch taken is worked out, which is what makes if(months == 0, 0, costs / months) safe. A table with more than two rows is written flat rather than nested. switch(field, key, value, key, value, ..., default) keys a table on ONE field: its first argument is a field (its own or one hop), its keys are written-out literals of that field's kind, a key that is not one of a select's options is REFUSED, a repeated key is refused, and a default is always required. case(test, value, test, value, ..., default) is the same shape for the tables that are not keyed on equality at all, such as a tariff over income thresholds; rows are read top to bottom and the first test that holds wins, and it too always ends with a default. Both are exactly the nested ifs they replace - same laziness, same rule that every answer agrees on one kind, same figures. TEXT is the fourth kind: a select or text field read as its stored code, compared with == or != against a quoted literal ('sachsen' or \"sachsen\") and nothing else - no concatenation, no ordering, no case folding, and no comparison against a multiselect, json, attachment or reference field. A blank text field reads as the empty code, exactly as a blank number reads as zero. A computed field may be typed text, but never select: nothing checks that a computed value is one of the options. Field keys may reference other computed fields when the dependency graph is acyclic.",
               "type": "string",
               "minLength": 1,
               "maxLength": 1000
@@ -1042,6 +1042,48 @@
           ]
         }
       }
+    },
+    "column": {
+      "description": "A COLUMN of a list surface. A bare field key lets the column size itself to its content, which is right until one long value pushes every other column off the screen. The object form fixes the width and says what a value too long for it does: 'clip' keeps the row one line high and ends the value in an ellipsis; 'wrap' breaks it over further lines and grows the row. A column that says nothing keeps the old behaviour: one line, sized by content.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/identifier"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "key"
+          ],
+          "properties": {
+            "key": {
+              "$ref": "#/$defs/identifier"
+            },
+            "width": {
+              "description": "The column's fixed width: a pixel number (240) or a CSS length ('18rem', '20%'). Applied to the header and the body cells alike, so the column stops negotiating its size with its content.",
+              "oneOf": [
+                {
+                  "type": "number",
+                  "minimum": 40,
+                  "maximum": 1200
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]+(\\.[0-9]+)?(px|rem|em|ch|%)$"
+                }
+              ]
+            },
+            "overflow": {
+              "description": "What a value too wide for the column does: 'clip' (the default once a width is set) ends it in an ellipsis on one line; 'wrap' breaks it onto further lines and lets the row grow taller.",
+              "type": "string",
+              "enum": [
+                "clip",
+                "wrap"
+              ]
+            }
+          }
+        }
+      ]
     },
     "blockSource": {
       "description": "Where a block's rows come from. Give EXACTLY ONE origin. 'entity' iterates records — the usual case. The other three iterate things that are NOT records, which is what makes a second axis possible: a grid needs its columns to be days or statuses, and those have no table. Without a non-record axis every surface collapses to a list of one collection.",
@@ -2679,12 +2721,12 @@
           "type": "boolean"
         },
         "fields": {
-          "description": "Curated columns for a 'table' child, in order. Omit to show every declared field (minus the parent link and long text). Use when the default column set is too wide for the surface — a Subtasks table inside a task's panel wants 4-5 columns, not 10.",
+          "description": "Curated columns for a 'table' child, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to show every declared field (minus the parent link and long text). Use when the default column set is too wide for the surface — a Subtasks table inside a task's panel wants 4-5 columns, not 10.",
           "type": "array",
           "minItems": 1,
           "maxItems": 12,
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "filterBar": {
@@ -4311,10 +4353,10 @@
           "$ref": "#/$defs/blockSource"
         },
         "fields": {
-          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "description": "The COLUMNS of this list, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to render all declared fields.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "openDetail": {
@@ -4553,10 +4595,10 @@
           }
         },
         "fields": {
-          "description": "The field keys to render. For kinds 'table'/'split': the COLUMNS of the list. Omit to render all declared fields.",
+          "description": "The COLUMNS of this list, in order — each a field key, or an object fixing the column's width and whether a long value clips or wraps. Omit to render all declared fields.",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/identifier"
+            "$ref": "#/$defs/column"
           }
         },
         "as": {

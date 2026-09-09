@@ -1,0 +1,218 @@
+{
+  "name": "a table is written flat, and answers exactly what the nested chain it replaces answered",
+  "why": "if() arrived for a rate table and is binary, so a table with sixteen rows became sixteen nested conditionals. switch() keys a table on one field; case() picks the first test that holds, for the tables that are not keyed on equality at all — a tax tariff is five zones over a threshold, and a bracket is not a code. Both fold into the same conditionals in the parser, which is the point: nothing downstream learns a new shape, so a table computes to exactly what the chain it replaces computed to. That claim is what these cases exist to hold, and the sharp part it inherits is laziness — only the row taken is worked out, so a guard in a value arm still guards.",
+  "fields": {
+    "state": {
+      "type": "select",
+      "options": [
+        "sachsen",
+        "thueringen",
+        "bayern",
+        "berlin",
+        "bremen"
+      ]
+    },
+    "children": {
+      "type": "select",
+      "options": [
+        "0",
+        "1",
+        "2",
+        "3_or_more"
+      ]
+    },
+    "label": {
+      "type": "text"
+    },
+    "costs": {
+      "type": "decimal"
+    },
+    "months": {
+      "type": "integer"
+    },
+    "gross": {
+      "type": "decimal"
+    },
+    "flagged": {
+      "type": "boolean"
+    }
+  },
+  "cases": [
+    {
+      "why": "The case the file exists for: a contribution ceiling that differs by Bundesland, written as a table rather than as a chain. This one takes a middle row, so the fold cannot be passing by answering the first arm or the default.",
+      "record": {
+        "state": "thueringen"
+      },
+      "expr": "switch(state, 'sachsen', 8450, 'thueringen', 8550, 9180)",
+      "expect": 8550
+    },
+    {
+      "record": {
+        "state": "sachsen"
+      },
+      "expr": "switch(state, 'sachsen', 8450, 'thueringen', 8550, 9180)",
+      "expect": 8450
+    },
+    {
+      "why": "A code no row names falls to the default, which is why a default is always required.",
+      "record": {
+        "state": "bremen"
+      },
+      "expr": "switch(state, 'sachsen', 8450, 'thueringen', 8550, 9180)",
+      "expect": 9180
+    },
+    {
+      "why": "A blank select is the EMPTY code, exactly as a blank number is zero, so a record nobody has set a state on takes the default definitely rather than answering unknown.",
+      "record": {},
+      "expr": "switch(state, 'sachsen', 8450, 'thueringen', 8550, 9180)",
+      "expect": 9180
+    },
+    {
+      "why": "LAZINESS, inherited rather than reimplemented. The default divides by zero and is never reached, so the answer is the row that matched. An implementation that worked out every arm would hand back unknown from a table whose author had already said which row applied.",
+      "record": {
+        "state": "sachsen",
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "switch(state, 'sachsen', 0, costs / months)",
+      "expect": 0
+    },
+    {
+      "why": "And the other way, so the case above is not passing because the default is broken.",
+      "record": {
+        "state": "bremen",
+        "costs": 500,
+        "months": 4
+      },
+      "expr": "switch(state, 'sachsen', 0, costs / months)",
+      "expect": 125
+    },
+    {
+      "why": "The row taken is the one that cannot be worked out, so the table is unknown. Laziness is not a way of avoiding an unknown — it only means the arms NOT taken cannot contribute one.",
+      "record": {
+        "state": "sachsen",
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "switch(state, 'sachsen', costs / months, 0)",
+      "expect": null
+    },
+    {
+      "why": "A table keyed on a NUMBER, not a code. The keys are still written out, and 0 is a key rather than a blank.",
+      "record": {
+        "months": 1
+      },
+      "expr": "switch(months, 0, 100, 1, 200, 300)",
+      "expect": 200
+    },
+    {
+      "why": "A table answering TEXT. Several codes collapsing onto one answer is the ordinary shape of a west/east split, and it is why repeating a VALUE is fine while repeating a KEY is not.",
+      "record": {
+        "state": "berlin"
+      },
+      "expr": "switch(state, 'sachsen', 'ost', 'thueringen', 'ost', 'west')",
+      "expect": "west"
+    },
+    {
+      "why": "A table answering a BOOLEAN, so switch is not arithmetic wearing an odd number of arguments.",
+      "record": {
+        "state": "sachsen",
+        "flagged": true
+      },
+      "expr": "switch(state, 'sachsen', flagged, false)",
+      "expect": true
+    },
+    {
+      "why": "Two rows keyed on the same field, the second of which is the answer — the shape a rate that differs by number of children takes.",
+      "record": {
+        "children": "2"
+      },
+      "expr": "switch(children, '0', 0.015, '1', 0.015, '2', 0.014, 0.0)",
+      "expect": 0.014
+    },
+    {
+      "why": "The other half of the language: a five-zone income tax tariff, which no equality table can express because a bracket is a threshold rather than a code. This is the zone the nested version needed four levels to reach.",
+      "record": {
+        "gross": 20000
+      },
+      "expr": "case(gross <= 12096, 0, gross <= 17488, (gross - 12096) * 0.00276 + 932.30, gross <= 68480, (gross - 17488) * 0.00311 + 1081.91, gross <= 257936, (gross - 68480) * 0.00321 + 2827.98, (gross - 257936) * 0.00323 + 9944.29)",
+      "expect": 1089.72232
+    },
+    {
+      "why": "The first zone, which is the first test — so a ladder is read top to bottom and stops.",
+      "record": {
+        "gross": 10000
+      },
+      "expr": "case(gross <= 12096, 0, gross <= 17488, (gross - 12096) * 0.00276 + 932.30, gross <= 68480, (gross - 17488) * 0.00311 + 1081.91, gross <= 257936, (gross - 68480) * 0.00321 + 2827.98, (gross - 257936) * 0.00323 + 9944.29)",
+      "expect": 0
+    },
+    {
+      "why": "Past every threshold, so the default is the top zone rather than a fallback nobody meant.",
+      "record": {
+        "gross": 300000
+      },
+      "expr": "case(gross <= 12096, 0, gross <= 17488, (gross - 12096) * 0.00276 + 932.30, gross <= 68480, (gross - 17488) * 0.00311 + 1081.91, gross <= 257936, (gross - 68480) * 0.00321 + 2827.98, (gross - 257936) * 0.00323 + 9944.29)",
+      "expect": 10080.15672
+    },
+    {
+      "why": "case is lazy for the same reason if is, and the guard is the same one: the value beside the test that holds is the only one worked out.",
+      "record": {
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "case(months == 0, 0, costs / months)",
+      "expect": 0
+    },
+    {
+      "record": {
+        "costs": 500,
+        "months": 4
+      },
+      "expr": "case(months == 0, 0, costs / months)",
+      "expect": 125
+    },
+    {
+      "why": "A TEST nobody can work out makes the whole ladder unknown. Falling through to the next row would be deciding that a test which could not be evaluated did not hold.",
+      "record": {
+        "costs": 500,
+        "months": 0
+      },
+      "expr": "case((costs / months) > 1, 10, 20)",
+      "expect": null
+    },
+    {
+      "why": "A ladder answering text, and a second row that is only reached because the first did not hold.",
+      "record": {
+        "gross": 1500
+      },
+      "expr": "case(gross <= 538, 'minijob', gross <= 2000, 'midijob', 'regular')",
+      "expect": "midijob"
+    },
+    {
+      "why": "Rows are read in order, so an earlier test that also holds wins. Written with overlapping tests on purpose: a ladder is not a set of independent conditions.",
+      "record": {
+        "gross": 100
+      },
+      "expr": "case(gross <= 538, 'minijob', gross <= 2000, 'midijob', 'regular')",
+      "expect": "minijob"
+    },
+    {
+      "why": "A table nested inside a table's value arm, which is how a rate keyed on two things is written until something better exists.",
+      "record": {
+        "state": "sachsen",
+        "children": "1"
+      },
+      "expr": "switch(state, 'sachsen', switch(children, '0', 0.015, '1', 0.015, 0.014), switch(children, '0', 0.018, '1', 0.018, 0.016))",
+      "expect": 0.015
+    },
+    {
+      "why": "The same expression down the default arm, so the nesting above is not passing by only ever taking one side.",
+      "record": {
+        "state": "bayern",
+        "children": "2"
+      },
+      "expr": "switch(state, 'sachsen', switch(children, '0', 0.015, '1', 0.015, 0.014), switch(children, '0', 0.018, '1', 0.018, 0.016))",
+      "expect": 0.016
+    }
+  ]
+}

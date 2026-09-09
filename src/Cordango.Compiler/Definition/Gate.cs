@@ -2009,6 +2009,17 @@ public static class Gate
                             ? $"'{dateArg}' is a date and has no time of day, so '{part}' would be 0 on "
                                 + "every row — read an hour from a datetime field"
                             : null;
+                    }, codeError: (ident, literal) =>
+                    {
+                        // The closed set a select stores. The parser knows the value is a code; only
+                        // here is it known WHICH codes — and OptionValuesOf is the lookup because a
+                        // process-governed status carries them on the process's states, not the field.
+                        if (Resolve(ident) is not { } at) return null;
+                        var codes = OptionValuesOf(ctx, at.Entity, at.Field);
+                        if (codes.Count == 0 || codes.Contains(literal)) return null;
+                        return $"'{literal}' is not an option of '{ident}' — the codes are "
+                             + string.Join(", ", codes.OrderBy(c => c, StringComparer.Ordinal)
+                                 .Select(c => $"'{c}'"));
                     });
                     if (validation.Error != null)
                         errors.Add($"SEMANTIC: {cw} expr — {validation.Error}");
@@ -2457,7 +2468,7 @@ public static class Gate
                     else if (Str(vf, "type") != "reference" || Str(vf, "targetEntity") != boundEntity)
                         errors.Add($"SEMANTIC: {where}: child block via '{ce}.{via}' must be a reference to '{boundEntity}'");
                     foreach (var f in Arr(b["fields"]))
-                        if (f?.GetValue<string>() is { } fk && !ctx.FieldExists(ce, fk))
+                        if (ColumnKey(f) is { } fk && !ctx.FieldExists(ce, fk))
                             errors.Add($"SEMANTIC: {where}: child column '{fk}' is not a field of '{ce}'");
                     ValidateFilterBar(b["filterBar"] as JsonObject, ce, $"{where}: child", ctx, errors);
                     ValidateGroupBy(b["groupBy"] as JsonObject, ce, $"{where}: child", ctx, errors);
@@ -2719,7 +2730,7 @@ public static class Gate
                         errors.Add($"SEMANTIC: {where}: table needs an ENTITY source — a dates/options/platform axis has no records to tabulate");
                     if (tse != null)
                         foreach (var f in Arr(b["fields"]))
-                            if (f?.GetValue<string>() is { } fk && !ctx.FieldExists(tse, fk))
+                            if (ColumnKey(f) is { } fk && !ctx.FieldExists(tse, fk))
                                 errors.Add($"SEMANTIC: {where}: table column '{fk}' is not a field of '{tse}'");
                     ValidateFilterBar(b["filterBar"] as JsonObject, tse, $"{where}: table", ctx, errors);
                     ValidateGroupBy(b["groupBy"] as JsonObject, tse, $"{where}: table", ctx, errors);
@@ -2831,7 +2842,7 @@ public static class Gate
                         errors.Add($"SEMANTIC: {where}: split needs an ENTITY source — its list pane selects a record");
                     if (spe != null)
                         foreach (var f in Arr(b["fields"]))
-                            if (f?.GetValue<string>() is { } fk && !ctx.FieldExists(spe, fk))
+                            if (ColumnKey(f) is { } fk && !ctx.FieldExists(spe, fk))
                                 errors.Add($"SEMANTIC: {where}: split column '{fk}' is not a field of '{spe}'");
                     ValidateBlocks(b["blocks"], $"{where} split", "item", spe, ctx, errors);
                     break;
@@ -3435,7 +3446,7 @@ public static class Gate
             {
                 case "table":
                     foreach (var c in Arr(cfg["columns"]))
-                        if (c?.GetValue<string>() is { } col) CheckFields("column", col);
+                        if (ColumnKey(c) is { } col) CheckFields("column", col);
                     foreach (var s in Arr(cfg["defaultSort"]))
                         if (s is JsonObject so) CheckFields("defaultSort field", Str(so, "field"));
                     if (cfg["filterBar"] is JsonObject vfb)
@@ -3663,6 +3674,14 @@ public static class Gate
 
     private static string? Str(JsonObject? n, string prop) =>
         n != null && n[prop] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
+    /// <summary>The field key a list COLUMN names. A column is a bare key, or an object that also
+    /// fixes the column's width and overflow — the key is in the same place either way, so every
+    /// caller that only wants to know which field is shown reads it through here.</summary>
+    private static string? ColumnKey(JsonNode? n) =>
+        n is JsonObject o ? Str(o, "key")
+        : n is JsonValue v && v.TryGetValue<string>(out var s) ? s
+        : null;
 
     private static JsonArray Arr(JsonNode? n) => n as JsonArray ?? new JsonArray();
 }

@@ -152,6 +152,52 @@ public static class ComputedExpr
     public const string ConditionalFunc = "if";
 
     /// <summary>
+    /// <c>switch(field, key, value, key, value, …, default)</c> — a TABLE keyed on one field.
+    ///
+    /// <para><c>if</c> arrived for a rate table and is binary, so a table with sixteen rows became
+    /// sixteen nested conditionals with a long tail of brackets. Worse than unreadable: the arms are
+    /// keyed on codes, and a code that matches no option is a comparison that is false on every row
+    /// that will ever exist. It reads as a table and behaves as its own default.</para>
+    ///
+    /// <para><b>The subject is a FIELD, not an expression.</b> Three reasons pointing the same way:
+    /// the desugaring below repeats it once per arm, so it must be cheap; a table is keyed on
+    /// something the record HAS; and only a field carries a set of options to check the keys against,
+    /// which is what makes this safer than the chain it replaces rather than merely shorter.</para>
+    ///
+    /// <para>Keys are written out, never worked out — that is what makes them checkable, and what
+    /// makes a repeated key an error rather than a row nobody can reach.</para>
+    /// </summary>
+    public const string SwitchFunc = "switch";
+
+    /// <summary>
+    /// <c>case(test, value, test, value, …, default)</c> — the first test that holds.
+    ///
+    /// <para><see cref="SwitchFunc"/>'s sibling for tables that are not keyed on equality: an income
+    /// tax tariff is five zones over a threshold, and a bracket is not a code. The subject differs on
+    /// every arm, so nothing can be checked against a set of options — this is the general form and
+    /// <c>switch</c> is the safe one, which is why the language has both.</para>
+    ///
+    /// <para>A default is always required. Without one, a ladder no test matches would have no answer,
+    /// and both alternatives are bad: unknown would make a table read as a missing figure, and falling
+    /// to the first arm would be a guess.</para>
+    /// </summary>
+    public const string CaseFunc = "case";
+
+    /// <summary>
+    /// Whether a token names a FUNCTION rather than a field.
+    ///
+    /// <para>Three callers ask: the parser's own dispatch, and both identifier collectors. A name
+    /// missing from either collector is reported as a field the row depends on, which then feeds
+    /// cycle detection and hop discovery — so this is one list rather than three, because a function
+    /// added to two of the three is a bug nobody sees.</para>
+    /// </summary>
+    public static bool IsFunctionName(string token) =>
+        MathFuncs.Contains(token) || DurationFuncs.Contains(token)
+        || DatePartFuncs.Contains(token) || DateBoundaryFuncs.Contains(token)
+        || token == PrevFunc || token == ConditionalFunc
+        || token == SwitchFunc || token == CaseFunc;
+
+    /// <summary>
     /// <c>prev(field)</c> or <c>prev(field, seed)</c> — the value of <c>field</c> on the PREVIOUS row
     /// of an ordered series, and what to use when there is no previous row.
     ///
@@ -180,6 +226,9 @@ public static class ComputedExpr
     /// <paramref name="identError"/> because a computed field referring to ITSELF is an error
     /// everywhere except here, where it is the entire point: <c>prev(cash_end)</c> on the field
     /// <c>cash_end</c> is a running balance, not a circular definition.</param>
+    /// <param name="codeError">Validates a text LITERAL against the field it is compared with, given
+    /// the field and the literal. The parser knows a select stores a code; only the caller knows WHICH
+    /// codes, so the closed set is answered here rather than carried in the grammar.</param>
     /// <param name="datePartArgError">Validates one date PART against the field it reads, given the
     /// function name and the field. Separate from <paramref name="dateArgError"/> because the rule
     /// it carries depends on which part was asked for rather than on the field alone:
@@ -189,10 +238,12 @@ public static class ComputedExpr
         Func<string, string?>? identError = null,
         Func<string, string?>? dateArgError = null,
         Func<string, string?>? prevArgError = null,
-        Func<string, string, string?>? datePartArgError = null)
+        Func<string, string, string?>? datePartArgError = null,
+        Func<string, string, string?>? codeError = null)
     {
         var parser = new Parser(expr, fieldKind, identError ?? (_ => null), dateArgError ?? (_ => null),
-            prevArgError ?? identError ?? (_ => null), datePartArgError ?? ((_, _) => null));
+            prevArgError ?? identError ?? (_ => null), datePartArgError ?? ((_, _) => null),
+            codeError ?? ((_, _) => null));
         var node = parser.Parse();
         return new ComputedExprValidation(parser.Error, node?.Kind, parser.Identifiers);
     }
@@ -214,9 +265,7 @@ public static class ComputedExpr
         {
             var t = tokens[i];
             if (!IsIdentifier(t) || Keywords.Contains(t)) continue;
-            if (i + 1 < tokens.Count && tokens[i + 1] == "("
-                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t)
-                    || t == PrevFunc || t == ConditionalFunc))
+            if (i + 1 < tokens.Count && tokens[i + 1] == "(" && IsFunctionName(t))
             {
                 // Skip prev's FIRST argument — it belongs to the previous row.
                 if (t == PrevFunc && i + 2 < tokens.Count && IsIdentifier(tokens[i + 2])) i += 2;
@@ -237,10 +286,7 @@ public static class ComputedExpr
         {
             var t = tokens[i];
             if (!IsIdentifier(t) || Keywords.Contains(t)) continue;
-            if (i + 1 < tokens.Count && tokens[i + 1] == "("
-                && (MathFuncs.Contains(t) || DurationFuncs.Contains(t)
-                    || t == PrevFunc || t == ConditionalFunc))
-                continue;
+            if (i + 1 < tokens.Count && tokens[i + 1] == "(" && IsFunctionName(t)) continue;
             result.Add(t);
         }
         return result;
@@ -328,6 +374,7 @@ public static class ComputedExpr
         private readonly Func<string, string?> _identError;
         private readonly Func<string, string?> _dateArgError;
         private readonly Func<string, string, string?> _datePartArgError;
+        private readonly Func<string, string, string?> _codeError;
         private readonly Func<string, string?> _prevArgError;
         private int _pos;
 
@@ -337,10 +384,12 @@ public static class ComputedExpr
         public Parser(string? expr, Func<string, ComputedValueKind?> fieldKind,
             Func<string, string?> identError, Func<string, string?> dateArgError,
             Func<string, string?>? prevArgError = null,
-            Func<string, string, string?>? datePartArgError = null)
+            Func<string, string, string?>? datePartArgError = null,
+            Func<string, string, string?>? codeError = null)
         {
             _prevArgError = prevArgError ?? identError;
             _datePartArgError = datePartArgError ?? ((_, _) => null);
+            _codeError = codeError ?? ((_, _) => null);
             _tokens = Tokenize(expr, out var error);
             Error = error;
             _fieldKind = fieldKind;
@@ -379,7 +428,11 @@ public static class ComputedExpr
                 var right = Comparison();
                 if (left is not null && right is not null && left.Kind != right.Kind)
                     Error = $"operator '{op}' cannot compare a {Name(left.Kind)} with a {Name(right.Kind)}";
-                else left = Binary(op, left, right, ComputedValueKind.Boolean, sameKind: true);
+                else
+                {
+                    CheckCode(left, right);
+                    left = Binary(op, left, right, ComputedValueKind.Boolean, sameKind: true);
+                }
             }
             return left;
         }
@@ -472,14 +525,26 @@ public static class ComputedExpr
 
         private Node? Function(string name)
         {
-            if (!MathFuncs.Contains(name) && !DurationFuncs.Contains(name)
-                && !DatePartFuncs.Contains(name) && !DateBoundaryFuncs.Contains(name)
-                && name != PrevFunc && name != ConditionalFunc)
+            if (!IsFunctionName(name))
             {
                 Error = $"'{name}' is not a known function";
                 return null;
             }
             _pos++; // '('
+            if (name == SwitchFunc || name == CaseFunc)
+            {
+                var rows = new List<Node>();
+                while (true)
+                {
+                    var arg = Or();
+                    if (arg is null) { Error ??= $"'{name}(' is missing its closing parenthesis"; return null; }
+                    rows.Add(arg);
+                    if (Take(",")) continue;
+                    break;
+                }
+                if (!Take(")")) { Error ??= $"'{name}(' is missing its closing parenthesis"; return null; }
+                return name == SwitchFunc ? Switch(rows) : Case(rows);
+            }
             if (name == ConditionalFunc)
             {
                 var test = Or();
@@ -575,6 +640,165 @@ public static class ComputedExpr
             if (args.Count != 2) { Error = $"'{name}' takes exactly two date fields"; return null; }
             return new DurationNode(name, args[0], args[1]);
         }
+
+        /// <summary>
+        /// <c>switch</c>, folded into the conditionals it means.
+        ///
+        /// <para>Nothing downstream learns a new shape. The evaluator, both emitters and the Node port
+        /// already handle <see cref="ConditionalNode"/>, already work out only the branch taken, and
+        /// already agree on what an unknown test answers. A table therefore computes to exactly what
+        /// the nested <c>if</c> chain it replaces computed to — byte-identical generated code — and the
+        /// only things that changed are what a person has to read and what the compiler can check.</para>
+        /// </summary>
+        private Node? Switch(List<Node> rows)
+        {
+            if (rows.Count < 4 || rows.Count % 2 != 0)
+            {
+                Error = $"'{SwitchFunc}' takes a field, then a key and a value for each row of the "
+                      + "table, then a default — an even number of arguments, and at least four";
+                return null;
+            }
+            if (rows[0] is not FieldNode subject)
+            {
+                Error = $"'{SwitchFunc}' looks a value up ON something, so its first argument is a "
+                      + "field, not a working-out";
+                return null;
+            }
+            if (subject.Kind is not (ComputedValueKind.Text or ComputedValueKind.Number))
+            {
+                Error = $"'{SwitchFunc}' keys a table on a code or a number, not a {Name(subject.Kind)}";
+                return null;
+            }
+
+            var pairs = (rows.Count - 2) / 2;
+            var keys = new List<Node>(pairs);
+            var values = new List<Node>(pairs);
+            var seenText = new HashSet<string>(StringComparer.Ordinal);
+            var seenNumber = new HashSet<decimal>();
+
+            for (var i = 0; i < pairs; i++)
+            {
+                var key = rows[1 + (i * 2)];
+                if (key is not (TextNode or NumberNode))
+                {
+                    Error = $"'{SwitchFunc}' keys are written out, not worked out — a key that has to "
+                          + "be computed cannot be checked against the field's options";
+                    return null;
+                }
+                if (key.Kind != subject.Kind)
+                {
+                    Error = $"'{SwitchFunc}' keys '{subject.Key}', which is a {Name(subject.Kind)}, so "
+                          + $"its keys are {Name(subject.Kind)}s and not {Name(key.Kind)}s";
+                    return null;
+                }
+
+                // A repeated key is dead code wearing the shape of a table row, and a wide table is
+                // exactly where that mistake hides. Free to catch: the keys are literals, already here.
+                var text = key as TextNode;
+                var fresh = text is not null
+                    ? seenText.Add(text.Value)
+                    : seenNumber.Add(((NumberNode)key).Value);
+                if (!fresh)
+                {
+                    Error = $"'{SwitchFunc}' repeats the key {Literal(key)}, so the second one can "
+                          + "never be reached";
+                    return null;
+                }
+                if (text is not null && _codeError(subject.Key, text.Value) is { } codeMessage)
+                {
+                    Error = codeMessage;
+                    return null;
+                }
+
+                keys.Add(key);
+                values.Add(rows[2 + (i * 2)]);
+            }
+
+            var fallback = rows[^1];
+            if (Answers(SwitchFunc, values, fallback) is { } kindMessage) { Error = kindMessage; return null; }
+
+            var node = fallback;
+            for (var i = pairs - 1; i >= 0; i--)
+                node = new ConditionalNode(
+                    new BinaryNode("==", subject, keys[i], ComputedValueKind.Boolean), values[i], node);
+            return node;
+        }
+
+        /// <summary>The first test that holds, folded the same way <see cref="Switch"/> is.</summary>
+        private Node? Case(List<Node> rows)
+        {
+            if (rows.Count < 3 || rows.Count % 2 == 0)
+            {
+                Error = $"'{CaseFunc}' takes a test and a value for each row, then a default — an odd "
+                      + "number of arguments, and at least three";
+                return null;
+            }
+
+            var pairs = (rows.Count - 1) / 2;
+            var tests = new List<Node>(pairs);
+            var values = new List<Node>(pairs);
+            for (var i = 0; i < pairs; i++)
+            {
+                var test = rows[i * 2];
+                if (test.Kind != ComputedValueKind.Boolean)
+                {
+                    Error = $"'{CaseFunc}' tests something true or false, not a {Name(test.Kind)}";
+                    return null;
+                }
+                tests.Add(test);
+                values.Add(rows[(i * 2) + 1]);
+            }
+
+            var fallback = rows[^1];
+            if (Answers(CaseFunc, values, fallback) is { } message) { Error = message; return null; }
+
+            var node = fallback;
+            for (var i = pairs - 1; i >= 0; i--)
+                node = new ConditionalNode(tests[i], values[i], node);
+            return node;
+        }
+
+        /// <summary>Every way out answers the same kind, which is then the kind of the whole table —
+        /// the rule <c>if</c> already carries, counted over a row of arms instead of two.</summary>
+        private static string? Answers(string name, List<Node> values, Node fallback)
+        {
+            foreach (var value in values)
+                if (value.Kind != fallback.Kind)
+                    return $"'{name}' must answer the same kind of thing every way it can go, "
+                         + $"not a {Name(value.Kind)} and a {Name(fallback.Kind)}";
+            return null;
+        }
+
+        private static string Literal(Node key) => key switch
+        {
+            TextNode t => $"'{t.Value}'",
+            NumberNode n => n.Value.ToString(CultureInfo.InvariantCulture),
+            _ => "",
+        };
+
+        /// <summary>
+        /// A code compared with a field that has a CLOSED set of them.
+        ///
+        /// <para><c>tax_class == 'klasse1'</c> parses, type-checks as text against text, and is false
+        /// on every row that will ever exist. The arm is dead, the else branch pays out, and the figure
+        /// it produces looks entirely plausible — a German payroll app shipped a Lohnsteuer of zero for
+        /// every employee this way. Nothing was wrong with the expression as an expression; the field
+        /// simply knew its options and nobody asked it.</para>
+        ///
+        /// <para>Both orders, because <c>'klasse1' == tax_class</c> is the same mistake. A field with no
+        /// options — free text, or one whose codes the caller cannot see — is not checked at all: the
+        /// caller answers null and the comparison stands.</para>
+        /// </summary>
+        private void CheckCode(Node? left, Node? right)
+        {
+            if (Error is not null) return;
+            if ((Code(left, right) ?? Code(right, left)) is { } message) Error = message;
+        }
+
+        private string? Code(Node? field, Node? literal) =>
+            field is FieldNode { FieldKind: ComputedValueKind.Text } f && literal is TextNode t
+                ? _codeError(f.Key, t.Value)
+                : null;
 
         private Node? Binary(string op, Node? left, Node? right, ComputedValueKind result,
             bool numbers = false, bool sameKind = false, bool ordered = false)

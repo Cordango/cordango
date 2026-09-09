@@ -96,6 +96,17 @@ export function differentBool(left: boolean | null, right: boolean | null): bool
   return left !== right;
 }
 
+/** Two codes compared exactly — no case folding, no locale. A select's value is a stored code and
+ * is the same string everywhere; folding it would quietly accept a value no option offers. Mirrors
+ * `Calc.Same(string?, string?)` in the dotnet runtime. */
+export function sameText(left: string | null, right: string | null): boolean | null {
+  return left === null || right === null ? null : left === right;
+}
+
+export function differentText(left: string | null, right: string | null): boolean | null {
+  return left === null || right === null ? null : left !== right;
+}
+
 export function sameDate(left: DateValue | null, right: DateValue | null): boolean | null {
   const c = compareDates(left, right);
   return c === null ? null : c === 0;

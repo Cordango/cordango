@@ -952,8 +952,8 @@ public static class WebEmitter
         source.Line($":definition=\"{Js(Query(block, query, entity, "split", context.Record))}\"");
         source.Line($":state=\"{context.StateBinding}\"");
         if (context.Record) source.Line(":record=\"record\"");
-        if (AppModel.Arr(block["fields"]) is { Count: > 0 } fields)
-            source.Line($":fields=\"{JsArray(fields)}\"");
+        if (Columns(block) is { Count: > 0 } fields)
+            source.Line($":fields=\"{Js(new JsonArray([.. fields.Select(k => (JsonNode)k!)]))}\"");
         if (Echoes(AppModel.Str(block["label"]), context) is not { Length: > 0 }
             && AppModel.Str(block["label"]) is { } label)
             source.Line($"label=\"{label}\"");
@@ -1084,9 +1084,19 @@ public static class WebEmitter
         source.Line("/>");
     }
 
-    /// <summary>The field keys a list shows, in order.</summary>
+    /// <summary>The field keys a list shows, in order. A column is a bare key or an object that
+    /// also fixes its width and overflow; both forms name the field in the same place.</summary>
     private static IReadOnlyList<string> Columns(JsonObject block) =>
-        [.. AppModel.Arr(block["fields"]).Select(AppModel.Str).OfType<string>()];
+        [.. AppModel.Arr(block["fields"]).Select(ColumnKey).OfType<string>()];
+
+    /// <summary>The field key one column names, whichever form it was authored in.</summary>
+    private static string? ColumnKey(JsonNode? column) =>
+        column is JsonObject o ? AppModel.Str(o["key"]) : AppModel.Str(column);
+
+    /// <summary>Does any column carry sizing this target cannot emit yet?</summary>
+    private static bool HasColumnSizing(JsonObject block) =>
+        AppModel.Arr(block["fields"]).OfType<JsonObject>()
+            .Any(c => c["width"] is not null || c["overflow"] is not null);
 
     /// <summary>A block's own query, in the shape a saved view has.</summary>
     private static JsonObject Query(
@@ -1105,7 +1115,7 @@ public static class WebEmitter
         if (query?["filters"] is JsonArray filters) definition["filters"] = filters.DeepClone();
         if (query?["sort"] is JsonArray sort) definition["sort"] = sort.DeepClone();
         if (query?["limit"] is { } limit) definition["limit"] = limit.DeepClone();
-        if (block["fields"] is JsonArray fields) config["columns"] = fields.DeepClone();
+        if (block["fields"] is JsonArray) config["columns"] = new JsonArray([.. Columns(block).Select(k => (JsonNode)k!)]);
 
         // `via` is shorthand: the rows are the ones whose reference points at the record this screen
         // is about. Expanded into an ordinary filter leaf rather than given its own path through the
@@ -1155,6 +1165,10 @@ public static class WebEmitter
             yield return "a list's manual row order ('orderField')";
         if (!tabular && AppModel.Bool(block["openDetail"]))
             yield return "a list's 'openDetail' panel overlay";
+        // The columns still render — only the authored sizing is dropped, which is a difference you
+        // see rather than a breakage. Saying so beats a generated table that quietly ignores it.
+        if (HasColumnSizing(block))
+            yield return "a column's fixed width and overflow ('clip'/'wrap')";
     }
 
     /// <summary>

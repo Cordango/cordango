@@ -1893,6 +1893,147 @@ public class GateTests
             e => e.Contains("'tags' is not a numeric, boolean, date, or text field"));
 
     [Fact]
+    public void A_code_no_option_offers_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "kind == 'servce'" } }
+                """)),
+            e => e.Contains("'servce' is not an option of 'kind'"));
+
+    [Fact]
+    public void The_refusal_names_the_codes_that_would_have_worked() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "kind == 'servce'" } }
+                """)),
+            e => e.Contains("'service'") && e.Contains("'expense'"));
+
+    [Fact]
+    public void A_code_is_checked_on_either_side_of_the_comparison() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "'servce' == kind" } }
+                """)),
+            e => e.Contains("'servce' is not an option of 'kind'"));
+
+    [Fact]
+    public void A_code_is_checked_under_not_equals() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "kind != 'servce'" } }
+                """)),
+            e => e.Contains("'servce' is not an option of 'kind'"));
+
+    [Fact]
+    public void A_code_is_checked_inside_a_branch() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "x", "label": "X", "type": "money",
+                    "computed": { "expr": "if(kind == 'expence', unit_price, 0)" } }
+                """)),
+            e => e.Contains("'expence' is not an option of 'kind'"));
+
+    [Fact]
+    public void A_code_that_matches_an_option_is_accepted() =>
+        Assert.Empty(Gate.Validate(WithComputed(lineExtra: """
+            , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "kind == 'service'" } }
+            """)));
+
+    [Fact]
+    public void A_free_text_field_has_no_codes_to_check_against() =>
+        Assert.Empty(Gate.Validate(WithComputed(lineExtra: """
+            , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "description == 'anything at all'" } }
+            """)));
+
+    [Fact]
+    public void Two_text_fields_compared_to_each_other_are_not_code_checked() =>
+        Assert.Empty(Gate.Validate(WithComputed(lineExtra: """
+            , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "description == kind" } }
+            """)));
+
+    [Fact]
+    public void A_code_across_a_hop_is_checked_against_the_target() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(
+                invoiceExtra: """
+                    , { "key": "status", "label": "Status", "type": "select",
+                        "options": [ { "value": "draft", "label": "Draft" }, { "value": "sent", "label": "Sent" } ] }
+                    """,
+                lineExtra: """
+                    , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "invoice.status == 'snet'" } }
+                    """)),
+            e => e.Contains("'snet' is not an option of 'invoice.status'"));
+
+    [Fact]
+    public void A_code_across_a_hop_that_matches_is_accepted() =>
+        Assert.Empty(Gate.Validate(WithComputed(
+            invoiceExtra: """
+                , { "key": "status", "label": "Status", "type": "select",
+                    "options": [ { "value": "draft", "label": "Draft" }, { "value": "sent", "label": "Sent" } ] }
+                """,
+            lineExtra: """
+                , { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "invoice.status == 'sent'" } }
+                """)));
+
+    [Fact]
+    public void A_process_governed_status_is_checked_against_its_states()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse("""
+            { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "stage == 'aproved'" } }
+            """));
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("'aproved' is not an option of 'stage'"));
+    }
+
+    [Fact]
+    public void A_process_governed_status_accepts_one_of_its_states()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse("""
+            { "key": "x", "label": "X", "type": "boolean", "computed": { "expr": "stage == 'approved'" } }
+            """));
+        Assert.Empty(Gate.Validate(doc));
+    }
+
+    [Fact]
+    public void The_tax_class_that_reads_zero_lohnsteuer_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "tax_class", "label": "Steuerklasse", "type": "select",
+                    "options": [ { "value": "1", "label": "I" }, { "value": "2", "label": "II" },
+                                 { "value": "3", "label": "III" }, { "value": "4", "label": "IV" },
+                                 { "value": "5", "label": "V" }, { "value": "6", "label": "VI" } ] }
+                , { "key": "lohnsteuer", "label": "Lohnsteuer", "type": "money",
+                    "computed": { "expr": "if(tax_class == 'klasse1', unit_price, 0)" } }
+                """)),
+            e => e.Contains("'klasse1' is not an option of 'tax_class'"));
+
+    [Fact]
+    public void The_health_insurance_code_that_is_never_private_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "health_insurance_type", "label": "KV", "type": "select",
+                    "options": [ { "value": "statutory", "label": "Gesetzlich" },
+                                 { "value": "private", "label": "Privat" } ] }
+                , { "key": "vorsorge", "label": "Vorsorge", "type": "money",
+                    "computed": { "expr": "if(health_insurance_type == 'privat', unit_price, 0)" } }
+                """)),
+            e => e.Contains("'privat' is not an option of 'health_insurance_type'"));
+
+    [Fact]
+    public void A_child_count_beyond_the_options_is_refused() =>
+        Assert.Contains(
+            Gate.SemanticErrors(WithComputed(lineExtra: """
+                , { "key": "num_children", "label": "Kinder", "type": "select",
+                    "options": [ { "value": "0", "label": "0" }, { "value": "1", "label": "1" },
+                                 { "value": "2", "label": "2" }, { "value": "3", "label": "3+" } ] }
+                , { "key": "entlastung", "label": "Entlastung", "type": "money",
+                    "computed": { "expr": "if(num_children == '4', 720, 960)" } }
+                """)),
+            e => e.Contains("'4' is not an option of 'num_children'"));
+
+
+    [Fact]
     public void Computed_cannot_combine_with_default() =>
         Assert.Contains(
             Gate.SemanticErrors(WithComputed(invoiceExtra: """

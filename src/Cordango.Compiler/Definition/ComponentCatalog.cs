@@ -96,8 +96,15 @@ public static class ComponentCatalog
           "The default view for listing/scanning/filtering any entity. Use unless another view type's precondition is clearly met. Curate 5-8 meaningful columns — not every field.",
           """
           { "type":"object", "additionalProperties":false, "properties":{
-            "columns":{"type":"array","minItems":1,"items":{"type":"string"},
-              "description":"Field keys to show as columns, in order."},
+            "columns":{"type":"array","minItems":1,
+              "items":{"oneOf":[
+                {"type":"string"},
+                {"type":"object","additionalProperties":false,"required":["key"],"properties":{
+                  "key":{"type":"string"},
+                  "width":{"oneOf":[{"type":"number","minimum":40,"maximum":1200},
+                                    {"type":"string","pattern":"^[0-9]+([.][0-9]+)?(px|rem|em|ch|%)$"}]},
+                  "overflow":{"enum":["clip","wrap"]}}}]},
+              "description":"Columns, in order. A field key sizes itself to its content; an object fixes the column's width (a pixel number or CSS length) and says what a value too long for it does — 'clip' ends it in an ellipsis on one line, 'wrap' breaks it over further lines and grows the row. Fix a width where one long value would otherwise push every other column off the screen."},
             "defaultSort":{"type":"array","items":{"type":"object","additionalProperties":false,
               "required":["field","direction"],"properties":{
                 "field":{"type":"string"},"direction":{"enum":["asc","desc"]}}}},

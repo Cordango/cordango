@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "task_manager",
   "name": "Projects",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "presentation": {
     "icon": "clipboard-check",
     "color": "#0ea5e9",
@@ -236,13 +236,35 @@
                     "childType": "table",
                     "subordinate": false,
                     "fields": [
-                      "name",
-                      "due_date",
-                      "status",
-                      "progress",
-                      "open_tasks",
-                      "total_effort",
-                      "total_cost"
+                      {
+                        "key": "name",
+                        "width": 260,
+                        "overflow": "clip"
+                      },
+                      {
+                        "key": "due_date",
+                        "width": 100
+                      },
+                      {
+                        "key": "status",
+                        "width": 120
+                      },
+                      {
+                        "key": "progress",
+                        "width": 110
+                      },
+                      {
+                        "key": "open_tasks",
+                        "width": 110
+                      },
+                      {
+                        "key": "total_effort",
+                        "width": 120
+                      },
+                      {
+                        "key": "total_cost",
+                        "width": 120
+                      }
                     ]
                   }
                 ]
@@ -259,14 +281,39 @@
                     "subordinate": false,
                     "inlineCreate": true,
                     "fields": [
-                      "title",
-                      "assignee",
-                      "status",
-                      "priority",
-                      "start_date",
-                      "due_date",
-                      "effort",
-                      "cost"
+                      {
+                        "key": "title",
+                        "width": 360,
+                        "overflow": "clip"
+                      },
+                      {
+                        "key": "assignee",
+                        "width": 160
+                      },
+                      {
+                        "key": "status",
+                        "width": 120
+                      },
+                      {
+                        "key": "priority",
+                        "width": 110
+                      },
+                      {
+                        "key": "start_date",
+                        "width": 100
+                      },
+                      {
+                        "key": "due_date",
+                        "width": 100
+                      },
+                      {
+                        "key": "effort",
+                        "width": 90
+                      },
+                      {
+                        "key": "cost",
+                        "width": 110
+                      }
                     ],
                     "filterBar": {
                       "search": [
@@ -299,15 +346,43 @@
                     "subordinate": false,
                     "inlineCreate": true,
                     "fields": [
-                      "name",
-                      "due_date",
-                      "status",
-                      "progress",
-                      "total_tasks",
-                      "open_tasks",
-                      "done_tasks",
-                      "total_effort",
-                      "total_cost"
+                      {
+                        "key": "name",
+                        "width": 240,
+                        "overflow": "clip"
+                      },
+                      {
+                        "key": "due_date",
+                        "width": 100
+                      },
+                      {
+                        "key": "status",
+                        "width": 120
+                      },
+                      {
+                        "key": "progress",
+                        "width": 100
+                      },
+                      {
+                        "key": "total_tasks",
+                        "width": 100
+                      },
+                      {
+                        "key": "open_tasks",
+                        "width": 100
+                      },
+                      {
+                        "key": "done_tasks",
+                        "width": 100
+                      },
+                      {
+                        "key": "total_effort",
+                        "width": 110
+                      },
+                      {
+                        "key": "total_cost",
+                        "width": 110
+                      }
                     ]
                   }
                 ]
@@ -535,11 +610,27 @@
             "inlineCreate": true,
             "label": "Subtasks",
             "fields": [
-              "title",
-              "assignee",
-              "status",
-              "due_date",
-              "effort"
+              {
+                "key": "title",
+                "width": 320,
+                "overflow": "wrap"
+              },
+              {
+                "key": "assignee",
+                "width": 160
+              },
+              {
+                "key": "status",
+                "width": 120
+              },
+              {
+                "key": "due_date",
+                "width": 100
+              },
+              {
+                "key": "effort",
+                "width": 90
+              }
             ]
           },
           {
@@ -794,12 +885,31 @@
             "childType": "table",
             "subordinate": false,
             "fields": [
-              "title",
-              "assignee",
-              "status",
-              "due_date",
-              "effort",
-              "cost"
+              {
+                "key": "title",
+                "width": 340,
+                "overflow": "clip"
+              },
+              {
+                "key": "assignee",
+                "width": 160
+              },
+              {
+                "key": "status",
+                "width": 120
+              },
+              {
+                "key": "due_date",
+                "width": 100
+              },
+              {
+                "key": "effort",
+                "width": 90
+              },
+              {
+                "key": "cost",
+                "width": 110
+              }
             ]
           }
         ]
@@ -848,13 +958,35 @@
       ],
       "config": {
         "columns": [
-          "name",
-          "status",
-          "lead",
-          "due_date",
-          "open_tasks",
-          "done_tasks",
-          "progress"
+          {
+            "key": "name",
+            "width": 280,
+            "overflow": "clip"
+          },
+          {
+            "key": "status",
+            "width": 130
+          },
+          {
+            "key": "lead",
+            "width": 170
+          },
+          {
+            "key": "due_date",
+            "width": 110
+          },
+          {
+            "key": "open_tasks",
+            "width": 110
+          },
+          {
+            "key": "done_tasks",
+            "width": 110
+          },
+          {
+            "key": "progress",
+            "width": 120
+          }
         ],
         "filterBar": {
           "search": [
@@ -887,11 +1019,27 @@
       ],
       "config": {
         "columns": [
-          "title",
-          "project",
-          "status",
-          "due_date",
-          "priority"
+          {
+            "key": "title",
+            "width": 400,
+            "overflow": "clip"
+          },
+          {
+            "key": "project",
+            "width": 200
+          },
+          {
+            "key": "status",
+            "width": 130
+          },
+          {
+            "key": "due_date",
+            "width": 110
+          },
+          {
+            "key": "priority",
+            "width": 120
+          }
         ],
         "filterBar": {
           "search": [
@@ -919,12 +1067,31 @@
       ],
       "config": {
         "columns": [
-          "title",
-          "project",
-          "assignee",
-          "status",
-          "due_date",
-          "priority"
+          {
+            "key": "title",
+            "width": 380,
+            "overflow": "clip"
+          },
+          {
+            "key": "project",
+            "width": 190
+          },
+          {
+            "key": "assignee",
+            "width": 170
+          },
+          {
+            "key": "status",
+            "width": 130
+          },
+          {
+            "key": "due_date",
+            "width": 110
+          },
+          {
+            "key": "priority",
+            "width": 120
+          }
         ],
         "filterBar": {
           "search": [

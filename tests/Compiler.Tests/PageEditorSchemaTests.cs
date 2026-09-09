@@ -71,13 +71,18 @@ public class PageEditorSchemaTests
     /// <item>97,400 → 97,700: `intake.via`, the record-bound form — a questionnaire answered against
     /// the record it sits on. One property on one variant plus a sentence in the block's own
     /// description; nothing shared was inlined.</item>
+    /// <item>97,700 → 98,900: the `column` def — a list column may now fix its width and say whether
+    /// a long value clips or wraps. +1,199 bytes, and the shape is SHARED: one def referenced by
+    /// table, split and child rather than the same two properties written into each. That is the
+    /// direction this canary exists to protect, so the move is the def's own size, not duplication.
+    /// </item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 97_700);
+        Assert.InRange(pruned, 1, 98_900);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_calendar",
     "name": "Calendar",
-    "version": "1.4.0",
+    "version": "1.5.0",
     "schemaVersion": "2.0",
-    "definitionHash": "376c5ebf808534d79d840f32f6003d67500ce1e8d74496a12751d2ccd5b29753",
-    "contractHash": "daf73b3a38a757ce7aa18b1cd90fcd4e18f045286ccf244f1482cb034d0ef397"
+    "definitionHash": "59c6d10fdbcd22da9ec9bfd521c74caaf0710ade6c1fe50e2fda3d4dafae6e52",
+    "contractHash": "723f64e0c20597acccb64b166e0fb5f1febabcf18f97a86d7fe9a41b2146ee04"
   },
   "purpose": null,
   "entities": [
@@ -115,6 +115,16 @@
           "key": "feed_time_zone",
           "label": "Feed time zone",
           "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "subscribe_url",
+          "label": "Subscription link",
+          "type": "url",
           "required": false,
           "computed": false,
           "targetApp": null,

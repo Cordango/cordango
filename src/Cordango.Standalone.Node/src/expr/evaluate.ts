@@ -25,7 +25,7 @@ import { hop, type Kind, type Node } from "./parse.js";
 
 /** A stored field's value, typed the way the schema types it. `null` is a blank; `undefined` is a
  * field the reader cannot answer at all (an unresolved hop), which reads the same as blank. */
-export type FieldValue = Dec | boolean | PlainDate | Instant | null | undefined;
+export type FieldValue = Dec | boolean | PlainDate | Instant | string | null | undefined;
 
 export type EvaluateOptions = {
   /** Which day begins a week here — the app's own `weekStart`, never a machine's. */
@@ -37,7 +37,7 @@ export type EvaluateOptions = {
   prev?: (field: string) => Dec | null | "none";
 };
 
-export type Value = Dec | boolean | PlainDate | Instant | null;
+export type Value = Dec | boolean | PlainDate | Instant | string | null;
 
 /** The expression's answer: a number, a boolean or a date by its static kind, or null for unknown. */
 export function evaluate(node: Node, options: EvaluateOptions): Value {
@@ -46,6 +46,8 @@ export function evaluate(node: Node, options: EvaluateOptions): Value {
       return node.value;
     case "boolean":
       return node.value;
+    case "text":
+      return node.value;
 
     case "field": {
       switch (node.kind) {
@@ -53,10 +55,23 @@ export function evaluate(node: Node, options: EvaluateOptions): Value {
           return asNumber(options.read(node.key)) ?? Dec.zero;
         case "boolean":
           return asBoolean(options.read(node.key)) ?? false;
+        // Blank is the EMPTY code, exactly as a blank number is zero — so a record nobody has set a
+        // state on answers a definite false to `state == 'sachsen'`, not unknown.
+        case "text":
+          return asText(options.read(node.key)) ?? "";
         case "date":
           return dateOrNull(options.read(node.key));
       }
       break;
+    }
+
+    // ONLY THE BRANCH TAKEN, and that is not an optimisation: `if(months == 0, 0, costs / months)`
+    // must answer zero, not the unknown its own guard exists to avoid. An unknown test answers
+    // unknown, because choosing either way would be inventing which way it went.
+    case "conditional": {
+      const test = boolean(node.condition, options);
+      if (test === null) return null;
+      return test ? evaluate(node.whenTrue, options) : evaluate(node.whenFalse, options);
     }
 
     case "unary": {
@@ -191,6 +206,11 @@ function binary(
           const right = date(node.right, options);
           return wantSame ? calc.sameDate(left, right) : calc.differentDate(left, right);
         }
+        case "text": {
+          const left = text(node.left, options);
+          const right = text(node.right, options);
+          return wantSame ? calc.sameText(left, right) : calc.differentText(left, right);
+        }
       }
       break;
     }
@@ -222,6 +242,15 @@ function number(node: Node, options: EvaluateOptions): Dec | null {
 function boolean(node: Node, options: EvaluateOptions): boolean | null {
   const value = evaluate(node, options);
   return typeof value === "boolean" ? value : null;
+}
+
+function text(node: Node, options: EvaluateOptions): string | null {
+  const value = evaluate(node, options);
+  return typeof value === "string" ? value : null;
+}
+
+function asText(value: FieldValue): string | null {
+  return typeof value === "string" ? value : null;
 }
 
 function date(node: Node, options: EvaluateOptions): calc.DateValue | null {
@@ -266,6 +295,15 @@ export function fieldValue(type: string, raw: unknown): FieldValue {
       if (raw instanceof Instant) return raw;
       return typeof raw === "string" ? Instant.parse(raw) : null;
 
+    // A coded string: a select's stored value, or a text field read as itself.
+    case "text":
+    case "longtext":
+    case "select":
+    case "email":
+    case "url":
+    case "phone":
+      return typeof raw === "string" ? raw : null;
+
     default:
       return null;
   }
@@ -303,6 +341,13 @@ export function kindOf(type: string): Kind | null {
     case "date":
     case "datetime":
       return "date";
+    case "text":
+    case "longtext":
+    case "select":
+    case "email":
+    case "url":
+    case "phone":
+      return "text";
     default:
       return null;
   }
