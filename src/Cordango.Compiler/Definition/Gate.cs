@@ -1089,7 +1089,8 @@ public static class Gate
 
     /// <summary>Commands: unique per entity; entity/when/input/effects resolve. Fills
     /// <paramref name="commandsByEntity"/> for grant + hub-action validation. A command may have empty
-    /// effects only when a process transition binds it (the state change is the effect).</summary>
+    /// effects only when a process transition binds it (the state change is the effect) or when its
+    /// `when` guards every `input.required` field with isEmpty (writing the input is the effect).</summary>
     private static void ValidateCommands(JsonNode? commands, BehaviorCtx ctx,
         HashSet<string> transitionBoundCommands, Dictionary<string, Dictionary<string, JsonObject>> commandsByEntity,
         List<string> errors)
@@ -1141,13 +1142,29 @@ public static class Gate
                         errors.Add($"SEMANTIC: {where} input.required '{rk}' is not one of input.fields");
             }
 
-            if (Arr(cmd["effects"]).Count == 0 && !transitionBoundCommands.Contains(ent + "|" + key))
-                errors.Add($"SEMANTIC: {where} has no effects — a command needs at least one effect unless a process transition binds it");
+            if (Arr(cmd["effects"]).Count == 0 && !transitionBoundCommands.Contains(ent + "|" + key)
+                && !FillsAGuardedBlank(cmd))
+                errors.Add($"SEMANTIC: {where} has no effects — a command needs at least one effect unless a process transition binds it, or its `when` guards every `input.required` field with isEmpty (a command that only fills a blank)");
             ValidateEffects(cmd["effects"], ent, where, ctx, errors);
 
             foreach (var tmpl in new[] { Str(cmd, "successMessage"), Str(cmd["confirm"], "title"), Str(cmd["confirm"], "message") })
                 if (tmpl != null) ValidateTemplate(tmpl, ent, where, ctx, errors);
         }
+    }
+
+    /// <summary>
+    /// A command whose only work is the input it collects. Legal without effects ONLY when its guard
+    /// proves the record holds none of the required inputs yet: the executor satisfies a required
+    /// input from the record's existing value, so without the guard such a command could report
+    /// success having written nothing. `when` is the leaf itself or an `all` that carries it.
+    /// </summary>
+    private static bool FillsAGuardedBlank(JsonObject cmd)
+    {
+        var required = Arr(cmd["input"]?["required"]).Select(r => r?.GetValue<string>()).OfType<string>().ToList();
+        if (required.Count == 0) return false;
+        List<JsonObject> leaves = cmd["when"] is not JsonObject when ? []
+            : when["all"] is JsonArray all ? all.OfType<JsonObject>().ToList() : [when];
+        return required.All(f => leaves.Any(l => Str(l, "field") == f && Str(l, "operator") == "isEmpty"));
     }
 
     /// <summary>Processes: one per entity; stateField is the entity's role:'status' select; states are

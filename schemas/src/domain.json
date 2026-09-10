@@ -276,11 +276,12 @@
           "default": false
         },
         "derived": {
-          "description": "Server-filled identity string, recomputed on every write and read-only everywhere — the string counterpart of 'computed', which only produces numbers and booleans. A CLOSED set of platform rules rather than an expression language: these exist to build keys a unique index can stand on, and a key a tenant could author is a key a tenant could break. 'companyDedupKey' = country + city + the legal name including its form, normalised for case, punctuation and German spelling (Müller = mueller); this is what makes 'the same company twice' a constraint rather than a hope. 'companyCode' = a readable handle for the same entity, built from the register number when research has found one and from the country and name until then. Never combine with default/initial/computed.",
+          "description": "Server-filled identity string, recomputed on every write and read-only everywhere — the string counterpart of 'computed', which only produces numbers and booleans. A CLOSED set of platform rules rather than an expression language: these exist to build keys a unique index can stand on, and a key a tenant could author is a key a tenant could break. 'companyDedupKey' = country + city + the legal name including its form, normalised for case, punctuation and German spelling (Müller = mueller); this is what makes 'the same company twice' a constraint rather than a hope. 'companyCode' = a readable handle for the same entity, built from the register number when research has found one and from the country and name until then. 'emailKey' = the email address lower-cased and trimmed, null when blank — the identity of a person, so two contacts cannot share one. Never combine with default/initial/computed.",
           "type": "string",
           "enum": [
             "companyDedupKey",
-            "companyCode"
+            "companyCode",
+            "emailKey"
           ]
         },
         "help": {

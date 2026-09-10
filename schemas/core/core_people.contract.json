@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_people",
     "name": "People",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "schemaVersion": "2.0",
-    "definitionHash": "7f6217c0f239b671d39044f765daeb553dc2ba08b07b355b1f031e117d743469",
-    "contractHash": "9d3da63321cdfa86a85e9ed50cef49f68bf7c0e168c443427375e25210f15d49"
+    "definitionHash": "18f4dfbeb4a013c42e875738aeb656e53633b278d59d82ebe8807575cf759ae6",
+    "contractHash": "d291d2f1bc43e12ff57b21ce982750bebf41f51a30a0539a1d1f7a431d6e9f76"
   },
   "purpose": null,
   "entities": [
@@ -1172,9 +1172,168 @@
           "options": null
         }
       ]
+    },
+    {
+      "key": "contact",
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "description": "Somebody outside the workspace we deal with: a freelancer, a visitor who booked time, a person at a company. Colleagues are employees; logins live in the platform directory. A contact who works at a company also appears in that company's contact list in Organizations.",
+      "displayField": "full_name",
+      "kind": null,
+      "ownedBy": null,
+      "fields": [
+        {
+          "key": "full_name",
+          "label": "Name",
+          "type": "text",
+          "required": true,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "organization",
+          "label": "Organization",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "core_organizations",
+          "targetEntity": "organization",
+          "options": null
+        },
+        {
+          "key": "job_title",
+          "label": "Job title",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "email",
+          "label": "Email",
+          "type": "email",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "email_key",
+          "label": "Email identity",
+          "type": "text",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "phone",
+          "label": "Phone",
+          "type": "phone",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "mobile",
+          "label": "Mobile",
+          "type": "phone",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "platform",
+          "targetEntity": "person",
+          "options": null
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "active",
+              "label": "Active",
+              "color": "#16a34a"
+            },
+            {
+              "value": "archived",
+              "label": "Archived",
+              "color": "#94a3b8"
+            }
+          ]
+        },
+        {
+          "key": "origin",
+          "label": "Came from",
+          "type": "select",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": [
+            {
+              "value": "manual",
+              "label": "Added here",
+              "color": "#64748b"
+            },
+            {
+              "value": "booking",
+              "label": "Booked a meeting",
+              "color": "#0ea5e9"
+            },
+            {
+              "value": "organization",
+              "label": "Listed at a company",
+              "color": "#0f766e"
+            }
+          ]
+        },
+        {
+          "key": "notes",
+          "label": "Notes",
+          "type": "longtext",
+          "required": false,
+          "computed": false,
+          "targetApp": null,
+          "targetEntity": null,
+          "options": null
+        }
+      ]
     }
   ],
   "dependencies": [
+    {
+      "app": "core_organizations",
+      "entities": [
+        "organization"
+      ],
+      "source": "both",
+      "fields": [
+        "contact.organization"
+      ],
+      "why": "The companies our contacts work for live there"
+    },
     {
       "app": "platform",
       "entities": [
@@ -1182,6 +1341,7 @@
       ],
       "source": "reference",
       "fields": [
+        "contact.owner",
         "employee.manager",
         "employee.person",
         "hr_note.author"
@@ -1207,6 +1367,24 @@
       "entity": "compensation",
       "description": "A Compensation record changed",
       "name": "compensation.updated"
+    },
+    {
+      "type": "record.created",
+      "entity": "contact",
+      "description": "A Contact was created",
+      "name": "contact.created"
+    },
+    {
+      "type": "record.deleted",
+      "entity": "contact",
+      "description": "A Contact was deleted",
+      "name": "contact.deleted"
+    },
+    {
+      "type": "record.updated",
+      "entity": "contact",
+      "description": "A Contact changed",
+      "name": "contact.updated"
     },
     {
       "type": "record.created",
@@ -1301,6 +1479,31 @@
   ],
   "actions": [
     {
+      "id": "contact.add_to_organization",
+      "key": "add_to_organization",
+      "entity": "contact",
+      "label": "Add to organization",
+      "description": "File this person under the company they work for. Pick an existing organization or add a new one; they then also appear in that company's contact list in Organizations.",
+      "synthesized": false,
+      "transition": null,
+      "input": {
+        "fields": [
+          "organization"
+        ],
+        "required": [
+          "organization"
+        ]
+      },
+      "requires": [
+        "contact.add_to_organization.when",
+        "contact.add_to_organization.requires_organization"
+      ],
+      "emits": [],
+      "causes": [
+        "contact.updated"
+      ]
+    },
+    {
       "id": "employee.mark_inactive",
       "key": "mark_inactive",
       "entity": "employee",
@@ -1317,6 +1520,32 @@
     }
   ],
   "rules": [
+    {
+      "id": "contact.add_to_organization.requires_organization",
+      "entity": "contact",
+      "on": [
+        "command:add_to_organization"
+      ],
+      "kind": "required",
+      "effect": "stop",
+      "assertion": {
+        "fields": [
+          "organization"
+        ]
+      },
+      "source": "synthesized"
+    },
+    {
+      "id": "contact.add_to_organization.when",
+      "entity": "contact",
+      "on": [
+        "command:add_to_organization"
+      ],
+      "kind": "guard",
+      "effect": "stop",
+      "condition": null,
+      "source": "synthesized"
+    },
     {
       "id": "employee.mark_inactive.when",
       "entity": "employee",

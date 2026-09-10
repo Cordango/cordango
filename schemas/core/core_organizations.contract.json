@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_organizations",
     "name": "Organizations",
-    "version": "1.6.0",
+    "version": "1.7.0",
     "schemaVersion": "2.0",
-    "definitionHash": "6f01023a2c79eb2c69b28254cf3e0c6e3e485a0c33f03ec4f2d52e3b5fea81ef",
-    "contractHash": "d951e7f903c4ba1460afb8ec7122bcf8981be7d7f2748023a539db4b6457d05a"
+    "definitionHash": "ec2f8f04198c3c91e66b732201fbb46e538045288a104cbf1dba2bdc3c639246",
+    "contractHash": "c5ba422dc63cbec7e84d89b0bbeebf80396bef7984971f605637c95836bc9859"
   },
   "purpose": null,
   "entities": [
@@ -1285,6 +1285,16 @@
           "computed": false,
           "targetApp": null,
           "targetEntity": null,
+          "options": null
+        },
+        {
+          "key": "person",
+          "label": "Person",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "core_people",
+          "targetEntity": "contact",
           "options": null
         }
       ]
@@ -2721,6 +2731,17 @@
     }
   ],
   "dependencies": [
+    {
+      "app": "core_people",
+      "entities": [
+        "contact"
+      ],
+      "source": "both",
+      "fields": [
+        "contact.person"
+      ],
+      "why": "Every contact here is also a person in People"
+    },
     {
       "app": "platform",
       "entities": [

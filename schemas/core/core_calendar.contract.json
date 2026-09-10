@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_calendar",
     "name": "Calendar",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "schemaVersion": "2.0",
-    "definitionHash": "59c6d10fdbcd22da9ec9bfd521c74caaf0710ade6c1fe50e2fda3d4dafae6e52",
-    "contractHash": "723f64e0c20597acccb64b166e0fb5f1febabcf18f97a86d7fe9a41b2146ee04"
+    "definitionHash": "c82f405e475e488224254746fa06749d309367f12b66f9135278ed948e644fc2",
+    "contractHash": "aecda987e926a6ad0e7edaf1cba8c2683d282fce4393113c1cca63c3ae03e023"
   },
   "purpose": null,
   "entities": [
@@ -852,6 +852,16 @@
           "targetApp": null,
           "targetEntity": null,
           "options": null
+        },
+        {
+          "key": "contact",
+          "label": "Contact",
+          "type": "reference",
+          "required": false,
+          "computed": false,
+          "targetApp": "core_people",
+          "targetEntity": "contact",
+          "options": null
         }
       ]
     },
@@ -1045,6 +1055,17 @@
     }
   ],
   "dependencies": [
+    {
+      "app": "core_people",
+      "entities": [
+        "contact"
+      ],
+      "source": "both",
+      "fields": [
+        "booking_contact.contact"
+      ],
+      "why": "A visitor who confirms a booking becomes a contact"
+    },
     {
       "app": "platform",
       "entities": [

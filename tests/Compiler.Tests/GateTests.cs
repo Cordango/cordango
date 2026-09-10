@@ -981,6 +981,65 @@ public class GateTests
     }
 
     [Fact]
+    public void Command_that_fills_a_guarded_blank_needs_no_effects()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
+            { "key":"fill_reason","label":"Fill reason","entity":"expense","effects":[],
+              "when":{"field":"reason","operator":"isEmpty"},
+              "input":{"fields":["reason"],"required":["reason"]} }
+            """));
+        Assert.Empty(Gate.Validate(doc));
+    }
+
+    [Fact]
+    public void Command_that_fills_a_blank_inside_an_all_guard_needs_no_effects()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
+            { "key":"fill_reason","label":"Fill reason","entity":"expense","effects":[],
+              "when":{"all":[{"field":"reason","operator":"isEmpty"},{"field":"title","operator":"isNotEmpty"}]},
+              "input":{"fields":["reason"],"required":["reason"]} }
+            """));
+        Assert.Empty(Gate.Validate(doc));
+    }
+
+    [Fact]
+    public void Command_with_required_input_but_no_guard_is_rejected()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
+            { "key":"fill_reason","label":"Fill reason","entity":"expense","effects":[],
+              "input":{"fields":["reason"],"required":["reason"]} }
+            """));
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("command 'fill_reason' has no effects"));
+    }
+
+    [Fact]
+    public void Command_whose_guard_names_a_different_field_is_rejected()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
+            { "key":"fill_reason","label":"Fill reason","entity":"expense","effects":[],
+              "when":{"field":"title","operator":"isEmpty"},
+              "input":{"fields":["reason"],"required":["reason"]} }
+            """));
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("command 'fill_reason' has no effects"));
+    }
+
+    [Fact]
+    public void Command_with_optional_input_only_is_rejected()
+    {
+        var doc = ProcessDoc();
+        ((JsonArray)doc["commands"]!).Add(JsonNode.Parse("""
+            { "key":"fill_reason","label":"Fill reason","entity":"expense","effects":[],
+              "when":{"field":"reason","operator":"isEmpty"},
+              "input":{"fields":["reason"]} }
+            """));
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("command 'fill_reason' has no effects"));
+    }
+
+    [Fact]
     public void A_process_governed_field_must_not_also_author_its_options()
     {
         var doc = ProcessDoc();
