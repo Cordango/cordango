@@ -10,6 +10,16 @@
 in a portable app format, run them on Cordango, or deterministically generate conventional source
 code you can own and deploy anywhere.
 
+## Why YAML?
+Cordango defines complete business applications using our own declarative YAML schema. While the platform was originally built around JSON, it transitioned to YAML to deliberately optimize for how Large Language Models (LLMs) process and generate code. 
+
+**Eradicating Token Bloat**: JSON requires heavy punctuation, such as braces, brackets, and quotes around every key. Tokenizers often fracture JSON syntax, turning a simple string like "customer_id" into multiple tokens. By relying on indentation and whitespace, YAML drastically reduces token consumption.
+
+**Maximizing Context Density**: By stripping away the syntax formatting, the AI can hold significantly more business logic in its working memory. This prevents models from "forgetting" earlier definitions or hallucinating structures when generating massive, interconnected application modules.
+
+**Deterministic Generation**: The token-efficient schema allows standard AI assistants like a plain ChatGPT session or Claude,  to consistently ingest the app definition and output reliable, working applications without context collapse
+
+## What is Cordango?
 Cordango itself is the platform: a hosted product companies run their applications on, currently in
 invite-only beta at [cordango.com](https://cordango.com). This repository is what sits underneath
 it. The app format, the compiler, the validator and the standalone generator, all Apache-2.0.
