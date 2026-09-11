@@ -136,6 +136,15 @@ jobs:
           node-version: '22'
           registry-url: https://registry.npmjs.org
 
+      # NODE 22 IS THE FLOOR THE PACKAGE CLAIMS, and it ships npm 10, which has never heard of OIDC:
+      # trusted publishing landed in the npm CLI at 11.5.1. On npm 10 the publish step does not fail
+      # loudly for the right reason — it falls back to looking for a token, finds the placeholder
+      # setup-node writes into NODE_AUTH_TOKEN, and dies with ENEEDAUTH as though a secret were
+      # missing. Upgrading the CLI rather than raising node-version keeps `npm run check` below on
+      # the oldest node the package supports, which is the version worth testing on.
+      - name: npm 11 for trusted publishing
+        run: npm install -g npm@latest
+
       - name: Version from the tag
         id: version
         run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
