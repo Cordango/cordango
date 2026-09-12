@@ -43,7 +43,7 @@
     "express": "^5.2.1"
   },
   "optionalDependencies": {
-    "pg": "*"
+    "pg": "^8.23.0"
   },
   "publishConfig": {
     "access": "public"
