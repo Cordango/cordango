@@ -151,11 +151,18 @@ jobs:
 
       # The fixture suites are the contract with the C# runtime, and an npm version is as permanent
       # as a NuGet one: test before publishing, never after.
+      #
+      # AND BUILD, which this step claimed in its name and did not do. `check` is tsc --noEmit plus
+      # the suites: it proves the code compiles and emits nothing. `files` ships dist, so with no
+      # build the tarball is a package.json and a README — 2 files, 1.0 kB, which is exactly what
+      # 0.8.1 tried to publish. Nothing would have failed; every generated node-vue application
+      # pinning that version would simply have found no runtime to import.
       - name: Build and test
         working-directory: src/Cordango.Standalone.Node
         run: |
           npm ci --no-audit --no-fund
           npm run check
+          npm run build
 
       # The checked-in version is 0.0.0 on purpose — the tag is the version, same as the csproj's
       # <Version> being only a local default.

@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Cordango.SourceGen.NodeVue</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    The second target: Node and TypeScript on the back, the SAME Vue 3 + Vuetify front end
+    `dotnet-vue` emits.
+
+    That sharing is the point of the target existing. The web half lives in
+    Cordango.SourceGen.Common — WebEmitter and WebScaffold — and it is a REST client that never asks
+    what the backend is written in. So this project emits no Vue at all: it emits a Node application
+    that answers the same HTTP contract, and calls the shared emitter for everything above it. A
+    screen that renders here and not there would be a bug in one shared file rather than a
+    divergence between two copies.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
+    <ProjectReference Include="..\Cordango.SourceGen.Common\Cordango.SourceGen.Common.csproj" />
+  </ItemGroup>
+
+  <!--
+    THE SCAFFOLD, EMBEDDED — and note what is NOT here: any part of @cordango/standalone.
+
+    The Node runtime is an npm package, so what a generated application needs from it is a
+    dependency line, not its source. `dotnet-vue` embeds Cordango.Standalone's .cs files because it
+    can emit them as a sibling project; there is no equivalent here, and there does not need to be:
+    `npm install` is the whole of it.
+
+    Template/ is what an application looks like before any entity exists — the USER's code. No
+    Cordango licence headers on it, and the package.json carries a .template suffix so that a stray
+    `npm install` in this repository never tries to restore a file full of {{...}}.
+
+    RecursiveDir bakes in the host's path separator, so Scaffold normalises to '/' on read — without
+    that, the same definition would generate different file paths on Windows and Linux and the
+    determinism tests would be measuring the build machine.
+
+    WithCulture="false" is not decoration: the SDK reads a dotted segment in an embedded resource's
+    name as a culture, so `messages.de.json` would be compiled into a `de/` satellite assembly and
+    silently not be there at run time.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="Templates\**\*"
+                      LogicalName="Template/%(RecursiveDir)%(Filename)%(Extension)"
+                      WithCulture="false" />
+  </ItemGroup>
+
+</Project>

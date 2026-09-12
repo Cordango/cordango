@@ -35,11 +35,20 @@ public static class WebEmitter
     /// have got round to. A block the target will NEVER render — record history, which needs an audit
     /// trail this product does not keep — must not be reported as "not yet": somebody reading that
     /// would reasonably wait for a release that is never coming.</param>
-    public static WebResult Emit(AppModel app, bool allowPartial, GeneratorCapabilities? capabilities = null)
+    /// <param name="targetId">Which target is asking, for the diagnostics this emitter raises.
+    /// It used to say <c>dotnet-vue</c> unconditionally, which was true while there was one target
+    /// and became a lie the day there were two — a node-vue build reported a gap in a generator its
+    /// user had not asked for and could not have chosen differently.</param>
+    public static WebResult Emit(
+        AppModel app,
+        bool allowPartial,
+        GeneratorCapabilities? capabilities = null,
+        string targetId = "dotnet-vue")
     {
         ArgumentNullException.ThrowIfNull(app);
 
         Capabilities = capabilities;
+        Target = targetId;
 
         var files = new List<GeneratedFile>();
         var unsupported = new List<Diagnostic>();
@@ -414,7 +423,7 @@ public static class WebEmitter
                 context.Path);
 
         return new Diagnostic(NotYetCodes.Block,
-            $"the dotnet-vue generator does not emit '{name}' blocks yet.", context.Path);
+            $"the {TargetName} generator does not emit '{name}' blocks yet.", context.Path);
     }
 
     /// <summary>What the target can do, for the length of one emit. Set by <see cref="Emit"/>; the
@@ -422,6 +431,14 @@ public static class WebEmitter
     /// would cost more clarity than it buys.</summary>
     [ThreadStatic]
     private static GeneratorCapabilities? Capabilities;
+
+    /// <summary>Which target is emitting, for the same reason and by the same mechanism as
+    /// <see cref="Capabilities"/> above. Defaulted rather than nullable so a diagnostic raised
+    /// outside an emit still reads as a sentence.</summary>
+    [ThreadStatic]
+    private static string? Target;
+
+    private static string TargetName => Target ?? "this target";
 
     private sealed record BlockContext(AppModel App, string? Entity, bool Record, string Path)
     {
@@ -1179,7 +1196,7 @@ public static class WebEmitter
     /// something a later release removes with no change to anybody's definition.</para>
     /// </summary>
     private static Diagnostic NotYet(string what, BlockContext context) =>
-        new(NotYetCodes.BlockOption, $"the dotnet-vue generator does not emit {what} yet.", context.Path);
+        new(NotYetCodes.BlockOption, $"the {TargetName} generator does not emit {what} yet.", context.Path);
 
     /// <summary>A state-writing control: a value toggle, or a prev/next pair over a date.</summary>
     private static void Control(Source source, JsonObject block, BlockContext context)

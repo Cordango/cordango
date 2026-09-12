@@ -39,12 +39,42 @@ function field<T extends RecordRow>(descriptor: RecordDescriptor<T>, fieldKey: s
 /** The numeric value a row contributes, or null when the field is blank — a row that never had a
  * value must not contribute a zero, because an average over ten rows where three are blank is an
  * average of seven. */
-function numericValue(row: RecordRow, key: string): number | null {
+/**
+ * One row's value for an aggregate, kept as a decimal all the way.
+ *
+ * **Not a number, and that is the bug this replaced.** Every value used to be converted to a
+ * JavaScript number on the way in and added with floating-point arithmetic, so a column of money
+ * summed to 6267.169999999999 — which a stat card then printed. A total is exactly the figure
+ * nobody may round for you, so the accumulation happens in `Dec` and the conversion happens once,
+ * at the end, where the answer is already right.
+ */
+function numericValue(row: RecordRow, key: string): Dec | null {
   const value = row[key];
   if (value === null || value === undefined) return null;
-  if (value instanceof Dec) return value.toNumber();
-  if (typeof value === "number") return value;
+  if (value instanceof Dec) return value;
+  if (typeof value === "number") return Dec.from(value);
   return null;
+}
+
+/** Sum, average, smallest or largest — over decimals, answered as a decimal. */
+function reduce(values: readonly Dec[], op: string): Dec | null {
+  if (values.length === 0) return null;
+
+  switch (op) {
+    case "sum":
+      return values.reduce((running, value) => running.add(value), Dec.zero);
+    case "avg": {
+      const sum = values.reduce((running, value) => running.add(value), Dec.zero);
+      // Division is the one place a decimal cannot always be exact — a third of ten has no finite
+      // representation in any base ten. `div` rounds at the scale `Dec` carries, which is the same
+      // answer the .NET runtime and the platform give.
+      return sum.div(Dec.from(values.length) ?? Dec.one);
+    }
+    case "min":
+      return values.reduce((running, value) => (value.cmp(running) < 0 ? value : running));
+    default:
+      return values.reduce((running, value) => (value.cmp(running) > 0 ? value : running));
+  }
 }
 
 /** The month as `YYYY-MM` — the label a person reads, made here where formatting is cheap. */
@@ -96,7 +126,7 @@ export function aggregate<T extends RecordRow>(
       `'${groupField.key}' is not a date, so records cannot be grouped by its month.`,
     );
 
-  const groups = new Map<string, number[]>();
+  const groups = new Map<string, (Dec | null)[]>();
   for (const row of narrowed) {
     const raw = row[groupField.key];
     let key: string;
@@ -117,23 +147,24 @@ export function aggregate<T extends RecordRow>(
       bucket = [];
       groups.set(key, bucket);
     }
-    bucket.push(op === "count" ? 0 : (numericValue(row, fieldKey!) ?? Number.NaN));
+    if (op === "count") {
+      bucket.push(null);
+      continue;
+    }
+    bucket.push(numericValue(row, fieldKey!));
   }
 
   const buckets: AggregateBucket[] = [];
   for (const [key, values] of groups) {
-    let value: number | null = null;
-    if (op === "count") value = values.length;
-    else {
-      const present = values.filter((v) => !Number.isNaN(v));
-      if (present.length > 0) {
-        if (op === "sum") value = present.reduce((a, b) => a + b, 0);
-        else if (op === "avg") value = present.reduce((a, b) => a + b, 0) / present.length;
-        else if (op === "min") value = Math.min(...present);
-        else value = Math.max(...present);
-      }
+    if (op === "count") {
+      buckets.push({ key, value: values.length });
+      continue;
     }
-    buckets.push({ key, value });
+
+    // A row whose field is blank is not in the figure. It is not a zero: a blank amount on three
+    // of twelve claims would drag an average down by a quarter and look like a real answer.
+    const present = values.filter((value): value is Dec => value !== null);
+    buckets.push({ key, value: reduce(present, op)?.toJSON() ?? null });
   }
 
   buckets.sort((a, b) => (a.key! < b.key! ? -1 : a.key! > b.key! ? 1 : 0));
@@ -143,10 +174,9 @@ export function aggregate<T extends RecordRow>(
 function total<T extends RecordRow>(rows: readonly T[], op: string, fieldKey: string | null): number | null {
   if (op === "count") return rows.length;
 
-  const present = rows.map((row) => numericValue(row, fieldKey!)).filter((v): v is number => v !== null);
-  if (present.length === 0) return null;
-  if (op === "sum") return present.reduce((a, b) => a + b, 0);
-  if (op === "avg") return present.reduce((a, b) => a + b, 0) / present.length;
-  if (op === "min") return Math.min(...present);
-  return Math.max(...present);
+  const present = rows
+    .map((row) => numericValue(row, fieldKey!))
+    .filter((value): value is Dec => value !== null);
+
+  return reduce(present, op)?.toJSON() ?? null;
 }

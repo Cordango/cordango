@@ -42,8 +42,15 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** A row value as the wire carries it: decimals as numbers, dates as their invariant text. */
-function toWire(value: unknown): unknown {
+/**
+ * A row value as the wire carries it: decimals as numbers, dates as their invariant text.
+ *
+ * Exported because the gateway is not the only thing that answers with a row. A command returns the
+ * record it moved, and a row that skipped this conversion reaches `JSON.stringify` still holding an
+ * `Instant` — whose microseconds are a bigint, which JSON cannot serialise at all. One conversion,
+ * every path that answers with a record.
+ */
+export function toWire(value: unknown): unknown {
   if (value instanceof Dec) return value.toJSON();
   if (value instanceof PlainDate) return value.toString();
   if (value instanceof Instant) return value.toString();
@@ -52,7 +59,7 @@ function toWire(value: unknown): unknown {
 }
 
 /** One row, with the fields this role may not read removed and every value in its wire shape. */
-function projected(access: EntityAccess, row: RecordRow): RecordRow {
+export function projected(access: EntityAccess, row: RecordRow): RecordRow {
   const visible = project(access, row) ?? {};
   const result: RecordRow = { id: typeof visible["id"] === "string" ? visible["id"] : "" };
   for (const key of Object.keys(visible)) {

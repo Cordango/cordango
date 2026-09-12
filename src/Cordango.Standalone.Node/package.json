@@ -30,12 +30,17 @@
     "check": "tsc -p tsconfig.json --noEmit && vitest run"
   },
   "devDependencies": {
+    "@types/busboy": "^1.5.4",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
     "@types/pg": "^8.23.1",
     "typescript": "5.9.3",
     "vitest": "3.2.4"
   },
   "dependencies": {
-    "@electric-sql/pglite": "^0.5.8"
+    "@electric-sql/pglite": "^0.5.8",
+    "busboy": "^1.6.0",
+    "express": "^5.2.1"
   },
   "optionalDependencies": {
     "pg": "*"

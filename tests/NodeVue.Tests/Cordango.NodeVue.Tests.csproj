@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Cordango.NodeVue.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Deliberately light. The .NET target's suite has to reference Cordango.Standalone, which drags in
+    ASP.NET Core and EF Core, because it COMPILES AND RUNS a generated application to check it. This
+    target's generated application is TypeScript, so nothing here can run it — the Node side has its
+    own suite, in src/Cordango.Standalone.Node, and what is left for these tests is what the
+    GENERATOR produces: which files, containing what, and identically twice.
+  -->
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cordango.Compiler\Cordango.Compiler.csproj" />
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.NodeVue\Cordango.SourceGen.NodeVue.csproj" />
+    <!-- The .NET target too, for the one test that matters most: both of them emit the SAME web
+         tree, and a divergence there is the failure this whole shared-emitter arrangement exists
+         to prevent. -->
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
+  </ItemGroup>
+
+</Project>

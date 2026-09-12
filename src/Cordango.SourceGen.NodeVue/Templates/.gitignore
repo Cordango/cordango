@@ -1,0 +1,6 @@
+node_modules/
+dist/
+appdata/
+.env
+*.log
+api/public/

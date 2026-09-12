@@ -5,6 +5,7 @@
 
 using Cordango.SourceGen;
 using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.NodeVue;
 
 namespace Cordango.Cli.Generate;
 
@@ -21,7 +22,8 @@ namespace Cordango.Cli.Generate;
 /// </summary>
 public static class Targets
 {
-    private static readonly IAppSourceGenerator[] Registered = [new DotNetVueGenerator()];
+    private static readonly IAppSourceGenerator[] Registered =
+        [new DotNetVueGenerator(), new NodeVueGenerator()];
 
     /// <summary>
     /// What a user writes versus what a generator calls itself.

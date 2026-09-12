@@ -92,6 +92,7 @@
     <ProjectReference Include="..\Cordango.Compiler\Cordango.Compiler.csproj" />
     <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
     <ProjectReference Include="..\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
+    <ProjectReference Include="..\Cordango.SourceGen.NodeVue\Cordango.SourceGen.NodeVue.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -110,6 +110,7 @@ public static class Scaffold
         "{{PartialBuildSection}}", "{{RuntimeVersion}}", "{{RuntimeReference}}",
         "{{RuntimeProjectCopy}}", "{{RuntimeSourceCopy}}",
         "{{RuntimeLayout}}", "{{RuntimeLicence}}", "{{WebControlsVersion}}",
+        "{{WebOutDir}}", "{{DevApiOrigin}}",
     ];
 
     /// <summary>
@@ -183,6 +184,13 @@ public static class Scaffold
             ("{{RuntimeSourceCopy}}", options.RuntimeAsPackage ? "" : "COPY runtime/ ./runtime/\n"),
             ("{{RuntimeLayout}}", options.RuntimeAsPackage ? "" : RuntimeLayoutSource),
             ("{{RuntimeLicence}}", options.RuntimeAsPackage ? RuntimeLicencePackage : RuntimeLicenceSource),
+
+            // Where the built front end lands, and where `npm run dev` proxies to. Both live in the
+            // SHARED vite config, because the Vue shell is one tree every standalone target emits —
+            // so the two facts that really are about the backend are substituted rather than
+            // hard-coded into a file that node-vue emits as well.
+            ("{{WebOutDir}}", "../api/wwwroot"),
+            ("{{DevApiOrigin}}", "http://localhost:5000"),
 
             ("{{AppNamespace}}", options.AppNamespace),
             ("{{AppName}}", options.AppName),

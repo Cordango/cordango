@@ -67,15 +67,31 @@ A target is one whole stack — a backend and a frontend that ship together — 
 implementing `IAppSourceGenerator` in `src/Cordango.SourceGen`. Four members: `Id`, `Version`,
 `Capabilities`, `Generate`.
 
-Two things are worth knowing before you start:
+Four things are worth knowing before you start.
+
+**If your frontend is Vue, you do not write one.** `WebEmitter` and `WebScaffold` in
+`src/Cordango.SourceGen.Common` emit the whole `web/` tree, and they are a REST client that never
+asks what the backend is written in. Both first-party targets call them, and `SharedWebTests`
+asserts the two outputs are byte-identical on every corpus application. So building a Node or Python
+backend is exactly that: a backend answering the same HTTP contract. If you need the shell to differ,
+add a *token* the shared tree substitutes — `{{WebOutDir}}` and `{{DevApiOrigin}}` exist for the two
+facts that really are about a backend — rather than forking the tree.
 
 **Declare capabilities from the language, not from your emitters.** `GeneratorCapabilities` is a
 claim about what the target can build, and `cordango check --target <id>` answers from it without
 generating anything. A value your target will never support is *withheld with a reason sentence* —
 `CapabilityCoverageTests` fails if the schema allows something you have not classified either way.
+What your emitters have not reached yet is a different thing and belongs in `CORD23xx` diagnostics,
+which a later release removes with no change to anybody's definition. Both first-party targets
+declare the *same* capabilities and differ only in those diagnostics, because a capability is a claim
+about what a standalone application can be rather than about a language.
 
 **Register it in the CLI, not the SDK.** `src/Cordango.Cli/Generate/Targets.cs` is the composition
 root and the only place that knows any particular generator exists.
+
+**Name yourself in your own diagnostics.** Anything shared takes the target id rather than assuming
+one — this was got wrong exactly once, when the shared web emitter told `node-vue` users about a gap
+in `dotnet-vue`.
 
 You do not have to write it in .NET. The extension point is a process: it describes itself on stdout
 and takes a request on stdin.

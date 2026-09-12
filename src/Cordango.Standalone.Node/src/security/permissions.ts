@@ -55,4 +55,12 @@ export type CurrentUser = {
   userId: string | null;
   isAdministrator: boolean;
   roleKeys: readonly string[];
+  /**
+   * The directory Person behind the login, when the login has one.
+   *
+   * A login and a person are separate things: most people in the directory never sign in. This is
+   * what `{{actor.id}}` resolves to and what a condition's `currentUser` operand compares against,
+   * so it travels with the caller rather than being looked up again at each place that asks.
+   */
+  personId?: string | null;
 };

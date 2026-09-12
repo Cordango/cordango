@@ -90,8 +90,15 @@ export {
   type AggregateResult,
 } from "./records/aggregate.js";
 export {
+  computeAll,
+  computedField,
+  type ComputedOptions,
+} from "./records/computed.js";
+export {
   RecordGateway,
   maxPageSize,
+  projected,
+  toWire,
   type CommandResult,
   type CommandRunner,
   type ListResult,
@@ -108,3 +115,121 @@ export { PgliteDriver } from "./db/pglite.js";
 export { PostgresDriver } from "./db/postgres.js";
 export { columnType, createTableSql, trackingColumns } from "./db/ddl.js";
 export { SqlRecordStore } from "./db/sql-store.js";
+
+// ---- the wire: everything an application serves over HTTP ------------------------------------
+
+export {
+  passThroughMessages,
+  preferredLanguages,
+  JsonApiMessages,
+  type ApiMessages,
+} from "./http/messages.js";
+export { clearCookie, cookie, readCookies, setCookie, type CookieOptions } from "./http/cookies.js";
+export {
+  caller,
+  messagesFor,
+  state,
+  translate,
+  type AuthenticatedAccount,
+  type RequestScope,
+  type RequestState,
+} from "./http/context.js";
+export {
+  antiforgery,
+  antiforgeryCookie,
+  antiforgeryHeader,
+  issueToken,
+  rotate,
+  verifyToken,
+  type AntiforgeryOptions,
+} from "./http/antiforgery.js";
+export {
+  apiNotFound,
+  consoleLog,
+  errorHandler,
+  handler,
+  type ErrorLog,
+} from "./http/error-handler.js";
+export { requireAdministrator, requireSignIn } from "./http/guards.js";
+export { recordsRouter } from "./http/records-router.js";
+export { accountRouter, asObject, refuse, text } from "./http/account-router.js";
+export { adminRouter } from "./http/admin-router.js";
+export { notificationsRouter } from "./http/notifications-router.js";
+export { settingsRouter } from "./http/settings-router.js";
+export { mediaRouter } from "./http/media-router.js";
+
+// ---- identity --------------------------------------------------------------------------------
+
+export {
+  checkPassword,
+  hashPassword,
+  minimumPasswordLength,
+  needsRehash,
+  verifyPassword,
+} from "./identity/passwords.js";
+export {
+  administratorRole,
+  describeUser,
+  isAdministrator,
+  isLockedOut,
+  UserStore,
+  type AppUser,
+  type UserSummary,
+} from "./identity/users.js";
+export {
+  readTicket,
+  signIn,
+  signOut,
+  slide,
+  type SessionOptions,
+  type SessionTicket,
+} from "./identity/sessions.js";
+export {
+  accessKeyPrefix,
+  AccessKeyStore,
+  mintToken,
+  parseToken,
+  type AccessKey,
+} from "./identity/access-keys.js";
+
+// ---- the built-in directory ------------------------------------------------------------------
+
+export {
+  contactDescriptor,
+  departmentDescriptor,
+  directoryDescriptors,
+  directoryEntities,
+  groupDescriptor,
+  organizationDescriptor,
+  personDescriptor,
+  type DirectoryEntity,
+} from "./directory/entities.js";
+export { addDirectory, directoryAccess, directoryRouter } from "./directory/module.js";
+
+// ---- commands, notifications, preferences, media ----------------------------------------------
+
+export {
+  CommandCatalogue,
+  type CommandDefinition,
+  type CommandNotification,
+  type CommandSet,
+  type EffectDefinition,
+} from "./commands/catalogue.js";
+export { CommandService, type Actor, type EffectRunner } from "./commands/command-service.js";
+export { NotificationService, type Notification } from "./notifications/notifications.js";
+export { TableSettingsStore } from "./preferences/table-settings.js";
+export { LocalFileStore, readStored, type FileStore, type StoredFile } from "./media/file-store.js";
+
+// ---- the application itself --------------------------------------------------------------------
+
+export {
+  anonymous,
+  CordangoRuntime,
+  hooksFrom,
+  toCurrentUser,
+  type EntityRegistration,
+  type HookSet,
+  type RuntimeOptions,
+} from "./app/runtime.js";
+export { createApp, mountEntities, type AppServerOptions } from "./app/server.js";
+export { runSeed } from "./app/seed.js";

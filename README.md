@@ -27,8 +27,8 @@ it. The app format, the compiler, the validator and the standalone generator, al
 Both halves read the same file. An **App Definition** describes what an application is, and from
 there it either runs on the platform or compiles into a project that belongs to you.
 
-One definition, many targets. `dotnet-vue` is the first first-party target and the one that works
-today. Node, Python and React are on the way. See [Targets](#targets).
+One definition, many targets. `dotnet-vue` and `node-vue` both work today and emit the same front
+end from the same emitter. Python and React are on the way. See [Targets](#targets).
 
 What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
 no phone home. It's an ordinary project that keeps working whether or not this project does.
@@ -130,15 +130,28 @@ and `cordango targets` prints what each one can and can't build.
 | Target | Backend | Frontend | Status |
 | --- | --- | --- | --- |
 | `dotnet-vue` | ASP.NET Core, EF Core | Vue 3, Vuetify | **Available** |
-| `node-vue` | Node, TypeScript | Vue 3, Vuetify | Designed, next up |
+| `node-vue` | Node, TypeScript, Express | Vue 3, Vuetify | **Available** — workflows and rollups not generated yet |
 | Python | Python | | Planned |
 | React | | React | Planned |
 
 **PostgreSQL is the only database today.** More will follow. Which one a generated application uses
-is the target's choice, never something your definition has to say.
+is the target's choice, never something your definition has to say. `node-vue` also runs on
+[PGlite](https://pglite.dev) — a real PostgreSQL compiled to run inside the process — when no
+`DATABASE_URL` is set, which is what makes `npm start` a complete application with nothing to
+install first.
 
-**Only `dotnet-vue` exists today.** The others aren't implemented and `--target` won't accept them
-yet. They're listed so you can see where this is going, not so you can use them.
+**The front end is the same tree on both targets, not two copies of one.** The Vue shell is a REST
+client: it talks to whatever answers the HTTP contract and never asks what the backend is written
+in. One emitter produces it, both targets call that emitter, and a test asserts the two outputs are
+byte-identical across every example application. So the screens your definition describes render the
+same whichever stack you generate — and adding a third target means writing a backend, not a second
+front end.
+
+**`node-vue` does not generate everything yet.** Workflows, rollups and published forms are reported
+rather than built — `CORD23xx`, "not generated yet", which a later release removes with no change to
+your definition. Run `cordango check --target node-vue` to see what one application would be missing
+before you commit to it. Python and React aren't implemented at all and `--target` won't accept
+them; they're listed so you can see where this is going.
 
 Nothing about the app format is tied to .NET. The schema, the compiler, the validator and the
 capability model are all target-agnostic, and `dotnet-vue` is simply the one that got written first.
@@ -158,8 +171,9 @@ and its database up together, which is why the quickstart is one command.
 
 You don't have to use it. A generated application is an ordinary project in whatever language the
 target emits, so you can run it directly with that toolchain: `dotnet run` and `npm run dev` for
-`dotnet-vue`, whatever is native to the target otherwise. You bring your own PostgreSQL in that
-case. Running a generated application with no Docker and nothing to set up is coming.
+`dotnet-vue`, and `npm install && npm run build && npm start` for `node-vue`. You bring your own
+PostgreSQL for `dotnet-vue`; `node-vue` runs on an in-process one until you point `DATABASE_URL`
+somewhere, so it needs nothing set up at all.
 
 ## Quick Start
 
@@ -236,11 +250,21 @@ Dockerfile
 docker-compose.yml
 ```
 
+From `node-vue`:
+
+```
+api/        Node and TypeScript, Express routers, one module per concern
+web/        Vue 3 and Vuetify, one component per screen — the same tree
+Dockerfile
+docker-compose.yml
+```
+
 Another target lays it out in whatever is idiomatic for its own stack. What every target owes you is
 the same list, because it comes from the definition rather than from the target: entities and their
 schema, a REST API, roles and per-field permissions enforced on the server, commands with their
 guards and effects, workflows, computed fields and rollups, sign-in, a first-run setup screen, and a
-demo dataset.
+demo dataset. A target that has not built all of it yet says so, per application, rather than
+shipping the gap quietly — see [Nothing is dropped silently](#nothing-is-dropped-silently).
 
 Delete the toolchain afterwards and it still builds.
 

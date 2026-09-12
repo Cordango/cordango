@@ -10,9 +10,8 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.Common;
 
 /// <summary>
 /// A dataset to open the application on.
@@ -34,7 +33,10 @@ public static partial class SeedEmitter
     /// person can read the whole table and check it.</summary>
     private const int RowsPerEntity = 24;
 
-    public static GeneratedFile Emit(AppModel app, int seed)
+    /// <param name="path">Where the dataset lands. The only target-specific thing about this
+    /// emitter: the DATA is JSON that says what the application should start with, and which
+    /// directory a particular stack keeps it in is not a fact about the dataset.</param>
+    public static GeneratedFile Emit(AppModel app, int seed, string path = "api/Seed/seed.json")
     {
         ArgumentNullException.ThrowIfNull(app);
 
@@ -81,7 +83,7 @@ public static partial class SeedEmitter
             ["entities"] = blocks,
         };
 
-        return new GeneratedFile("api/Seed/seed.json", document.ToJsonString(Pretty) + "\n");
+        return new GeneratedFile(path, document.ToJsonString(Pretty) + "\n");
     }
 
     /// <summary>

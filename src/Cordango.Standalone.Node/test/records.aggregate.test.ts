@@ -96,4 +96,29 @@ describe("aggregate", () => {
       expect.objectContaining({ code: "aggregate.field_unknown" }),
     );
   });
+
+  it("sums money exactly, without floating-point drift", () => {
+    // Added as JavaScript numbers these give 6267.169999999999, which is what a stat card printed
+    // before the accumulation moved into Dec. A total is the one figure nobody may round for you.
+    const exact: Expense[] = [
+      { id: "1", category: "equipment", amount: Dec.parse("2400.03"), spent_on: null },
+      { id: "2", category: "equipment", amount: Dec.parse("1234.56"), spent_on: null },
+      { id: "3", category: "equipment", amount: Dec.parse("2632.58"), spent_on: null },
+    ];
+
+    const answer = aggregate(exact, descriptor, "sum", "amount", null);
+
+    expect(answer.buckets[0]?.value).toBe(6267.17);
+  });
+
+  it("sums tenths exactly, which binary floating point cannot", () => {
+    const tenths: Expense[] = [
+      { id: "1", category: "meals", amount: Dec.parse("0.1"), spent_on: null },
+      { id: "2", category: "meals", amount: Dec.parse("0.2"), spent_on: null },
+    ];
+
+    const answer = aggregate(tenths, descriptor, "sum", "amount", null);
+
+    expect(answer.buckets[0]?.value).toBe(0.3);
+  });
 });

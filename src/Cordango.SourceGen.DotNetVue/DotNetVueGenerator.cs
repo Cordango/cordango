@@ -239,9 +239,9 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator
 
         // A dataset to open the application on. Derived from the seed alone, so two builds of the
         // same definition produce the same rows.
-        Add(SeedEmitter.Emit(app, request.Options?["seed"]?.GetValue<int>() ?? 42));
+        Add(Common.SeedEmitter.Emit(app, request.Options?["seed"]?.GetValue<int>() ?? 42));
 
-        var web = WebEmitter.Emit(app, allowIncomplete, Capabilities);
+        var web = WebEmitter.Emit(app, allowIncomplete, Capabilities, Id);
         foreach (var file in web.Files) Add(file);
         warnings.AddRange(web.Warnings);
 
