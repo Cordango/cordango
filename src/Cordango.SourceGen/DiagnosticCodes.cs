@@ -64,11 +64,16 @@ public static class DiagnosticCodes
 
     /// <summary>Every code in the range, for the test that stops two of them meaning the same
     /// thing and for anything that wants to document the set.</summary>
+    /// <summary>Custom code on a target that cannot execute it. The only entry in this range that
+    /// is about the PLATFORM rather than about a generator: everything else here says "the platform
+    /// does this and a standalone build does not", and this one says the opposite.</summary>
+    public const string CustomCode = "CORD2113";
+
     public static readonly IReadOnlyList<string> All =
     [
         CrossAppReference, RelatedAppsBlock, HistoryBlock, EnrichEffect, SeriesEntity,
         PrevExpression, WindowedRollup, UnsupportedEffect, UnsupportedTrigger,
-        UnsupportedPlatformTarget, AiFeature, UnsupportedBlock, UnsupportedFieldType,
+        UnsupportedPlatformTarget, AiFeature, UnsupportedBlock, UnsupportedFieldType, CustomCode,
     ];
 }
 

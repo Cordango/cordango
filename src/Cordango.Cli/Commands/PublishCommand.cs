@@ -3,6 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using Cordango.SourceGen;
 using System.Text.Json.Nodes;
 using Cordango.Cli.Remote;
 using Cordango.Cli.Workspace;
@@ -46,6 +47,20 @@ public static class PublishCommand
                 broken.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}")),
                 new JsonObject { ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.ToJson())]) });
         }
+
+        // The platform interprets a definition; it does not compile one. An application carrying
+        // custom code has nothing there to run it, so it is refused HERE rather than accepted and
+        // left with blank columns nobody can explain.
+        var unrunnable = reports
+            .Where(r => r.Definition is not null)
+            .SelectMany(r => PlatformCapabilities.Validate(r.Definition).Select(d => $"{r.AppKey}: {d}"))
+            .ToList();
+
+        // BEFORE --force is even read. Force means "overwrite a version that is already there",
+        // never "send something that cannot run" — and there is no flag for the second, because
+        // there is no state of the world in which publishing this produces a working application.
+        if (unrunnable.Count > 0)
+            return output.Fail("nothing was published — this workspace cannot run on the platform", unrunnable);
 
         var force = args.Has("force");
         using var instance = new Instance(target.Origin, target.Token);

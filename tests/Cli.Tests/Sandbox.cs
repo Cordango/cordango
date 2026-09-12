@@ -75,6 +75,7 @@ public sealed class Sandbox : IDisposable
                 "apply" => Commands.ApplyCommand.Run(args, output),
                 "fmt" => Commands.FmtCommand.Run(args, output),
                 "doctor" => Commands.DoctorCommand.Run(args, output),
+                "custom" => Commands.CustomCommand.Run(args, output),
                 "version" => Commands.VersionCommand.Run(output),
                 "help" => Commands.Help.Print(output),
                 "logout" => Commands.LogoutCommand.Run(args, output),

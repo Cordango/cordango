@@ -6,60 +6,44 @@
 [![Docs](https://img.shields.io/badge/docs-docs.cordango.com-0f766e)](https://docs.cordango.com)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**The open foundation of the Cordango application platform.** Define complete business applications
-in a portable app format, run them on Cordango, or deterministically generate conventional source
-code you can own and deploy anywhere.
+**The open foundation of the Cordango application platform.** Define a complete business application
+in a portable format, run it on Cordango, or generate conventional source code you own and deploy
+anywhere.
 
-## Why YAML?
-Cordango defines complete business applications using our own declarative YAML schema. While the platform was originally built around JSON, it transitioned to YAML to deliberately optimize for how Large Language Models (LLMs) process and generate code. 
+📖 **[Documentation](https://docs.cordango.com)** ·
+[Quickstart](https://docs.cordango.com/quickstart) ·
+[CLI](https://docs.cordango.com/cli/install) ·
+[Concepts](https://docs.cordango.com/concepts) ·
+[Building with an agent](https://docs.cordango.com/ai/overview)
 
-**Eradicating Token Bloat**: JSON requires heavy punctuation, such as braces, brackets, and quotes around every key. Tokenizers often fracture JSON syntax, turning a simple string like "customer_id" into multiple tokens. By relying on indentation and whitespace, YAML drastically reduces token consumption.
+## What this is
 
-**Maximizing Context Density**: By stripping away the syntax formatting, the AI can hold significantly more business logic in its working memory. This prevents models from "forgetting" earlier definitions or hallucinating structures when generating massive, interconnected application modules.
+Cordango is a platform companies run their internal applications on, currently in invite-only beta
+at [cordango.com](https://cordango.com). This repository is what sits underneath it: the app format,
+the compiler, the validator and the standalone generator, all Apache-2.0.
 
-**Deterministic Generation**: The token-efficient schema allows standard AI assistants like a plain ChatGPT session or Claude,  to consistently ingest the app definition and output reliable, working applications without context collapse
+An application here is described rather than coded. Entities and their fields, who may read and
+write what, the states a record moves through, the screens people work in, the figures worked out
+when a row is saved. That description is an **App Definition**, written as YAML, and it is the whole
+application. There is no second source of truth hiding in a codebase somewhere, and no scaffold that
+drifts from the model the day after it is generated.
 
-## What is Cordango?
-Cordango itself is the platform: a hosted product companies run their applications on, currently in
-invite-only beta at [cordango.com](https://cordango.com). This repository is what sits underneath
-it. The app format, the compiler, the validator and the standalone generator, all Apache-2.0.
+From there it goes one of two ways.
 
-Both halves read the same file. An **App Definition** describes what an application is, and from
-there it either runs on the platform or compiles into a project that belongs to you.
+Publish it to the platform and it runs, sharing People, Organizations and a Calendar with every
+other app in the company, with audit history and governance already in place.
 
-One definition, many targets. `dotnet-vue` and `node-vue` both work today and emit the same front
-end from the same emitter. Python and React are on the way. See [Targets](#targets).
+Or build it, and get a conventional repository: an API, a front end, a database schema, a Dockerfile,
+in whatever stack the target emits. Same file, same application, two destinations.
 
-What comes out has no runtime dependency on Cordango. No licence server, no account, no model API,
-no phone home. It's an ordinary project that keeps working whether or not this project does.
+The generated half has no runtime dependency on us. No licence server, no account, no model API, no
+phone home. Delete the toolchain afterwards and it still builds. That is most of the reason this
+repository is open: what you generate has to keep working whether or not we do.
 
-
-📖 **[Documentation](https://docs.cordango.com)** · [Quickstart](https://docs.cordango.com/quickstart) · [CLI reference](https://docs.cordango.com/cli/install) · [Concepts](https://docs.cordango.com/concepts) · [Building with an agent](https://docs.cordango.com/ai/overview)
-
-## Table of Contents
-
-- [Documentation](#documentation)
-- [Targets](#targets)
-- [Requirements](#requirements)
-- [Quick Start](#quick-start)
-  - [Install](#install)
-  - [Generate an application](#generate-an-application)
-- [What you get](#what-you-get)
-- [Commands](#commands)
-- [Nothing is dropped silently](#nothing-is-dropped-silently)
-- [Determinism](#determinism)
-- [Examples](#examples)
-- [Building from source](#building-from-source)
-- [Contributing](#contributing)
-- [Security](#security)
-- [Getting help](#getting-help)
-- [License](#license)
 
 ## From definition to application
 
-Define the application:
-
-```
+```yaml
 entities:
   Expense:
     fields:
@@ -74,120 +58,18 @@ roles:
       - read: Expense
 ```
 
-Build it:
+`cordango build` turns that into a repository with an API, a front end and a Dockerfile. Entities
+and their schema, REST and MCP, sign-in, roles and per-field permissions enforced on the server,
+commands with their guards and effects, workflows, computed fields and rollups, a first-run setup
+screen, and a demo dataset.
 
-```
-cordango build
-```
-
-Get a conventional application:
-
-```
-generated/expenses/
-├── api/        
-├── web/        
-├── Dockerfile
-└── docker-compose.yml
-```
-
-Including:
-
-* REST API + MCP
-* PostgreSQL schema and migrations, more database targets soon
-* authentication
-* server-side permissions
-* workflows and business logic
-* frontend views
-* Docker deployment
-* Webhooks + Events
-* Ready to use
-
-**No Cordango runtime dependency. No licence server. No phone home.**
-
-The generated source code is yours. Run it, modify it, deploy it anywhere.
-
-
-## Documentation
-
-Full documentation is at **[docs.cordango.com](https://docs.cordango.com)**.
-
-| | |
-| --- | --- |
-| [Quickstart](https://docs.cordango.com/quickstart) | From nothing to a running application |
-| [CLI](https://docs.cordango.com/cli/install) | Installing, and every command |
-| [Concepts](https://docs.cordango.com/concepts) | Semantic source, the App Definition, the schema, targets |
-| [Authoring](https://docs.cordango.com/guides/authoring) | Editing an app, semantic operations, roles and access |
-| [Deploying](https://docs.cordango.com/guides/deploying) | Getting a generated application into production |
-| [Validation and CI](https://docs.cordango.com/guides/validation) | Checking a definition in a pipeline |
-| [Building with an agent](https://docs.cordango.com/ai/overview) | Claude Code, Codex, Cursor |
-| [API reference](https://docs.cordango.com/api-reference/introduction) · [MCP](https://docs.cordango.com/mcp/overview) | Talking to an instance |
-
-## Targets
-
-A **target** is one whole stack, a backend and a frontend that ship together. `--target` names it,
-and `cordango targets` prints what each one can and can't build.
-
-| Target | Backend | Frontend | Status |
-| --- | --- | --- | --- |
-| `dotnet-vue` | ASP.NET Core, EF Core | Vue 3, Vuetify | **Available** |
-| `node-vue` | Node, TypeScript, Express | Vue 3, Vuetify | **Available** — workflows and rollups not generated yet |
-| Python | Python | | Planned |
-| React | | React | Planned |
-
-**PostgreSQL is the only database today.** More will follow. Which one a generated application uses
-is the target's choice, never something your definition has to say. `node-vue` also runs on
-[PGlite](https://pglite.dev) — a real PostgreSQL compiled to run inside the process — when no
-`DATABASE_URL` is set, which is what makes `npm start` a complete application with nothing to
-install first.
-
-**The front end is the same tree on both targets, not two copies of one.** The Vue shell is a REST
-client: it talks to whatever answers the HTTP contract and never asks what the backend is written
-in. One emitter produces it, both targets call that emitter, and a test asserts the two outputs are
-byte-identical across every example application. So the screens your definition describes render the
-same whichever stack you generate — and adding a third target means writing a backend, not a second
-front end.
-
-**`node-vue` does not generate everything yet.** Workflows, rollups and published forms are reported
-rather than built — `CORD23xx`, "not generated yet", which a later release removes with no change to
-your definition. Run `cordango check --target node-vue` to see what one application would be missing
-before you commit to it. Python and React aren't implemented at all and `--target` won't accept
-them; they're listed so you can see where this is going.
-
-Nothing about the app format is tied to .NET. The schema, the compiler, the validator and the
-capability model are all target-agnostic, and `dotnet-vue` is simply the one that got written first.
-A generator doesn't have to be written in .NET either. The extension point is a process that
-describes itself on stdout and takes a request on stdin, so one written in Go or Python is as
-welcome as one written in C#.
-
-[Targets](https://docs.cordango.com/concepts/targets) has the detail.
-
-## Requirements
-
-**To run `cordango`:** nothing at all. The binary is self-contained and carries its own runtime. No
-.NET SDK, no .NET runtime, no ICU.
-
-**To run what it generates:** Docker, for now. `docker compose up --build` brings the application
-and its database up together, which is why the quickstart is one command.
-
-You don't have to use it. A generated application is an ordinary project in whatever language the
-target emits, so you can run it directly with that toolchain: `dotnet run` and `npm run dev` for
-`dotnet-vue`, and `npm install && npm run build && npm start` for `node-vue`. You bring your own
-PostgreSQL for `dotnet-vue`; `node-vue` runs on an in-process one until you point `DATABASE_URL`
-somewhere, so it needs nothing set up at all.
-
-## Quick Start
-
-### Install
+## Quick start
 
 **macOS and Linux**
 
 ```sh
 brew install cordango/tap/cordango
-```
-
-Or without Homebrew:
-
-```sh
+# or
 curl -fsSL https://cordango.com/install.sh | sh
 ```
 
@@ -198,75 +80,87 @@ scoop bucket add cordango https://github.com/cordango/scoop-bucket
 scoop install cordango
 ```
 
-**If you already have the .NET SDK**
+**With the .NET SDK already installed**
 
 ```sh
 dotnet tool install -g Cordango.Cli
 ```
 
-Same command, same version, published from the same tag. It's a convenience rather than the main
-route, because generating a Go or React target shouldn't require a .NET SDK to run the compiler.
-
-### Generate an application
+Then:
 
 ```sh
 cordango new expenses            # a workspace, with one application in it
 cd expenses
 cordango check                   # parse, lower and validate. No model, no database.
-cordango targets                 # what can be generated, and what each target supports
-
-cordango configure               # where these apps run. One question, written to cordango.yaml
-cordango build                   # do what it said
+cordango configure               # where these apps run. Asked once, committed.
+cordango build
 
 cd generated/expenses
 docker compose up --build
 ```
 
-`cordango configure` is asked once and committed, so `cordango build` takes no flags from then on —
-for you, for the next person to clone it, and for CI. `--target` still overrides for a one-off run.
-A workspace with no configuration is not broken; `build` writes its definition artifacts and says
-what it did not do.
-
-**Generated applications go to `generated/<app>/` and nowhere else.** There is no output directory
-to choose and no `--out`: one workspace builds all of its apps in one command, into one directory
-each, gitignored because everything in them comes from the source beside them. The application is
-still yours and still leaves — move the directory, or give it a remote of its own.
-
-That last command is the whole deployment. No `.env` to write first, no migration step, no password
-to look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
+That last command is the whole deployment. No `.env` to write, no migration step, no password to
+look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
 account.
 
-The longer version, with an application worth reading at the end of it, is the
-**[Quickstart](https://docs.cordango.com/quickstart)**.
+Generated applications go to `generated/<app>/` and nowhere else. There is no `--out`. The directory
+is gitignored because everything in it comes from the source beside it, and you can move it out
+whenever it is ready to have a life of its own.
 
-## What you get
+## Targets
 
-An ordinary repository you own. From `dotnet-vue`:
+A target is one whole stack, a backend and a frontend that ship together.
 
+| Target | Backend | Frontend | Status |
+| --- | --- | --- | --- |
+| `dotnet-vue` | ASP.NET Core, EF Core | Vue 3, Vuetify | Available |
+| `node-vue` | Node, TypeScript, Express | Vue 3, Vuetify | Available. Workflows and rollups not generated yet |
+| Python | Python | | Planned |
+| React | | React | Planned |
+
+**The front end is one tree, not two copies.** The Vue shell is a REST client: it talks to whatever
+answers the HTTP contract and never asks what the backend is written in. One emitter produces it,
+both targets call that emitter, and a test asserts the two outputs are byte-identical across every
+example application. Adding a third target means writing a backend, not a second front end.
+
+**PostgreSQL is the only database today.** Which one a generated application uses is the target's
+choice, never something your definition has to say. `node-vue` runs on [PGlite](https://pglite.dev)
+when no `DATABASE_URL` is set, so `npm start` is a complete application with nothing to install.
+
+Nothing about the format is tied to .NET. A generator is a process that describes itself on stdout
+and takes a request on stdin, so one written in Go or Python is as welcome as one written in C#.
+[Targets](https://docs.cordango.com/concepts/targets) has the detail.
+
+## Custom code
+
+Some things a definition cannot say: rounding, a checksum, a rule that spans two fields. Put C# in
+`custom/dotnet/` and call it by name.
+
+```csharp
+[CordangoFunctions]
+public static class Rounding
+{
+    [CordangoFunction("round", Description = "Nearest whole number, halves away from zero.")]
+    public static decimal? Round(decimal? value) =>
+        value is null ? null : decimal.Round(value.Value, 0, MidpointRounding.AwayFromZero);
+}
 ```
-api/        ASP.NET Core, MVC controllers, EF Core, migrations you can read
-web/        Vue 3 and Vuetify, one component per screen
-Dockerfile
-docker-compose.yml
+
+```yaml
+computed:
+  expr: custom.round(active_exact)
 ```
 
-From `node-vue`:
+Hooks work the same way. Mark a method `[BeforeCreate]` or `[AfterUpdate]` and it runs on every
+write with the record and a context in hand. A before-hook can change the record or throw to refuse
+the write; an after-hook runs once the write is already decided.
 
-```
-api/        Node and TypeScript, Express routers, one module per concern
-web/        Vue 3 and Vuetify, one component per screen — the same tree
-Dockerfile
-docker-compose.yml
-```
+`cordango custom` creates the folder and a project file your editor understands. The code is
+compiled into the generated application, so a wrong signature is a build error rather than something
+you find out about later.
 
-Another target lays it out in whatever is idiomatic for its own stack. What every target owes you is
-the same list, because it comes from the definition rather than from the target: entities and their
-schema, a REST API, roles and per-field permissions enforced on the server, commands with their
-guards and effects, workflows, computed fields and rollups, sign-in, a first-run setup screen, and a
-demo dataset. A target that has not built all of it yet says so, per application, rather than
-shipping the gap quietly — see [Nothing is dropped silently](#nothing-is-dropped-silently).
-
-Delete the toolchain afterwards and it still builds.
+`dotnet-vue` only for now. An application carrying custom code cannot run on the platform, which
+interprets definitions and has no compiler.
 
 ## Commands
 
@@ -275,54 +169,45 @@ Delete the toolchain afterwards and it still builds.
 | `cordango new <app>` | Create a workspace and its first application |
 | `cordango add app <name>` | Add another application to the workspace |
 | `cordango configure` | Decide once where this workspace's apps run, and commit it |
-| `cordango import <definition.json>` | Bring an App Definition on disk in as editable source |
-| `cordango import [<app>]` | Bring one of a connected instance's apps in as editable source |
+| `cordango import <file>` | Bring an App Definition in as editable source |
 | `cordango check [--target <id>]` | Parse, lower and validate. With `--target`, ask whether that generator can build it |
 | `cordango targets` | What this build can generate, and what each target deliberately won't |
-| `cordango build` | Do what `configure` said |
-| `cordango build --target <id>` | Generate with a target this once, whatever the configuration says |
+| `cordango build [--target <id>]` | Do what `configure` said, or override it once |
+| `cordango custom` | Set up this app's own code and the project an editor reads |
 | `cordango inspect [path]` | Describe the workspace, one application, or one aggregate |
-| `cordango vocabulary [<name>]` | What may be written |
 | `cordango fmt` | Rewrite every source file in canonical form |
 | `cordango doctor` | Check the workspace for problems that aren't source errors |
 
-`cordango --help` lists the rest, including `login`, `publish` and `whoami` for talking to an
-instance. Every command is documented at [docs.cordango.com/cli](https://docs.cordango.com/cli/install).
+`cordango --help` lists the rest, including `login`, `publish` and `whoami`.
 
-## Nothing is dropped silently
+## Two guarantees
 
-**A build refuses rather than quietly shipping less than the definition asks for.** Anything the
-target can't do is reported with a diagnostic code and the path in the definition that caused it,
-and the build stops.
+**Nothing is dropped silently.** A build refuses rather than shipping less than the definition asks
+for. Anything the target can't do is reported with a diagnostic code and the path that caused it.
+`--allow-incomplete` is how you say you know: the gaps are listed in the generated README and
+recorded in `cordango.build.json`, so a partial build can never pass for a complete one later.
+`CORD21xx` means this target will never do that. `CORD23xx` means not generated yet, which a later
+release removes with no change to your definition.
 
-`--allow-incomplete` is how you say you know. The application is generated, every gap is listed in
-its README, and `cordango.build.json` records them permanently, so a partial build can never pass
-for a complete one later.
+**Output is deterministic.** The same definition and generator version produce the same files, byte
+for byte. No timestamps, no random identifiers, no machine paths. CI generates the same fixture
+twice and compares. `cordango build --seed 42` produces the same demo dataset every time, dates
+included.
 
-The codes separate two different kinds of news. `CORD21xx` is *this target will never do that*
-(record history needs an audit trail a standalone application doesn't keep). `CORD23xx` is *not
-generated yet*, which a later release removes with no change to your definition.
+## Requirements
 
-See [Targets](https://docs.cordango.com/concepts/targets) for what each one supports.
+To run `cordango`, nothing. The binary is self-contained and carries its own runtime.
 
-## Determinism
-
-The same App Definition, generator version and scaffold version produce the same files, byte for
-byte. No timestamps, no random identifiers, no machine paths, no locale-dependent formatting in
-generated output. CI generates the same fixture twice and compares.
-
-Seed data works the same way. `cordango build --seed 42` produces the same dataset every time, dates
-included. If you'd rather the demo data looked current, the generated application re-anchors it
-on the day it loads when you set `SEED_DATE=today`. That's a run-time choice which gives up
-reproducibility on purpose, and deliberately not a build-time one, so the build stays deterministic
-either way.
+To run what it generates, Docker is the easy path. You can also use the toolchain directly:
+`dotnet run` and `npm run dev` for `dotnet-vue`, `npm install && npm run build && npm start` for
+`node-vue`. `dotnet-vue` needs a PostgreSQL; `node-vue` brings its own.
 
 ## Examples
 
-Complete applications, as source you can clone, read, change and build:
+Complete applications you can clone, read and build:
 **[cordango/examples](https://github.com/cordango/examples)**.
 
-Start with `expenses`, the smallest one that's still complete. Read `budget-planner` for the
+Start with `expenses`, the smallest one that is still complete. Read `budget-planner` for the
 calculation plane: rollups across a window, figures read across a reference, and a cash balance that
 reads the row before it.
 
@@ -335,22 +220,20 @@ dotnet build Cordango.slnx
 dotnet test Cordango.slnx
 ```
 
-Some tests generate an application and run the real SDK over it, compiling it and asking EF to
-certify its model snapshot against its own model, which reaches the package feed.
+Some tests generate an application and run the real SDK over it, which reaches the package feed.
 `CORDANGO_SKIP_SDK_TESTS=1` skips those. The rest runs offline.
 
 ## Contributing
 
-Pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get set up, what the
-bar is for a change here, and how to add a generator target.
-
-By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers getting set up, the bar for a
+change here, and how to add a target. By taking part you agree to the
+[Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-Please report vulnerabilities privately, see [SECURITY.md](SECURITY.md). A flaw in a generated
-application's authentication or permission enforcement is a flaw in the generator, and it's the most
-serious kind of report we can get.
+Report vulnerabilities privately, see [SECURITY.md](SECURITY.md). A flaw in a generated
+application's authentication or permission enforcement is a flaw in the generator, and it is the
+most serious kind of report we can get.
 
 ## Getting help
 

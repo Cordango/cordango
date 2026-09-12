@@ -49,6 +49,9 @@ try
         "apply" => ApplyCommand.Run(parsed, output),
         "fmt" => FmtCommand.Run(parsed, output),
         "doctor" => DoctorCommand.Run(parsed, output),
+        // Sets up the place an application's own code lives, and refreshes the record types an
+        // editor needs to resolve while somebody writes it.
+        "custom" => CustomCommand.Run(parsed, output),
         // The only commands that touch a network. Everything above is offline and token-free, and
         // that separation is a release gate rather than a coincidence (CordyOSS §14).
         "login" => await LoginCommand.RunAsync(parsed, output, interrupt.Token),

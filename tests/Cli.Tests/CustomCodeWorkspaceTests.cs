@@ -3,6 +3,8 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 
 using System.Text.Json.Nodes;
+using Cordango.Cli.Remote;
+using Cordango.Cli.Workspace;
 
 namespace Cordango.Cli.Tests;
 
@@ -134,6 +136,51 @@ public sealed class CustomCodeWorkspaceTests
 
         Assert.NotEqual(ExitCodes.Ok, cord.Run("doctor"));
         Assert.Contains("changed since the last build", cord.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_platform_refuses_an_application_that_carries_code()
+    {
+        using var cord = new Sandbox();
+        cord.Run("new", "support");
+        WriteCustom(cord, Pricing);
+
+        var exit = cord.Run("check", "--target", "platform");
+
+        Assert.NotEqual(ExitCodes.Ok, exit);
+        Assert.Contains("cannot run on platform", cord.Error, StringComparison.Ordinal);
+        Assert.Contains("no compiler in the runtime", cord.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Building_for_the_platform_refuses_it_too()
+    {
+        using var cord = new Sandbox();
+        using var instance = new FakeInstance();
+        cord.Run("new", "support");
+
+        // A connection first: `build --target platform` checks that BEFORE it compiles anything,
+        // deliberately, so that "you are not connected" never costs a full compile to learn.
+        var workspace = WorkspaceFile.Find(cord.Root, out _)!;
+        var credentials = Credentials.Load();
+        credentials.Save(new InstanceLogin(instance.Origin, "cord_pat.a.b.c", "default",
+            "t@example.com", DateTimeOffset.UtcNow));
+        credentials.Bind(workspace.WorkspaceId, instance.Origin);
+        credentials.Flush();
+
+        WriteCustom(cord, Pricing);
+
+        Assert.NotEqual(ExitCodes.Ok, cord.Run("build", "--target", "platform"));
+        Assert.Contains("cannot run on the platform", cord.Error, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_application_with_no_code_still_checks_against_the_platform()
+    {
+        using var cord = new Sandbox();
+        cord.Run("new", "support");
+
+        Assert.Equal(ExitCodes.Ok, cord.Run("check", "--target", "platform"));
     }
 
     [Fact]

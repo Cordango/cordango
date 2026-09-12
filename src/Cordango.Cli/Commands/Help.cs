@@ -51,6 +51,8 @@ public static class Help
             "Apply semantic operations and rewrite the affected source files."),
         new("fmt [--app <key>]", "Rewrite every .cordango.yaml file in canonical form."),
         new("doctor", "Check the workspace for problems that are not source errors."),
+        new("custom [--app <key>]",
+            "Set up this app's own code, and refresh the record types an editor resolves."),
         new("version", "CLI, source-format and App Definition schema versions."),
         // The connected half. Listed apart in the human rendering below, because everything above
         // works with no instance, no account and no network, and that is worth seeing at a glance.

@@ -10,6 +10,7 @@ using Cordango.Cli.Generate;
 using Cordango.Compile;
 using Cordango.Cli.Workspace;
 using Cordango.SourceGen;
+using Cordango.SourceGen.Common;
 
 namespace Cordango.Cli.Commands;
 
@@ -80,6 +81,31 @@ public static class BuildCommand
             return output.Fail("nothing was built — the source does not hold together",
                 incoherent.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}")),
                 new JsonObject { ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.ToJson())]) });
+        }
+
+        // The platform interprets a definition; it does not compile one. An application carrying
+        // custom code has nothing there to run it, so it is refused HERE rather than accepted and
+        // left with blank columns nobody can explain.
+        var unrunnable = reports
+            .Where(r => r.Definition is not null)
+            .SelectMany(r => PlatformCapabilities.Validate(r.Definition).Select(d => $"{r.AppKey}: {d}"))
+            .ToList();
+
+        if (platform && unrunnable.Count > 0)
+            return output.Fail("nothing was built — this workspace cannot run on the platform", unrunnable);
+
+        // The record types an editor reads while somebody writes custom code beside them. Only for an
+        // app that HAS a custom directory — every other workspace is untouched — and never under
+        // --dry-run, which promises to write nothing.
+        if (!args.Has("dry-run"))
+        {
+            foreach (var loaded in selection.Apps)
+            {
+                var custom = Path.Combine(loaded.Directory, CustomSourceLoader.DirectoryName, "dotnet");
+                if (!System.IO.Directory.Exists(custom)) continue;
+
+                CustomCommand.Sync(loaded, Naming.Pascal(loaded.App?.Key ?? loaded.Key), custom);
+            }
         }
 
         var written = new List<string>();

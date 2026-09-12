@@ -61,6 +61,18 @@ public static class CheckCommand
                 if (report.Definition is JsonObject definition)
                     unsupported[report.AppKey] = TargetValidator.Validate(definition, target.Capabilities);
 
+        // The platform used to withhold nothing, and almost still doesn't — see the note above. The
+        // exception is code: it interprets a definition rather than compiling one, so a method
+        // somebody wrote has nothing to run it. Asked here so that "will this run there?" is
+        // answered before somebody publishes and finds a column silently blank.
+        if (platform)
+            foreach (var report in reports)
+                if (report.Definition is { } definition
+                    && PlatformCapabilities.Validate(definition) is { Count: > 0 } refusals)
+                {
+                    unsupported[report.AppKey] = refusals;
+                }
+
         var incoherent = reports.Where(r => !r.Coherent).ToList();
         var payload = new JsonObject
         {
@@ -69,9 +81,9 @@ public static class CheckCommand
 
         if (platform) payload["target"] = BuildConfig.Platform;
 
-        if (target is not null)
+        if (target is not null || platform)
         {
-            payload["target"] = target.Id;
+            if (target is not null) payload["target"] = target.Id;
             payload["unsupported"] = new JsonArray([.. unsupported
                 .SelectMany(kv => kv.Value.Select(d => (JsonNode)new JsonObject
                 {
@@ -95,10 +107,16 @@ public static class CheckCommand
         var blocked = unsupported.Where(kv => kv.Value.Count > 0).ToList();
         if (blocked.Count > 0)
         {
+            // "run on" for the platform, "built by" for a generator. The platform does not build
+            // anything, and telling somebody their app cannot be BUILT by it would send them
+            // looking for a build step that does not exist.
+            var what = target?.Id ?? BuildConfig.Platform;
+            var verb = target is null ? "run on" : "be built by";
+
             return output.Fail(
                 blocked.Count == 1
-                    ? $"{blocked[0].Key} cannot be built by {target!.Id}"
-                    : $"{blocked.Count} apps cannot be built by {target!.Id}",
+                    ? $"{blocked[0].Key} cannot {verb} {what}"
+                    : $"{blocked.Count} apps cannot {verb} {what}",
                 blocked.SelectMany(kv => kv.Value.Select(d => $"{kv.Key}: {d}")),
                 payload);
         }
