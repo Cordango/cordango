@@ -118,6 +118,10 @@
       "items": {
         "$ref": "#/$defs/pluginRef"
       }
+    },
+    "custom": {
+      "description": "DERIVED, NEVER AUTHORED. The contract of the code under this app's custom/<language>/ directory, reconstructed by the compiler on every build from the source itself. Do not write it by hand: whatever is here is overwritten. It carries signatures and a hash of the sources, never the source, so a definition alone is NOT enough to rebuild an application that uses custom code.",
+      "$ref": "#/$defs/customCode"
     }
   },
   "$defs": {
@@ -284,6 +288,161 @@
           "type": "object"
         }
       }
+    },
+    "customCode": {
+      "type": "object",
+      "required": [
+        "language",
+        "hash"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "language": {
+          "description": "Which custom/<language>/ directory this was read from, and therefore which target can build it. An application whose custom code is in one language cannot be built by a target that speaks another.",
+          "type": "string",
+          "enum": [
+            "dotnet"
+          ]
+        },
+        "hash": {
+          "description": "sha256 over the custom sources, so that editing a body with no change to any signature still changes the application. A hash is not a body: it identifies the source without carrying it.",
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "functions": {
+          "description": "Functions callable from a computed field's expression as custom.<name>(...). Pure and synchronous by contract.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/customFunction"
+          }
+        },
+        "hooks": {
+          "description": "Methods run by the runtime around a record write.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/customHook"
+          }
+        }
+      }
+    },
+    "customFunction": {
+      "type": "object",
+      "required": [
+        "name",
+        "returns",
+        "params",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "The name an expression calls, after the `custom.` prefix.",
+          "$ref": "#/$defs/identifier"
+        },
+        "returns": {
+          "$ref": "#/$defs/customKind"
+        },
+        "params": {
+          "description": "In declaration order. An expression passes them positionally.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "kind"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "$ref": "#/$defs/identifier"
+              },
+              "kind": {
+                "$ref": "#/$defs/customKind"
+              }
+            }
+          }
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "source": {
+          "$ref": "#/$defs/customSource"
+        }
+      }
+    },
+    "customHook": {
+      "type": "object",
+      "required": [
+        "entity",
+        "event",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "entity": {
+          "$ref": "#/$defs/identifier"
+        },
+        "event": {
+          "type": "string",
+          "enum": [
+            "before_create",
+            "after_create",
+            "before_update",
+            "after_update",
+            "before_delete",
+            "after_delete"
+          ]
+        },
+        "stage": {
+          "description": "Where a BEFORE hook sits relative to the computed-field pass: before it, so the hook can set a value the formulas then read, or after it, so the hook can read what they worked out. Meaningless on the after_* and delete events, which run once the write is decided.",
+          "type": "string",
+          "enum": [
+            "before_computed",
+            "after_computed"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/customSource"
+        }
+      }
+    },
+    "customSource": {
+      "description": "Where the code is, named the way the target's own compiler names it. The generator needs this to emit a call; nothing else reads it.",
+      "type": "object",
+      "required": [
+        "file",
+        "type",
+        "method"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "description": "Relative to custom/<language>/, forward-slashed.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "method": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      }
+    },
+    "customKind": {
+      "description": "The kinds a computed expression has. Deliberately not `date`: the two halves of the .NET emitter disagree today about which CLR type a date is, and admitting one before that is settled would bake the disagreement into a public contract.",
+      "type": "string",
+      "enum": [
+        "number",
+        "boolean",
+        "text"
+      ]
     }
   }
 }

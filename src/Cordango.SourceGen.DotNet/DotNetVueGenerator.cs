@@ -24,9 +24,25 @@ namespace Cordango.SourceGen.DotNet;
 /// written from the language rather than backwards from whatever the emitters happened to
 /// implement.</para>
 /// </summary>
-public sealed class DotNetVueGenerator : IAppSourceGenerator
+public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
 {
     public string Id => "dotnet-vue";
+
+    /// <summary>
+    /// Reading custom C# is this target's job because writing C# is.
+    ///
+    /// <para>The interface hangs off the GENERATOR rather than being registered on its own, because
+    /// <c>Targets.Registered</c> is a flat list of generators and a scanner nobody can reach is no
+    /// use. <c>Targets.All.OfType&lt;ICustomCodeScanner&gt;()</c> is then the whole lookup, and the
+    /// registry needs no new concept for a second language to join.</para>
+    /// </summary>
+    private readonly Custom.CSharpScanner _scanner = new();
+
+    public string Language => _scanner.Language;
+
+    public string SourceExtension => _scanner.SourceExtension;
+
+    public CustomScanResult Scan(CustomCodeContext context) => _scanner.Scan(context);
 
     /// <summary>Zero major: the emitters are not written. The version is in the build metadata of
     /// everything this produces, so it starts honest rather than starting at 1.0.</summary>

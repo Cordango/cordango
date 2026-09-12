@@ -26,6 +26,28 @@ public sealed class ImportTests
     }
 
     [Fact]
+    public void A_definition_that_uses_custom_code_is_refused()
+    {
+        using var cord = new Sandbox();
+        cord.Run("new", "placeholder");
+
+        var document = Corpus("task-manager");
+        document["custom"] = new JsonObject
+        {
+            ["language"] = "dotnet",
+            ["hash"] = "sha256:" + new string('a', 64),
+        };
+        File.WriteAllText(cord.Path_("hand.json"), document.ToJsonString());
+
+        var exit = cord.Run("import", "hand.json");
+
+        Assert.Equal(ExitCodes.Failed, exit);
+        Assert.Contains("uses custom code", cord.Error, StringComparison.Ordinal);
+        Assert.Contains("Import the source workspace", cord.Error, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(cord.Path_("apps/task-manager")));
+    }
+
+    [Fact]
     public void Asking_for_the_apps_with_nothing_to_ask_says_how_to_connect()
     {
         using var cord = new Sandbox();

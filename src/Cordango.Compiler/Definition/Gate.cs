@@ -413,6 +413,7 @@ public static class Gate
         ValidateProcesses(root["processes"], behavior, commandsByEntity, errors);
         ValidateInitialRules(behavior, errors);
         ValidateComputedFields(behavior, errors);
+        ValidateCustomCode(root["custom"] as JsonObject, behavior, errors);
 
         // references resolve; displayField resolves
         foreach (var en in entities)
@@ -2195,6 +2196,64 @@ public static class Gate
             ComputedValueKind.Text => "text",
             _ => "number",
         };
+
+    /// <summary>
+    /// The custom-code contract, checked as a contract rather than as a shape.
+    ///
+    /// <para>The schema already says these strings are well formed, and the scanner that wrote them
+    /// read real source. Neither is the question here. A definition reaches this gate from an
+    /// import, a paste or a tool that is not our CLI, and a hook naming an entity this application
+    /// does not have would otherwise travel all the way to a generator and become a registration
+    /// for a type nobody emitted.</para>
+    ///
+    /// <para>The section is DERIVED — the compiler rebuilds it from <c>custom/&lt;language&gt;/</c>
+    /// on every build — so nothing here is a rule an author has to satisfy by hand. It is the
+    /// boundary check for metadata that arrived from somewhere else.</para>
+    /// </summary>
+    private static void ValidateCustomCode(JsonObject? custom, BehaviorCtx ctx, List<string> errors)
+    {
+        if (custom is null) return;
+
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var node in custom["functions"] as JsonArray ?? [])
+        {
+            if (node is not JsonObject fn) continue;
+            var name = Str(fn, "name");
+            if (name is null) continue;
+
+            if (!names.Add(name))
+                errors.Add($"SEMANTIC: custom function 'custom.{name}' is declared more than once, "
+                    + "so an expression calling it would have two answers");
+
+            var parameters = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var p in fn["params"] as JsonArray ?? [])
+            {
+                if (p is not JsonObject param) continue;
+                if (Str(param, "name") is { } pn && !parameters.Add(pn))
+                    errors.Add($"SEMANTIC: custom function 'custom.{name}' has two parameters "
+                        + $"called '{pn}'");
+            }
+        }
+
+        foreach (var node in custom["hooks"] as JsonArray ?? [])
+        {
+            if (node is not JsonObject hook) continue;
+
+            var entity = Str(hook, "entity");
+            var @event = Str(hook, "event");
+
+            if (entity is not null && !ctx.Entities.Contains(entity))
+                errors.Add($"SEMANTIC: custom hook on '{@event ?? "a record"}' names entity "
+                    + $"'{entity}', which this application does not have");
+
+            // `stage` places a hook around the computed-field pass, and only a BEFORE hook has a
+            // position to take: the after_* events run once the write is already decided.
+            if (hook["stage"] is not null && @event is not ("before_create" or "before_update"))
+                errors.Add($"SEMANTIC: custom hook on '{@event ?? "a record"}' sets a stage, which "
+                    + "only a before_create or before_update hook has — the others run after the "
+                    + "write is decided, with nothing left to order them against");
+        }
+    }
 
     private static void ValidateComputedCycles(string entity,
         IReadOnlyDictionary<string, JsonObject> fields, List<string> errors)

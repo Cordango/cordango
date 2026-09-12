@@ -79,4 +79,15 @@ public class CapabilityCoverageTests
         Assert.All(NotYetCodes.All, c => Assert.StartsWith("CORD23", c, StringComparison.Ordinal));
         Assert.Empty(NotYetCodes.All.Intersect(NotYetCodes.Retired, StringComparer.Ordinal));
     }
+
+    [Fact]
+    public void Every_custom_code_code_is_distinct_and_shares_no_number_with_another_range()
+    {
+        Assert.Equal(CustomCodeCodes.All.Count, CustomCodeCodes.All.Distinct(StringComparer.Ordinal).Count());
+        Assert.All(CustomCodeCodes.All, c => Assert.StartsWith("CORD24", c, StringComparison.Ordinal));
+
+        Assert.Empty(CustomCodeCodes.All.Intersect(DiagnosticCodes.All, StringComparer.Ordinal));
+        Assert.Empty(CustomCodeCodes.All.Intersect(NotYetCodes.All, StringComparer.Ordinal));
+        Assert.Empty(CustomCodeCodes.All.Intersect(NotYetCodes.Retired, StringComparer.Ordinal));
+    }
 }

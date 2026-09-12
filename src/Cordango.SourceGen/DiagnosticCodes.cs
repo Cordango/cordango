@@ -133,3 +133,50 @@ public static class NotYetCodes
     /// new — tests still assert their absence.</summary>
     public static readonly IReadOnlyList<string> Retired = ["CORD2304"];
 }
+
+/// <summary>
+/// The CORD24xx range: "this is custom code you wrote, and it is not something this can call."
+///
+/// <para>A third answer, and the reason it is a third range rather than borrowed from either of the
+/// others. CORD21xx says the target cannot; CORD23xx says the target has not yet. Both are
+/// statements about the TOOL. These are statements about the SOURCE — the file is there, it was
+/// read, and what it declares is not callable. The reader's next move is an edit, not a wait and
+/// not a workaround.</para>
+///
+/// <para>Coarse on purpose: one code per KIND of mistake rather than one per rule, so the message
+/// carries the specifics and the code stays greppable.</para>
+/// </summary>
+public static class CustomCodeCodes
+{
+    /// <summary>A declaration that is not the shape custom code takes — the wrong namespace, an
+    /// inaccessible or generic type, a marker missing, a method that is not static where it must
+    /// be.</summary>
+    public const string Shape = "CORD2400";
+
+    /// <summary>A parameter or return type a computed expression cannot carry. The set is tiny and
+    /// closed, and the message names it.</summary>
+    public const string Type = "CORD2401";
+
+    /// <summary>A function that reads a clock, a random number or anything else that makes the same
+    /// row work out to two different figures.</summary>
+    public const string Determinism = "CORD2402";
+
+    /// <summary>Two declarations claiming one name, so an expression calling it would have two
+    /// answers.</summary>
+    public const string Duplicate = "CORD2403";
+
+    /// <summary>A hook whose parameters are not the ones its event hands over — most often an
+    /// update hook missing the previous version of the row.</summary>
+    public const string HookSignature = "CORD2404";
+
+    /// <summary>A WARNING, not an error: custom code that reaches outside itself. Legitimate in a
+    /// hook, and a reason to look twice in a function.</summary>
+    public const string SideEffect = "CORD2405";
+
+    /// <summary>Every code in the range, for the test that stops two of them meaning the same
+    /// thing.</summary>
+    public static readonly IReadOnlyList<string> All =
+    [
+        Shape, Type, Determinism, Duplicate, HookSignature, SideEffect,
+    ];
+}

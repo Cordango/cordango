@@ -22,6 +22,26 @@
   </ItemGroup>
 
   <!--
+    ROSLYN, TO READ CUSTOM C# WITHOUT COMPILING IT.
+
+    `cordango check` is offline and needs no .NET SDK, and that stays true: this is a PARSER, not
+    the SDK. It reads a syntax tree and never builds a compilation, so nothing here resolves a
+    `using`, looks at another assembly or touches the disk.
+
+    It lives in THIS project rather than in the CLI because the thing that knows how to read C# is
+    the thing that knows how to emit it. A target generating another language brings its own reader
+    and neither pays for the other's parser.
+
+    The cost is real and was measured before it was accepted: about 9.6 MB of assemblies, roughly
+    4-5 MB once the single-file binary is compressed. The alternative was a hand-written scanner,
+    and the closed three-entry type table that makes one feasible is also what makes Roslyn's real
+    strength — surviving exotic syntax — nearly free to have instead.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
+  </ItemGroup>
+
+  <!--
     THE SCAFFOLD, EMBEDDED — and note what is NOT here: a ProjectReference to Cordango.Standalone.
 
     A generated application's runtime is emitted as SOURCE, so what this project needs from

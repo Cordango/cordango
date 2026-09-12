@@ -283,6 +283,18 @@ public static class ImportCommand
         if (errors.Count > 0)
             return output.Fail("that is not a valid App Definition", errors);
 
+        // An App Definition is otherwise a portable artifact, and this is the one place that stops
+        // being true. `custom` carries the CONTRACT of the code — signatures and a hash — and never
+        // the code, so importing it would produce a workspace whose definition claims functions no
+        // file in it defines. Worse, `custom` is derived: the next compile would rebuild it from a
+        // custom/ directory that is not there and silently drop what the document said.
+        if (document["custom"] is JsonObject)
+            return output.Fail("that App Definition uses custom code", [
+                "An App Definition carries only its contract and a hash of its sources, never the "
+                + "sources themselves, so this document is not enough to rebuild the application. "
+                + "Import the source workspace instead — the one with the custom/ directory in it.",
+            ]);
+
         var key = (string?)document["key"];
         if (string.IsNullOrWhiteSpace(key))
             return output.Fail("that App Definition has no key", ["an App Definition's key is its identity"]);
