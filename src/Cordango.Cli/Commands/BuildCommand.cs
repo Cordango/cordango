@@ -232,7 +232,11 @@ public static class BuildCommand
                     report.Manifest!["build"]?["compiler"]?.GetValue<string>() ?? "unknown",
                     report.Manifest!["build"]?["manifestVersion"]?.GetValue<string>() ?? "1"));
 
-            var result = target.Generate(new GenerateRequest(artifact, Options(args, config)));
+            // The SAME bundle the check hashed, never a second read. The generator verifies it
+            // against the hash now in the definition, and a save between the two would
+            // otherwise turn into a refusal nobody could explain.
+            var result = target.Generate(
+                new GenerateRequest(artifact, Options(args, config), report.CustomSources));
 
             if (!result.Ok)
                 return output.Fail($"{target.Id} cannot build {report.AppKey}",

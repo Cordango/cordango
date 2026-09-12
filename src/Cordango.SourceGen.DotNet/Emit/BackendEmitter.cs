@@ -181,6 +181,17 @@ public static class BackendEmitter
         if (FormsEmitter.HasForms(app)) source.Line("services.AddForms(Forms.AppForms.Catalogue);");
         source.Line();
 
+        // The classes the author wrote, one registration each however many hooks they carry. Scoped,
+        // like everything else a write touches, so a hook can take a DbContext or a logger in its
+        // constructor the way any other service does.
+        foreach (var type in app.CustomHooks.Select(h => h.Type).Distinct(StringComparer.Ordinal)
+                     .OrderBy(t => t, StringComparer.Ordinal))
+        {
+            source.Line($"services.AddScoped<global::{app.Namespace}.Custom.{type}>();");
+        }
+
+        if (app.CustomHooks.Count > 0) source.Line();
+
         foreach (var entity in app.Entities)
         {
             source.Line($"services.AddRecord(AppDescriptors.{entity.TypeName}Descriptor);");
@@ -188,11 +199,21 @@ public static class BackendEmitter
             if (AutoFields(app, entity) is not null)
                 source.Line($"services.AddScoped<IBeforeCreate<{entity.TypeName}>, {entity.TypeName}AutoFields>();");
 
+            // BEFORE the figures are worked out, so a hook can set an input a formula then reads.
+            // RecordHooks runs them in registration order, so this line IS the ordering.
+            foreach (var hook in CustomHooksFor(app, entity, beforeComputed: true))
+                source.Line($"services.AddScoped<{hook.Interface}<{entity.TypeName}>, {hook.AdapterName}>();");
+
             if (Computed(app, entity) is not null)
             {
                 source.Line($"services.AddScoped<IBeforeCreate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
                 source.Line($"services.AddScoped<IBeforeUpdate<{entity.TypeName}>, {entity.TypeName}ComputedFields>();");
             }
+
+            // Everything else: an after-hook, a delete hook, or a before-hook that asked to see what
+            // the formulas came to.
+            foreach (var hook in CustomHooksFor(app, entity, beforeComputed: false))
+                source.Line($"services.AddScoped<{hook.Interface}<{entity.TypeName}>, {hook.AdapterName}>();");
 
             // AFTER, on all three: a total counts what is in the database, so it is worked out once
             // the write is there — including a delete, whose parent must stop counting it.
@@ -1170,4 +1191,11 @@ public static class BackendEmitter
         System.Text.Json.JsonValueKind.False => "false",
         _ => "null",
     };
+    /// <summary>The author's hooks on one entity, on one side of the computed-field pass, in the
+    /// order they were written. Declaration order is registration order is run order, so somebody
+    /// reading two hooks in a file sees the sequence they will happen in.</summary>
+    private static IEnumerable<CustomHookModel> CustomHooksFor(
+        AppModel app, EntityModel entity, bool beforeComputed) =>
+        app.CustomHooks.Where(h => h.Entity == entity.Key && h.RunsBeforeComputed == beforeComputed);
+
 }

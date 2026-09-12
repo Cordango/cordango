@@ -25,7 +25,8 @@ public sealed record ScaffoldOptions(
     string AppKey,
     string AppNamespace,
     string PartialBuildSection = "",
-    bool RuntimeAsPackage = true);
+    bool RuntimeAsPackage = true,
+    bool HasCustomCode = false);
 
 /// <summary>
 /// Every file a generated application has before a single entity is generated into it: the host, the
@@ -102,6 +103,27 @@ public static class Scaffold
 
         """;
 
+    /// <summary>
+    /// What custom code is written against, so an author never writes a <c>using</c> for ours.
+    ///
+    /// <para>Four, and each earns its place: Custom holds the attributes, Hooks holds RecordContext,
+    /// Records holds the interfaces those adapt to, and Entities holds the record types a hook takes
+    /// as its first parameter. Somebody writing their first hook should be able to name
+    /// <c>Scenario</c> without being told which namespace we put it in.</para>
+    ///
+    /// <para>Substituted BEFORE <c>{{AppNamespace}}</c> is, which is why the nested token resolves —
+    /// see the ordering note on the substitution table.</para>
+    /// </summary>
+    private const string CustomUsings = """
+  <ItemGroup>
+    <Using Include="Cordango.Standalone.Custom" />
+    <Using Include="Cordango.Standalone.Hooks" />
+    <Using Include="Cordango.Standalone.Records" />
+    <Using Include="{{AppNamespace}}.Entities" />
+  </ItemGroup>
+
+""";
+
     /// <summary>Every placeholder the scaffold understands, so a test can assert that none of them
     /// survives into the output rather than keeping its own list that drifts.</summary>
     public static readonly IReadOnlyList<string> Tokens =
@@ -110,7 +132,7 @@ public static class Scaffold
         "{{PartialBuildSection}}", "{{RuntimeVersion}}", "{{RuntimeReference}}",
         "{{RuntimeProjectCopy}}", "{{RuntimeSourceCopy}}",
         "{{RuntimeLayout}}", "{{RuntimeLicence}}", "{{WebControlsVersion}}",
-        "{{WebOutDir}}", "{{DevApiOrigin}}",
+        "{{WebOutDir}}", "{{DevApiOrigin}}", "{{CustomUsings}}",
     ];
 
     /// <summary>
@@ -177,6 +199,13 @@ public static class Scaffold
         {
             ("{{WebControlsVersion}}", WebControlsVersion),
             ("{{RuntimeReference}}", options.RuntimeAsPackage ? PackageReference : ProjectReference),
+
+            // The namespaces custom code is written against, supplied by the PROJECT rather than by
+            // a file. A generated GlobalUsings.cs would sit in the same directory as the author's
+            // own sources and could collide with one they wrote; an implicit using cannot, and it
+            // means nobody has to know which namespace an attribute came from to write their first
+            // function. Absent entirely when an application carries no custom code.
+            ("{{CustomUsings}}", options.HasCustomCode ? CustomUsings : ""),
             // The Dockerfile copies what the project file references. With the runtime restored
             // from a feed there is no runtime/ directory to copy, and a COPY of a path that does
             // not exist fails the build.

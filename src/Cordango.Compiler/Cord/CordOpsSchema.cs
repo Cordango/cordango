@@ -303,7 +303,8 @@ internal static class CordOpsSchema
                 + "ordered or case-folded. Reads number, boolean, "
                 + "date and text fields of this record, or one hop across a reference. On a series "
                 + "entity, `prev(field, seed)` reads the row before this one — that is how a running "
-                + "balance is expressed. Never typed in; typed integer/decimal/money/boolean/date/text."),
+                + "balance is expressed. An app's own code is called as `custom.name(...)`. "
+                + "Never typed in; typed integer/decimal/money/boolean/date/text."),
             ["aggregate"] = Ref("#/$defs/aggregate"),
         },
     };

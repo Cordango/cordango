@@ -30,6 +30,16 @@ public enum ComputedValueKind
     Text,
 }
 
+/// <summary>
+/// What an application's own code offers an expression: the kinds it takes, and the kind it answers.
+///
+/// <para>Kinds, not types. The compiler has no idea what C# is, and must not: this is the same
+/// question it asks about a field, so a custom call type-checks by the rules already in force
+/// rather than by a second set that happens to agree today.</para>
+/// </summary>
+public sealed record CustomSignature(
+    IReadOnlyList<ComputedValueKind> Parameters, ComputedValueKind Returns);
+
 /// <summary>The statically checked shape of an expression, including every field it reads.</summary>
 public sealed record ComputedExprValidation(
     string? Error,
@@ -195,7 +205,31 @@ public static class ComputedExpr
         MathFuncs.Contains(token) || DurationFuncs.Contains(token)
         || DatePartFuncs.Contains(token) || DateBoundaryFuncs.Contains(token)
         || token == PrevFunc || token == ConditionalFunc
-        || token == SwitchFunc || token == CaseFunc;
+        || token == SwitchFunc || token == CaseFunc
+        || IsCustomCall(token);
+
+    /// <summary>
+    /// What a call into the application's own code is spelled as: <c>custom.discount(total)</c>.
+    ///
+    /// <para><b>A prefix, so that this stays a STATIC question.</b> The two identifier collectors
+    /// are context-free by design and have no registry to consult; if they had to know which custom
+    /// functions an application declares, an unknown one would be collected as a FIELD and would
+    /// quietly corrupt cycle detection and hop discovery. A name nobody declared is still a
+    /// function by its shape, and saying so is validation's job rather than the tokenizer's.</para>
+    ///
+    /// <para>The tokenizer already folds one dot into a single token, so this costs nothing there.
+    /// And because <see cref="IsFunctionName"/> is only ever asked about a token followed by
+    /// <c>(</c>, a reference field genuinely called <c>custom</c> keeps working: <c>custom.owner</c>
+    /// is a hop and <c>custom.owner(</c> is not something anybody can write.</para>
+    /// </summary>
+    public const string CustomPrefix = "custom.";
+
+    public static bool IsCustomCall(string token) =>
+        token.StartsWith(CustomPrefix, StringComparison.Ordinal) && token.Length > CustomPrefix.Length;
+
+    /// <summary>The name an application declares, without the prefix an expression writes.</summary>
+    public static string CustomName(string token) =>
+        IsCustomCall(token) ? token[CustomPrefix.Length..] : token;
 
     /// <summary>
     /// <c>prev(field)</c> or <c>prev(field, seed)</c> — the value of <c>field</c> on the PREVIOUS row
@@ -239,11 +273,12 @@ public static class ComputedExpr
         Func<string, string?>? dateArgError = null,
         Func<string, string?>? prevArgError = null,
         Func<string, string, string?>? datePartArgError = null,
-        Func<string, string, string?>? codeError = null)
+        Func<string, string, string?>? codeError = null,
+        Func<string, CustomSignature?>? customSignature = null)
     {
         var parser = new Parser(expr, fieldKind, identError ?? (_ => null), dateArgError ?? (_ => null),
             prevArgError ?? identError ?? (_ => null), datePartArgError ?? ((_, _) => null),
-            codeError ?? ((_, _) => null));
+            codeError ?? ((_, _) => null), customSignature);
         var node = parser.Parse();
         return new ComputedExprValidation(parser.Error, node?.Kind, parser.Identifiers);
     }
@@ -306,9 +341,17 @@ public static class ComputedExpr
     /// <param name="fieldKind">What type each identifier has, so the tree carries the same static
     /// typing the evaluator relies on: <c>a == b</c> means something different for two dates than
     /// for two numbers, and the answer is decided here rather than at every use.</param>
-    public static Node? Parse(string? expr, Func<string, ComputedValueKind?> fieldKind)
+    public static Node? Parse(string? expr, Func<string, ComputedValueKind?> fieldKind) =>
+        Parse(expr, fieldKind, null);
+
+    /// <param name="customSignature">What the application's own code offers. A translator MUST pass
+    /// the same lookup its validator did: without it a custom call validates and then fails to
+    /// parse, and the target emits nothing for a field the author was told was fine.</param>
+    public static Node? Parse(string? expr, Func<string, ComputedValueKind?> fieldKind,
+        Func<string, CustomSignature?>? customSignature)
     {
-        var parser = new Parser(expr, fieldKind, _ => null, _ => null, _ => null);
+        var parser = new Parser(expr, fieldKind, _ => null, _ => null, _ => null, null, null,
+            customSignature);
         var node = parser.Parse();
         return parser.Error is null ? node : null;
     }
@@ -343,6 +386,22 @@ public static class ComputedExpr
     /// <summary>A reference to a field: this record's own, or <c>reference.field</c> for one hop.</summary>
     public sealed record FieldNode(string Key, ComputedValueKind FieldKind) : Node(FieldKind);
 
+    /// <summary>
+    /// <c>custom.discount(total, tier)</c> — a call into code the application carries.
+    ///
+    /// <para><b>The one node shape that could not be desugared, and the reason it is worth adding
+    /// anyway.</b> House policy prefers a surface form that lowers onto existing nodes, because a
+    /// new shape is a change to every evaluator, every emitter and every port. A user-written body
+    /// cannot lower onto anything. The alternative was a built-in per function, which is that same
+    /// change EVERY TIME somebody needs a calculation we did not think of — so the cost is paid
+    /// once here and never again.</para>
+    ///
+    /// <para><see cref="Name"/> is the name without the prefix, because the prefix is how an
+    /// expression SPELLS the call and has nothing to do with what is being called.</para>
+    /// </summary>
+    public sealed record CustomCallNode(
+        string Name, IReadOnlyList<Node> Args, ComputedValueKind ResultKind) : Node(ResultKind);
+
     /// <summary><c>-x</c> or <c>not x</c>.</summary>
     public sealed record UnaryNode(string Op, Node Operand, ComputedValueKind ResultKind) : Node(ResultKind);
 
@@ -376,6 +435,7 @@ public static class ComputedExpr
         private readonly Func<string, string, string?> _datePartArgError;
         private readonly Func<string, string, string?> _codeError;
         private readonly Func<string, string?> _prevArgError;
+        private readonly Func<string, CustomSignature?> _customSignature;
         private int _pos;
 
         public string? Error { get; private set; }
@@ -385,8 +445,10 @@ public static class ComputedExpr
             Func<string, string?> identError, Func<string, string?> dateArgError,
             Func<string, string?>? prevArgError = null,
             Func<string, string, string?>? datePartArgError = null,
-            Func<string, string, string?>? codeError = null)
+            Func<string, string, string?>? codeError = null,
+            Func<string, CustomSignature?>? customSignature = null)
         {
+            _customSignature = customSignature ?? (_ => null);
             _prevArgError = prevArgError ?? identError;
             _datePartArgError = datePartArgError ?? ((_, _) => null);
             _codeError = codeError ?? ((_, _) => null);
@@ -531,6 +593,7 @@ public static class ComputedExpr
                 return null;
             }
             _pos++; // '('
+            if (IsCustomCall(name)) return CustomCall(name);
             if (name == SwitchFunc || name == CaseFunc)
             {
                 var rows = new List<Node>();
@@ -820,6 +883,63 @@ public static class ComputedExpr
             _pos++;
             return true;
         }
+        /// <summary>
+        /// A call into the application's own code, checked against what that code declares.
+        ///
+        /// <para>Arity and kinds are checked HERE rather than left to the target's compiler, because
+        /// the target's compiler speaks about C# parameters and this reader wrote a formula. Being
+        /// told that <c>custom.discount</c> takes a number where you passed a date is actionable;
+        /// being told that <c>decimal?</c> is not convertible from <c>string?</c> in a generated
+        /// file is not.</para>
+        /// </summary>
+        private Node? CustomCall(string token)
+        {
+            var name = CustomName(token);
+            var signature = _customSignature(name);
+
+            if (signature is null)
+            {
+                Error = $"'{token}' is not a function this application declares. Custom functions "
+                    + "come from the code under custom/, and are called by the name their "
+                    + "[CordangoFunction] gives them.";
+                return null;
+            }
+
+            var args = new List<Node>();
+            if (!Take(")"))
+            {
+                while (true)
+                {
+                    var arg = Or();
+                    if (arg is null) { Error ??= $"'{token}(' is missing its closing parenthesis"; return null; }
+                    args.Add(arg);
+                    if (Take(",")) continue;
+                    break;
+                }
+
+                if (!Take(")")) { Error ??= $"'{token}(' is missing its closing parenthesis"; return null; }
+            }
+
+            if (args.Count != signature.Parameters.Count)
+            {
+                Error = $"'{token}' takes {Count(signature.Parameters.Count)}, not "
+                    + $"{Count(args.Count)}";
+                return null;
+            }
+
+            for (var i = 0; i < args.Count; i++)
+            {
+                if (args[i].Kind == signature.Parameters[i]) continue;
+                Error = $"'{token}' takes a {Name(signature.Parameters[i])} as argument {i + 1}, "
+                    + $"not a {Name(args[i].Kind)}";
+                return null;
+            }
+
+            return new CustomCallNode(name, args, signature.Returns);
+        }
+
+        private static string Count(int n) => n == 1 ? "1 argument" : $"{n} arguments";
+
         private static string Arity(string name) =>
             $"'{name}' takes three arguments: a test, and one answer for each way it can go";
 

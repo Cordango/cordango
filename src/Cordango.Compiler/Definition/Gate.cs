@@ -412,7 +412,7 @@ public static class Gate
         ValidateCommands(root["commands"], behavior, transitionBoundCommands, commandsByEntity, errors);
         ValidateProcesses(root["processes"], behavior, commandsByEntity, errors);
         ValidateInitialRules(behavior, errors);
-        ValidateComputedFields(behavior, errors);
+        ValidateComputedFields(behavior, errors, CustomSignatures.From(root["custom"]));
         ValidateCustomCode(root["custom"] as JsonObject, behavior, errors);
 
         // references resolve; displayField resolves
@@ -1886,7 +1886,8 @@ public static class Gate
     /// back at this entity through a real local reference on the aggregated entity, with a numeric
     /// aggregated field for sum/avg/min/max and field-only leaf filters (no path hops — the rows are
     /// already the related records).</summary>
-    private static void ValidateComputedFields(BehaviorCtx ctx, List<string> errors)
+    private static void ValidateComputedFields(BehaviorCtx ctx, List<string> errors,
+        Func<string, CustomSignature?> customSignature)
     {
         // The series declaration, before anything that depends on it. A partition that is not a local
         // reference, or an order that is not sortable, would make "the previous row" arbitrary — and an
@@ -2038,7 +2039,7 @@ public static class Gate
                         return $"'{literal}' is not an option of '{ident}' — the codes are "
                              + string.Join(", ", codes.OrderBy(c => c, StringComparer.Ordinal)
                                  .Select(c => $"'{c}'"));
-                    });
+                    }, customSignature: customSignature);
                     if (validation.Error != null)
                         errors.Add($"SEMANTIC: {cw} expr — {validation.Error}");
                     else

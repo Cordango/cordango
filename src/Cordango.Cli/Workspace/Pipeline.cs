@@ -7,6 +7,8 @@ using Cordango.Compile;
 using System.Text.Json.Nodes;
 using Cordango.Cord;
 using Cordango.Definition;
+using Cordango.Cli.Generate;
+using Cordango.SourceGen;
 using Cordango.Compile;
 
 namespace Cordango.Cli.Workspace;
@@ -40,6 +42,17 @@ public sealed record CheckReport(
     /// than at write time, so <c>check</c> and <c>discover</c> answer from the same projection the
     /// build writes out.</summary>
     public JsonObject? Contract { get; init; }
+
+    /// <summary>
+    /// The custom sources this check read and hashed, carried on so the build does not read them
+    /// again.
+    ///
+    /// <para>Not in <see cref="ToJson"/>: this is bodies, and a report is a summary somebody reads.
+    /// Carried rather than re-read because the definition records a hash of exactly these bytes —
+    /// a second read would be verified against a hash taken over the first, and a save in between
+    /// would become a refusal with no explanation.</para>
+    /// </summary>
+    public CustomSourceBundle? CustomSources { get; init; }
 
     public JsonObject ToJson() => new()
     {
@@ -104,7 +117,14 @@ public static class Pipeline
         if (loaded.App is null || loaded.Problems.Count > 0)
             return new CheckReport(loaded.Key, loaded.Path, false, false, loaded.Problems, [], null, null, null);
 
-        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty, knownApps);
+        // Read HERE rather than in AppFolder.Load, which maps `*.cordango.yaml` to a CordApp and
+        // must not learn what a target is. A directory of code is a different kind of input, and it
+        // is only the pipeline that has anything to do with it.
+        var custom = CustomSourceLoader.Read(loaded.Directory);
+        if (custom.Problems.Count > 0)
+            return new CheckReport(loaded.Key, loaded.Path, false, false, custom.Problems, [], null, null, null);
+
+        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty, knownApps, custom.Bundle);
     }
 
     /// <summary>
@@ -161,9 +181,20 @@ public static class Pipeline
         Check(app, appKey, appPath, map, null);
 
     public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map,
-        KnownApps? knownApps)
+        KnownApps? knownApps) =>
+        Check(app, appKey, appPath, map, knownApps, null);
+
+    /// <param name="custom">The app's custom sources, already normalised and hashed. The contract
+    /// they declare is grafted onto the lowered document before it is validated, because an
+    /// expression calling <c>custom.discount(...)</c> cannot be type-checked without it.</param>
+    public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map,
+        KnownApps? knownApps, CustomSourceBundle? custom)
     {
         var lowered = CordLower.Lower(app);
+
+        var refusals = Graft(lowered, custom, out var scanned);
+        if (refusals.Count > 0)
+            return new CheckReport(appKey, appPath, false, false, refusals, [], null, null, null);
 
         // appId: the app KEY, because in a workspace the key is the durable identity (CordyOSS §3.2)
         // and the manifest has to name something stable across machines. The hosted product passes a
@@ -181,10 +212,69 @@ public static class Pipeline
             outcome.Manifest,
             outcome.Definition is { } d ? DefinitionHash.Of(d) : null)
         {
-            Notes = outcome.Notes,
+            Notes = [.. outcome.Notes, .. scanned],
             Contract = outcome.Definition is JsonObject def && outcome.Manifest is { } m
                 ? AppContract.Build(def, m)
                 : null,
+            CustomSources = custom,
         };
+    }
+
+    /// <summary>
+    /// Replace <c>custom</c> with what the sources actually declare.
+    ///
+    /// <para><b>Derived, never authored.</b> The section is the contract of the code under
+    /// <c>custom/&lt;language&gt;/</c>, rebuilt on every compile. Somebody who writes one by hand
+    /// has written a claim about code, and the code is right there — so an authored one is refused
+    /// rather than merged, because merging would give the application two sources of truth about
+    /// what it can call and let the weaker one win silently.</para>
+    ///
+    /// <para>Scanner ERRORS come back as a refusal, because a workspace whose code does not declare
+    /// what it claims does not hold together. Its WARNINGS become notes: a function that mentions
+    /// an <c>HttpClient</c> is worth saying out loud and is not a reason to refuse to build.</para>
+    /// </summary>
+    private static IReadOnlyList<string> Graft(JsonNode lowered, CustomSourceBundle? custom,
+        out IReadOnlyList<DefinitionNote> notes)
+    {
+        notes = [];
+        if (lowered is not JsonObject document) return [];
+
+        if (document["custom"] is not null)
+        {
+            document.Remove("custom");
+            return ["SEMANTIC: `custom` is derived from the code under custom/, and is rebuilt on "
+                + "every compile. Remove it from the app file — whatever is written there would be "
+                + "overwritten, which is worse than refusing it."];
+        }
+
+        if (custom is null) return [];
+
+        var scanner = Targets.All.OfType<ICustomCodeScanner>()
+            .FirstOrDefault(s => string.Equals(s.Language, custom.Language, StringComparison.Ordinal));
+
+        if (scanner is null) return [];
+
+        var entities = (document["entities"] as JsonArray ?? [])
+            .OfType<JsonObject>()
+            .Select(e => (string?)e["key"])
+            .OfType<string>()
+            .Select(key => new CustomEntity(key))
+            .ToList();
+
+        var result = scanner.Scan(new CustomCodeContext(
+            (string?)document["key"] ?? "", (string?)document["name"] ?? "", entities, custom.Files));
+
+        if (result.Errors.Count > 0)
+            return [.. result.Errors.Select(e => "SEMANTIC: " + e)];
+
+        if (result.Metadata["functions"] is null && result.Metadata["hooks"] is null) return [];
+
+        var section = result.Metadata;
+        section["hash"] = custom.Hash;
+        document["custom"] = section;
+
+        notes = [.. result.Warnings.Select(w =>
+            DefinitionNote.Of(DefinitionNote.Warning, w.Code, w.Message, w.JsonPath))];
+        return [];
     }
 }

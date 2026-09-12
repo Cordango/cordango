@@ -103,7 +103,8 @@ public static class CordCheck
                         return $"'{literal}' is not an option of '{ident}' — the codes are "
                              + string.Join(", ", codes.OrderBy(c => c, StringComparer.Ordinal)
                                  .Select(c => $"'{c}'"));
-                    });
+                    },
+                    customSignature: CustomSignatures.From(app.Raw?["custom"]));
 
                 if (result.Error is { } message)
                     errors.Add(new CordError(CordErrorCode.InvalidExpression, where, message));

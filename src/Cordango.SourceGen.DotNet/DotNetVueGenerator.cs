@@ -209,12 +209,19 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
                 or DiagnosticCodes.UnsupportedBlock))
             .ToList();
 
+        // BEFORE anything is written. If the sources and the definition disagree, the application
+        // this would produce is not the one the definition describes — and its recorded hash would
+        // say otherwise. Nothing about a partial answer is useful here.
+        if (Emit.CustomEmitter.Mismatch(app, request.CustomSources) is { } mismatch)
+            return GenerateResult.Failed(mismatch);
+
         var files = new Dictionary<string, GeneratedFile>(StringComparer.Ordinal);
         var warnings = new List<Diagnostic>();
 
         void Add(GeneratedFile file) => files[file.RelativePath] = file;
 
-        var scaffold = new ScaffoldOptions(app.Name, app.Key, app.Namespace, RuntimeAsPackage: runtimeAsPackage);
+        var scaffold = new ScaffoldOptions(app.Name, app.Key, app.Namespace,
+            RuntimeAsPackage: runtimeAsPackage, HasCustomCode: request.CustomSources is not null);
         foreach (var file in Scaffold.Files(scaffold)) Add(file);
 
         Add(BackendEmitter.DbContext(app));
@@ -225,6 +232,9 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         if (FormsEmitter.Emit(app) is { } forms) Add(forms);
         Add(SchemaEmitter.Emit(app));
         Add(WorkflowEmitter.Workflows(app));
+
+        foreach (var file in Emit.CustomEmitter.Emit(request.CustomSources)) Add(file);
+        foreach (var file in Emit.CustomEmitter.Adapters(app)) Add(file);
 
         foreach (var entity in app.Entities)
         {

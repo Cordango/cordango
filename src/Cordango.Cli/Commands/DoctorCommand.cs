@@ -76,6 +76,32 @@ public static class DoctorCommand
             .Select(a => $"{a.Path}: the directory name does not match the app key '{a.Key}' "
                 + "(harmless — the key is authoritative)"));
 
+        // Custom code that has moved since the last build. Compared against what was BUILT rather
+        // than against a fresh scan of itself, which would agree by construction and say nothing.
+        // The generated application is the thing that is stale, and nothing else would mention it.
+        foreach (var app in apps.Where(a => a.App is not null))
+        {
+            var bundle = Workspace.CustomSourceLoader.Read(app.Directory).Bundle;
+            if (bundle is null) continue;
+
+            var built = Path.Combine(workspace.Root, ".cordango", "build", app.Key, "app.definition.json");
+            if (!File.Exists(built)) continue;
+
+            string? was;
+            try
+            {
+                was = (string?)JsonNode.Parse(File.ReadAllText(built))?["custom"]?["hash"];
+            }
+            catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException)
+            {
+                continue;
+            }
+
+            if (was is not null && !string.Equals(was, bundle.Hash, StringComparison.Ordinal))
+                findings.Add($"{app.Path}: the custom code has changed since the last build, so "
+                    + "what is in generated/ was built from different sources. Run `cordango build`.");
+        }
+
         var payload = new JsonObject
         {
             ["workspace"] = workspace.Name,

@@ -43,6 +43,8 @@ public sealed class AppModel
         Commands = [.. Arr(manifest["commands"]).OfType<JsonObject>().Select(c => new CommandModel(c))];
         Workflows = [.. Arr(manifest["workflows"]).OfType<JsonObject>()];
         Theme = manifest["theme"] as JsonObject;
+        CustomFunctions = ReadCustomFunctions(manifest["custom"] as JsonObject);
+        CustomHooks = ReadCustomHooks(manifest["custom"] as JsonObject);
     }
 
     public static AppModel From(CompiledAppArtifact artifact)
@@ -69,6 +71,60 @@ public sealed class AppModel
 
     /// <summary>The C# namespace and assembly name.</summary>
     public string Namespace { get; }
+
+    /// <summary>
+    /// Where a call in an expression actually goes, keyed by the name the expression writes.
+    ///
+    /// <para><c>CustomCallNode</c> carries only <c>discount</c>, deliberately — the compiler has no
+    /// business knowing what a C# method is called. The mapping back to
+    /// <c>Pricing.Discount</c> lives here, on the model the emitters already read, so the expression
+    /// tree stays free of the target and the emitter still has everything it needs.</para>
+    /// </summary>
+    public IReadOnlyDictionary<string, CustomFunctionModel> CustomFunctions { get; }
+
+    /// <summary>The hooks the application's own code declares, in the order they were written —
+    /// which is the order they will be registered, and therefore the order they run.</summary>
+    public IReadOnlyList<CustomHookModel> CustomHooks { get; }
+
+    /// <summary>True when this application carries code of its own.</summary>
+    public bool HasCustomCode => CustomFunctions.Count > 0 || CustomHooks.Count > 0;
+
+    private static IReadOnlyDictionary<string, CustomFunctionModel> ReadCustomFunctions(JsonObject? custom)
+    {
+        var byName = new Dictionary<string, CustomFunctionModel>(StringComparer.Ordinal);
+
+        foreach (var node in Arr(custom?["functions"]).OfType<JsonObject>())
+        {
+            var name = Str(node["name"]);
+            var type = Str(node["source"]?["type"]);
+            var method = Str(node["source"]?["method"]);
+
+            if (name is null || type is null || method is null) continue;
+            byName[name] = new CustomFunctionModel(name, type, method);
+        }
+
+        return byName;
+    }
+
+    private static IReadOnlyList<CustomHookModel> ReadCustomHooks(JsonObject? custom)
+    {
+        var hooks = new List<CustomHookModel>();
+
+        foreach (var node in Arr(custom?["hooks"]).OfType<JsonObject>())
+        {
+            var entity = Str(node["entity"]);
+            var @event = Str(node["event"]);
+            var type = Str(node["source"]?["type"]);
+            var method = Str(node["source"]?["method"]);
+
+            if (entity is null || @event is null || type is null || method is null) continue;
+
+            hooks.Add(new CustomHookModel(
+                entity, @event, Str(node["stage"]) ?? "before_computed", type, method));
+        }
+
+        return hooks;
+    }
 
     public IReadOnlyList<EntityModel> Entities { get; }
 
@@ -458,4 +514,46 @@ public sealed class CommandModel
 
     public IReadOnlyList<string> RequiredInputFields =>
         [.. AppModel.Arr(Input?["required"]).Select(f => AppModel.Str(f)).Where(f => f is not null).Select(f => f!)];
+}
+
+/// <summary>One custom function, as the emitter needs to call it: the name an expression writes,
+/// and the type and method that answer it.</summary>
+public sealed record CustomFunctionModel(string Name, string Type, string Method);
+
+/// <summary>
+/// One hook the application's own code declares.
+///
+/// <para><see cref="Stage"/> only means anything on the two before-events; the rest run once the
+/// write is already decided and have nothing to be ordered against.</para>
+/// </summary>
+public sealed record CustomHookModel(
+    string Entity, string Event, string Stage, string Type, string Method)
+{
+    public const string BeforeComputed = "before_computed";
+
+    /// <summary>The generated adapter's class name. Unique by construction: two public classes of
+    /// one name cannot share a namespace, and the scanner refuses overloads.</summary>
+    public string AdapterName => $"Custom{Type}{Method}";
+
+    /// <summary>True for the events that hand over the row as it was, as well as the incoming one.</summary>
+    public bool Paired => Event is "before_update" or "after_update";
+
+    /// <summary>Before the figures are worked out — where a hook can set an input a formula reads.</summary>
+    public bool RunsBeforeComputed => Event is "before_create" or "before_update"
+        && string.Equals(Stage, BeforeComputed, StringComparison.Ordinal);
+
+    /// <summary>The runtime interface this adapts to, without its type argument.</summary>
+    public string Interface => Event switch
+    {
+        "before_create" => "IBeforeCreate",
+        "after_create" => "IAfterCreate",
+        "before_update" => "IBeforeUpdate",
+        "after_update" => "IAfterUpdate",
+        "before_delete" => "IBeforeDelete",
+        _ => "IAfterDelete",
+    };
+
+    /// <summary>The method that interface declares: the interface name without its leading I, plus
+    /// Async. <c>IBeforeUpdate</c> declares <c>BeforeUpdateAsync</c>.</summary>
+    public string InterfaceMethod => Interface[1..] + "Async";
 }

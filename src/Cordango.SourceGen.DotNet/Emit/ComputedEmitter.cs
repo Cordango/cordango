@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Globalization;
+using System.Text.Json.Nodes;
 using Cordango.Definition;
 using Cordango.SourceGen.Common;
 
@@ -53,7 +54,11 @@ public static class ComputedEmitter
         if (expr is null) return null;
 
         var scope = new Scope(app, entity, inSeries);
-        var node = ComputedExpr.Parse(expr, key => Kind(scope, key));
+
+        // The same lookup the gate validated with. Without it a custom call parses to nothing here
+        // while validating perfectly there, and the field is generated blank — which looks like a
+        // data problem rather than a missing translation.
+        var node = ComputedExpr.Parse(expr, key => Kind(scope, key), Signatures(app));
         return node is null ? null : Render(scope, node);
     }
 
@@ -161,6 +166,8 @@ public static class ComputedEmitter
         ComputedExpr.TextNode t => $"\"{t.Value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"",
 
         ComputedExpr.FieldNode f => Field(scope, f),
+
+        ComputedExpr.CustomCallNode c => CustomCall(scope, c),
 
         ComputedExpr.UnaryNode { Op: "-" } u => Render(scope, u.Operand) is { } operand ? $"-{operand}" : null,
         ComputedExpr.UnaryNode u => Render(scope, u.Operand) is { } operand ? $"!{operand}" : null,
@@ -329,6 +336,70 @@ public static class ComputedEmitter
 
             _ => read,
         };
+    }
+
+    /// <summary>What the application's own code offers, read off the model the compiler already
+    /// filled in. Rebuilt per call rather than cached: an AppModel is built once per build and this
+    /// is a handful of entries.</summary>
+    private static Func<string, CustomSignature?> Signatures(AppModel app)
+    {
+        var byName = new Dictionary<string, CustomSignature>(StringComparer.Ordinal);
+
+        foreach (var node in AppModel.Arr((app.Manifest["custom"] as JsonObject)?["functions"]).OfType<JsonObject>())
+        {
+            if (AppModel.Str(node["name"]) is not { } name) continue;
+            if (KindOf(AppModel.Str(node["returns"])) is not { } returns) continue;
+
+            var parameters = new List<ComputedValueKind>();
+            var ok = true;
+
+            foreach (var p in AppModel.Arr(node["params"]).OfType<JsonObject>())
+            {
+                if (KindOf(AppModel.Str(p["kind"])) is { } kind) { parameters.Add(kind); continue; }
+                ok = false;
+                break;
+            }
+
+            if (ok) byName[name] = new CustomSignature(parameters, returns);
+        }
+
+        return name => byName.GetValueOrDefault(name);
+    }
+
+    private static ComputedValueKind? KindOf(string? written) => written switch
+    {
+        "number" => ComputedValueKind.Number,
+        "boolean" => ComputedValueKind.Boolean,
+        "text" => ComputedValueKind.Text,
+        _ => null,
+    };
+
+    /// <summary>
+    /// A call into the application's own code.
+    ///
+    /// <para><b>Fully qualified, every time.</b> The types here are named by whoever wrote the
+    /// custom code, and a generated file already imports several namespaces of ours — so a class
+    /// somebody reasonably called <c>Rules</c> or <c>Calc</c> could bind to the wrong thing. That
+    /// failure would appear only for the person who picked that name, which is exactly the shape of
+    /// the collision <c>AppRoles</c> carries a comment about. <c>global::</c> costs nothing and
+    /// removes the question.</para>
+    ///
+    /// <para>No coercion on the arguments: every custom parameter is nullable and every kind maps
+    /// to exactly one CLR type, so what the sub-expressions render to is already what the method
+    /// takes.</para>
+    /// </summary>
+    private static string? CustomCall(Scope scope, ComputedExpr.CustomCallNode call)
+    {
+        if (!scope.App.CustomFunctions.TryGetValue(call.Name, out var fn)) return null;
+
+        var args = new List<string>();
+        foreach (var arg in call.Args)
+        {
+            if (Render(scope, arg) is not { } rendered) return null;
+            args.Add(rendered);
+        }
+
+        return $"global::{scope.App.Namespace}.Custom.{fn.Type}.{fn.Method}({string.Join(", ", args)})";
     }
 
     private static (string? Left, string? Right) Pair(Scope scope, ComputedExpr.Node left, ComputedExpr.Node right) =>
