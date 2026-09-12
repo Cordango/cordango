@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Cordango.Compile;
 using Cordango.SourceGen;
-using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNet;
 using Cordango.Standalone.Data;
 using Cordango.Standalone.Records;
 using Microsoft.EntityFrameworkCore;

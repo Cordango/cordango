@@ -44,7 +44,7 @@
     Every .cs file here is compiled twice. Once into this assembly, where the repository's own tests
     exercise it — so the code a generated app runs is code with tests behind it rather than a string
     literal nobody ever ran. And once inside the user's application, because
-    Cordango.SourceGen.DotNetVue emits these same files verbatim into `Cordango/` under the generated
+    Cordango.SourceGen.DotNet emits these same files verbatim into `Cordango/` under the generated
     project.
 
     Emitting source rather than referencing a package is deliberate for v1. There is no published

@@ -22,7 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cordango.SourceGen\Cordango.SourceGen.csproj" />
-    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNet\Cordango.SourceGen.DotNet.csproj" />
   </ItemGroup>
 
   <!-- Corpus discovery is SOURCE-LINKED, not project-referenced: one test project referencing

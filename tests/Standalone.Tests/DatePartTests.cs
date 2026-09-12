@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.Definition;
 using Cordango.SourceGen;
-using Cordango.SourceGen.DotNetVue.Emit;
+using Cordango.SourceGen.DotNet.Emit;
 using Cordango.SourceGen.Common;
 using Cordango.Standalone.Records;
 

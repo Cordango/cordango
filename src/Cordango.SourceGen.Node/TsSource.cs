@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue;
+namespace Cordango.SourceGen.Node;
 
 /// <summary>
 /// Writing a generated TypeScript file.

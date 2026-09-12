@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue.Emit;
+namespace Cordango.SourceGen.Node.Emit;
 
 /// <summary>
 /// The application's data model, as TypeScript: one interface per entity and one descriptor beside

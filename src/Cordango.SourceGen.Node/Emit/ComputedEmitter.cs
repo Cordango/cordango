@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue.Emit;
+namespace Cordango.SourceGen.Node.Emit;
 
 /// <summary>
 /// The figures a record works out for itself.
@@ -57,6 +57,10 @@ public static class ComputedEmitter
         // `prev(` reads the row before this one, which is a series and needs an order to exist.
         if (expression.Contains("prev(", StringComparison.Ordinal)) return false;
 
+        // Custom code is compiled into the application by the target that owns its language. This
+        // one carries no custom sources, so a call into them would have nothing behind it.
+        if (CallsCustomCode(expression)) return false;
+
         // A hop reads a field off a referenced record, which needs a second read the evaluator
         // cannot do from the row alone. Detected here so the generator can REPORT it rather than
         // emit an expression that quietly answers blank.
@@ -95,6 +99,39 @@ public static class ComputedEmitter
 
             if ((char.IsLetter(before) || before == '_') && (char.IsLetter(after) || after == '_'))
                 return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Does this expression call custom code?
+    ///
+    /// <para>Checked BEFORE the reference hop, and that ordering is the whole point:
+    /// <c>custom.discount(total)</c> has identifier characters either side of its dot, so the hop
+    /// detector already refuses it — correctly, but while reporting that it reads a field one
+    /// reference away, which is true of the shape and wrong about the cause. Somebody reading that
+    /// would go looking for a reference field named <c>custom</c>.</para>
+    ///
+    /// <para>A name and then a bracket. Without the bracket this is an ordinary hop onto a reference
+    /// field that happens to be called <c>custom</c>, which stays legal — the same rule the
+    /// expression grammar itself uses to tell the two apart.</para>
+    /// </summary>
+    private static bool CallsCustomCode(string expression)
+    {
+        const string prefix = "custom.";
+
+        for (var i = expression.IndexOf(prefix, StringComparison.Ordinal); i >= 0;
+             i = expression.IndexOf(prefix, i + 1, StringComparison.Ordinal))
+        {
+            // `my_custom.total` is a field on a reference, not a call into custom code.
+            if (i > 0 && (char.IsLetterOrDigit(expression[i - 1]) || expression[i - 1] == '_')) continue;
+
+            var j = i + prefix.Length;
+            while (j < expression.Length
+                   && (char.IsLetterOrDigit(expression[j]) || expression[j] == '_')) j++;
+
+            if (j > i + prefix.Length && j < expression.Length && expression[j] == '(') return true;
         }
 
         return false;
@@ -261,6 +298,11 @@ public static class ComputedEmitter
         if (expression.Contains("prev(", StringComparison.Ordinal))
             return "reads the row before it, which needs an ordered series and the recompute "
                 + "cascade that keeps one right";
+
+        if (CallsCustomCode(expression))
+            return "calls custom code, which the target that owns the language compiles into the "
+                + "application. This target generates TypeScript and carries no custom sources yet, "
+                + "so the call would have nothing behind it";
 
         if (ReadsAcrossAReference(expression))
             return "reads a field across a reference, which this target does not resolve yet";

@@ -6,9 +6,9 @@
 using System.Text.Json.Nodes;
 using Cordango.Compile;
 using Cordango.SourceGen;
-using Cordango.SourceGen.NodeVue;
+using Cordango.SourceGen.Node;
 
-namespace Cordango.NodeVue.Tests;
+namespace Cordango.Node.Tests;
 
 /// <summary>Compiling a corpus application and generating it, which every test here starts by
 /// doing.</summary>

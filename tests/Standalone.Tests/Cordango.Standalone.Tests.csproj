@@ -27,7 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cordango.Compiler\Cordango.Compiler.csproj" />
     <ProjectReference Include="..\..\src\Cordango.Standalone\Cordango.Standalone.csproj" />
-    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNet\Cordango.SourceGen.DotNet.csproj" />
   </ItemGroup>
 
 </Project>

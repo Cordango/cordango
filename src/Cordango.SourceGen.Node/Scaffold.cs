@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue;
+namespace Cordango.SourceGen.Node;
 
 /// <summary>What the scaffold needs to know about the application it is being cut for.</summary>
 /// <param name="AppName">The display name, as the definition spells it: "Expense Claims".</param>

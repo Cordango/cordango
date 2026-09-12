@@ -5,9 +5,9 @@
 
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
-using Cordango.SourceGen.NodeVue.Emit;
+using Cordango.SourceGen.Node.Emit;
 
-namespace Cordango.SourceGen.NodeVue;
+namespace Cordango.SourceGen.Node;
 
 /// <summary>
 /// The Node target: one application, as conventional TypeScript you own.

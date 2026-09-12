@@ -3,7 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
-using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNet;
 
 namespace Cordango.Standalone.Tests;
 
@@ -205,7 +205,7 @@ public class ScaffoldTests
     {
         var files = Scaffold.Files(Expenses);
         Assert.True(files.Count >= 40,
-            $"Only {files.Count} scaffold files were embedded. The glob in Cordango.SourceGen.DotNetVue.csproj "
+            $"Only {files.Count} scaffold files were embedded. The glob in Cordango.SourceGen.DotNet.csproj "
             + "has probably stopped matching.");
 
         Assert.True(Scaffold.Files(Vendored).Count(f =>

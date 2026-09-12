@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue.Emit;
+namespace Cordango.SourceGen.Node.Emit;
 
 /// <summary>
 /// The fields the runtime fills in rather than the person.

@@ -3,7 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
-namespace Cordango.NodeVue.Tests;
+namespace Cordango.Node.Tests;
 
 /// <summary>What the definition actually becomes, read out of the emitted TypeScript.</summary>
 public class EmittedCodeTests

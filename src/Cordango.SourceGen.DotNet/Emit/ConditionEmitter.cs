@@ -7,7 +7,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// A condition from the definition, as a C# expression a person can read.

@@ -19,7 +19,7 @@ public class LicenceHeaderTests
     private static bool IsScaffoldTemplate(string relative) =>
         relative.Contains("/Cordango.Standalone/Templates/", StringComparison.Ordinal)
         || relative.Contains("/Cordango.SourceGen.Common/Templates/", StringComparison.Ordinal)
-        || relative.Contains("/Cordango.SourceGen.NodeVue/Templates/", StringComparison.Ordinal);
+        || relative.Contains("/Cordango.SourceGen.Node/Templates/", StringComparison.Ordinal);
 
     public static TheoryData<string> SourceFiles()
     {

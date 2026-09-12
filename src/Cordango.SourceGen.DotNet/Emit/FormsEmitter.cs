@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// The Forms archetype, resolved at BUILD time and written down.

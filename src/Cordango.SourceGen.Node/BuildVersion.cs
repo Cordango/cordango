@@ -5,7 +5,7 @@
 
 using System.Reflection;
 
-namespace Cordango.SourceGen.NodeVue;
+namespace Cordango.SourceGen.Node;
 
 /// <summary>
 /// One version number, from the build, for everything in this repository that ships together.

@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 using Cordango.Compile;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// The application, described in JSON Schema, compiled into its own source.

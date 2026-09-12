@@ -3,7 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
-using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNet;
 
 namespace Cordango.Standalone.Tests;
 

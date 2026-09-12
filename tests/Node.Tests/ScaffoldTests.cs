@@ -3,9 +3,9 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
-using Cordango.SourceGen.NodeVue;
+using Cordango.SourceGen.Node;
 
-namespace Cordango.NodeVue.Tests;
+namespace Cordango.Node.Tests;
 
 /// <summary>Everything an application has before a single entity is generated into it.</summary>
 public class ScaffoldTests

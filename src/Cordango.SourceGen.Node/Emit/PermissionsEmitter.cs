@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue.Emit;
+namespace Cordango.SourceGen.Node.Emit;
 
 /// <summary>
 /// The definition's roles, compiled into the application as data.

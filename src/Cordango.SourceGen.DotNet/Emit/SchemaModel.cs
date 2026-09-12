@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>One column, described the way both the migration and the model snapshot need it.</summary>
 /// <param name="Column">The database column name.</param>

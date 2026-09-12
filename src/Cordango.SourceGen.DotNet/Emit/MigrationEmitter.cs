@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// The first EF migration, and the model snapshot that lets the user write the second one.

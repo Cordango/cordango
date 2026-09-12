@@ -28,7 +28,7 @@
     THE VUE SHELL, EMBEDDED. Same mechanics as the dotnet-vue scaffold: RecursiveDir bakes in the
     build machine's separator, so WebScaffold normalises to '/' on read, and WithCulture="false"
     keeps a dotted filename from being compiled into a satellite assembly instead of this one — the
-    trap is documented at length in Cordango.SourceGen.DotNetVue.csproj.
+    trap is documented at length in Cordango.SourceGen.DotNet.csproj.
   -->
   <ItemGroup>
     <EmbeddedResource Include="Templates\**\*"

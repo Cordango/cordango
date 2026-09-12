@@ -5,7 +5,7 @@
 
 using System.Globalization;
 using System.Text.Json.Nodes;
-using Cordango.SourceGen.DotNetVue.Emit;
+using Cordango.SourceGen.DotNet.Emit;
 using Cordango.Standalone.Conditions;
 
 namespace Cordango.Standalone.Tests;

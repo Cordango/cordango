@@ -4,8 +4,8 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using Cordango.SourceGen;
-using Cordango.SourceGen.DotNetVue;
-using Cordango.SourceGen.NodeVue;
+using Cordango.SourceGen.DotNet;
+using Cordango.SourceGen.Node;
 
 namespace Cordango.Cli.Generate;
 

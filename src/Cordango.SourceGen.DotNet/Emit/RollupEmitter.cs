@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// A figure worked out from OTHER records: how many periods a scenario has, what its rounds add up

@@ -5,9 +5,9 @@
 
 using System.Text.Json.Nodes;
 using Cordango.SourceGen;
-using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNet;
 
-namespace Cordango.NodeVue.Tests;
+namespace Cordango.Node.Tests;
 
 /// <summary>
 /// **The front end is one tree, not two.**
@@ -89,7 +89,7 @@ public class SharedWebTests
     public void No_scaffold_token_survives_into_the_web_tree(string key)
     {
         foreach (var (path, content) in WebFiles(Build.Generate(key)))
-            foreach (var token in SourceGen.NodeVue.Scaffold.Tokens)
+            foreach (var token in SourceGen.Node.Scaffold.Tokens)
                 Assert.False(content.Contains(token, StringComparison.Ordinal),
                     $"{path} still contains the placeholder {token}.");
     }
@@ -105,7 +105,7 @@ public class SharedWebTests
                     or ".env.example" or ".gitignore" or ".dockerignore");
 
         foreach (var file in api)
-            foreach (var token in SourceGen.NodeVue.Scaffold.Tokens)
+            foreach (var token in SourceGen.Node.Scaffold.Tokens)
                 Assert.False(file.Content.Contains(token, StringComparison.Ordinal),
                     $"{file.RelativePath} still contains the placeholder {token}.");
     }
@@ -117,7 +117,7 @@ public class SharedWebTests
     [Fact]
     public void Both_targets_claim_the_same_capabilities()
     {
-        var node = new SourceGen.NodeVue.NodeVueGenerator().Capabilities;
+        var node = new SourceGen.Node.NodeVueGenerator().Capabilities;
         var dotnet = new DotNetVueGenerator().Capabilities;
 
         Assert.Equal(Sorted(dotnet.Blocks.Supported), Sorted(node.Blocks.Supported));
@@ -148,7 +148,7 @@ public class SharedWebTests
         var options = new JsonObject { ["allowIncomplete"] = true, ["seed"] = 42 };
 
         return (
-            new SourceGen.NodeVue.NodeVueGenerator().Generate(new GenerateRequest(app, options)),
+            new SourceGen.Node.NodeVueGenerator().Generate(new GenerateRequest(app, options)),
             new DotNetVueGenerator().Generate(new GenerateRequest(
                 app, new JsonObject { ["allowIncomplete"] = true, ["seed"] = 42 })));
     }

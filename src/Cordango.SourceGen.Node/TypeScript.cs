@@ -8,7 +8,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue;
+namespace Cordango.SourceGen.Node;
 
 /// <summary>
 /// How a definition's words become TypeScript.

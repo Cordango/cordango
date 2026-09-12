@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.NodeVue.Emit;
+namespace Cordango.SourceGen.Node.Emit;
 
 /// <summary>
 /// One file that says what this application contains, and one that says what it serves.

@@ -91,8 +91,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Cordango.Compiler\Cordango.Compiler.csproj" />
     <ProjectReference Include="..\Cordango.SourceGen\Cordango.SourceGen.csproj" />
-    <ProjectReference Include="..\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
-    <ProjectReference Include="..\Cordango.SourceGen.NodeVue\Cordango.SourceGen.NodeVue.csproj" />
+    <ProjectReference Include="..\Cordango.SourceGen.DotNet\Cordango.SourceGen.DotNet.csproj" />
+    <ProjectReference Include="..\Cordango.SourceGen.Node\Cordango.SourceGen.Node.csproj" />
   </ItemGroup>
 
   <ItemGroup>

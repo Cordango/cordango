@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
-    <RootNamespace>Cordango.NodeVue.Tests</RootNamespace>
+    <RootNamespace>Cordango.Node.Tests</RootNamespace>
   </PropertyGroup>
 
   <!--
@@ -28,11 +28,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cordango.Compiler\Cordango.Compiler.csproj" />
-    <ProjectReference Include="..\..\src\Cordango.SourceGen.NodeVue\Cordango.SourceGen.NodeVue.csproj" />
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.Node\Cordango.SourceGen.Node.csproj" />
     <!-- The .NET target too, for the one test that matters most: both of them emit the SAME web
          tree, and a divergence there is the failure this whole shared-emitter arrangement exists
          to prevent. -->
-    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNetVue\Cordango.SourceGen.DotNetVue.csproj" />
+    <ProjectReference Include="..\..\src\Cordango.SourceGen.DotNet\Cordango.SourceGen.DotNet.csproj" />
   </ItemGroup>
 
 </Project>

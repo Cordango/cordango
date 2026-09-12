@@ -4,10 +4,10 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using System.Text.Json.Nodes;
-using Cordango.SourceGen.DotNetVue.Emit;
+using Cordango.SourceGen.DotNet.Emit;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue;
+namespace Cordango.SourceGen.DotNet;
 
 /// <summary>
 /// The standalone target: one application, as conventional source you own.

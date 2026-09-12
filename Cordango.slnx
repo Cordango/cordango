@@ -15,13 +15,13 @@
   <Project Path="src/Cordango.Cli/Cordango.Cli.csproj" />
   <Project Path="src/Cordango.SourceGen/Cordango.SourceGen.csproj" />
   <Project Path="src/Cordango.SourceGen.Common/Cordango.SourceGen.Common.csproj" />
-  <Project Path="src/Cordango.SourceGen.DotNetVue/Cordango.SourceGen.DotNetVue.csproj" />
-  <Project Path="src/Cordango.SourceGen.NodeVue/Cordango.SourceGen.NodeVue.csproj" />
+  <Project Path="src/Cordango.SourceGen.DotNet/Cordango.SourceGen.DotNet.csproj" />
+  <Project Path="src/Cordango.SourceGen.Node/Cordango.SourceGen.Node.csproj" />
   <Project Path="src/Cordango.Standalone/Cordango.Standalone.csproj" />
   <Project Path="tests/Compiler.Tests/Cordango.Compiler.Tests.csproj" />
   <Project Path="tests/Compatibility.Tests/Cordango.Compatibility.Tests.csproj" />
   <Project Path="tests/Determinism.Tests/Cordango.Determinism.Tests.csproj" />
   <Project Path="tests/Cli.Tests/Cordango.Cli.Tests.csproj" />
   <Project Path="tests/Standalone.Tests/Cordango.Standalone.Tests.csproj" />
-  <Project Path="tests/NodeVue.Tests/Cordango.NodeVue.Tests.csproj" />
+  <Project Path="tests/Node.Tests/Cordango.Node.Tests.csproj" />
 </Solution>

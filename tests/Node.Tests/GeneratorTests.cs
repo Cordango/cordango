@@ -5,9 +5,9 @@
 
 using System.Text.Json.Nodes;
 using Cordango.SourceGen;
-using Cordango.SourceGen.NodeVue;
+using Cordango.SourceGen.Node;
 
-namespace Cordango.NodeVue.Tests;
+namespace Cordango.Node.Tests;
 
 /// <summary>What the node-vue generator produces, over the same corpus the .NET target is measured
 /// against.</summary>

@@ -12,7 +12,7 @@
 
     Everything here is about the contract between the CLI and a target: what a generator is handed,
     what it may answer, how a target says what it cannot do, and how files reach the disk safely and
-    identically every time. `Cordango.SourceGen.DotNetVue` is a consumer of this project like any
+    identically every time. `Cordango.SourceGen.DotNet` is a consumer of this project like any
     third-party generator would be, and if anything in here starts naming ASP.NET, Vue or EF Core,
     the boundary has already gone.
 

@@ -5,7 +5,7 @@
 
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// One <see cref="Microsoft.EntityFrameworkCore.IEntityTypeConfiguration{TEntity}"/> per entity:

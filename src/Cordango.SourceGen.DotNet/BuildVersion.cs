@@ -5,7 +5,7 @@
 
 using System.Reflection;
 
-namespace Cordango.SourceGen.DotNetVue;
+namespace Cordango.SourceGen.DotNet;
 
 /// <summary>
 /// One version number, from the build, for everything in this repository that ships together.

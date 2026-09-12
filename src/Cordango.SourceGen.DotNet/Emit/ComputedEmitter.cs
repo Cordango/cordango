@@ -7,7 +7,7 @@ using System.Globalization;
 using Cordango.Definition;
 using Cordango.SourceGen.Common;
 
-namespace Cordango.SourceGen.DotNetVue.Emit;
+namespace Cordango.SourceGen.DotNet.Emit;
 
 /// <summary>
 /// A computed expression as C#.

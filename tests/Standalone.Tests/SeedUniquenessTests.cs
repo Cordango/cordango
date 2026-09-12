@@ -6,7 +6,7 @@
 using System.Text.Json.Nodes;
 using Cordango.Compile;
 using Cordango.SourceGen;
-using Cordango.SourceGen.DotNetVue;
+using Cordango.SourceGen.DotNet;
 
 namespace Cordango.Standalone.Tests;
 
