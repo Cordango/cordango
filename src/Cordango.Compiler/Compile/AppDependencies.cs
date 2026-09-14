@@ -213,7 +213,55 @@ public static class AppDependencies
                 seen.Fields.Add($"workflow {wkey} writes {written ?? "a record"}");
             }
         }
+
+        // A screen that REPEATS another app's rows is a dependency of the same kind a reference field
+        // is — one link, made in the block tree instead of the domain. Observing it here is what makes
+        // an undeclared one report as `dependency.implicit` rather than compile silently and then
+        // render "not installed here" to whoever opens the page.
+        foreach (var p in definition["pages"] as JsonArray ?? [])
+        {
+            if (p is not JsonObject page || Str(page, "key") is not { Length: > 0 } pkey) continue;
+            foreach (var (app, entity) in RepeatedApps(page["blocks"]))
+            {
+                if (!map.TryGetValue(app, out var seen))
+                    map[app] = seen = new Observed(new HashSet<string>(StringComparer.Ordinal), []);
+                if (entity is { Length: > 0 }) seen.Entities.Add(entity);
+                seen.Fields.Add($"page {pkey} repeats {app}.{entity ?? "?"}");
+            }
+        }
+        foreach (var e in definition["entities"] as JsonArray ?? [])
+        {
+            if (e is not JsonObject entity || Str(entity, "key") is not { Length: > 0 } ekey) continue;
+            foreach (var surface in new[] { "detail", "peek" })
+            {
+                if (entity[surface] is not JsonObject det) continue;
+                foreach (var (app, target) in RepeatedApps(det["blocks"]))
+                {
+                    if (!map.TryGetValue(app, out var seen))
+                        map[app] = seen = new Observed(new HashSet<string>(StringComparer.Ordinal), []);
+                    if (target is { Length: > 0 }) seen.Entities.Add(target);
+                    seen.Fields.Add($"{ekey} {surface} repeats {app}.{target ?? "?"}");
+                }
+            }
+        }
         return map;
+    }
+
+    /// <summary>Every <c>source.app</c> in a block tree, at any depth — blocks nest through `blocks`,
+    /// a tabs block's `tabs[].blocks`, and a columns block's `columns[]`.</summary>
+    private static IEnumerable<(string App, string? Entity)> RepeatedApps(JsonNode? blocks)
+    {
+        foreach (var n in blocks as JsonArray ?? [])
+        {
+            if (n is not JsonObject b) continue;
+            if (b["source"] is JsonObject src && Str(src, "app") is { Length: > 0 } app)
+                yield return (app, Str(src, "entity"));
+            foreach (var hit in RepeatedApps(b["blocks"])) yield return hit;
+            foreach (var t in b["tabs"] as JsonArray ?? [])
+                foreach (var hit in RepeatedApps((t as JsonObject)?["blocks"])) yield return hit;
+            foreach (var col in b["columns"] as JsonArray ?? [])
+                foreach (var hit in RepeatedApps(col)) yield return hit;
+        }
     }
 
     private static string Join(IReadOnlyList<string> fields) =>

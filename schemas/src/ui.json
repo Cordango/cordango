@@ -153,6 +153,62 @@
             "key": {
               "$ref": "#/$defs/identifier"
             },
+            "label": {
+              "description": "The column heading. Taken from the field when the column IS a field; required when it is an aggregate, which has no field to name it.",
+              "type": "string",
+              "maxLength": 80
+            },
+            "source": {
+              "description": "This column is a FIGURE READ FROM ANOTHER APP, not a field of these rows: 'sum the hours logged against this project'. One grouped call to that app's aggregate endpoint for the whole table — `aggregate.groupBy` names the field over there that points back at these rows, and each row takes its own group. `key` is the slot the value lands in and must not be a field of this entity. Read-only: it cannot be sorted on the server, filtered, or edited.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "app",
+                "entity",
+                "aggregate"
+              ],
+              "properties": {
+                "app": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "entity": {
+                  "$ref": "#/$defs/identifier"
+                },
+                "filters": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/filter"
+                  }
+                },
+                "aggregate": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "op",
+                    "groupBy"
+                  ],
+                  "properties": {
+                    "op": {
+                      "type": "string",
+                      "enum": [
+                        "count",
+                        "sum",
+                        "avg",
+                        "min",
+                        "max"
+                      ]
+                    },
+                    "field": {
+                      "$ref": "#/$defs/identifier"
+                    },
+                    "groupBy": {
+                      "description": "The field of the OTHER app's entity that points back at these rows.",
+                      "$ref": "#/$defs/identifier"
+                    }
+                  }
+                }
+              }
+            },
             "width": {
               "description": "The column's fixed width: a pixel number (240) or a CSS length ('18rem', '20%'). Applied to the header and the body cells alike, so the column stops negotiating its size with its content.",
               "oneOf": [
@@ -186,6 +242,10 @@
       "properties": {
         "entity": {
           "description": "ORIGIN: this entity's records.",
+          "$ref": "#/$defs/identifier"
+        },
+        "app": {
+          "description": "ORIGIN QUALIFIER: another app's rows. Its KEY (never a handle); 'entity' then names an entity of that app. `repeat` only, 'entity' origin only — there is no cross-app query, so no 'via' and no path that hops THROUGH them. Blocks inside still mean this app. Declare it in `uses`.",
           "$ref": "#/$defs/identifier"
         },
         "dates": {
@@ -585,6 +645,12 @@
           }
         }
       }
+    },
+    "blockClass": {
+      "description": "Vuetify utility classes for this block's outer element, space separated. Backgrounds bg-<token>; text colour text-<token>; spacing pa-/ma-/px-/py-/pt-/pb-/ps-/pe-<0-16>; corners rounded-(0|sm|lg|xl|pill|circle); shadow elevation-<0-24>; hairline border, border-s/e/t/b; type text-(h1..h6|subtitle-1|subtitle-2|body-1|body-2|caption), font-weight-(light|regular|medium|bold), text-(left|center|right); layout d-flex, d-none, flex-column, align-center, justify-space-between. Tokens: primary, secondary, surface, surface-2, background, outline, success, warning, error, info. bg-<token> also sets a readable foreground, so it never needs a matching text- class. Structure with bg-surface-2 / border / rounded-lg and keep bg-primary for ONE element on a screen.",
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9 _-]*$"
     },
     "block": {
       "description": "A layout node, DISCRIMINATED BY `kind`: each kind is its own closed shape (see the block_* definitions), so a property belonging to a different kind is rejected instead of silently ignored.",
@@ -1380,6 +1446,22 @@
         "secondaryColor": {
           "$ref": "#/$defs/hexColor"
         },
+        "surfaceColor": {
+          "description": "The app's card/panel colour. This and backgroundColor are what actually make two apps look like different products — the accent is a few pixels of button, these are the whole page. A readable text colour is derived, so neither needs a matching one.",
+          "$ref": "#/$defs/hexColor"
+        },
+        "backgroundColor": {
+          "$ref": "#/$defs/hexColor"
+        },
+        "preset": {
+          "description": "How the app's components USE the palette, which is a different job from what the colours mean: 'soft' rounded and lifted, 'sharp' square and ruled, 'flat' hairlines instead of shadows. Composes with density — a sharp app may be compact or roomy.",
+          "type": "string",
+          "enum": [
+            "soft",
+            "sharp",
+            "flat"
+          ]
+        },
         "font": {
           "type": "string",
           "maxLength": 100
@@ -1488,6 +1570,7 @@
         "kind": {
           "const": "view"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1517,6 +1600,7 @@
         "kind": {
           "const": "tabs"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1550,6 +1634,7 @@
         "kind": {
           "const": "section"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1597,6 +1682,7 @@
         "kind": {
           "const": "columns"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1651,6 +1737,7 @@
         "kind": {
           "const": "widgets"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1684,6 +1771,7 @@
         "kind": {
           "const": "fields"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1732,6 +1820,7 @@
         "kind": {
           "const": "child"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1852,6 +1941,7 @@
         "kind": {
           "const": "settings"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1881,6 +1971,7 @@
         "kind": {
           "const": "hub"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1949,6 +2040,7 @@
         "kind": {
           "const": "tiles"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -1982,6 +2074,7 @@
         "kind": {
           "const": "process"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2008,6 +2101,7 @@
         "kind": {
           "const": "stack"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2069,6 +2163,17 @@
             "center",
             "end",
             "baseline"
+          ]
+        },
+        "justify": {
+          "description": "The MAIN axis: horizontal in a row, vertical in a stack. `align` is the other one, which is why it cannot push a row of controls right.",
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "between",
+            "around"
           ]
         },
         "wrap": {
@@ -2099,6 +2204,7 @@
         "kind": {
           "const": "row"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2162,6 +2268,17 @@
             "baseline"
           ]
         },
+        "justify": {
+          "description": "The MAIN axis: horizontal in a row, vertical in a stack. `align` is the other one, which is why it cannot push a row of controls right.",
+          "type": "string",
+          "enum": [
+            "start",
+            "center",
+            "end",
+            "between",
+            "around"
+          ]
+        },
         "wrap": {
           "type": "boolean"
         },
@@ -2190,6 +2307,7 @@
         "kind": {
           "const": "grid"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2281,6 +2399,7 @@
         "kind": {
           "const": "card"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2362,6 +2481,10 @@
         "icon": {
           "type": "string",
           "maxLength": 50
+        },
+        "openDetail": {
+          "description": "Clicking this card opens the QUICK LOOK for the record it is bound to — the same gesture a `cell` uses. For the lane of a grid whose row IS a record: the row itself is not clickable (every misclick beside a cell would navigate), so the box that shows the record says so itself. Nothing happens when the card is not bound to a record.",
+          "type": "boolean"
         }
       }
     },
@@ -2377,6 +2500,7 @@
         "kind": {
           "const": "repeat"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2460,6 +2584,7 @@
         "kind": {
           "const": "cell"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2526,6 +2651,7 @@
         "kind": {
           "const": "stat"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2634,6 +2760,7 @@
         "kind": {
           "const": "field"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2707,6 +2834,7 @@
         "kind": {
           "const": "text"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2787,6 +2915,7 @@
         "kind": {
           "const": "chip"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2868,6 +2997,7 @@
         "kind": {
           "const": "avatar"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -2935,6 +3065,7 @@
         "kind": {
           "const": "progress"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3016,6 +3147,7 @@
         "kind": {
           "const": "chart"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3085,6 +3217,7 @@
         "kind": {
           "const": "action"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3148,6 +3281,7 @@
         "kind": {
           "const": "create"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "entity": {
           "description": "The entity a click creates. Must be a collection entity with an authored form.",
           "$ref": "#/$defs/identifier"
@@ -3191,6 +3325,7 @@
         "kind": {
           "const": "control"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3268,6 +3403,7 @@
         "kind": {
           "const": "filterbar"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "visibleWhen": {
           "$ref": "#/$defs/visibleWhen"
         },
@@ -3341,6 +3477,7 @@
         "kind": {
           "const": "timeline"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3429,6 +3566,7 @@
         "kind": {
           "const": "table"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3513,6 +3651,7 @@
         "kind": {
           "const": "calendar"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3629,6 +3768,7 @@
         "kind": {
           "const": "form"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3664,6 +3804,7 @@
         "kind": {
           "const": "split"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3718,6 +3859,7 @@
         "kind": {
           "const": "orgchart"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3761,6 +3903,7 @@
         "kind": {
           "const": "board"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3827,6 +3970,7 @@
         "kind": {
           "const": "gantt"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3905,6 +4049,7 @@
         "kind": {
           "const": "history"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3937,6 +4082,7 @@
         "kind": {
           "const": "answers"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -3967,6 +4113,7 @@
         "kind": {
           "const": "intake"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100
@@ -4011,6 +4158,7 @@
         "kind": {
           "const": "externalEmbed"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "key": {
           "description": "Stable identity for this block, unique among the entity's record-bound blocks. The embed endpoint addresses the BLOCK by this key so a caller cannot choose a provider or a subject by editing a request - blocks are otherwise addressed by tree POSITION, and reordering a tab would silently repoint a live panel.",
           "$ref": "#/$defs/identifier"
@@ -4054,6 +4202,7 @@
         "kind": {
           "const": "relatedApps"
         },
+        "class": { "$ref": "#/$defs/blockClass" },
         "label": {
           "type": "string",
           "maxLength": 100

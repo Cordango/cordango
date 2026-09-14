@@ -76,13 +76,42 @@ public class PageEditorSchemaTests
     /// table, split and child rather than the same two properties written into each. That is the
     /// direction this canary exists to protect, so the move is the def's own size, not duplication.
     /// </item>
+    /// <item>98,900 → 99,400: `justify` on `row` and `stack` — the MAIN axis, where `align` is the
+    /// cross one. +481 bytes: the same property inlined on two variants, exactly as `align` already
+    /// is, with its description already cut to the contract sentence. Nothing shared was inlined,
+    /// and a shared def for two enum properties would cost more than it saves.</item>
+    /// <item>99,400 → 99,900: <c>blockSource.app</c> — a `repeat` over ANOTHER app's rows, so a
+    /// timesheet's week grid can iterate the projects the Projects app owns instead of keeping a
+    /// second copy of them. +372 bytes, paid ONCE: <c>blockSource</c> is a shared <c>$def</c> that
+    /// every surface taking a source already references, which is the shape this canary is for. The
+    /// description carries the three refusals (repeat only, entity origin only, no hop) because an
+    /// author who learns them from a gate error has already written the wrong thing.</item>
+    /// <item>99,900 → 100,400: <c>card.openDetail</c> — a card opens the QUICK LOOK of the record it
+    /// is bound to, the same gesture <c>cell</c> already had. +397 bytes on one variant. It exists
+    /// because a grid ROW cannot carry the gesture: <c>PrimRepeat</c> refuses to make a row holding
+    /// cells clickable, so every misclick in the gap beside a cell would navigate. The box that shows
+    /// the record says so itself instead.</item>
+    /// <item>100,400 → 101,500: <c>column.source</c> — a table column that is a FIGURE reduced out of
+    /// another app ("hours logged against this project") rather than a field of these rows, plus the
+    /// <c>label</c> it needs because it has no field to name it. +1,044 bytes, and it is a nested
+    /// object on the SHARED <c>column</c> def — one shape referenced by table, split and child, not
+    /// three copies. The aggregate sub-object carries its own enum and required list, which is most
+    /// of the size: the alternative was a loose object, and a column that silently reduced nothing
+    /// is exactly what a contract is for.</item>
+    /// <item>101,500 &#8594; 104,000 (2026-09-14): <c>class</c>, a Vuetify utility-class string on the
+    /// outer element of EVERY block kind &#8212; the appearance vocabulary that only the four layout
+    /// boxes had before, extended to the table, chart, calendar, board, gantt and form a demo actually
+    /// shows. +2,465 bytes, to 103,909. It is ONE shared <c>blockClass</c> <c>$def</c> referenced 41
+    /// times, not a set of properties written into 41 closed variants; this schema ships FULL
+    /// descriptions, so the difference is the whole reason it still fits &#8212; the prose is paid
+    /// once here rather than per variant.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 98_900);
+        Assert.InRange(pruned, 1, 104_000);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

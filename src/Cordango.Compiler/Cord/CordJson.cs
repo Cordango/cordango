@@ -44,6 +44,16 @@ internal static class CordJson
         return i;
     }
 
+    /// <summary>Claims a NUMBER that need not be whole. A field's bounds are decimals, not ints — a
+    /// half-day is 0.5 and TakeInt would refuse it, leaving the bound to fall through to Raw and
+    /// become an escape hatch for a first-class constraint.</summary>
+    public static decimal? TakeDecimal(JsonObject obj, string key)
+    {
+        if (obj[key] is not JsonValue v || !v.TryGetValue<decimal>(out var d)) return null;
+        obj.Remove(key);
+        return d;
+    }
+
     /// <summary>Claims a value of any JSON type — a default may be a string, a number or a boolean.
     /// A JSON <c>null</c> is deliberately NOT claimed: it is indistinguishable from absence once it is
     /// in a nullable field, and guessing wrong would break the round-trip on a document nobody would

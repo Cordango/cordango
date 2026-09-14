@@ -35,6 +35,34 @@ public class GateTests
     public void Minimal_is_valid() =>
         Assert.Empty(Gate.Validate(Minimal()));
 
+    private static JsonObject WithNumeric(string extra, string type = "decimal")
+    {
+        var doc = Minimal();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
+            $$"""{ "key": "hours", "label": "Hours", "type": "{{type}}"{{extra}} }""")!);
+        return doc;
+    }
+
+    [Fact]
+    public void A_numeric_field_may_carry_a_range() =>
+        Assert.Empty(Gate.Validate(WithNumeric(""", "min": 0, "max": 24""")));
+
+    [Fact]
+    public void A_range_on_a_text_field_is_refused()
+    {
+        var errors = Gate.SemanticErrors(WithNumeric(""", "max": 24""", "text"));
+
+        Assert.Contains(errors, e => e.Contains("is a 'text' field, so 'max' has nothing to bound"));
+    }
+
+    [Fact]
+    public void A_range_no_value_can_satisfy_is_refused()
+    {
+        var errors = Gate.SemanticErrors(WithNumeric(""", "min": 24, "max": 0"""));
+
+        Assert.Contains(errors, e => e.Contains("min 24 above max 0"));
+    }
+
     [Fact]
     public void Archetype_is_optional_and_validates_when_present()
     {

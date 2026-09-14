@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "timesheets",
   "name": "Timesheets",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Time logging for Cordango GmbH: log hours against projects from an editable week grid, and see where the team's hours go.",
   "presentation": {
     "icon": "timer-outline",
@@ -10,75 +10,16 @@
     "category": "Operations",
     "tagline": "Hours, projects, utilization"
   },
-  "entities": [
+  "uses": [
     {
-      "key": "project",
-      "label": "Project",
-      "labelPlural": "Projects",
-      "displayField": "name",
-      "icon": "briefcase-outline",
-      "kind": "config",
-      "fields": [
-        {
-          "key": "name",
-          "label": "Name",
-          "type": "text",
-          "required": true
-        },
-        {
-          "key": "client",
-          "label": "Client",
-          "type": "text",
-          "help": "The client's name, e.g. \"Nordwind Logistik\"."
-        },
-        {
-          "key": "billable",
-          "label": "Billable",
-          "type": "boolean",
-          "default": true
-        },
-        {
-          "key": "active",
-          "label": "Active",
-          "type": "boolean",
-          "default": true
-        },
-        {
-          "key": "color",
-          "label": "Color",
-          "type": "select",
-          "default": "teal",
-          "help": "A decorative tag for the project.",
-          "options": [
-            {
-              "value": "teal",
-              "label": "Teal",
-              "color": "#0d9488"
-            },
-            {
-              "value": "blue",
-              "label": "Blue",
-              "color": "#0ea5e9"
-            },
-            {
-              "value": "violet",
-              "label": "Violet",
-              "color": "#8b5cf6"
-            },
-            {
-              "value": "amber",
-              "label": "Amber",
-              "color": "#f59e0b"
-            },
-            {
-              "value": "rose",
-              "label": "Rose",
-              "color": "#f43f5e"
-            }
-          ]
-        }
-      ]
-    },
+      "app": "task_manager",
+      "entities": [
+        "project"
+      ],
+      "why": "hours are logged against the projects Projects owns — one project list, not a second copy"
+    }
+  ],
+  "entities": [
     {
       "key": "time_entry",
       "label": "Time entry",
@@ -100,8 +41,8 @@
           "label": "Project",
           "type": "reference",
           "targetEntity": "project",
+          "targetApp": "task_manager",
           "required": true,
-          "onDelete": "restrict",
           "indexed": true
         },
         {
@@ -115,6 +56,9 @@
           "key": "hours",
           "label": "Hours",
           "type": "decimal",
+          "min": 0,
+          "max": 24,
+          "help": "Hours worked on this project that day. A day holds 24 of them.",
           "required": true
         },
         {
@@ -204,15 +148,9 @@
             {
               "kind": "row",
               "align": "center",
+              "justify": "end",
               "gap": "md",
               "blocks": [
-                {
-                  "kind": "text",
-                  "value": "My week",
-                  "size": "lg",
-                  "weight": "bold",
-                  "grow": true
-                },
                 {
                   "kind": "control",
                   "control": "stepper",
@@ -277,12 +215,13 @@
                   "as": "proj",
                   "direction": "column",
                   "source": {
+                    "app": "task_manager",
                     "entity": "project",
                     "filters": [
                       {
-                        "field": "active",
-                        "operator": "eq",
-                        "value": true
+                        "field": "status",
+                        "operator": "neq",
+                        "value": "completed"
                       }
                     ],
                     "sort": [
@@ -292,7 +231,7 @@
                       }
                     ]
                   },
-                  "emptyText": "No active projects yet.",
+                  "emptyText": "No live projects in Projects yet.",
                   "blocks": [
                     {
                       "kind": "row",
@@ -303,7 +242,7 @@
                           "width": "md",
                           "padding": "sm",
                           "bordered": true,
-                          "tint": "color",
+                          "tint": "status",
                           "blocks": [
                             {
                               "kind": "field",
@@ -311,10 +250,36 @@
                               "weight": "medium"
                             },
                             {
+                              "kind": "row",
+                              "gap": "sm",
+                              "align": "center",
+                              "blocks": [
+                                {
+                                  "kind": "chip",
+                                  "field": "status"
+                                },
+                                {
+                                  "kind": "field",
+                                  "field": "due_date",
+                                  "size": "sm",
+                                  "grow": true
+                                }
+                              ]
+                            },
+                            {
                               "kind": "field",
-                              "field": "client"
+                              "field": "lead",
+                              "size": "sm"
+                            },
+                            {
+                              "kind": "progress",
+                              "label": "Tasks done",
+                              "field": "done_tasks",
+                              "max": "total_tasks"
                             }
-                          ]
+                          ],
+                          "openDetail": true,
+                          "gap": "sm"
                         },
                         {
                           "kind": "repeat",
@@ -578,10 +543,6 @@
           "create": true,
           "read": true,
           "update": true
-        },
-        {
-          "entity": "project",
-          "read": true
         }
       ]
     },
@@ -592,13 +553,6 @@
       "grants": [
         {
           "entity": "time_entry",
-          "create": true,
-          "read": true,
-          "update": true,
-          "delete": true
-        },
-        {
-          "entity": "project",
           "create": true,
           "read": true,
           "update": true,

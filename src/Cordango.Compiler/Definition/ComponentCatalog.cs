@@ -101,10 +101,18 @@ public static class ComponentCatalog
                 {"type":"string"},
                 {"type":"object","additionalProperties":false,"required":["key"],"properties":{
                   "key":{"type":"string"},
+                  "label":{"type":"string"},
+                  "source":{"type":"object","additionalProperties":false,"required":["app","entity","aggregate"],"properties":{
+                    "app":{"type":"string"},"entity":{"type":"string"},
+                    "filters":{"type":"array","items":{"type":"object"}},
+                    "aggregate":{"type":"object","additionalProperties":false,"required":["op","groupBy"],"properties":{
+                      "op":{"enum":["count","sum","avg","min","max"]},"field":{"type":"string"},
+                      "groupBy":{"type":"string"}}}},
+                    "description":"A figure read from ANOTHER app instead of a field of these rows. One grouped call answers the whole table: 'aggregate.groupBy' names the field over there pointing back at these rows. Needs its own 'label', and a 'key' that is not a field of this entity."},
                   "width":{"oneOf":[{"type":"number","minimum":40,"maximum":1200},
                                     {"type":"string","pattern":"^[0-9]+([.][0-9]+)?(px|rem|em|ch|%)$"}]},
                   "overflow":{"enum":["clip","wrap"]}}}]},
-              "description":"Columns, in order. A field key sizes itself to its content; an object fixes the column's width (a pixel number or CSS length) and says what a value too long for it does — 'clip' ends it in an ellipsis on one line, 'wrap' breaks it over further lines and grows the row. Fix a width where one long value would otherwise push every other column off the screen."},
+              "description":"Columns, in order. A field key sizes itself to its content; an object fixes the column's width (a pixel number or CSS length) and says what a value too long for it does — 'clip' ends it in an ellipsis on one line, 'wrap' breaks it over further lines and grows the row. Fix a width where one long value would otherwise push every other column off the screen. An object with a 'source' is not a field at all: it is a figure reduced out of another app."},
             "defaultSort":{"type":"array","items":{"type":"object","additionalProperties":false,
               "required":["field","direction"],"properties":{
                 "field":{"type":"string"},"direction":{"enum":["asc","desc"]}}}},
@@ -378,6 +386,9 @@ public static class ComponentCatalog
           """
           { "type":"object","additionalProperties":false,"required":["blocks"],"properties":{
             "label":{"type":"string","description":"The card's heading."},"icon":{"type":"string"},
+            "openDetail":{"type":"boolean","description":"Clicking the card opens the quick look for the record it is bound to — how the LANE of a grid opens its row, since the row itself cannot be clickable."},
+            "gap":{"enum":["none","sm","md","lg"]},"align":{"enum":["start","center","end","baseline"]},
+            "width":{"description":"'xs'|'sm'|'md'|'lg', a pixel number, or a CSS length."},"padding":{"enum":["none","xs","sm","md","lg"]},"tone":{"enum":["muted","accent","warn","danger"]},"bordered":{"type":"boolean","description":"Outline the box."},"minHeight":{"description":"A pixel number or CSS length. An empty grid cell must still hold its slot."},
             "blocks":{"type":"array","items":{"type":"object"}} } }
           """,
           slots: ["block"], bindings: ["collection", "record", "item"]),
@@ -392,6 +403,7 @@ public static class ComponentCatalog
           """
           { "type":"object","additionalProperties":false,"required":["blocks"],"properties":{
             "blocks":{"type":"array","items":{"type":"object"}},"align":{"enum":["start","center","end","baseline"]},
+            "justify":{"enum":["start","center","end","between","around"],"description":"Along the MAIN axis: horizontal in a row, vertical in a stack. How a toolbar sits right without a spacer block."},
             "gap":{"enum":["none","sm","md","lg"]},"wrap":{"type":"boolean"},
             "width":{"description":"'xs'|'sm'|'md'|'lg', a pixel number, or a CSS length. Every column of a grid — header strip and body cells — must share ONE width or they drift apart."},
             "padding":{"enum":["none","xs","sm","md","lg"]},"tone":{"enum":["muted","accent","warn","danger"]},
@@ -406,6 +418,7 @@ public static class ComponentCatalog
           """
           { "type":"object","additionalProperties":false,"required":["blocks"],"properties":{
             "blocks":{"type":"array","items":{"type":"object"}},"gap":{"enum":["none","sm","md","lg"]},
+            "align":{"enum":["start","center","end","baseline"]},"justify":{"enum":["start","center","end","between","around"],"description":"Along the MAIN axis: horizontal in a row, vertical in a stack. How a toolbar sits right without a spacer block."},
             "width":{"description":"'xs'|'sm'|'md'|'lg', a pixel number, or a CSS length. Every column of a grid — header strip and body cells — must share ONE width or they drift apart."},
             "padding":{"enum":["none","xs","sm","md","lg"]},"tone":{"enum":["muted","accent","warn","danger"]},
             "bordered":{"type":"boolean","description":"Outline the box — the gridlines of a composed grid."},
@@ -419,7 +432,8 @@ public static class ComponentCatalog
           """
           { "type":"object","additionalProperties":false,"required":["blocks"],"properties":{
             "blocks":{"type":"array","items":{"type":"object"}},"cols":{"type":"integer","minimum":1,"maximum":6},
-            "gap":{"enum":["none","sm","md","lg"]} } }
+            "gap":{"enum":["none","sm","md","lg"]},"align":{"enum":["start","center","end","baseline"]},
+            "width":{"description":"'xs'|'sm'|'md'|'lg', a pixel number, or a CSS length."},"padding":{"enum":["none","xs","sm","md","lg"]},"tone":{"enum":["muted","accent","warn","danger"]},"bordered":{"type":"boolean","description":"Outline the box."},"minHeight":{"description":"A pixel number or CSS length. An empty grid cell must still hold its slot."} } }
           """,
           slots: ["block"], bindings: ["collection", "record", "item"]),
 

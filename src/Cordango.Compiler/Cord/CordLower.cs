@@ -223,6 +223,8 @@ public static class CordLower
             if (!redundantDefault) Put(at, "default", f.Default?.DeepClone(), o);
             if (f.Precision is { } precision) Put(at, "precision", precision, o);
             if (f.Scale is { } scale) Put(at, "scale", scale, o);
+            if (f.Min is { } min) Put(at, "min", min, o);
+            if (f.Max is { } max) Put(at, "max", max, o);
             Put(at, "unit", f.Unit, o);
             Put(at, "prefix", f.Prefix, o);
             Put(at, "input", f.Input, o);

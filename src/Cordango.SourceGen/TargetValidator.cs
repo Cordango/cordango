@@ -150,6 +150,11 @@ public static class TargetValidator
                         && DefinitionVocabulary.BlockKinds.Contains(kind))
                         Block(kind, path, caps, found);
 
+                    // Checked on EVERY object, not only on blocks: a tile and a chart series each
+                    // carry their own `source` and neither has a `kind`, so keying this off the block
+                    // would have let exactly the two aggregate shapes through silently.
+                    BlockSource(Str(o["kind"]), o["source"] as JsonObject, path, caps, found);
+
                     foreach (var (k, v) in o)
                         Walk(v, $"{path}.{k}", isEntity: false);
                     break;
@@ -162,6 +167,28 @@ public static class TargetValidator
                     break;
             }
         }
+    }
+
+    /// <summary>
+    /// A block whose rows come from ANOTHER application — <c>source.app</c>.
+    ///
+    /// <para>The same refusal a cross-app reference FIELD gets, and for the same reason, because it is
+    /// the same fact: there is no second application here for those rows to come from. It needed
+    /// saying separately because <see cref="Block"/> asks only whether the <c>kind</c> is supported,
+    /// and <c>repeat</c> is — so the app key rode through untouched into the emitted component, which
+    /// hands it a source naming an application that does not exist. The list would be empty forever in
+    /// a build that reported clean, and a silent empty list is the failure this whole validator is
+    /// here to prevent.</para>
+    /// </summary>
+    private static void BlockSource(
+        string? kind, JsonObject? source, string path, GeneratorCapabilities caps, List<Diagnostic> found)
+    {
+        if (Str(source?["app"]) is not { } app || caps.PlatformTargets.Allows(app)) return;
+
+        var what = kind is null ? "a tile" : $"a '{kind}' block";
+        found.Add(new Diagnostic(DiagnosticCodes.CrossAppReference,
+            $"{what} reads its rows from '{app}', a separately installed application: "
+            + $"{caps.PlatformTargets.Explain(app)}.", path + ".source.app"));
     }
 
     private static void Block(string kind, string path, GeneratorCapabilities caps, List<Diagnostic> found)

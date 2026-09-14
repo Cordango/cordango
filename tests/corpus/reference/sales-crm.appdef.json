@@ -1296,12 +1296,6 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "text",
-              "value": "My day",
-              "size": "lg",
-              "weight": "bold"
-            },
-            {
               "kind": "row",
               "gap": "md",
               "blocks": [
@@ -2202,12 +2196,6 @@
           "kind": "stack",
           "gap": "md",
           "blocks": [
-            {
-              "kind": "text",
-              "value": "Insights",
-              "size": "lg",
-              "weight": "bold"
-            },
             {
               "kind": "row",
               "gap": "md",

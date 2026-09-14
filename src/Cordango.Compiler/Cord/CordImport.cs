@@ -199,6 +199,8 @@ public static class CordImport
             CordJson.TakeNode(rest, "default"),
             CordJson.TakeInt(rest, "precision"),
             CordJson.TakeInt(rest, "scale"),
+            CordJson.TakeDecimal(rest, "min"),
+            CordJson.TakeDecimal(rest, "max"),
             CordJson.TakeString(rest, "unit"),
             CordJson.TakeString(rest, "prefix"),
             CordJson.TakeString(rest, "input"),

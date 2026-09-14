@@ -76,7 +76,7 @@ MANIFEST: dict[str, dict[str, list[str]]] = {
     "ui.json": {
         "properties": ["presentation", "views", "pages", "theme"],
         "defs": ["presentation", "formBlock", "sort", "column", "blockSource", "filterBar",
-                 "blockSearch", "groupBy", "view", "page", "screenState", "block", "deepLink",
+                 "blockSearch", "groupBy", "view", "page", "screenState", "blockClass", "block", "deepLink",
                  "tile", "tab", "theme", "combine", "statMax", "timeAxis"]
                 + [f"block_{k}" for k in BLOCK_KINDS],
     },

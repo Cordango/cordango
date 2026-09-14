@@ -19,6 +19,17 @@ public class StandaloneCompatibilityTests
             "ventures.appdef.json", "budget-planner.appdef.json",
         };
 
+    // Timesheets logs hours against the projects the Projects app owns — a reference field and a
+    // week grid that repeats them. Both are the platform's to resolve, so a standalone build of this
+    // one application is a refusal rather than a gap: there is no second application here for either
+    // to point at. Listed so the refusal is an EXPECTATION; an app that quietly stopped reporting it
+    // would mean the target had started generating a screen that can only ever be empty.
+    private static readonly IReadOnlySet<string> ReferenceAnotherApplication =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "timesheets.appdef.json", "task-manager.appdef.json",
+        };
+
     public static TheoryData<string> Applications()
     {
         var data = new TheoryData<string>();
@@ -37,6 +48,18 @@ public class StandaloneCompatibilityTests
         {
             Assert.NotEmpty(found);
             Assert.All(found, d => Assert.Equal(DiagnosticCodes.HistoryBlock, d.Code));
+            return;
+        }
+
+        if (ReferenceAnotherApplication.Contains(name))
+        {
+            Assert.NotEmpty(found);
+            Assert.All(found, d => Assert.Equal(DiagnosticCodes.CrossAppReference, d.Code));
+            // A SOURCE is the way both of these reach the other application, and it went unreported
+            // until 2026-09-12 because the block kind itself is supported. Timesheets repeats another
+            // app's rows AND references them with a field; Projects only reduces them, in a tile and a
+            // chart series — neither of which carries a `kind`, which is the case that got missed.
+            Assert.Contains(found, d => d.JsonPath!.EndsWith(".source.app", StringComparison.Ordinal));
             return;
         }
 
@@ -75,6 +98,12 @@ public class StandaloneCompatibilityTests
             ["type"] = "reference",
             ["targetApp"] = "crm",
             ["targetEntity"] = "customer",
+        }));
+        Add("cross-app source", WithPage(new JsonObject
+        {
+            ["kind"] = "repeat",
+            ["source"] = new JsonObject { ["app"] = "crm", ["entity"] = "customer" },
+            ["blocks"] = new JsonArray { new JsonObject { ["kind"] = "text", ["value"] = "x" } },
         }));
         Add("unmapped platform entity", WithField(new JsonObject
         {
@@ -165,6 +194,30 @@ public class StandaloneCompatibilityTests
 
         Assert.Equal(DiagnosticCodes.UnsupportedPlatformTarget, Assert.Single(found).Code);
     }
+
+    [Fact]
+    public void A_repeat_over_another_applications_rows_is_refused()
+    {
+        var found = Validate(WithPage(new JsonObject
+        {
+            ["kind"] = "repeat",
+            ["source"] = new JsonObject { ["app"] = "crm", ["entity"] = "customer" },
+            ["blocks"] = new JsonArray { new JsonObject { ["kind"] = "text", ["value"] = "x" } },
+        }));
+
+        var one = Assert.Single(found);
+        Assert.Equal(DiagnosticCodes.CrossAppReference, one.Code);
+        Assert.EndsWith(".source.app", one.JsonPath, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_repeat_over_a_core_applications_rows_maps_to_the_local_equivalent() =>
+        Assert.Empty(Validate(WithPage(new JsonObject
+        {
+            ["kind"] = "repeat",
+            ["source"] = new JsonObject { ["app"] = "core_organizations", ["entity"] = "organization" },
+            ["blocks"] = new JsonArray { new JsonObject { ["kind"] = "text", ["value"] = "x" } },
+        })));
 
     [Fact]
     public void The_related_apps_block_is_refused()

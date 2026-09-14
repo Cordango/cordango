@@ -470,6 +470,14 @@
           "minimum": 0,
           "maximum": 20
         },
+        "min": {
+          "description": "The smallest value this field accepts, inclusive. Numeric fields only. A bound the SERVER enforces, not a hint: a number that arrives outside it is refused wherever it came from — a form, an inline cell, the API, an import. Without one, 'hours worked' takes 66 in a day and every figure built on it is wrong from then on.",
+          "type": "number"
+        },
+        "max": {
+          "description": "The largest value this field accepts, inclusive. Numeric fields only. See `min`.",
+          "type": "number"
+        },
         "unit": {
           "description": "Short display suffix for an integer/decimal — '%' for a rate, 'x' for a multiple, ' kg' for a weight (include the leading space yourself when the unit is a word). Appended after the number everywhere the field is rendered. Money declares its unit with 'currency' instead, so this is invalid there.",
           "type": "string",

@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "task_manager",
   "name": "Projects",
-  "version": "1.6.0",
+  "version": "1.8.0",
   "presentation": {
     "icon": "clipboard-check",
     "color": "#0ea5e9",
@@ -13,6 +13,15 @@
     "kind": "planning",
     "coreJob": "Plan and track work across projects — tasks, owners, dates and status"
   },
+  "uses": [
+    {
+      "app": "timesheets",
+      "entities": [
+        "time_entry"
+      ],
+      "why": "hours are logged against these projects over there — the total belongs on the project"
+    }
+  ],
   "entities": [
     {
       "key": "project",
@@ -226,8 +235,49 @@
                         "field": "total_cost",
                         "format": "money",
                         "icon": "cash-multiple"
+                      },
+                      {
+                        "label": "Time tracked (h)",
+                        "format": "number",
+                        "icon": "timer-outline",
+                        "source": {
+                          "app": "timesheets",
+                          "entity": "time_entry",
+                          "filters": [
+                            {
+                              "field": "project",
+                              "operator": "eq",
+                              "value": "{{record.id}}"
+                            }
+                          ],
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "hours"
+                          }
+                        }
                       }
                     ]
+                  },
+                  {
+                    "kind": "chart",
+                    "label": "Hours logged by person",
+                    "chartType": "bar",
+                    "source": {
+                      "app": "timesheets",
+                      "entity": "time_entry",
+                      "filters": [
+                        {
+                          "field": "project",
+                          "operator": "eq",
+                          "value": "{{record.id}}"
+                        }
+                      ],
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "hours",
+                        "groupBy": "logged_by"
+                      }
+                    }
                   },
                   {
                     "kind": "child",
@@ -986,6 +1036,20 @@
           {
             "key": "progress",
             "width": 120
+          },
+          {
+            "key": "tracked_hours",
+            "label": "Tracked (h)",
+            "width": 110,
+            "source": {
+              "app": "timesheets",
+              "entity": "time_entry",
+              "aggregate": {
+                "op": "sum",
+                "field": "hours",
+                "groupBy": "project"
+              }
+            }
           }
         ],
         "filterBar": {

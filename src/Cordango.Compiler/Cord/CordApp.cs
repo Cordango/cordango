@@ -196,6 +196,8 @@ public sealed record CordField(
     JsonNode? Default = null,
     int? Precision = null,
     int? Scale = null,
+    decimal? Min = null,
+    decimal? Max = null,
     string? Unit = null,
     string? Prefix = null,
     string? Input = null,
@@ -211,7 +213,7 @@ public sealed record CordField(
     public static readonly string[] Modelled =
     [
         "key", "label", "type", "required", "unique", "indexed", "help", "group", "default",
-        "precision", "scale", "unit", "prefix", "input", "currency", "role",
+        "precision", "scale", "min", "max", "unit", "prefix", "input", "currency", "role",
         "targetEntity", "targetApp", "onDelete", "options", "computed",
     ];
 }

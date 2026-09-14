@@ -497,6 +497,27 @@ public static class WebEmitter
             return;
         }
 
+        // The authored Vuetify utility classes, carried on a wrapper for the same reason
+        // `visibleWhen` is: it works the same for every kind, including the containers, and it does
+        // not need each of the thirty branches below to thread an attribute it would forget on the
+        // next one. The wrapper IS the flex/grid item its parent lays out, which is what makes a
+        // background or a padding on a row's child mean what it says — the platform renderer does
+        // exactly this with its own `.br-block`. Nothing is emitted when nothing was authored, so an
+        // application that sets no classes is byte-for-byte what it was.
+        if (AppModel.Str(block["class"]) is { Length: > 0 } classes && !string.IsNullOrWhiteSpace(classes))
+        {
+            source.Line($"<div class={Quote(classes)}>");
+            source.Indent();
+
+            var inner = (JsonObject)block.DeepClone();
+            inner.Remove("class");
+            Block(source, inner, context, unsupported);
+
+            source.Outdent();
+            source.Line("</div>");
+            return;
+        }
+
         var kind = AppModel.Str(block["kind"]);
 
         switch (kind)
@@ -516,6 +537,12 @@ public static class WebEmitter
                 break;
 
             case "card":
+                // The card still renders; only the CLICK is dropped. BlockCard is a surface, not a
+                // navigation, so `openDetail` would need the quick-look panel this target has not
+                // built — the same gap a list's `openDetail` already reports a few lines down. Saying
+                // so beats a lane that looks clickable and is not.
+                if (AppModel.Bool(block["openDetail"]))
+                    unsupported.Add(NotYet("a card's 'openDetail' quick look (the card renders, the click does nothing)", context));
                 Container(source, "BlockCard",
                     Attributes(("label", AppModel.Str(block["label"])), ("padding", AppModel.Str(block["padding"])))
                     + (AppModel.Bool(block["bordered"]) ? " :bordered=\"true\"" : ""),

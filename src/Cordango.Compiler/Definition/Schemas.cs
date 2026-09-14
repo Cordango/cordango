@@ -380,7 +380,7 @@ public static class Schemas
     /// ~31 times to say nothing the type does not.</summary>
     private static readonly IReadOnlySet<string> SelfEvident = new HashSet<string>(StringComparer.Ordinal)
     {
-        "label", "width", "padding", "tone", "bordered", "minHeight", "gap", "align", "wrap",
+        "label", "width", "padding", "tone", "bordered", "minHeight", "gap", "align", "justify", "wrap",
         "grow", "cols", "size", "weight", "color", "format", "icon", "style", "placeholder",
         "emptyText", "direction", "subordinate", "inlineCreate", "openDetail", "editable",
         "hideWhenEmpty", "hideEmpty",

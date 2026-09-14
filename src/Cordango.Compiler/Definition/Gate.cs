@@ -3,6 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Schema;
@@ -462,6 +463,21 @@ public static class Gate
                                  + $"type '{wants}' (it is '{Str(f, "type")}')");
                 }
 
+                // min/max: a range only a NUMBER can be in. On a text or date field the bound would be
+                // accepted here, stored, and enforced by nothing — a rule the definition states and
+                // the runtime never applies is worse than no rule, because somebody is relying on it.
+                var ftype = Str(f, "type") ?? "text";
+                var numeric = ftype is "integer" or "decimal" or "money";
+                foreach (var bound in new[] { "min", "max" })
+                    if (f[bound] is not null && !numeric)
+                        errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' is a '{ftype}' field, so '{bound}' "
+                                 + "has nothing to bound — a range is for 'integer', 'decimal' and 'money'");
+                if (numeric && f["min"] is JsonValue lo && f["max"] is JsonValue hi
+                    && decimal.TryParse(lo.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var lov)
+                    && decimal.TryParse(hi.ToJsonString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var hiv)
+                    && lov > hiv)
+                    errors.Add($"SEMANTIC: field '{ekey}.{Str(f, "key")}' has min {lov} above max {hiv} — no value can satisfy it, so every write would be refused");
+
                 if (Str(f, "type") != "reference")
                 {
                     // optionsFilter narrows which TARGET RECORDS a picker offers, so it only means
@@ -745,7 +761,7 @@ public static class Gate
         var entityKindOf = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var en0 in entities.OfType<JsonObject>())
             if (Str(en0, "key") is { } ek0) entityKindOf[ek0] = Str(en0, "kind") ?? "collection";
-        var blockCtx = new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs, commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf);
+        var blockCtx = new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs, commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(root, "key"), known);
         foreach (var pn in Arr(root["pages"]))
             if (pn is JsonObject page) ValidatePage(page, blockCtx, errors);
         foreach (var en in entities)
@@ -926,7 +942,7 @@ public static class Gate
             if (Str(e0, "key") is { } ek0) entityKindOf[ek0] = Str(e0, "kind") ?? "collection";
 
         return new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs,
-            commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf);
+            commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(manifest, "key"), KnownApps.Unknown);
     }
 
     // Roles: formTemplate (survey) -> formField (questions, ref the template + carry an 'answerType') ->
@@ -2335,7 +2351,14 @@ public static class Gate
         Dictionary<string, Dictionary<string, JsonObject>> CommandsByEntity,
         Dictionary<string, string?> PageEntity,
         Dictionary<string, string> EntityRole,
-        Dictionary<string, string> EntityKind)
+        Dictionary<string, string> EntityKind,
+        // Who this app is, and which other apps are here. A cross-app `source.app` is checked the
+        // same three ways a reference `targetApp` is (KnownApps): a closed workspace roster makes an
+        // unknown key a typo, an open tenant roster makes it "not installed yet", and no roster at
+        // all accepts it. `BlockCtxFrom` validates a personal view against a compiled manifest and
+        // has neither, which is exactly the no-roster case.
+        string? AppKey,
+        KnownApps Known)
     {
         /// <summary>True when the entity holds many user-created records — the default when `kind`
         /// is absent. A `config`/`settings` entity is a singleton the app reads, so "New one of
@@ -2496,8 +2519,14 @@ public static class Gate
     /// <summary>Validates a block tree under a binding mode. Collection (pages): view/widgets +
     /// composition kinds. Record (entity.detail): fields/child + composition kinds. Every
     /// reference (view key, field key, child entity/via) must resolve.</summary>
+    /// <param name="foreignApp">Set when the bound item is a row of ANOTHER app — a cross-app repeat.
+    /// Its fields are then not in this document, so a DOTTED leaf path is refused outright rather than
+    /// validated best-effort: a hop is a second read, the renderer makes it against its own handle,
+    /// and the leaf would quietly render '—'. It does NOT inherit through a nested repeat; each repeat
+    /// passes its own source's app, which is what keeps a local `cell` inside a cross-app grid
+    /// resolving against this app.</param>
     private static void ValidateBlocks(JsonNode? blocks, string where, string binding, string? boundEntity,
-        BlockCtx ctx, List<string> errors)
+        BlockCtx ctx, List<string> errors, string? foreignApp = null)
     {
         foreach (var bn in Arr(blocks))
         {
@@ -2694,14 +2723,14 @@ public static class Gate
                     break;
                 case "tabs":
                     foreach (var tn in Arr(b["tabs"]))
-                        if (tn is JsonObject t) ValidateBlocks(t["blocks"], where, binding, boundEntity, ctx, errors);
+                        if (tn is JsonObject t) ValidateBlocks(t["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
                     break;
                 case "section":
-                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors);
+                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
                     break;
                 case "columns":
                     foreach (var cn in Arr(b["columns"]))
-                        ValidateBlocks(cn, where, binding, boundEntity, ctx, errors);
+                        ValidateBlocks(cn, where, binding, boundEntity, ctx, errors, foreignApp);
                     break;
 
                 // ---- composable primitives (M2): generic controls the AI arranges into distinctive
@@ -2711,8 +2740,8 @@ public static class Gate
                     // `tint` reads a select field on the current row/record to wash the box in its option
                     // color — validated best-effort (a bucket-axis item has no entity to resolve against).
                     if (Str(b, "tint") is { } tintPath)
-                        ValidateFieldPath(tintPath, boundEntity, $"{where}: '{Str(b, "kind")}' tint", ctx, errors);
-                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors);
+                        ValidateForeignOrFieldPath(tintPath, boundEntity, foreignApp, $"{where}: '{Str(b, "kind")}' tint", ctx, errors);
+                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
                     break;
                 case "repeat":
                 {
@@ -2721,12 +2750,12 @@ public static class Gate
                     // options / the platform directory yield plain buckets that belong to no table. The
                     // non-record origins are what make a second axis expressible — a board's columns are
                     // Mon..Sun, so an entity-only repeat can compose lists but never a grid.
-                    var re = ValidateBlockSource(rsrc, $"{where}: repeat", binding, boundEntity, ctx, errors);
+                    var re = ValidateBlockSource(rsrc, "repeat", $"{where}: repeat", binding, boundEntity, ctx, errors);
                     ValidateFilterBar(b["filterBar"] as JsonObject, re, $"{where}: repeat", ctx, errors);
                     // Only an entity origin binds its children to a record of a known entity; a bucket
                     // axis binds them to an item whose shape the manifest cannot name, so leaves under it
                     // are unresolvable against any entity (validated best-effort, like 'text').
-                    ValidateBlocks(b["blocks"], $"{where} repeat", "item", re, ctx, errors);
+                    ValidateBlocks(b["blocks"], $"{where} repeat", "item", re, ctx, errors, Str(rsrc, "app"));
                     break;
                 }
                 // A CELL is the one record identified by `keys` — normally the grid axes the cell sits at.
@@ -2802,7 +2831,7 @@ public static class Gate
                 case "table":
                 {
                     var tsrc = b["source"] as JsonObject;
-                    var tse = ValidateBlockSource(tsrc, $"{where}: table", binding, boundEntity, ctx, errors);
+                    var tse = ValidateBlockSource(tsrc, "table", $"{where}: table", binding, boundEntity, ctx, errors);
                     if (tsrc != null && tse == null)
                         errors.Add($"SEMANTIC: {where}: table needs an ENTITY source — a dates/options/platform axis has no records to tabulate");
                     if (tse != null)
@@ -2818,7 +2847,7 @@ public static class Gate
                 case "calendar":
                 {
                     var csrc = b["source"] as JsonObject;
-                    var cse = ValidateBlockSource(csrc, $"{where}: calendar", binding, boundEntity, ctx, errors);
+                    var cse = ValidateBlockSource(csrc, "calendar", $"{where}: calendar", binding, boundEntity, ctx, errors);
                     if (csrc != null && cse == null)
                     { errors.Add($"SEMANTIC: {where}: calendar needs an ENTITY source — only records carry dates to place"); break; }
                     if (cse == null) break;
@@ -2853,7 +2882,7 @@ public static class Gate
                 case "board":
                 {
                     var bsrc = b["source"] as JsonObject;
-                    var bse = ValidateBlockSource(bsrc, $"{where}: board", binding, boundEntity, ctx, errors);
+                    var bse = ValidateBlockSource(bsrc, "board", $"{where}: board", binding, boundEntity, ctx, errors);
                     if (bsrc != null && bse == null)
                     { errors.Add($"SEMANTIC: {where}: board needs an ENTITY source — a dates/options/platform axis has no records to place in columns"); break; }
                     if (bse == null) break;
@@ -2872,7 +2901,7 @@ public static class Gate
                 case "gantt":
                 {
                     var gsrc = b["source"] as JsonObject;
-                    var gse = ValidateBlockSource(gsrc, $"{where}: gantt", binding, boundEntity, ctx, errors);
+                    var gse = ValidateBlockSource(gsrc, "gantt", $"{where}: gantt", binding, boundEntity, ctx, errors);
                     if (gsrc != null && gse == null)
                     { errors.Add($"SEMANTIC: {where}: gantt needs an ENTITY source — only records carry dates to place on a timeline"); break; }
                     if (gse == null) break;
@@ -2886,7 +2915,7 @@ public static class Gate
                         errors.Add($"SEMANTIC: {where}: gantt colorField '{gcf}' must be a select field on '{gse}'");
                     if (b["milestones"] is JsonObject mil)
                     {
-                        var mse = ValidateBlockSource(mil["source"] as JsonObject, $"{where}: gantt milestones", binding, boundEntity, ctx, errors);
+                        var mse = ValidateBlockSource(mil["source"] as JsonObject, "gantt", $"{where}: gantt milestones", binding, boundEntity, ctx, errors);
                         if (mse == null)
                             errors.Add($"SEMANTIC: {where}: gantt milestones needs an ENTITY source");
                         else
@@ -2914,7 +2943,7 @@ public static class Gate
                 case "split":
                 {
                     var spsrc = b["source"] as JsonObject;
-                    var spe = ValidateBlockSource(spsrc, $"{where}: split", binding, boundEntity, ctx, errors);
+                    var spe = ValidateBlockSource(spsrc, "split", $"{where}: split", binding, boundEntity, ctx, errors);
                     if (spsrc != null && spe == null)
                         errors.Add($"SEMANTIC: {where}: split needs an ENTITY source — its list pane selects a record");
                     if (spe != null)
@@ -2976,7 +3005,7 @@ public static class Gate
                     else
                         // A leaf may hop a relation too ('shift.start_time'): a cell that selects the right
                         // records but can only print their raw ids shows nothing useful.
-                        ValidateFieldPath(lf, boundEntity, $"{where}: '{kind}'", ctx, errors);
+                        ValidateForeignOrFieldPath(lf, boundEntity, foreignApp, $"{where}: '{kind}'", ctx, errors);
                     if (kind == "progress" && b["max"] is JsonValue pv && pv.TryGetValue<string>(out var pmk)
                         && boundEntity != null && !ctx.FieldExists(boundEntity, pmk))
                         errors.Add($"SEMANTIC: {where}: progress max '{pmk}' is not a field of '{boundEntity}'");
@@ -3005,6 +3034,11 @@ public static class Gate
                         var csrc = srcs[i];
                         var label = series != null ? $"chart series {i + 1}" : "chart";
                         var ce = Str(csrc, "entity");
+                        // ANOTHER app's rows, reduced by its own aggregate endpoint. Its fields are not
+                        // in this document, so the entity, the groupBy and the field it groups on are
+                        // all unresolvable here — the same best-effort posture a bucket axis takes.
+                        if (csrc is not null && Str(csrc, "app") is { } capp)
+                        { ValidateCrossAppSource(csrc, capp, ce, $"{where}: {label}", ctx, errors); continue; }
                         if (ce == null || !ctx.Entities.Contains(ce))
                         { errors.Add($"SEMANTIC: {where}: {label} source entity '{ce}' is unknown"); continue; }
                         var gb = Str(csrc?["aggregate"] as JsonObject, "groupBy");
@@ -3151,7 +3185,7 @@ public static class Gate
 
     /// <summary>Validates a repeat/stat/chart <c>source</c>. Returns the entity its rows are records of,
     /// or null for a bucket axis (whose item shape no entity names).</summary>
-    private static string? ValidateBlockSource(JsonObject? src, string where, string binding,
+    private static string? ValidateBlockSource(JsonObject? src, string blockKind, string where, string binding,
         string? boundEntity, BlockCtx ctx, List<string> errors)
     {
         if (src == null) { errors.Add($"SEMANTIC: {where}: needs a 'source'"); return null; }
@@ -3169,6 +3203,35 @@ public static class Gate
             return null;
         }
         var origin = origins[0];
+
+        // `app` QUALIFIES the entity origin — it is not a fifth one. Two kinds of block may carry it,
+        // and the line between them is how many requests the other app has to serve.
+        //
+        // A `repeat` READS the rows: one list request, rendered whole. A `stat` / `chart` / tile
+        // REDUCES them: one call to the other app's own aggregate endpoint, which already exists and
+        // already enforces that app's grants — so "sum the hours logged against this project" is a
+        // single filtered question, not a query engine.
+        //
+        // A table, board, calendar, gantt or split is neither: they page, sort, group and write
+        // interactively, and every one of those is a round trip this app cannot make on the other's
+        // behalf. A surface that looked interactive and was not is worse than one that is absent.
+        var crossApp = Str(src, "app");
+        if (crossApp != null)
+        {
+            if (blockKind is not ("repeat" or "stat" or "chart"))
+            {
+                errors.Add($"SEMANTIC: {where}: source 'app' is on a `repeat` (read the rows) or a `stat`/`chart` "
+                         + $"(reduce them to a figure). A {blockKind} pages, sorts and writes, and none of that can "
+                         + "cross apps yet — the surface would look interactive and not be");
+                crossApp = null;
+            }
+            else if (origin != "entity")
+            {
+                errors.Add($"SEMANTIC: {where}: source 'app' has no meaning on a '{origin}' axis — a date range, a "
+                         + "select's options and the platform directory belong to no app");
+                crossApp = null;
+            }
+        }
 
         // A bucket axis has no table behind it: `via`/`sort` have nothing to address, and the renderer
         // applies filters only to entity and platform rows. Accepting them would advertise a dead key.
@@ -3203,6 +3266,7 @@ public static class Gate
         }
 
         var re = Str(src, "entity");
+        if (crossApp != null) return ValidateCrossAppSource(src, crossApp, re, where, ctx, errors);
         if (re == null || !ctx.Entities.Contains(re))
         { errors.Add($"SEMANTIC: {where}: source entity '{re}' is unknown"); return null; }
 
@@ -3223,6 +3287,74 @@ public static class Gate
             if (sn is JsonObject so && Str(so, "field") is { } sf && !ctx.FieldExists(re, sf))
                 errors.Add($"SEMANTIC: {where}: source sort field '{sf}' is not a field of '{re}'");
         return re;
+    }
+
+    /// <summary>
+    /// A `repeat` over ANOTHER app's rows. Resolved the same three ways a reference `targetApp` is —
+    /// core registry, then the roster, then unchecked — so an app can be installed before the app it
+    /// repeats, which a closed check would make impossible.
+    ///
+    /// <para>Returns null rather than the entity key: the rows are records of an entity this gate
+    /// cannot see, so the subtree below validates best-effort exactly as a `dates` axis does. What it
+    /// CAN do is refuse the three things the renderer would have to fake. `via` scopes rows to the
+    /// bound record, and that record is in this app. A dotted filter path is a second read, and
+    /// `AppDataService.Hop` is same-app only — the renderer resolves hops against its OWN handle, so
+    /// the filter would silently match nothing and the surface would render empty rather than wrong.
+    /// `aggregate` cannot reach here (only stat/chart/tile carry one, and those are already refused),
+    /// but a hand-written definition can still put one on a repeat.</para>
+    ///
+    /// <para>Filter and sort FIELDS are deliberately not checked: they name fields of an entity that
+    /// is not in this document. Same best-effort posture the date and platform axes already take.</para>
+    /// </summary>
+    private static string? ValidateCrossAppSource(JsonObject src, string app, string? entity, string where,
+        BlockCtx ctx, List<string> errors)
+    {
+        if (app == ctx.AppKey)
+            errors.Add($"SEMANTIC: {where}: source app '{app}' names this app itself — drop 'app'; a source without one is this app's");
+        else if (app == "platform")
+            errors.Add($"SEMANTIC: {where}: the platform directory is the 'platform' origin, not an app");
+        else if (entity == null)
+            errors.Add($"SEMANTIC: {where}: source app '{app}' needs an 'entity' of that app");
+        else if (CoreAppRegistry.Find(app) is { } core)
+        {
+            if (!core.EntityKeys.Contains(entity))
+                errors.Add($"SEMANTIC: {where}: source repeats unknown entity '{entity}' in core app '{app}' "
+                         + $"(it has: {string.Join(", ", core.EntityKeys)})");
+        }
+        else if (ctx.Known.Find(app) is { } other)
+        {
+            if (!other.EntityKeys.Contains(entity))
+                errors.Add($"SEMANTIC: {where}: source repeats unknown entity '{entity}' in app '{app}' "
+                         + $"(it has: {string.Join(", ", other.EntityKeys)})");
+        }
+        else if (ctx.Known.Complete)
+            errors.Add($"SEMANTIC: {where}: source repeats app '{app}', which is not here (known: {string.Join(", ", ctx.Known.Keys)})");
+
+        if (src["via"] != null)
+            errors.Add($"SEMANTIC: {where}: source 'via' scopes rows to the record this block is bound to, and that "
+                     + $"record is in this app — a reference back across apps cannot be resolved here. Filter on a plain field of '{app}.{entity}' instead");
+        foreach (var fn in Arr(src["filters"]).OfType<JsonObject>())
+            if (Str(fn, "path") is { } fp)
+                errors.Add($"SEMANTIC: {where}: source filter path '{fp}' hops a relation inside '{app}'. A hop is a second "
+                         + $"read and this app cannot make it, so the filter would match nothing and the surface would render "
+                         + $"empty rather than wrong. Filter on a plain field of '{app}.{entity}'");
+        ValidateFilterIntervals(src["filters"], where, errors);
+        return null;
+    }
+
+    /// <summary>A leaf or tint path, where the bound row may be another app's.
+    /// <para>Within this app it is the ordinary best-effort check. Across apps a DOTTED path is
+    /// refused: the hop is a second read, <c>AppDataService.Hop</c> and the renderer's own relation
+    /// loader are both same-app, so the value would resolve to nothing and the leaf would render '—'
+    /// on a surface that reported clean. A plain field is not checked at all — it names a field of an
+    /// entity this document cannot see, which is the same position a bucket axis is in.</para></summary>
+    private static void ValidateForeignOrFieldPath(string path, string? boundEntity, string? foreignApp,
+        string where, BlockCtx ctx, List<string> errors)
+    {
+        if (foreignApp == null) { ValidateFieldPath(path, boundEntity, where, ctx, errors); return; }
+        if (path.Contains('.'))
+            errors.Add($"SEMANTIC: {where}: '{path}' hops a relation inside '{foreignApp}'. Nothing here can make that "
+                     + "second read, so it would render as '—' — read a plain field of the item instead");
     }
 
     /// <summary>Two range filters on the SAME address that can never both hold. Every filter in a
@@ -3400,6 +3532,11 @@ public static class Gate
         BlockCtx ctx, List<string> errors)
     {
         var se = Str(src, "entity");
+        // A tile REDUCES the other app's rows to one figure through its aggregate endpoint — the same
+        // single filtered call a `stat` makes. `ValidateCrossAppSource` owns the rules; the entity
+        // check below cannot run, because the entity is not in this document.
+        if (Str(src, "app") is { } tapp)
+        { ValidateCrossAppSource(src, tapp, se, where, ctx, errors); return; }
         if (se == null || !ctx.Entities.Contains(se))
         { errors.Add($"SEMANTIC: {where}: source entity '{se}' is unknown"); return; }
         if (Str(src, "via") is { } via)
@@ -3523,7 +3660,14 @@ public static class Gate
             {
                 case "table":
                     foreach (var c in Arr(cfg["columns"]))
+                    {
+                        // An AGGREGATE column is a figure from another app, not a field of these
+                        // rows — so the field check below would report it missing, which is the one
+                        // thing it definitely is. Its own rules are checked instead.
+                        if (c is JsonObject co && co["source"] is JsonObject csrc)
+                        { CheckAggregateColumn(co, csrc, vent, where, FieldExists, errors); continue; }
                         if (ColumnKey(c) is { } col) CheckFields("column", col);
+                    }
                     foreach (var s in Arr(cfg["defaultSort"]))
                         if (s is JsonObject so) CheckFields("defaultSort field", Str(so, "field"));
                     if (cfg["filterBar"] is JsonObject vfb)
@@ -3755,6 +3899,33 @@ public static class Gate
     /// <summary>The field key a list COLUMN names. A column is a bare key, or an object that also
     /// fixes the column's width and overflow — the key is in the same place either way, so every
     /// caller that only wants to know which field is shown reads it through here.</summary>
+    /// <summary>
+    /// A table column that reads a figure out of ANOTHER app. The field it groups on and the field
+    /// it reduces both live over there, so neither can be checked here — what can be is that the
+    /// column does not collide with a real field (the value is merged onto the row under this key,
+    /// so a collision would overwrite actual data), that it names its own heading, and that it says
+    /// which app and which entity.
+    /// </summary>
+    private static void CheckAggregateColumn(JsonObject col, JsonObject src, string? entity, string where,
+        Func<string?, string?, bool> fieldExists, List<string> errors)
+    {
+        var key = Str(col, "key");
+        if (key is null)
+            errors.Add($"DESIGN: {where}: an aggregate column needs a 'key' — the slot its figure lands in");
+        else if (fieldExists(entity, key))
+            errors.Add($"DESIGN: {where} aggregate column '{key}' is already a field of '{entity}' — the figure is merged onto the row under this key, so it would overwrite the real value. Name it something else");
+        if (Str(col, "label") is null)
+            errors.Add($"DESIGN: {where} column '{key}' reads from another app, so it has no field to name it — give it a 'label'");
+        if (Str(src, "app") is null)
+            errors.Add($"DESIGN: {where} column '{key}' needs 'source.app' — the app whose rows it reduces");
+        else if (Str(src, "app") == "platform")
+            errors.Add($"DESIGN: {where} column '{key}': the platform directory has no aggregate endpoint");
+        if (Str(src, "entity") is null)
+            errors.Add($"DESIGN: {where} column '{key}' needs 'source.entity' of that app");
+        if (Str(src["aggregate"] as JsonObject, "groupBy") is null)
+            errors.Add($"DESIGN: {where} column '{key}' needs 'aggregate.groupBy' — the field over there that points back at these rows, which is what gives each row its own figure");
+    }
+
     private static string? ColumnKey(JsonNode? n) =>
         n is JsonObject o ? Str(o, "key")
         : n is JsonValue v && v.TryGetValue<string>(out var s) ? s
