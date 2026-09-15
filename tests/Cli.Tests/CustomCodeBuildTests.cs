@@ -29,10 +29,10 @@ public sealed class CustomCodeBuildTests
     }
 
     private static string Generated(Sandbox cord, string relative) =>
-        File.ReadAllText(cord.Path_(["generated", "support", .. relative.Split('/')]));
+        File.ReadAllText(cord.Path_(["generated", .. relative.Split('/')]));
 
     private static bool Exists(Sandbox cord, string relative) =>
-        File.Exists(cord.Path_(["generated", "support", .. relative.Split('/')]));
+        File.Exists(cord.Path_(["generated", .. relative.Split('/')]));
 
     [Fact]
     public void The_source_is_copied_in_under_a_banner_that_names_the_original()

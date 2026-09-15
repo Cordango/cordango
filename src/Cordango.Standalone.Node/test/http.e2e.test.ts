@@ -120,6 +120,7 @@ describe("the HTTP surface a generated application serves", () => {
 
   beforeAll(async () => {
     driver = new PgliteDriver();
+    await driver.query("select 1");
 
     const runtime = new CordangoRuntime({
       appKey: "expenses",

@@ -34,7 +34,7 @@ public class AppContractTests
     {
         var c = Contract();
 
-        Assert.Equal("1.0", c["contractVersion"]!.GetValue<string>());
+        Assert.Equal("1.1", c["contractVersion"]!.GetValue<string>());
         Assert.Equal("app-contract", c["kind"]!.GetValue<string>());
     }
 
@@ -49,12 +49,51 @@ public class AppContractTests
     }
 
     [Fact]
-    public void The_contract_has_exactly_the_sections_version_one_promises()
+    public void The_contract_has_exactly_the_sections_its_version_promises()
     {
         Assert.Equal(
-            ["contractVersion", "kind", "identity", "purpose", "entities", "dependencies",
-             "events", "actions", "rules"],
+            ["contractVersion", "kind", "identity", "entities", "dependencies",
+             "eventDefaults", "events", "actions", "rules"],
             Contract().Select(p => p.Key));
+    }
+
+    [Fact]
+    public void A_section_with_nothing_to_say_is_left_out_rather_than_stated_as_empty()
+    {
+        Assert.False(Contract().ContainsKey("purpose"));
+
+        var def = Definition("sales-crm.appdef.json");
+        def["purpose"] = new JsonObject { ["summary"] = "Track deals." };
+        var withPurpose = AppContract.Build(def, AppCompiler.Compile(def, "app1", At));
+
+        Assert.Equal("Track deals.",
+            withPurpose["purpose"]!["summary"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void No_key_anywhere_in_a_contract_carries_an_absent_value()
+    {
+        var offences = new List<string>();
+
+        void Walk(JsonNode? node, string path)
+        {
+            if (node is JsonObject o)
+                foreach (var (key, value) in o)
+                {
+                    if (value is null
+                        || value is JsonArray { Count: 0 }
+                        || value is JsonObject { Count: 0 }
+                        || value is JsonValue v && v.TryGetValue<bool>(out var b) && !b)
+                        offences.Add($"{path}.{key}");
+                    Walk(value, $"{path}.{key}");
+                }
+            else if (node is JsonArray a)
+                for (var i = 0; i < a.Count; i++) Walk(a[i], $"{path}[{i}]");
+        }
+
+        Walk(Contract(), "$");
+
+        Assert.Empty(offences);
     }
 
     [Fact]
@@ -78,13 +117,20 @@ public class AppContractTests
     }
 
     [Fact]
-    public void Every_entity_announces_the_three_writes_without_anyone_authoring_them()
+    public void Every_entity_announces_the_three_writes_and_the_contract_says_so_once()
     {
-        var names = Arr(Contract(), "events").Select(e => e!["name"]!.GetValue<string>()).ToList();
+        var c = Contract();
+        var defaults = (JsonObject)c["eventDefaults"]!;
 
-        Assert.Contains("activity.created", names);
-        Assert.Contains("activity.updated", names);
-        Assert.Contains("activity.deleted", names);
+        Assert.True(defaults["crud"]!.GetValue<bool>());
+        Assert.Equal(["record.created", "record.updated", "record.deleted"],
+            Arr(defaults, "kinds").Select(k => k!.GetValue<string>()));
+
+        var names = Arr(c, "events").Select(e => e!["name"]!.GetValue<string>()).ToList();
+
+        Assert.DoesNotContain("activity.created", names);
+        Assert.DoesNotContain("activity.updated", names);
+        Assert.DoesNotContain("activity.deleted", names);
     }
 
     [Fact]
@@ -190,13 +236,15 @@ public class AppContractTests
     }
 
     [Fact]
-    public void An_app_that_announces_nothing_still_lists_its_writes_and_its_states()
+    public void An_app_that_announces_nothing_still_lists_its_states_and_promises_its_writes()
     {
-        var events = Arr(Contract(), "events").OfType<JsonObject>().ToList();
+        var c = Contract();
+        var events = Arr(c, "events").OfType<JsonObject>().ToList();
 
         Assert.DoesNotContain(events, e => e["type"]!.GetValue<string>() == "command.emitted");
         Assert.Contains(events, e => e["type"]!.GetValue<string>() == "process.state_entered");
-        Assert.Contains(events, e => e["type"]!.GetValue<string>() == "record.created");
+        Assert.DoesNotContain(events, e => e["type"]!.GetValue<string>() == "record.created");
+        Assert.True(c["eventDefaults"]!["crud"]!.GetValue<bool>());
     }
 
     [Fact]
@@ -226,7 +274,7 @@ public class AppContractTests
             var def = (JsonObject)JsonNode.Parse(File.ReadAllText(path))!;
             var contract = AppContract.Build(def, AppCompiler.Compile(def, "app", At));
 
-            Assert.NotEmpty(Arr(contract, "events"));
+            Assert.True(contract["eventDefaults"]!["crud"]!.GetValue<bool>());
             Assert.NotNull(ContractWriter.HashOf(ContractWriter.Seal(contract)));
         }
     }

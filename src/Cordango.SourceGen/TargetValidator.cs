@@ -25,12 +25,13 @@ namespace Cordango.SourceGen;
 /// </summary>
 public static class TargetValidator
 {
-    public static IReadOnlyList<Diagnostic> Validate(JsonObject definition, GeneratorCapabilities caps)
+    public static IReadOnlyList<Diagnostic> Validate(
+        JsonObject definition, GeneratorCapabilities caps, IReadOnlySet<string>? siblings = null)
     {
         var found = new List<Diagnostic>();
 
-        Entities(definition, caps, found);
-        Blocks(definition, caps, found);
+        Entities(definition, caps, siblings, found);
+        Blocks(definition, caps, siblings, found);
         Effects(definition, caps, found);
         Workflows(definition, caps, found);
 
@@ -42,7 +43,9 @@ public static class TargetValidator
 
     // ---- entities, fields, computed values ---------------------------------------------------
 
-    private static void Entities(JsonObject definition, GeneratorCapabilities caps, List<Diagnostic> found)
+    private static void Entities(
+        JsonObject definition, GeneratorCapabilities caps, IReadOnlySet<string>? siblings,
+        List<Diagnostic> found)
     {
         var entities = definition["entities"] as JsonArray ?? [];
         for (var e = 0; e < entities.Count; e++)
@@ -61,13 +64,14 @@ public static class TargetValidator
             for (var f = 0; f < fields.Count; f++)
             {
                 if (fields[f] is JsonObject field)
-                    Field(field, key, $"{entityPath}.fields[{f}]", caps, found);
+                    Field(field, key, $"{entityPath}.fields[{f}]", caps, siblings, found);
             }
         }
     }
 
     private static void Field(
-        JsonObject field, string entity, string path, GeneratorCapabilities caps, List<Diagnostic> found)
+        JsonObject field, string entity, string path, GeneratorCapabilities caps,
+        IReadOnlySet<string>? siblings, List<Diagnostic> found)
     {
         var key = Str(field["key"]) ?? "?";
         var where = $"'{entity}.{key}'";
@@ -78,7 +82,12 @@ public static class TargetValidator
 
         // A reference into another application. `targetApp` is the discriminator: absent means a
         // reference within this app, which every target can resolve.
-        if (Str(field["targetApp"]) is { } targetApp)
+        // An app in THIS build is reachable and says nothing here. It shares the database, the
+        // schema and the transaction, so the reference is an ordinary column — and its entities are
+        // its OWN, which is why the platform-entity list below must not be asked about them. Running
+        // that check against a sibling would refuse `budget_tracker.budget_line` for not being one
+        // of person/department/group/organization/contact, which it was never claiming to be.
+        if (Str(field["targetApp"]) is { } targetApp && siblings?.Contains(targetApp) != true)
         {
             if (!caps.PlatformTargets.Allows(targetApp))
                 found.Add(new Diagnostic(DiagnosticCodes.CrossAppReference,
@@ -136,7 +145,9 @@ public static class TargetValidator
     /// top-level <c>entities</c> array and nothing else is, so that one position is skipped rather
     /// than the whole subtree beneath it.</para>
     /// </summary>
-    private static void Blocks(JsonObject definition, GeneratorCapabilities caps, List<Diagnostic> found)
+    private static void Blocks(
+        JsonObject definition, GeneratorCapabilities caps, IReadOnlySet<string>? siblings,
+        List<Diagnostic> found)
     {
         Walk(definition, "$", isEntity: false);
 
@@ -153,7 +164,7 @@ public static class TargetValidator
                     // Checked on EVERY object, not only on blocks: a tile and a chart series each
                     // carry their own `source` and neither has a `kind`, so keying this off the block
                     // would have let exactly the two aggregate shapes through silently.
-                    BlockSource(Str(o["kind"]), o["source"] as JsonObject, path, caps, found);
+                    BlockSource(Str(o["kind"]), o["source"] as JsonObject, path, caps, siblings, found);
 
                     foreach (var (k, v) in o)
                         Walk(v, $"{path}.{k}", isEntity: false);
@@ -181,9 +192,14 @@ public static class TargetValidator
     /// here to prevent.</para>
     /// </summary>
     private static void BlockSource(
-        string? kind, JsonObject? source, string path, GeneratorCapabilities caps, List<Diagnostic> found)
+        string? kind, JsonObject? source, string path, GeneratorCapabilities caps,
+        IReadOnlySet<string>? siblings, List<Diagnostic> found)
     {
-        if (Str(source?["app"]) is not { } app || caps.PlatformTargets.Allows(app)) return;
+        // Same rule as a reference field: an app in this build is reachable, because its rows are in
+        // this database and its endpoints are in this process.
+        if (Str(source?["app"]) is not { } app
+            || caps.PlatformTargets.Allows(app)
+            || siblings?.Contains(app) == true) return;
 
         var what = kind is null ? "a tile" : $"a '{kind}' block";
         found.Add(new Diagnostic(DiagnosticCodes.CrossAppReference,

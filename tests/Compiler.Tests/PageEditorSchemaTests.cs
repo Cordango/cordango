@@ -105,13 +105,18 @@ public class PageEditorSchemaTests
     /// times, not a set of properties written into 41 closed variants; this schema ships FULL
     /// descriptions, so the difference is the whole reason it still fits &#8212; the prose is paid
     /// once here rather than per variant.</item>
+    /// <item>104,000 &#8594; 104,200 (2026-09-14, same day): <c>class</c> on the seven authorable
+    /// shapes that are not blocks &#8212; <c>column</c>, <c>tab</c>, <c>page</c>, <c>formBlock</c>,
+    /// <c>command</c>, <c>process.states[]</c> and <c>field</c>. +152 bytes, to 104,061. Seven new
+    /// styling surfaces for seven <c>$ref</c>s, because the shape they point at was already here.
+    /// </item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 104_000);
+        Assert.InRange(pruned, 1, 104_200);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

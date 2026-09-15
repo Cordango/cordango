@@ -52,7 +52,7 @@ public class DiscoverTests
 
         var app = Assert.Single((payload["apps"] as JsonArray ?? []).OfType<JsonObject>());
         Assert.NotEmpty(app["entities"] as JsonArray ?? []);
-        Assert.NotEmpty(app["events"] as JsonArray ?? []);
+        Assert.True(app["eventDefaults"]?["crud"]?.GetValue<bool>());
     }
 
     [Fact]

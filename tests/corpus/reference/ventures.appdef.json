@@ -451,25 +451,29 @@
                 "label": "Invested",
                 "field": "invested",
                 "format": "money",
-                "icon": "cash-minus"
+                "icon": "cash-minus",
+                "class": "bg-info-lighten-5 border-0"
               },
               {
                 "label": "Current value",
                 "field": "current_value",
                 "format": "money",
-                "icon": "cash-multiple"
+                "icon": "cash-multiple",
+                "class": "bg-primary-lighten-5 border-0"
               },
               {
                 "label": "Realized",
                 "field": "realized",
                 "format": "money",
-                "icon": "cash-plus"
+                "icon": "cash-plus",
+                "class": "bg-secondary-lighten-5 border-0"
               },
               {
                 "label": "Multiple",
                 "field": "moic",
                 "format": "number",
-                "icon": "close-circle-multiple-outline"
+                "icon": "close-circle-multiple-outline",
+                "class": "bg-warning-lighten-5 border-0"
               },
               {
                 "label": "Gain %",
@@ -479,13 +483,15 @@
                 "attention": {
                   "op": "lt",
                   "value": 0
-                }
+                },
+                "class": "bg-success-lighten-5 border-0"
               },
               {
                 "label": "Return p.a.",
                 "field": "cagr_pct",
                 "format": "percent",
-                "icon": "speedometer"
+                "icon": "speedometer",
+                "class": "bg-success-lighten-5 border-0"
               }
             ]
           },
@@ -686,17 +692,23 @@
               {
                 "label": "Invested",
                 "field": "invested",
-                "format": "money"
+                "format": "money",
+                "class": "bg-info-lighten-5 border-0",
+                "icon": "cash-minus"
               },
               {
                 "label": "Total value",
                 "field": "total_value",
-                "format": "money"
+                "format": "money",
+                "icon": "cash-multiple",
+                "class": "bg-primary-lighten-5 border-0"
               },
               {
                 "label": "Multiple",
                 "field": "moic",
-                "format": "number"
+                "format": "number",
+                "class": "bg-warning-lighten-5 border-0",
+                "icon": "close-circle-multiple-outline"
               }
             ]
           },

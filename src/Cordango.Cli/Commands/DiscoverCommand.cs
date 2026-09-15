@@ -133,7 +133,15 @@ public static class DiscoverCommand
         };
 
         if (section is null or "all" or "entities") row["entities"] = Names(contract, "entities", "key");
-        if (section is null or "all" or "events") row["events"] = Names(contract, "events", "name");
+        if (section is null or "all" or "events")
+        {
+            row["events"] = Names(contract, "events", "name");
+            // The CRUD events are not in the list — they hold for every entity, so the contract
+            // states the rule once instead. Passed through rather than expanded here: a caller that
+            // wants the names has the entity list beside it, and expanding them would put the
+            // boilerplate back that taking them out removed.
+            if (contract["eventDefaults"] is { } defaults) row["eventDefaults"] = defaults.DeepClone();
+        }
         if (section is null or "all" or "actions") row["actions"] = Names(contract, "actions", "id");
         if (section is null or "all" or "rules") row["rules"] = Names(contract, "rules", "id");
         row["uses"] = new JsonArray([.. (contract["dependencies"] as JsonArray ?? [])
@@ -172,6 +180,9 @@ public static class DiscoverCommand
 
             Section(w, "entities", contract, "entities", "key", section);
             Section(w, "announces", contract, "events", "name", section);
+            if (section is null or "all" or "events"
+                && contract["eventDefaults"]?["crud"]?.GetValue<bool>() == true)
+                w.WriteLine("  announces every record's .created, .updated and .deleted");
             Section(w, "actions", contract, "actions", "id", section);
             Section(w, "rules", contract, "rules", "id", section);
 

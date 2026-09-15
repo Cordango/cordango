@@ -65,7 +65,7 @@ MANIFEST: dict[str, dict[str, list[str]]] = {
     "root.json": {
         "properties": ["schemaVersion", "key", "name", "version", "description",
                        "purpose", "weekStart", "archetype", "uses", "plugins", "custom"],
-        "defs": ["visibleWhen", "identifier", "fieldPath", "hexColor", "filter",
+        "defs": ["visibleWhen", "identifier", "fieldPath", "blockClass", "hexColor", "filter",
                  "appDependency", "pluginRef", "customCode", "customFunction",
                  "customHook", "customSource", "customKind"],
     },
@@ -76,7 +76,7 @@ MANIFEST: dict[str, dict[str, list[str]]] = {
     "ui.json": {
         "properties": ["presentation", "views", "pages", "theme"],
         "defs": ["presentation", "formBlock", "sort", "column", "blockSource", "filterBar",
-                 "blockSearch", "groupBy", "view", "page", "screenState", "blockClass", "block", "deepLink",
+                 "blockSearch", "groupBy", "view", "page", "screenState", "block", "deepLink",
                  "tile", "tab", "theme", "combine", "statMax", "timeAxis"]
                 + [f"block_{k}" for k in BLOCK_KINDS],
     },

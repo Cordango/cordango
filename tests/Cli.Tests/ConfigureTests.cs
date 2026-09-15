@@ -4,6 +4,7 @@
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
 using Cordango.Cli.Remote;
+using Cordango.SourceGen;
 using Cordango.Cli.Workspace;
 
 namespace Cordango.Cli.Tests;
@@ -34,22 +35,22 @@ public sealed class ConfigureTests
         Assert.Equal(ExitCodes.Ok, cord.Run("configure", "--target", "standalone"));
         Assert.Equal(ExitCodes.Ok, cord.Run("build"));
 
-        Assert.True(File.Exists(cord.Path_("generated", "claims", "docker-compose.yml")));
-        Assert.True(File.Exists(cord.Path_("generated", "claims", "cordango.build.json")));
+        Assert.True(File.Exists(cord.Path_("generated", "docker-compose.yml")));
+        Assert.True(File.Exists(cord.Path_("generated", "cordango.build.json")));
     }
 
     [Fact]
-    public void Every_app_gets_its_own_directory_under_the_configured_one()
+    public void A_workspace_of_several_apps_is_one_deployment_and_is_not_emitted_yet()
     {
         using var cord = new Sandbox();
         cord.Run("new", "claims");
         cord.Run("add", "app", "orders");
 
         Assert.Equal(ExitCodes.Ok, cord.Run("configure", "--target", "standalone"));
-        Assert.Equal(ExitCodes.Ok, cord.Run("build"));
+        Assert.NotEqual(ExitCodes.Ok, cord.Run("build"));
 
-        Assert.True(File.Exists(cord.Path_("generated", "claims", "docker-compose.yml")));
-        Assert.True(File.Exists(cord.Path_("generated", "orders", "docker-compose.yml")));
+        Assert.Contains(NotYetCodes.Workspace, cord.Error, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(cord.Path_("generated")));
     }
 
     [Fact]
@@ -126,7 +127,7 @@ public sealed class ConfigureTests
         Assert.Equal(ExitCodes.Ok, cord.RunAnswering("standalone\n", "build"));
 
         Assert.NotNull(WorkspaceFile.Find(cord.Root, out _)!.Build);
-        Assert.True(File.Exists(cord.Path_("generated", "claims", "docker-compose.yml")));
+        Assert.True(File.Exists(cord.Path_("generated", "docker-compose.yml")));
     }
 
     [Fact]
@@ -160,7 +161,7 @@ public sealed class ConfigureTests
             cord.RunAnswering("platform\n", "build", "--target", "standalone"));
 
         Assert.Null(WorkspaceFile.Find(cord.Root, out _)!.Build);
-        Assert.True(File.Exists(cord.Path_("generated", "claims", "docker-compose.yml")));
+        Assert.True(File.Exists(cord.Path_("generated", "docker-compose.yml")));
     }
 
     [Fact]

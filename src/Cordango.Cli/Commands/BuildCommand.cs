@@ -226,106 +226,127 @@ public static class BuildCommand
     }
 
     /// <summary>
-    /// Hand each selected application to a generator and write what it produces.
+    /// Hand the selected applications to a generator, as ONE workspace, and write what it produces.
     ///
-    /// <para><b>One directory per app, chosen rather than configured.</b> A generated application is
-    /// a repository, so two of them in one directory is not a thing — each lands in
-    /// <c>generated/&lt;app-key&gt;/</c> under its own key, and a workspace holding three apps builds
-    /// all three in one command with no flags and no collision to think about.</para>
+    /// <para><b>One directory per workspace, chosen rather than configured.</b> The unit of a build
+    /// is the workspace: the apps in it share a database, a sign-in, a directory and a shell, so they
+    /// are one repository at <c>generated/&lt;workspace&gt;/</c> rather than several that would each
+    /// need their own container and could never see each other. A workspace holding one app is a
+    /// workspace of one, built by the same code path — a path that only runs when the count is one is
+    /// a path that drifts.</para>
     /// </summary>
     private static int Generate(Args args, Output output, WorkspaceFile workspace,
         List<CheckReport> reports, IAppSourceGenerator target, BuildConfig? config)
     {
-        var generated = new JsonArray();
-        var summaries = new List<(string App, string Root, int Files, int Deleted, IReadOnlyList<Diagnostic> Warnings)>();
+        // Anchored to the workspace root, never to the working directory: `cordango build` run from
+        // inside apps/expenses/entities/ has to write to the same place it does from the top, or a
+        // second run from a second directory generates a second copy.
+        var root = Path.GetFullPath(Path.Combine(workspace.Root, BuildConfig.OutFor(workspace)));
+
+        var artifacts = new List<CompiledAppArtifact>(reports.Count);
+        var custom = new Dictionary<string, CustomSourceBundle>(StringComparer.Ordinal);
 
         foreach (var report in reports)
         {
-            // Anchored to the workspace root, never to the working directory: `cordango build` run
-            // from inside apps/expenses/entities/ has to write to the same place it does from the
-            // top, or a second run from a second directory generates a second copy.
-            var root = Path.GetFullPath(Path.Combine(workspace.Root, BuildConfig.OutFor(report.AppKey)));
-
             // The ONE construction site of a CompiledAppArtifact: definition and manifest come out of
             // the same pipeline run, so they cannot describe two different documents.
             // AsObject rather than a cast: the pipeline types its definition as a node, and a
             // definition that is not an object would have failed the gate long before here.
-            var artifact = new CompiledAppArtifact(
+            artifacts.Add(new CompiledAppArtifact(
                 report.Definition!.AsObject(),
                 report.Manifest!,
                 report.DefinitionHashHex!,
                 new CompilerInfo(
                     report.Manifest!["build"]?["compiler"]?.GetValue<string>() ?? "unknown",
-                    report.Manifest!["build"]?["manifestVersion"]?.GetValue<string>() ?? "1"));
+                    report.Manifest!["build"]?["manifestVersion"]?.GetValue<string>() ?? "1")));
 
             // The SAME bundle the check hashed, never a second read. The generator verifies it
-            // against the hash now in the definition, and a save between the two would
-            // otherwise turn into a refusal nobody could explain.
-            var result = target.Generate(
-                new GenerateRequest(artifact, Options(args, config), report.CustomSources));
-
-            if (!result.Ok)
-                return output.Fail($"{target.Id} cannot build {report.AppKey}",
-                    result.Errors.Select(Describe),
-                    new JsonObject
-                    {
-                        ["app"] = report.AppKey,
-                        ["target"] = target.Id,
-                        ["errors"] = new JsonArray([.. result.Errors.Select(e => (JsonNode)Diagnostics(e))]),
-                    });
-
-            var draft = new BuildMetadataDraft(
-                artifact.DefinitionHash, artifact.Compiler, target.Id, target.Version, result.Warnings);
-
-            var write = GeneratedFileWriter.Write(root, result, draft, dryRun: args.Has("dry-run"));
-
-            if (!write.Ok)
-                return output.Fail("nothing was written", write.Errors.Select(Describe),
-                    new JsonObject { ["errors"] = new JsonArray([.. write.Errors.Select(e => (JsonNode)Diagnostics(e))]) });
-
-            summaries.Add((report.AppKey, root, write.Written.Count, write.Deleted.Count, result.Warnings));
-            generated.Add(new JsonObject
-            {
-                ["app"] = report.AppKey,
-                ["out"] = root,
-                ["files"] = write.Written.Count,
-                ["deleted"] = write.Deleted.Count,
-                ["partial"] = result.Warnings.Count > 0,
-                ["warnings"] = new JsonArray([.. result.Warnings.Select(w => (JsonNode)Diagnostics(w))]),
-            });
+            // against the hash now in the definition, and a save between the two would otherwise
+            // turn into a refusal nobody could explain.
+            if (report.CustomSources is { } bundle) custom[report.AppKey] = bundle;
         }
+
+        var identity = new WorkspaceIdentity(Naming.Sanitise(workspace.Name), workspace.Name);
+        var compiled = new CompiledWorkspaceArtifact(identity, artifacts);
+
+        var result = target.Generate(new GenerateRequest(
+            compiled, Options(args, config), custom.Count > 0 ? custom : null));
+
+        if (!result.Ok)
+            return output.Fail($"{target.Id} cannot build {identity.Key}",
+                result.Errors.Select(Describe),
+                new JsonObject
+                {
+                    ["workspace"] = identity.Key,
+                    ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.AppKey)]),
+                    ["target"] = target.Id,
+                    ["errors"] = new JsonArray([.. result.Errors.Select(e => (JsonNode)Diagnostics(e))]),
+                });
+
+        var draft = new BuildMetadataDraft(
+            WorkspaceHash(artifacts), artifacts[0].Compiler, target.Id, target.Version, result.Warnings);
+
+        var write = GeneratedFileWriter.Write(root, result, draft, dryRun: args.Has("dry-run"));
+
+        if (!write.Ok)
+            return output.Fail("nothing was written", write.Errors.Select(Describe),
+                new JsonObject { ["errors"] = new JsonArray([.. write.Errors.Select(e => (JsonNode)Diagnostics(e))]) });
 
         var payload = new JsonObject
         {
             ["target"] = target.Id,
-            ["generated"] = generated,
+            ["workspace"] = identity.Key,
+            ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.AppKey)]),
+            ["out"] = root,
+            ["files"] = write.Written.Count,
+            ["deleted"] = write.Deleted.Count,
+            ["partial"] = result.Warnings.Count > 0,
+            ["warnings"] = new JsonArray([.. result.Warnings.Select(w => (JsonNode)Diagnostics(w))]),
         };
 
-        // The single-app keys stay where they have always been. `--json` callers written against one
-        // app are not asked to move because a workspace can now build several in one command.
-        if (summaries.Count == 1 && generated[0] is JsonObject only)
-            foreach (var (key, value) in only)
-                payload[key] = value?.DeepClone();
+        // `app` stays for a workspace of one. `--json` callers written when a build WAS one app are
+        // not asked to move for a workspace that still holds one.
+        if (reports.Count == 1) payload["app"] = reports[0].AppKey;
 
         return output.Ok(payload, w =>
         {
-            foreach (var (app, root, files, deleted, warnings) in summaries)
-            {
-                w.WriteLine($"{app} -> {root}");
-                w.WriteLine($"{files} files written" + (deleted > 0 ? $", {deleted} removed" : ""));
+            w.WriteLine($"{identity.Key} -> {root}");
+            w.WriteLine(reports.Count == 1
+                ? $"  {reports[0].AppKey}"
+                : $"  {reports.Count} applications: {string.Join(", ", reports.Select(r => r.AppKey))}");
+            w.WriteLine($"{write.Written.Count} files written"
+                + (write.Deleted.Count > 0 ? $", {write.Deleted.Count} removed" : ""));
 
-                foreach (var warning in warnings.Take(10)) w.WriteLine("  ! " + Describe(warning));
-                if (warnings.Count > 10) w.WriteLine($"  ! and {warnings.Count - 10} more");
-            }
+            foreach (var warning in result.Warnings.Take(10)) w.WriteLine("  ! " + Describe(warning));
+            if (result.Warnings.Count > 10) w.WriteLine($"  ! and {result.Warnings.Count - 10} more");
 
             w.WriteLine();
             w.WriteLine("next:");
-            w.WriteLine($"  cd {summaries[0].Root}");
+            w.WriteLine($"  cd {root}");
             w.WriteLine("  docker compose up --build");
             w.WriteLine();
             w.WriteLine("then open http://localhost:8080 — the first screen asks you to create");
             w.WriteLine("the administrator account. There is no password to go and look up.");
         });
+    }
+
+    /// <summary>
+    /// One hash for the whole workspace, recorded in <c>cordango.build.json</c>.
+    ///
+    /// <para>A workspace of one is its app's own definition hash, unchanged — the metadata of an
+    /// application that was always alone should not move because the concept around it grew a name.
+    /// Several apps fold into a hash over their <c>key:hash</c> lines in build order, so it moves
+    /// when any app changes AND when their ORDER changes. The order is part of the build: it fixes
+    /// the <c>ModelBuilder</c> calls and therefore the migration.</para>
+    /// </summary>
+    private static string WorkspaceHash(IReadOnlyList<CompiledAppArtifact> apps)
+    {
+        if (apps.Count == 1) return apps[0].DefinitionHash;
+
+        var lines = string.Join(
+            "\n", apps.Select(a => $"{a.Manifest["key"]?.GetValue<string>() ?? "?"}:{a.DefinitionHash}"));
+        return Convert.ToHexStringLower(
+            System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(lines)));
     }
 
     /// <summary>

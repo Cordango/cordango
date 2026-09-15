@@ -1,5 +1,5 @@
 {
-  "contractVersion": "1.0",
+  "contractVersion": "1.1",
   "kind": "app-contract",
   "identity": {
     "key": "core_people",
@@ -7,57 +7,37 @@
     "version": "1.1.0",
     "schemaVersion": "2.0",
     "definitionHash": "18f4dfbeb4a013c42e875738aeb656e53633b278d59d82ebe8807575cf759ae6",
-    "contractHash": "d291d2f1bc43e12ff57b21ce982750bebf41f51a30a0539a1d1f7a431d6e9f76"
+    "contractHash": "415f7293b018717e30ef86c54c75cff936fbe88fd3e7a093d1fa05f57a3de8ba"
   },
-  "purpose": null,
   "entities": [
     {
       "key": "employee",
       "label": "Employee",
       "labelPlural": "Employees",
-      "description": null,
       "displayField": "full_name",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "full_name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "person",
           "label": "Person",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "job_title",
           "label": "Job title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "department",
           "label": "Department",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "engineering",
@@ -110,10 +90,6 @@
           "key": "seniority",
           "label": "Seniority",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "junior",
@@ -146,10 +122,6 @@
           "key": "employment_type",
           "label": "Employment type",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "full_time",
@@ -177,10 +149,6 @@
           "key": "contract_type",
           "label": "Contract",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "permanent",
@@ -203,10 +171,6 @@
           "key": "work_location",
           "label": "Work location",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "berlin",
@@ -229,30 +193,18 @@
           "key": "manager",
           "label": "Reports to",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "start_date",
           "label": "Start date",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "employment_status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "active",
@@ -274,61 +226,32 @@
         {
           "key": "employee_number",
           "label": "Employee no.",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "weekly_hours",
           "label": "Weekly hours",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "probation_end",
           "label": "Probation ends",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "preferred_name",
           "label": "Preferred name",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "date_of_birth",
           "label": "Date of birth",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "gender",
           "label": "Gender",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "female",
@@ -356,10 +279,6 @@
           "key": "nationality",
           "label": "Nationality",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "US",
@@ -506,42 +425,22 @@
         {
           "key": "personal_email",
           "label": "Personal email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "personal_phone",
           "label": "Personal phone",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "home_address",
           "label": "Home address",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "iban",
           "label": "IBAN",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -549,9 +448,7 @@
       "key": "employment",
       "label": "Employment record",
       "labelPlural": "Employment history",
-      "description": null,
       "displayField": "job_title",
-      "kind": null,
       "ownedBy": "employee",
       "fields": [
         {
@@ -559,49 +456,29 @@
           "label": "Employee",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "employee",
-          "options": null
+          "targetEntity": "employee"
         },
         {
           "key": "effective_from",
           "label": "Effective from",
           "type": "date",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "effective_to",
           "label": "Until",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "job_title",
           "label": "Job title",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "department",
           "label": "Department",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "engineering",
@@ -654,10 +531,6 @@
           "key": "seniority",
           "label": "Seniority",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "junior",
@@ -690,10 +563,6 @@
           "key": "employment_type",
           "label": "Employment type",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "full_time",
@@ -721,10 +590,6 @@
           "key": "change_reason",
           "label": "Reason",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "hire",
@@ -761,12 +626,7 @@
         {
           "key": "note",
           "label": "Note",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     },
@@ -774,9 +634,7 @@
       "key": "compensation",
       "label": "Compensation record",
       "labelPlural": "Compensation history",
-      "description": null,
       "displayField": "change_reason",
-      "kind": null,
       "ownedBy": "employee",
       "fields": [
         {
@@ -784,39 +642,24 @@
           "label": "Employee",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "employee",
-          "options": null
+          "targetEntity": "employee"
         },
         {
           "key": "effective_from",
           "label": "Effective from",
           "type": "date",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "annual_salary",
           "label": "Annual salary",
           "type": "money",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "pay_grade",
           "label": "Pay grade",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "a",
@@ -848,21 +691,12 @@
         {
           "key": "bonus_target_pct",
           "label": "Bonus target %",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "change_reason",
           "label": "Reason",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "hire",
@@ -894,12 +728,7 @@
         {
           "key": "note",
           "label": "Note",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     },
@@ -907,9 +736,7 @@
       "key": "emergency_contact",
       "label": "Emergency contact",
       "labelPlural": "Emergency contacts",
-      "description": null,
       "displayField": "name",
-      "kind": null,
       "ownedBy": "employee",
       "fields": [
         {
@@ -917,29 +744,18 @@
           "label": "Employee",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "employee",
-          "options": null
+          "targetEntity": "employee"
         },
         {
           "key": "name",
           "label": "Contact name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "relationship",
           "label": "Relationship",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "partner",
@@ -977,31 +793,17 @@
           "key": "phone",
           "label": "Phone",
           "type": "phone",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "email",
           "label": "Email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "is_primary",
           "label": "Primary contact",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         }
       ]
     },
@@ -1009,9 +811,7 @@
       "key": "document",
       "label": "Document",
       "labelPlural": "Documents",
-      "description": null,
       "displayField": "title",
-      "kind": null,
       "ownedBy": "employee",
       "fields": [
         {
@@ -1019,29 +819,18 @@
           "label": "Employee",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "employee",
-          "options": null
+          "targetEntity": "employee"
         },
         {
           "key": "title",
           "label": "Title",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "doc_type",
           "label": "Type",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "contract",
@@ -1093,42 +882,22 @@
         {
           "key": "file",
           "label": "File",
-          "type": "attachment",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "attachment"
         },
         {
           "key": "issued_on",
           "label": "Issued",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "expires_on",
           "label": "Expires",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "note",
           "label": "Note",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     },
@@ -1136,9 +905,7 @@
       "key": "hr_note",
       "label": "HR note",
       "labelPlural": "HR notes",
-      "description": null,
       "displayField": "note",
-      "kind": null,
       "ownedBy": "employee",
       "fields": [
         {
@@ -1146,30 +913,20 @@
           "label": "Employee",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "employee",
-          "options": null
+          "targetEntity": "employee"
         },
         {
           "key": "author",
           "label": "Author",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "note",
           "label": "Note",
           "type": "longtext",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         }
       ]
     },
@@ -1179,97 +936,56 @@
       "labelPlural": "Contacts",
       "description": "Somebody outside the workspace we deal with: a freelancer, a visitor who booked time, a person at a company. Colleagues are employees; logins live in the platform directory. A contact who works at a company also appears in that company's contact list in Organizations.",
       "displayField": "full_name",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "full_name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "organization",
           "label": "Organization",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "core_organizations",
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "job_title",
           "label": "Job title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "email",
           "label": "Email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "email_key",
           "label": "Email identity",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "phone",
           "label": "Phone",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "mobile",
           "label": "Mobile",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "owner",
           "label": "Owner",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "active",
@@ -1287,10 +1003,6 @@
           "key": "origin",
           "label": "Came from",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "manual",
@@ -1312,12 +1024,7 @@
         {
           "key": "notes",
           "label": "Notes",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     }
@@ -1345,138 +1052,18 @@
         "employee.manager",
         "employee.person",
         "hr_note.author"
-      ],
-      "why": null
+      ]
     }
   ],
-  "events": [
-    {
-      "type": "record.created",
-      "entity": "compensation",
-      "description": "A Compensation record was created",
-      "name": "compensation.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "compensation",
-      "description": "A Compensation record was deleted",
-      "name": "compensation.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "compensation",
-      "description": "A Compensation record changed",
-      "name": "compensation.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "contact",
-      "description": "A Contact was created",
-      "name": "contact.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "contact",
-      "description": "A Contact was deleted",
-      "name": "contact.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "contact",
-      "description": "A Contact changed",
-      "name": "contact.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "document",
-      "description": "A Document was created",
-      "name": "document.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "document",
-      "description": "A Document was deleted",
-      "name": "document.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "document",
-      "description": "A Document changed",
-      "name": "document.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "emergency_contact",
-      "description": "A Emergency contact was created",
-      "name": "emergency_contact.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "emergency_contact",
-      "description": "A Emergency contact was deleted",
-      "name": "emergency_contact.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "emergency_contact",
-      "description": "A Emergency contact changed",
-      "name": "emergency_contact.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "employee",
-      "description": "A Employee was created",
-      "name": "employee.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "employee",
-      "description": "A Employee was deleted",
-      "name": "employee.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "employee",
-      "description": "A Employee changed",
-      "name": "employee.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "employment",
-      "description": "A Employment record was created",
-      "name": "employment.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "employment",
-      "description": "A Employment record was deleted",
-      "name": "employment.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "employment",
-      "description": "A Employment record changed",
-      "name": "employment.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "hr_note",
-      "description": "A HR note was created",
-      "name": "hr_note.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "hr_note",
-      "description": "A HR note was deleted",
-      "name": "hr_note.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "hr_note",
-      "description": "A HR note changed",
-      "name": "hr_note.updated"
-    }
-  ],
+  "eventDefaults": {
+    "crud": true,
+    "kinds": [
+      "record.created",
+      "record.updated",
+      "record.deleted"
+    ],
+    "note": "Every entity emits <entity>.created, <entity>.updated and <entity>.deleted. The events list carries only what this rule does not already say."
+  },
   "actions": [
     {
       "id": "contact.add_to_organization",
@@ -1484,8 +1071,6 @@
       "entity": "contact",
       "label": "Add to organization",
       "description": "File this person under the company they work for. Pick an existing organization or add a new one; they then also appear in that company's contact list in Organizations.",
-      "synthesized": false,
-      "transition": null,
       "input": {
         "fields": [
           "organization"
@@ -1498,7 +1083,6 @@
         "contact.add_to_organization.when",
         "contact.add_to_organization.requires_organization"
       ],
-      "emits": [],
       "causes": [
         "contact.updated"
       ]
@@ -1509,14 +1093,9 @@
       "entity": "employee",
       "label": "Disable",
       "description": "Mark this employee inactive (alumni) — they leave the active team but stay in the directory.",
-      "synthesized": false,
-      "transition": null,
-      "input": null,
       "requires": [
         "employee.mark_inactive.when"
-      ],
-      "emits": [],
-      "causes": []
+      ]
     }
   ],
   "rules": [
@@ -1543,7 +1122,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     },
     {
@@ -1554,7 +1132,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     }
   ]

@@ -1,5 +1,5 @@
 {
-  "contractVersion": "1.0",
+  "contractVersion": "1.1",
   "kind": "app-contract",
   "identity": {
     "key": "core_organizations",
@@ -7,9 +7,8 @@
     "version": "1.7.0",
     "schemaVersion": "2.0",
     "definitionHash": "ec2f8f04198c3c91e66b732201fbb46e538045288a104cbf1dba2bdc3c639246",
-    "contractHash": "c5ba422dc63cbec7e84d89b0bbeebf80396bef7984971f605637c95836bc9859"
+    "contractHash": "ba6428965578d54bb7d78cbe2e961aa3e25862b7cab00dcf1520efec2ceb1757"
   },
-  "purpose": null,
   "entities": [
     {
       "key": "organization",
@@ -17,27 +16,17 @@
       "labelPlural": "Companies",
       "description": "A company the workspace deals with — a customer, a supplier, a partner, an investor or a holding. The canonical record: an invoice, a deal and a timesheet all point at THIS row rather than each app keeping its own spelling of the name.",
       "displayField": "name",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "roles",
           "label": "Relationship",
           "type": "multiselect",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "prospect",
@@ -75,10 +64,6 @@
           "key": "status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "active",
@@ -96,10 +81,6 @@
           "key": "industry",
           "label": "Industry",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "software",
@@ -177,20 +158,12 @@
           "key": "parent_organization",
           "label": "Belongs to",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "group_role",
           "label": "Role in the group",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "independent",
@@ -222,71 +195,37 @@
         {
           "key": "website",
           "label": "Website",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "email",
           "label": "Email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "phone",
           "label": "Phone",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "street",
           "label": "Street",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "postcode",
           "label": "Postcode",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "city",
           "label": "City",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "country",
           "label": "Country",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "AT",
@@ -458,41 +397,24 @@
         {
           "key": "description",
           "label": "What they do",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "owner",
           "label": "Owner",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "billing_email",
           "label": "Billing email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "payment_terms",
           "label": "Payment terms",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "net_7",
@@ -514,41 +436,22 @@
         {
           "key": "notes",
           "label": "Notes",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "enr_unconfirmed",
           "label": "Awaiting check",
-          "type": "json",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "json"
         },
         {
           "key": "enr_differs",
           "label": "Research disagrees",
-          "type": "json",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "json"
         },
         {
           "key": "enr_state",
           "label": "Research",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "never",
@@ -576,10 +479,6 @@
           "key": "enr_last_outcome",
           "label": "Last result",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "ok",
@@ -616,41 +515,22 @@
         {
           "key": "enr_last_run_at",
           "label": "Last researched",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "enr_last_successful_run_at",
           "label": "Last successful research",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "enr_domain",
           "label": "Confirmed domain",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_review_state",
           "label": "Review",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "none",
@@ -672,261 +552,132 @@
         {
           "key": "enr_review_reason",
           "label": "Why",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_review_fingerprint",
           "label": "Reviewed state",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_website",
           "label": "Website (found)",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "enr_description",
           "label": "What they do",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "enr_industry",
           "label": "Industry (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_industry_code",
           "label": "Sector (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_phone",
           "label": "Phone (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_hq_city",
           "label": "HQ city (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_hq_country",
           "label": "HQ country (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_registered_city",
           "label": "Registered city",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_registered_country",
           "label": "Registered country",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_registered_street",
           "label": "Street",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_registered_postcode",
           "label": "Postcode",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_legal_name",
           "label": "Legal name",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_legal_form",
           "label": "Legal form",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_register_court",
           "label": "Registered at",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_register_number",
           "label": "Register number",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_vat_id",
           "label": "VAT id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_employee_count",
           "label": "Employees",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "enr_employee_range",
           "label": "Headcount band",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_founded_year",
           "label": "Founded",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "enr_incorporation_date",
           "label": "Incorporated",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "enr_acquirer",
           "label": "Acquired by",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_acquired_on",
           "label": "Acquired on",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "enr_parent_name",
           "label": "Parent company (found)",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_capital_stage",
           "label": "Stage",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "bootstrapped",
@@ -998,172 +749,87 @@
         {
           "key": "enr_ticker",
           "label": "Ticker",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_exchange",
           "label": "Exchange",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_isin",
           "label": "ISIN",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_primary_mic",
           "label": "Venue code",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_trading_currency",
           "label": "Trades in",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_total_funding",
           "label": "Total funding raised",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "enr_funding_currency",
           "label": "Funding currency",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_investors",
           "label": "Investors",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_last_round_on",
           "label": "Latest round date",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "enr_last_round_type",
           "label": "Latest round",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_last_round_amount",
           "label": "Latest round amount",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "enr_last_round_currency",
           "label": "Latest round currency",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_logo_url",
           "label": "Logo",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "enr_logo_source_url",
           "label": "Logo source",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "enr_provenance",
           "label": "Provenance",
-          "type": "json",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "json"
         },
         {
           "key": "company_code",
           "label": "Company code",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "dedup_key",
           "label": "Identity key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -1173,87 +839,48 @@
       "labelPlural": "Contacts",
       "description": "A person at an organization we deal with. EXTERNAL people only — colleagues come from the platform people directory, and leads, candidates and applicants belong to the app that runs that process.",
       "displayField": "full_name",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "full_name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "organization",
           "label": "Organization",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "job_title",
           "label": "Job title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "email",
           "label": "Email",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "phone",
           "label": "Phone",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "mobile",
           "label": "Mobile",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "is_primary",
           "label": "Primary contact",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "active",
@@ -1271,31 +898,20 @@
           "key": "owner",
           "label": "Owner",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "notes",
           "label": "Notes",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "person",
           "label": "Person",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "core_people",
-          "targetEntity": "contact",
-          "options": null
+          "targetEntity": "contact"
         }
       ]
     },
@@ -1305,7 +921,6 @@
       "labelPlural": "Research runs",
       "description": "One automatic research run: what it looked at, what it wrote, what it cost, and how it ended. Kept with the organization so a failure is visible on the record, not only in an admin table.",
       "displayField": "run_kind",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -1313,39 +928,22 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "job_id",
           "label": "Job",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "run_kind",
           "label": "Kind",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "outcome",
           "label": "Outcome",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "running",
@@ -1387,162 +985,82 @@
         {
           "key": "attempt",
           "label": "Attempt",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "terminal_reason",
           "label": "Reason",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "counts_as_success",
           "label": "Counted as current",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "success_policy_version",
           "label": "Policy",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "started_at",
           "label": "Started",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "finished_at",
           "label": "Finished",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "connectors_used",
           "label": "Sources used",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "documents_seen",
           "label": "Documents",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "facts_written",
           "label": "Facts",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "records_written",
           "label": "Records",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "llm_input_tokens",
           "label": "Input tokens",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "llm_output_tokens",
           "label": "Output tokens",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "cost_estimate",
           "label": "Est. cost",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "summary",
           "label": "Summary",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "error",
           "label": "Error",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -1552,7 +1070,6 @@
       "labelPlural": "Sources",
       "description": "A page the research actually read. Every promoted fact points at one of these, so any number on the record can be traced back to where it came from.",
       "displayField": "title",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -1560,140 +1077,72 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "url",
           "label": "URL",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "url_key",
           "label": "URL key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "title",
           "label": "Title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "site",
           "label": "Site",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "source_kind",
           "label": "Kind",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "connector",
           "label": "Found via",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "published_at",
           "label": "Published",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "first_seen_at",
           "label": "First seen",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "last_seen_at",
           "label": "Last seen",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "content_hash",
           "label": "Content hash",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "fetched_at",
           "label": "Fetched",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "excerpt",
           "label": "Excerpt",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     },
@@ -1703,7 +1152,6 @@
       "labelPlural": "Run documents",
       "description": "Which documents one run actually read, and which of them reached the model. A source is shared across every run that saw it, so the source row itself cannot say which run used it - that is what this join carries. It is also the only record of the corpus a fact was checked against: 'did the model actually see this page' becomes a query instead of a guess.",
       "displayField": "prompt_label",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -1711,100 +1159,56 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "run",
           "label": "Run",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "enrichment_run",
-          "options": null
+          "targetEntity": "enrichment_run"
         },
         {
           "key": "source",
           "label": "Document",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "enrichment_source",
-          "options": null
+          "targetEntity": "enrichment_source"
         },
         {
           "key": "corpus_rank",
           "label": "Rank",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "included_in_prompt",
           "label": "Sent to the model",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "prompt_label",
           "label": "Cited as",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "prompt_position",
           "label": "Position",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "characters_sent",
           "label": "Characters sent",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "was_clipped",
           "label": "Clipped",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -1814,7 +1218,6 @@
       "labelPlural": "Facts & sources",
       "description": "Where a single promoted value came from: the quote, the source, the confidence, and whether it was applied. Superseded rows are kept so the record shows WHY a value changed.",
       "displayField": "label",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -1822,129 +1225,68 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "run",
           "label": "Found by run",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "enrichment_run",
-          "options": null
+          "targetEntity": "enrichment_run"
         },
         {
           "key": "field_key",
           "label": "Field",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "label",
           "label": "Fact",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "value_text",
           "label": "Value",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "quote",
           "label": "Quoted from source",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "quote_verified",
           "label": "Quote found in source",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "support_check",
           "label": "Support check",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "source_url",
           "label": "Source",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "source_title",
           "label": "Source title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "confidence",
           "label": "Confidence",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "as_of",
           "label": "As of",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "fact_status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "current",
@@ -1966,22 +1308,12 @@
         {
           "key": "superseded_at",
           "label": "Superseded",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -1991,7 +1323,6 @@
       "labelPlural": "Funding rounds",
       "description": "A funding event. The latest of these is rolled up onto the organization in code - the model is never asked for both the rounds and a summary of the rounds, because the two would disagree.",
       "displayField": "round_type",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -1999,150 +1330,77 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "round_type",
           "label": "Round",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "announced_on",
           "label": "Announced",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "amount",
           "label": "Amount",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "currency",
           "label": "Currency",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "valuation",
           "label": "Valuation",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "valuation_currency",
           "label": "Valuation currency",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "lead_investor",
           "label": "Lead",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "investors",
           "label": "Investors",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "source_urls",
           "label": "Sources",
-          "type": "json",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "json"
         },
         {
           "key": "quote",
           "label": "Quote",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "counted",
           "label": "In the total",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "support_check",
           "label": "Check",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "confidence",
           "label": "Confidence",
-          "type": "decimal",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "decimal"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -2152,7 +1410,6 @@
       "labelPlural": "Investors",
       "description": "A firm or person that put money into this company. Its own entity rather than a comma-separated string on the record, because an investor is something somebody wants to CLICK - a name alone means opening a search engine, and that is the difference between a record that answers a question and one that just displays a fact. Shared across rounds: a fund that led the Seed and followed the Series A is one investor with two rounds, not two rows.",
       "displayField": "name",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -2160,39 +1417,23 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "name",
           "label": "Investor",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "url",
           "label": "Website",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "role",
           "label": "Role",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "lead",
@@ -2209,22 +1450,12 @@
         {
           "key": "first_seen_at",
           "label": "First seen",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -2234,7 +1465,6 @@
       "labelPlural": "Channels",
       "description": "Where this company publishes: its blog, press page, YouTube channel, LinkedIn page. Discovered from links on the company's OWN site, which is what makes them trustworthy - a channel found by searching a company name is a guess wearing a link. Discovery only: nothing here is polled yet, and a channel never changes a value on the record.",
       "displayField": "label",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -2242,19 +1472,12 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "kind",
           "label": "Channel",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "blog",
@@ -2376,51 +1599,27 @@
         {
           "key": "label",
           "label": "Name",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "url",
           "label": "Link",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "feed_url",
           "label": "Feed",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "discovered_from",
           "label": "Found on",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "status",
           "label": "Status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "active",
@@ -2437,32 +1636,17 @@
         {
           "key": "first_seen_at",
           "label": "First seen",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "last_seen_on_site_at",
           "label": "Last seen on site",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -2472,7 +1656,6 @@
       "labelPlural": "Officers",
       "description": "A person the commercial register or the legal notice DECLARES in a role: a managing director, a board member, an authorized signatory. Deliberately not a contact - a contact is somebody you deal with and curate, this is a researched claim about the company. Name and role only: a model that half-remembers a director will invent an email address with total confidence, and an invented address for a real named person is the one error here with a victim. Promoting an officer to a contact is a human action.",
       "displayField": "name",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -2480,70 +1663,38 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "role",
           "label": "Role",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "since",
           "label": "In role since",
-          "type": "date",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "date"
         },
         {
           "key": "first_seen_at",
           "label": "First seen",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "last_seen_at",
           "label": "Last confirmed",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -2553,7 +1704,6 @@
       "labelPlural": "Posts",
       "description": "Something this company published: a blog post, a press release, a video. Read from the channel's own feed. Monitoring output, not research - a post is a dated item with a link, and it never changes a value on the record.",
       "displayField": "title",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -2561,100 +1711,53 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "channel",
           "label": "Channel",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "company_channel",
-          "options": null
+          "targetEntity": "company_channel"
         },
         {
           "key": "title",
           "label": "Title",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "url",
           "label": "Link",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "published_at",
           "label": "Published",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "excerpt",
           "label": "Summary",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "image_url",
           "label": "Image",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "external_id",
           "label": "Source id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "fetched_at",
           "label": "Fetched",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     },
@@ -2664,7 +1767,6 @@
       "labelPlural": "Corrections",
       "description": "A human correcting a researched value. While one is active the writer never overwrites that field, and keeps refreshing every other one. This is also what makes a correction RATE countable rather than something inferred from history.",
       "displayField": "field_key",
-      "kind": null,
       "ownedBy": "organization",
       "fields": [
         {
@@ -2672,60 +1774,34 @@
           "label": "Organization",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "organization",
-          "options": null
+          "targetEntity": "organization"
         },
         {
           "key": "field_key",
           "label": "Field",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "value_text",
           "label": "Correct value",
           "type": "longtext",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "reason",
           "label": "Why",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "active",
           "label": "Active",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "dedup_key",
           "label": "Key",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     }
@@ -2751,228 +1827,18 @@
       "fields": [
         "contact.owner",
         "organization.owner"
-      ],
-      "why": null
+      ]
     }
   ],
-  "events": [
-    {
-      "type": "record.created",
-      "entity": "company_channel",
-      "description": "A Channel was created",
-      "name": "company_channel.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "company_channel",
-      "description": "A Channel was deleted",
-      "name": "company_channel.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "company_channel",
-      "description": "A Channel changed",
-      "name": "company_channel.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "company_investor",
-      "description": "A Investor was created",
-      "name": "company_investor.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "company_investor",
-      "description": "A Investor was deleted",
-      "name": "company_investor.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "company_investor",
-      "description": "A Investor changed",
-      "name": "company_investor.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "company_officer",
-      "description": "A Officer was created",
-      "name": "company_officer.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "company_officer",
-      "description": "A Officer was deleted",
-      "name": "company_officer.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "company_officer",
-      "description": "A Officer changed",
-      "name": "company_officer.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "company_post",
-      "description": "A Post was created",
-      "name": "company_post.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "company_post",
-      "description": "A Post was deleted",
-      "name": "company_post.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "company_post",
-      "description": "A Post changed",
-      "name": "company_post.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "contact",
-      "description": "A Contact was created",
-      "name": "contact.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "contact",
-      "description": "A Contact was deleted",
-      "name": "contact.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "contact",
-      "description": "A Contact changed",
-      "name": "contact.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "enrichment_fact",
-      "description": "A Fact was created",
-      "name": "enrichment_fact.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "enrichment_fact",
-      "description": "A Fact was deleted",
-      "name": "enrichment_fact.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "enrichment_fact",
-      "description": "A Fact changed",
-      "name": "enrichment_fact.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "enrichment_override",
-      "description": "A Correction was created",
-      "name": "enrichment_override.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "enrichment_override",
-      "description": "A Correction was deleted",
-      "name": "enrichment_override.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "enrichment_override",
-      "description": "A Correction changed",
-      "name": "enrichment_override.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "enrichment_run",
-      "description": "A Research run was created",
-      "name": "enrichment_run.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "enrichment_run",
-      "description": "A Research run was deleted",
-      "name": "enrichment_run.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "enrichment_run",
-      "description": "A Research run changed",
-      "name": "enrichment_run.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "enrichment_run_source",
-      "description": "A Run document was created",
-      "name": "enrichment_run_source.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "enrichment_run_source",
-      "description": "A Run document was deleted",
-      "name": "enrichment_run_source.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "enrichment_run_source",
-      "description": "A Run document changed",
-      "name": "enrichment_run_source.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "enrichment_source",
-      "description": "A Source was created",
-      "name": "enrichment_source.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "enrichment_source",
-      "description": "A Source was deleted",
-      "name": "enrichment_source.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "enrichment_source",
-      "description": "A Source changed",
-      "name": "enrichment_source.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "funding_round",
-      "description": "A Funding round was created",
-      "name": "funding_round.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "funding_round",
-      "description": "A Funding round was deleted",
-      "name": "funding_round.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "funding_round",
-      "description": "A Funding round changed",
-      "name": "funding_round.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "organization",
-      "description": "A Company was created",
-      "name": "organization.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "organization",
-      "description": "A Company was deleted",
-      "name": "organization.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "organization",
-      "description": "A Company changed",
-      "name": "organization.updated"
-    }
-  ],
+  "eventDefaults": {
+    "crud": true,
+    "kinds": [
+      "record.created",
+      "record.updated",
+      "record.deleted"
+    ],
+    "note": "Every entity emits <entity>.created, <entity>.updated and <entity>.deleted. The events list carries only what this rule does not already say."
+  },
   "actions": [
     {
       "id": "organization.enrich_now",
@@ -2980,14 +1846,9 @@
       "entity": "organization",
       "label": "Research now",
       "description": "Look this company up on the public web and file what is found alongside - never over - what you typed.",
-      "synthesized": false,
-      "transition": null,
-      "input": null,
       "requires": [
         "organization.enrich_now.when"
-      ],
-      "emits": [],
-      "causes": []
+      ]
     },
     {
       "id": "organization.refresh_research",
@@ -2995,14 +1856,9 @@
       "entity": "organization",
       "label": "Refresh",
       "description": "Research this company again even though it was looked up recently. Ordinary research is refused inside the freshness window so nobody can run up a bill by pressing a button five times; this is the deliberate way past it.",
-      "synthesized": false,
-      "transition": null,
-      "input": null,
       "requires": [
         "organization.refresh_research.when"
-      ],
-      "emits": [],
-      "causes": []
+      ]
     }
   ],
   "rules": [
@@ -3014,7 +1870,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     },
     {
@@ -3025,7 +1880,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     }
   ]

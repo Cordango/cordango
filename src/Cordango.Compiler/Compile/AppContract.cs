@@ -33,12 +33,27 @@ namespace Cordango.Compile;
 /// <c>AppDataService</c>/<c>CommandExecutor</c> actually writes, and every rule is one that actually
 /// refuses a write. A contract listing an event nobody emits is worse than no contract at all: it is
 /// a promise that fails silently, in someone else's app.</para>
+///
+/// <para><b>And nothing the runtime does goes unstated — but a rule may be stated as a rule.</b> The
+/// CRUD events hold for every entity in every app, so they live in <c>eventDefaults</c> rather than
+/// three times per entity in <c>events</c>. The reader still learns every event this app emits; it
+/// reads one sentence and the entity list instead of a list that was three quarters boilerplate.
+/// Absent values are omitted for the same reason — see <see cref="Prune"/>.</para>
 /// </summary>
 public static class AppContract
 {
-    /// <summary>The contract's own shape version. Independent of the App Definition schema version
-    /// and of the manifest version, because it changes for different reasons than either.</summary>
-    public const string ContractVersion = "1.0";
+    /// <summary>
+    /// The contract's own shape version. Independent of the App Definition schema version and of the
+    /// manifest version, because it changes for different reasons than either.
+    ///
+    /// <para><b>1.1</b> made the document say only what is true of THIS app. A key whose value is
+    /// absent — null, false, or an empty list — is omitted rather than spelled out, and the CRUD
+    /// events every entity emits are stated once in <c>eventDefaults</c> instead of three times per
+    /// entity. Both are subtractions of noise, not of meaning: a reader asking <c>field.required</c>
+    /// or <c>field.options</c> gets the same answer it always did. A reader testing for the KEY's
+    /// presence does not, which is why this is 1.1 and not more of 1.0.</para>
+    /// </summary>
+    public const string ContractVersion = "1.1";
 
     public const string Kind = "app-contract";
 
@@ -87,14 +102,13 @@ public static class AppContract
             ["version"] = Str(definition, "version"),
             ["schemaVersion"] = Str(definition, "schemaVersion"),
             ["definitionHash"] = definitionHash,
-            // Filled by ContractWriter.Seal over everything else. Present as null so the key order
-            // of a sealed and an unsealed contract is the same.
-            ["contractHash"] = null,
+            // Appended by ContractWriter.Seal over everything else, and absent until then. The hash
+            // is ordinal-canonical, so where the key lands does not change what it says.
         };
 
         var actions = Actions(processes, commands);
 
-        return new JsonObject
+        return Prune(new JsonObject
         {
             ["contractVersion"] = ContractVersion,
             ["kind"] = Kind,
@@ -102,11 +116,71 @@ public static class AppContract
             ["purpose"] = Purpose(definition),
             ["entities"] = new JsonArray([.. entities.OfType<JsonObject>().Select(Entity)]),
             ["dependencies"] = Dependencies(definition),
-            ["events"] = Events(entities, processes, commands, actions),
+            ["eventDefaults"] = EventDefaults(),
+            ["events"] = Events(processes, actions),
             ["actions"] = new JsonArray([.. actions.Select(a => (JsonNode)a.Json)]),
             ["rules"] = Rules(actions),
-        };
+        });
     }
+
+    /// <summary>
+    /// The contract with every absent value taken out — null, <c>false</c>, and empty lists.
+    ///
+    /// <para><b>A contract should say what is true of this app, not recite the whole vocabulary.</b>
+    /// Every field carried <c>computed: false, targetApp: null, targetEntity: null, options: null</c>
+    /// whether or not any of it applied; across a real app that was 490 null-valued keys in one
+    /// document and roughly a third of its bytes. The cost is not disk — it is that everything
+    /// downstream reads this, and an agent paying for context pays for the nulls too.</para>
+    ///
+    /// <para>Absence is the same answer the value was giving: a reader asking <c>field.required</c>
+    /// or <c>field.options</c> gets null/undefined either way. Only a reader testing whether the KEY
+    /// exists sees a difference, which is what the 1.1 in <see cref="ContractVersion"/> is for.</para>
+    ///
+    /// <para>Applied ONCE, here, rather than at each of the dozen places a key is built: a rule that
+    /// has to be remembered at every call site is a rule that holds until the next section is
+    /// added.</para>
+    /// </summary>
+    private static JsonObject Prune(JsonObject o)
+    {
+        foreach (var key in o.Select(p => p.Key).ToList())
+        {
+            var value = o[key];
+            if (Empty(value)) { o.Remove(key); continue; }
+            if (value is JsonObject child) Prune(child);
+            else if (value is JsonArray array)
+                foreach (var item in array.OfType<JsonObject>()) Prune(item);
+        }
+        return o;
+    }
+
+    /// <summary>Whether a value says nothing: absent, off, or an empty collection. A zero or an empty
+    /// string is NOT nothing — somebody wrote them, and the contract reports what is there.</summary>
+    private static bool Empty(JsonNode? value) => value switch
+    {
+        null => true,
+        JsonArray a => a.Count == 0,
+        JsonObject o => o.Count == 0,
+        JsonValue v => v.TryGetValue<bool>(out var b) && !b,
+        _ => false,
+    };
+
+    /// <summary>
+    /// The events every entity emits, stated once instead of three times per entity.
+    ///
+    /// <para><b>Said, not dropped.</b> The runtime emits <c>created</c>, <c>updated</c> and
+    /// <c>deleted</c> for every entity in every app, so listing them per entity spends a quarter of
+    /// the document restating one rule — 48 of budget-planner's 64 events carried no information a
+    /// reader could not derive from the entity list. A contract that simply omitted them would break
+    /// the promise that nothing the runtime does goes unpublished, so the rule itself is published
+    /// and <see cref="Events"/> carries only what the rule cannot predict.</para>
+    /// </summary>
+    private static JsonObject EventDefaults() => new()
+    {
+        ["crud"] = true,
+        ["kinds"] = new JsonArray(RecordCreated, RecordUpdated, RecordDeleted),
+        ["note"] = "Every entity emits <entity>.created, <entity>.updated and <entity>.deleted. "
+            + "The events list carries only what this rule does not already say.",
+    };
 
     private static JsonNode? Purpose(JsonObject definition)
     {
@@ -354,14 +428,18 @@ public static class AppContract
     /// <summary>
     /// Every event this app can emit, and how each one comes to exist.
     ///
-    /// <para>Three sources, three different answers to "what causes this". A CRUD event happens on
-    /// any write. A state event happens because the record ENTERED a state — the actions listed
-    /// against it can cause that, but they do not publish it. A command event is published by the
-    /// action itself. An agent asking "what causes deal.won" needs that distinction: subscribing to
-    /// it and calling the action are different plans.</para>
+    /// <para>Two sources, two different answers to "what causes this". A state event happens because
+    /// the record ENTERED a state — the actions listed against it can cause that, but they do not
+    /// publish it. A command event is published by the action itself. An agent asking "what causes
+    /// deal.won" needs that distinction: subscribing to it and calling the action are different
+    /// plans.</para>
+    ///
+    /// <para>The third source, CRUD, is not listed here. It applies to every entity without
+    /// exception, so it is stated once in <see cref="EventDefaults"/> and the reader derives the
+    /// names from the entity list. What remains in this list is exactly what could not have been
+    /// predicted — which is also what makes the list worth reading.</para>
     /// </summary>
-    private static JsonArray Events(JsonArray entities, JsonArray processes, JsonArray commands,
-        List<Action> actions)
+    private static JsonArray Events(JsonArray processes, List<Action> actions)
     {
         var events = new List<JsonObject>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -371,24 +449,6 @@ public static class AppContract
             if (!seen.Add(name)) return;
             body["name"] = name;
             events.Add(body);
-        }
-
-        foreach (var e in entities.OfType<JsonObject>())
-        {
-            if (Str(e, "key") is not { } key) continue;
-            var label = Str(e, "label") ?? key;
-            Add($"{key}.created", new JsonObject
-            {
-                ["type"] = RecordCreated, ["entity"] = key, ["description"] = $"A {label} was created",
-            });
-            Add($"{key}.updated", new JsonObject
-            {
-                ["type"] = RecordUpdated, ["entity"] = key, ["description"] = $"A {label} changed",
-            });
-            Add($"{key}.deleted", new JsonObject
-            {
-                ["type"] = RecordDeleted, ["entity"] = key, ["description"] = $"A {label} was deleted",
-            });
         }
 
         foreach (var p in processes.OfType<JsonObject>())

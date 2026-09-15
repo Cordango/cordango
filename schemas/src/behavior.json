@@ -668,6 +668,7 @@
         "effects"
       ],
       "properties": {
+        "class": { "$ref": "#/$defs/blockClass" },
         "key": {
           "$ref": "#/$defs/identifier"
         },
@@ -882,6 +883,7 @@
               "label"
             ],
             "properties": {
+            "class": { "$ref": "#/$defs/blockClass" },
               "key": {
                 "type": "string",
                 "minLength": 1,

@@ -239,6 +239,12 @@
       "minLength": 1,
       "maxLength": 127
     },
+    "blockClass": {
+      "description": "Vuetify utility classes for this block's outer element, space separated. Backgrounds bg-<token>; text colour text-<token>; spacing pa-/ma-/px-/py-/pt-/pb-/ps-/pe-<0-16>; corners rounded-(0|sm|lg|xl|pill|circle); shadow elevation-<0-24>; hairline border, border-s/e/t/b; type text-(h1..h6|subtitle-1|subtitle-2|body-1|body-2|caption), font-weight-(light|regular|medium|bold), text-(left|center|right); layout d-flex, d-none, flex-column, align-center, justify-space-between. Tokens: primary, secondary, surface, surface-2, background, outline, success, warning, error, info. bg-<token> also sets a readable foreground, so it never needs a matching text- class. Structure with bg-surface-2 / border / rounded-lg and keep bg-primary for ONE element on a screen.",
+      "type": "string",
+      "maxLength": 120,
+      "pattern": "^[A-Za-z0-9 _-]*$"
+    },
     "hexColor": {
       "type": "string",
       "pattern": "^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$"
@@ -722,6 +728,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "key": {
           "$ref": "#/$defs/identifier"
         },
@@ -1129,6 +1138,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "kind": {
           "type": "string",
           "enum": [
@@ -1224,6 +1236,9 @@
             "key"
           ],
           "properties": {
+            "class": {
+              "$ref": "#/$defs/blockClass"
+            },
             "key": {
               "$ref": "#/$defs/identifier"
             },
@@ -1605,6 +1620,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "key": {
           "$ref": "#/$defs/identifier"
         },
@@ -1719,12 +1737,6 @@
           }
         }
       }
-    },
-    "blockClass": {
-      "description": "Vuetify utility classes for this block's outer element, space separated. Backgrounds bg-<token>; text colour text-<token>; spacing pa-/ma-/px-/py-/pt-/pb-/ps-/pe-<0-16>; corners rounded-(0|sm|lg|xl|pill|circle); shadow elevation-<0-24>; hairline border, border-s/e/t/b; type text-(h1..h6|subtitle-1|subtitle-2|body-1|body-2|caption), font-weight-(light|regular|medium|bold), text-(left|center|right); layout d-flex, d-none, flex-column, align-center, justify-space-between. Tokens: primary, secondary, surface, surface-2, background, outline, success, warning, error, info. bg-<token> also sets a readable foreground, so it never needs a matching text- class. Structure with bg-surface-2 / border / rounded-lg and keep bg-primary for ONE element on a screen.",
-      "type": "string",
-      "maxLength": 120,
-      "pattern": "^[A-Za-z0-9 _-]*$"
     },
     "block": {
       "description": "A layout node, DISCRIMINATED BY `kind`: each kind is its own closed shape (see the block_* definitions), so a property belonging to a different kind is rejected instead of silently ignored.",
@@ -2427,6 +2439,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "label": {
           "type": "string",
           "minLength": 1,
@@ -2490,6 +2505,9 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "key": {
           "$ref": "#/$defs/identifier"
         },
@@ -6025,6 +6043,9 @@
         "effects"
       ],
       "properties": {
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
         "key": {
           "$ref": "#/$defs/identifier"
         },
@@ -6242,6 +6263,9 @@
               "label"
             ],
             "properties": {
+              "class": {
+                "$ref": "#/$defs/blockClass"
+              },
               "key": {
                 "type": "string",
                 "minLength": 1,

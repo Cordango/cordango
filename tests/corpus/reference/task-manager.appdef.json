@@ -1011,7 +1011,8 @@
           {
             "key": "name",
             "width": 280,
-            "overflow": "clip"
+            "overflow": "clip",
+            "class": "font-weight-bold"
           },
           {
             "key": "status",
@@ -1023,7 +1024,8 @@
           },
           {
             "key": "due_date",
-            "width": 110
+            "width": 110,
+            "class": "bg-warning-lighten-5"
           },
           {
             "key": "open_tasks",
@@ -1035,7 +1037,8 @@
           },
           {
             "key": "progress",
-            "width": 120
+            "width": 120,
+            "class": "bg-success-lighten-5 font-weight-medium"
           },
           {
             "key": "tracked_hours",
@@ -1086,7 +1089,8 @@
           {
             "key": "title",
             "width": 400,
-            "overflow": "clip"
+            "overflow": "clip",
+            "class": "font-weight-bold"
           },
           {
             "key": "project",
@@ -1098,7 +1102,8 @@
           },
           {
             "key": "due_date",
-            "width": 110
+            "width": 110,
+            "class": "bg-warning-lighten-5"
           },
           {
             "key": "priority",
@@ -1134,7 +1139,8 @@
           {
             "key": "title",
             "width": 380,
-            "overflow": "clip"
+            "overflow": "clip",
+            "class": "font-weight-bold"
           },
           {
             "key": "project",
@@ -1150,7 +1156,8 @@
           },
           {
             "key": "due_date",
-            "width": 110
+            "width": 110,
+            "class": "bg-warning-lighten-5"
           },
           {
             "key": "priority",
@@ -1232,13 +1239,15 @@
                               "field": "name",
                               "size": "lg",
                               "weight": "bold",
-                              "grow": true
+                              "grow": true,
+                              "class": "text-subtitle-1 font-weight-bold"
                             },
                             {
                               "kind": "chip",
                               "field": "status"
                             }
-                          ]
+                          ],
+                          "class": "mb-2"
                         },
                         {
                           "kind": "row",
@@ -1263,13 +1272,15 @@
                               "size": "sm",
                               "icon": "calendar-outline"
                             }
-                          ]
+                          ],
+                          "class": "text-body-2 mb-3"
                         },
                         {
                           "kind": "progress",
                           "label": "Tasks done",
                           "field": "done_tasks",
-                          "max": "total_tasks"
+                          "max": "total_tasks",
+                          "class": "mb-3"
                         },
                         {
                           "kind": "row",
@@ -1287,9 +1298,11 @@
                               "field": "done_tasks",
                               "format": "number"
                             }
-                          ]
+                          ],
+                          "class": "pt-3 border-t"
                         }
-                      ]
+                      ],
+                      "class": "bg-surface rounded-lg border pa-4"
                     }
                   ]
                 }
@@ -1301,7 +1314,8 @@
               "blocks": [
                 {
                   "kind": "view",
-                  "view": "projects_table"
+                  "view": "projects_table",
+                  "class": "bg-surface rounded-lg border pa-2"
                 }
               ]
             }
@@ -1317,7 +1331,8 @@
       "blocks": [
         {
           "kind": "view",
-          "view": "my_tasks_table"
+          "view": "my_tasks_table",
+          "class": "bg-surface rounded-lg border pa-2"
         }
       ]
     },
@@ -1329,7 +1344,8 @@
       "blocks": [
         {
           "kind": "view",
-          "view": "all_tasks_table"
+          "view": "all_tasks_table",
+          "class": "bg-surface rounded-lg border pa-2"
         }
       ]
     }
@@ -1452,6 +1468,7 @@
     "secondaryColor": "#0ea5e9",
     "font": "Inter",
     "radius": "medium",
-    "density": "comfortable"
+    "density": "comfortable",
+    "preset": "soft"
   }
 }

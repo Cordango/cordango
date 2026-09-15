@@ -101,6 +101,7 @@ public static class ComponentCatalog
                 {"type":"string"},
                 {"type":"object","additionalProperties":false,"required":["key"],"properties":{
                   "key":{"type":"string"},
+                  "class":{"type":"string","maxLength":120,"description":"Vuetify utility classes on this column's cells AND its header — 'bg-success-lighten-5' to pick out the figure people scan for, 'text-right', 'font-weight-bold'. Same vocabulary as a block's `class`."},
                   "label":{"type":"string"},
                   "source":{"type":"object","additionalProperties":false,"required":["app","entity","aggregate"],"properties":{
                     "app":{"type":"string"},"entity":{"type":"string"},
@@ -203,6 +204,7 @@ public static class ComponentCatalog
                 "filters":{"type":"array","items":{"type":"object"}}}}},
             "properties":{
               "type":{"const":"metric"},
+              "background":{"enum":["muted","primary","secondary","success","warning","error","info"],"description":"A soft wash on the card, by what the figure MEANS. Keep it rare."},"bordered":{"type":"boolean"},
               "source":{"$ref":"#/$defs/aggSource"},
               "viz":{"type":"object","additionalProperties":false,"properties":{
                 "title":{"type":"string"},"format":{"enum":["number","money","percent","duration"]}}} } }
@@ -222,6 +224,7 @@ public static class ComponentCatalog
                 "filters":{"type":"array","items":{"type":"object"}}}}},
             "properties":{
               "type":{"const":"chart"},
+              "background":{"enum":["muted","primary","secondary","success","warning","error","info"],"description":"A soft wash on the card, by what the figure MEANS. Keep it rare."},"bordered":{"type":"boolean"},
               "source":{"$ref":"#/$defs/aggSource"},
               "viz":{"type":"object","additionalProperties":false,"required":["chartType"],"properties":{
                 "chartType":{"enum":["bar","line","pie","donut","area"]},"title":{"type":"string"}}} } }
@@ -234,6 +237,7 @@ public static class ComponentCatalog
           """
           { "type":"object", "additionalProperties":false, "required":["type","source"], "properties":{
             "type":{"const":"list"},
+              "background":{"enum":["muted","primary","secondary","success","warning","error","info"],"description":"A soft wash on the card, by what the figure MEANS. Keep it rare."},"bordered":{"type":"boolean"},
             "source":{"type":"object","additionalProperties":false,"required":["entity"],"properties":{
               "entity":{"type":"string"},"sort":{"type":"array","items":{"type":"object"}},
               "limit":{"type":"integer","minimum":1},"filters":{"type":"array","items":{"type":"object"}}}},

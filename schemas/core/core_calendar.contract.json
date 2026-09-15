@@ -1,5 +1,5 @@
 {
-  "contractVersion": "1.0",
+  "contractVersion": "1.1",
   "kind": "app-contract",
   "identity": {
     "key": "core_calendar",
@@ -7,9 +7,8 @@
     "version": "1.6.0",
     "schemaVersion": "2.0",
     "definitionHash": "c82f405e475e488224254746fa06749d309367f12b66f9135278ed948e644fc2",
-    "contractHash": "aecda987e926a6ad0e7edaf1cba8c2683d282fce4393113c1cca63c3ae03e023"
+    "contractHash": "c1e2b41ef1f71e51b00c6c4190f8f01ee285c92777ffce899391d27851048ece"
   },
-  "purpose": null,
   "entities": [
     {
       "key": "calendar_source",
@@ -18,26 +17,18 @@
       "description": "One connected calendar. This is what makes 'I have several calendars' first class rather than a pile of events with a provider column: colour, visibility and the booking target all hang off the source, and turning one off hides its events everywhere at once.",
       "displayField": "name",
       "kind": "config",
-      "ownedBy": null,
       "fields": [
         {
           "key": "name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "provider",
           "label": "Provider",
           "type": "select",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "microsoft",
@@ -66,89 +57,48 @@
           "label": "Owner",
           "type": "reference",
           "required": true,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "color",
           "label": "Colour",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "is_visible",
           "label": "Shown",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "is_default_target",
           "label": "Default for bookings",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "feed_url",
           "label": "iCal address",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "feed_time_zone",
           "label": "Feed time zone",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "subscribe_url",
           "label": "Subscription link",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "external_id",
           "label": "External id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "sync_status",
           "label": "Sync status",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "ok",
@@ -170,22 +120,12 @@
         {
           "key": "last_synced_at",
           "label": "Last synced",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "last_error",
           "label": "Last error",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         }
       ]
     },
@@ -195,127 +135,71 @@
       "labelPlural": "Events",
       "description": "One appointment, at one instant, on one calendar. Recurring series arrive already EXPANDED into their individual occurrences — the provider does that expansion and applies each per-instance override, and re-deriving it from a rule would mean disagreeing with the user's own Outlook, which is the reference they will compare against.",
       "displayField": "title",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "title",
           "label": "Title",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "calendar",
           "label": "Calendar",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "calendar_source",
-          "options": null
+          "targetEntity": "calendar_source"
         },
         {
           "key": "starts_at",
           "label": "Starts",
           "type": "datetime",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "ends_at",
           "label": "Ends",
           "type": "datetime",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "is_all_day",
           "label": "All day",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "time_zone",
           "label": "Time zone",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "location",
           "label": "Location",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "meeting_url",
           "label": "Meeting link",
-          "type": "url",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "url"
         },
         {
           "key": "description",
           "label": "Notes",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "organizer_email",
           "label": "Organizer",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "attendee_count",
           "label": "Attendees",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "show_as",
           "label": "Shows as",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "free",
@@ -348,10 +232,6 @@
           "key": "sensitivity",
           "label": "Sensitivity",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "normal",
@@ -373,21 +253,13 @@
         {
           "key": "is_cancelled",
           "label": "Cancelled",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         },
         {
           "key": "origin",
           "label": "Origin",
           "type": "select",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "imported",
@@ -404,42 +276,22 @@
         {
           "key": "external_id",
           "label": "External id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "external_series_id",
           "label": "Series id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "external_etag",
           "label": "ETag",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "synced_at",
           "label": "Synced",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         }
       ]
     },
@@ -457,20 +309,15 @@
           "label": "Calendar",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "calendar_source",
-          "options": null
+          "targetEntity": "calendar_source"
         },
         {
           "key": "person",
           "label": "Colleague",
           "type": "reference",
           "required": true,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         }
       ]
     },
@@ -480,7 +327,6 @@
       "labelPlural": "Guests",
       "description": "Somebody invited to an appointment. A child record rather than a field, because there is no multi-reference field type and a multiselect holds only a closed option list — 'several people on one meeting' has no other shape here. It is also the shape Outlook and Google both hand back, so an imported attendee and an invited colleague land in the same place instead of two that disagree.",
       "displayField": "email",
-      "kind": null,
       "ownedBy": "calendar_event",
       "fields": [
         {
@@ -488,49 +334,30 @@
           "label": "Event",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "calendar_event",
-          "options": null
+          "targetEntity": "calendar_event"
         },
         {
           "key": "email",
           "label": "Email",
           "type": "email",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "name",
           "label": "Name",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "person",
           "label": "Colleague",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "response",
           "label": "Response",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "needs_action",
@@ -557,12 +384,7 @@
         {
           "key": "is_organizer",
           "label": "Organizer",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         }
       ]
     },
@@ -572,67 +394,42 @@
       "labelPlural": "Booking pages",
       "description": "A shareable link that lets someone outside the workspace pick a free slot. The rules of engagement live here — how long, how much notice, which hours, how much buffer — so the public page computes them rather than being told what to offer.",
       "displayField": "name",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "owner",
           "label": "Owner",
           "type": "reference",
           "required": true,
-          "computed": false,
           "targetApp": "platform",
-          "targetEntity": "person",
-          "options": null
+          "targetEntity": "person"
         },
         {
           "key": "slug",
           "label": "Link",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "description",
           "label": "Description",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "duration_minutes",
           "label": "Default length",
           "type": "integer",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "duration_choices",
           "label": "Lengths offered",
           "type": "multiselect",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "15",
@@ -669,81 +466,44 @@
         {
           "key": "buffer_before_minutes",
           "label": "Buffer before",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "buffer_after_minutes",
           "label": "Buffer after",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "min_notice_hours",
           "label": "Minimum notice",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "max_days_ahead",
           "label": "How far ahead",
-          "type": "integer",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "integer"
         },
         {
           "key": "time_zone",
           "label": "Time zone",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "availability",
           "label": "When people can book",
-          "type": "json",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "json"
         },
         {
           "key": "target_calendar",
           "label": "Add bookings to",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "calendar_source",
-          "options": null
+          "targetEntity": "calendar_source"
         },
         {
           "key": "location_kind",
           "label": "How you meet",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "online",
@@ -765,32 +525,17 @@
         {
           "key": "location_detail",
           "label": "Address, number or link",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "notify_email",
           "label": "Email a copy to",
-          "type": "email",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "email"
         },
         {
           "key": "is_published",
           "label": "Published",
-          "type": "boolean",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "boolean"
         }
       ]
     },
@@ -801,67 +546,40 @@
       "description": "Somebody outside the workspace who booked time. Deliberately an ordinary app record and NOT a platform person: external people are not colleagues, they have no login, no seat and no grants, and minting an account per stranger would be account enumeration wearing a data model.",
       "displayField": "name",
       "kind": "config",
-      "ownedBy": null,
       "fields": [
         {
           "key": "name",
           "label": "Name",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "email",
           "label": "Email",
           "type": "email",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "phone",
           "label": "Phone",
-          "type": "phone",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "phone"
         },
         {
           "key": "company",
           "label": "Company",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "first_seen_at",
           "label": "First booked",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "contact",
           "label": "Contact",
           "type": "reference",
-          "required": false,
-          "computed": false,
           "targetApp": "core_people",
-          "targetEntity": "contact",
-          "options": null
+          "targetEntity": "contact"
         }
       ]
     },
@@ -871,67 +589,44 @@
       "labelPlural": "Bookings",
       "description": "One appointment somebody booked through a public page. Stays 'pending' until the emailed link is clicked — which is both correct behaviour and the strongest cheap defence there is, because it costs a spammer a working mailbox per attempt.",
       "displayField": "summary",
-      "kind": null,
-      "ownedBy": null,
       "fields": [
         {
           "key": "summary",
           "label": "Summary",
           "type": "text",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "page",
           "label": "Booking page",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "booking_page",
-          "options": null
+          "targetEntity": "booking_page"
         },
         {
           "key": "contact",
           "label": "Booked by",
           "type": "reference",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "booking_contact",
-          "options": null
+          "targetEntity": "booking_contact"
         },
         {
           "key": "starts_at",
           "label": "Starts",
           "type": "datetime",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "ends_at",
           "label": "Ends",
           "type": "datetime",
-          "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "required": true
         },
         {
           "key": "status",
           "label": "Status",
           "type": "select",
           "required": true,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "pending",
@@ -953,51 +648,27 @@
         {
           "key": "note",
           "label": "Note",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "visitor_time_zone",
           "label": "Visitor time zone",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         },
         {
           "key": "confirmed_at",
           "label": "Confirmed",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "cancelled_at",
           "label": "Cancelled",
-          "type": "datetime",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "datetime"
         },
         {
           "key": "write_back_state",
           "label": "In calendar",
           "type": "select",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
           "options": [
             {
               "value": "not_applicable",
@@ -1025,31 +696,17 @@
           "key": "calendar_event",
           "label": "Calendar entry",
           "type": "reference",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": "calendar_event",
-          "options": null
+          "targetEntity": "calendar_event"
         },
         {
           "key": "write_back_error",
           "label": "Write-back error",
-          "type": "longtext",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "longtext"
         },
         {
           "key": "external_event_id",
           "label": "External event id",
-          "type": "text",
-          "required": false,
-          "computed": false,
-          "targetApp": null,
-          "targetEntity": null,
-          "options": null
+          "type": "text"
         }
       ]
     }
@@ -1077,138 +734,18 @@
         "calendar_share.person",
         "calendar_source.owner",
         "event_guest.person"
-      ],
-      "why": null
+      ]
     }
   ],
-  "events": [
-    {
-      "type": "record.created",
-      "entity": "booking",
-      "description": "A Booking was created",
-      "name": "booking.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "booking",
-      "description": "A Booking was deleted",
-      "name": "booking.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "booking",
-      "description": "A Booking changed",
-      "name": "booking.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "booking_contact",
-      "description": "A Contact was created",
-      "name": "booking_contact.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "booking_contact",
-      "description": "A Contact was deleted",
-      "name": "booking_contact.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "booking_contact",
-      "description": "A Contact changed",
-      "name": "booking_contact.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "booking_page",
-      "description": "A Booking page was created",
-      "name": "booking_page.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "booking_page",
-      "description": "A Booking page was deleted",
-      "name": "booking_page.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "booking_page",
-      "description": "A Booking page changed",
-      "name": "booking_page.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "calendar_event",
-      "description": "A Event was created",
-      "name": "calendar_event.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "calendar_event",
-      "description": "A Event was deleted",
-      "name": "calendar_event.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "calendar_event",
-      "description": "A Event changed",
-      "name": "calendar_event.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "calendar_share",
-      "description": "A Share was created",
-      "name": "calendar_share.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "calendar_share",
-      "description": "A Share was deleted",
-      "name": "calendar_share.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "calendar_share",
-      "description": "A Share changed",
-      "name": "calendar_share.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "calendar_source",
-      "description": "A Calendar was created",
-      "name": "calendar_source.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "calendar_source",
-      "description": "A Calendar was deleted",
-      "name": "calendar_source.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "calendar_source",
-      "description": "A Calendar changed",
-      "name": "calendar_source.updated"
-    },
-    {
-      "type": "record.created",
-      "entity": "event_guest",
-      "description": "A Guest was created",
-      "name": "event_guest.created"
-    },
-    {
-      "type": "record.deleted",
-      "entity": "event_guest",
-      "description": "A Guest was deleted",
-      "name": "event_guest.deleted"
-    },
-    {
-      "type": "record.updated",
-      "entity": "event_guest",
-      "description": "A Guest changed",
-      "name": "event_guest.updated"
-    }
-  ],
+  "eventDefaults": {
+    "crud": true,
+    "kinds": [
+      "record.created",
+      "record.updated",
+      "record.deleted"
+    ],
+    "note": "Every entity emits <entity>.created, <entity>.updated and <entity>.deleted. The events list carries only what this rule does not already say."
+  },
   "actions": [
     {
       "id": "booking_page.publish",
@@ -1216,14 +753,9 @@
       "entity": "booking_page",
       "label": "Publish",
       "description": "Make the link answer. Until it is published the address behaves as if the page did not exist.",
-      "synthesized": false,
-      "transition": null,
-      "input": null,
       "requires": [
         "booking_page.publish.when"
-      ],
-      "emits": [],
-      "causes": []
+      ]
     },
     {
       "id": "booking_page.unpublish",
@@ -1231,14 +763,9 @@
       "entity": "booking_page",
       "label": "Unpublish",
       "description": "Stop taking bookings. Appointments already made are untouched — this only closes the door, it does not cancel anybody.",
-      "synthesized": false,
-      "transition": null,
-      "input": null,
       "requires": [
         "booking_page.unpublish.when"
-      ],
-      "emits": [],
-      "causes": []
+      ]
     }
   ],
   "rules": [
@@ -1250,7 +777,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     },
     {
@@ -1261,7 +787,6 @@
       ],
       "kind": "guard",
       "effect": "stop",
-      "condition": null,
       "source": "synthesized"
     }
   ]

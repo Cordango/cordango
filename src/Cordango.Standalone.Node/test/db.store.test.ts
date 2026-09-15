@@ -62,6 +62,7 @@ let driver: PgliteDriver;
 
 beforeAll(async () => {
   driver = new PgliteDriver();
+  await driver.query("select 1");
 });
 
 afterAll(async () => {

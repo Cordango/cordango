@@ -55,11 +55,22 @@ public static class CheckCommand
 
         // Capability checking needs a definition, which an incoherent app does not have. It is not
         // skipped quietly: an app that fails below never reaches the "compatible" line either.
+        //
+        // The roster is what THIS CHECK is about, which is why it comes from the narrowed selection
+        // and not from the whole workspace. `check --target standalone` asks "can this workspace be
+        // built?", and a sibling reference is fine because the sibling will be in the deployment.
+        // `check --target standalone --app purchase_requests` asks the narrower and more useful
+        // question — "can this one ship on its own?" — and there the same reference is a refusal.
+        // Reading the whole workspace either way would answer the first question twice and leave
+        // the second unaskable.
+        var siblings = reports.Select(r => r.AppKey).ToHashSet(StringComparer.Ordinal);
+
         var unsupported = new Dictionary<string, IReadOnlyList<Diagnostic>>(StringComparer.Ordinal);
         if (target is not null)
             foreach (var report in reports)
                 if (report.Definition is JsonObject definition)
-                    unsupported[report.AppKey] = TargetValidator.Validate(definition, target.Capabilities);
+                    unsupported[report.AppKey] =
+                        TargetValidator.Validate(definition, target.Capabilities, siblings);
 
         // The platform used to withhold nothing, and almost still doesn't — see the note above. The
         // exception is code: it interprets a definition rather than compiling one, so a method

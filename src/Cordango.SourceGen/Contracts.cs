@@ -51,17 +51,83 @@ public sealed record CompiledAppArtifact(
 public sealed record CustomSourceBundle(
     string Language, string Hash, IReadOnlyDictionary<string, string> Files);
 
+/// <summary>
+/// What a workspace is called, before any naming rules are applied to it.
+///
+/// <para>Deliberately two strings and no derived forms. The slug, the namespace and the table prefix
+/// all come from <see cref="Key"/> through the same <c>Naming</c> rules the emitters use for an app,
+/// and those live downstream of this assembly. Computing them here would put the mapping in two
+/// places, and the second one would be a guess about the first.</para>
+/// </summary>
+public sealed record WorkspaceIdentity(string Key, string Name);
+
+/// <summary>
+/// The unit of a build: a workspace, holding one or more applications that are deployed together.
+///
+/// <para><b>One deployment, not one application.</b> The apps here share a database, a sign-in, a
+/// directory and a shell, and they may reference and react to each other — that is what being in one
+/// workspace MEANS. An app outside this list is a separately installed application and stays
+/// unreachable, which is the boundary <c>CORD2100</c> reports.</para>
+///
+/// <para>A single application is a workspace of one. There is no second shape for that case, because
+/// a build path that only runs when the count is one is a build path that drifts.</para>
+/// </summary>
+/// <param name="Apps">In the order <c>cordango.yaml</c> lists them. The order is load-bearing: it
+/// fixes the app switcher, the <c>ModelBuilder</c> calls and therefore the migration, so two builds
+/// of the same workspace produce the same bytes.</param>
+public sealed record CompiledWorkspaceArtifact(
+    WorkspaceIdentity Identity,
+    IReadOnlyList<CompiledAppArtifact> Apps)
+{
+    /// <summary>A workspace of one, named after the app it holds.</summary>
+    public static CompiledWorkspaceArtifact Of(CompiledAppArtifact app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        var key = app.Manifest["key"] is JsonValue k && k.TryGetValue<string>(out var s) ? s : "app";
+        var name = app.Manifest["name"] is JsonValue n && n.TryGetValue<string>(out var t) ? t : key;
+        return new CompiledWorkspaceArtifact(new WorkspaceIdentity(key, name), [app]);
+    }
+}
+
 /// <summary>What the CLI asks a generator to produce.</summary>
 /// <param name="Options">Target-specific switches (seed value, locales, partial-UI). Deliberately
 /// untyped: the SDK does not get a vote on what a generator needs to be told.</param>
-/// <param name="CustomSources">The bodies behind <c>definition.custom</c>, when there are any.
-/// TYPED and separate from <paramref name="Options"/> on purpose: this is the one input a generator
-/// must VERIFY rather than merely read, and burying it in an untyped bag is how it would end up
-/// unverified. Trailing and optional so that every existing call site still compiles.</param>
+/// <param name="CustomSources">The bodies behind <c>definition.custom</c>, keyed by app key, for the
+/// apps that have any. TYPED and separate from <paramref name="Options"/> on purpose: this is the one
+/// input a generator must VERIFY rather than merely read, and burying it in an untyped bag is how it
+/// would end up unverified.</param>
 public sealed record GenerateRequest(
-    CompiledAppArtifact App, JsonObject Options, CustomSourceBundle? CustomSources = null)
+    CompiledWorkspaceArtifact Workspace,
+    JsonObject Options,
+    IReadOnlyDictionary<string, CustomSourceBundle>? CustomSources = null)
 {
+    /// <summary>The single-application form: a workspace of one, spelled the short way.</summary>
+    public GenerateRequest(
+        CompiledAppArtifact app, JsonObject options, CustomSourceBundle? customSources = null)
+        : this(CompiledWorkspaceArtifact.Of(app), options, customSources)
+    {
+    }
+
+    private GenerateRequest(
+        CompiledWorkspaceArtifact workspace, JsonObject options, CustomSourceBundle? customSources)
+        : this(
+            workspace,
+            options,
+            customSources is null
+                ? null
+                : new Dictionary<string, CustomSourceBundle>(StringComparer.Ordinal)
+                {
+                    [workspace.Identity.Key] = customSources,
+                })
+    {
+    }
+
     public static GenerateRequest For(CompiledAppArtifact app) => new(app, new JsonObject());
+
+    /// <summary>The custom sources for one app, or null. Asked per app because each app carries its
+    /// own <c>custom/</c> directory and its own hash over it.</summary>
+    public CustomSourceBundle? CustomFor(string appKey) =>
+        CustomSources is not null && CustomSources.TryGetValue(appKey, out var bundle) ? bundle : null;
 
     /// <summary>A string option, or null. Reading options through one accessor keeps a generator
     /// from inventing three spellings of "is it there".</summary>

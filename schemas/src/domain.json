@@ -234,6 +234,7 @@
       ],
       "additionalProperties": false,
       "properties": {
+        "class": { "$ref": "#/$defs/blockClass" },
         "key": {
           "$ref": "#/$defs/identifier"
         },

@@ -127,11 +127,17 @@ public static class NotYetCodes
     /// in a workspace, which a single generated application does not have to span.</summary>
     public const string Calendar = "CORD2309";
 
+    /// <summary>A workspace holding more than one application, on a target that emits one at a
+    /// time. NOT a CORD21xx: several apps in one deployment is something a generated workspace can
+    /// be, and this says only that this generator has not caught up — which is why the message sends
+    /// the reader to a release rather than to the platform.</summary>
+    public const string Workspace = "CORD2310";
+
     /// <summary>Every code in the range, for the test that stops two of them meaning the same
     /// thing. The retired number is deliberately absent.</summary>
     public static readonly IReadOnlyList<string> All =
     [
-        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption, Calendar,
+        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption, Calendar, Workspace,
     ];
 
     /// <summary>Codes that once meant something, no longer do, and must not be handed to anything

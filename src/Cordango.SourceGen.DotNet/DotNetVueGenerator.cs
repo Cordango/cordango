@@ -182,9 +182,25 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var app = AppModel.From(request.App);
+        var workspace = WorkspaceModel.From(request.Workspace);
         var allowIncomplete = request.Options?["allowIncomplete"]?.GetValue<bool>() ?? false;
         var runtimeAsPackage = request.Options?["runtimeAsPackage"]?.GetValue<bool>() ?? true;
+
+        // A workspace of more than one application is the shape this target is being taken to, and
+        // the emitters below are not there yet: they write one AppDbContext, one migration, one
+        // router and one nav. Refused OUTRIGHT rather than by emitting the first app, because a
+        // build that silently dropped four of five applications would look like it had worked.
+        if (workspace.Apps.Count > 1)
+            return GenerateResult.Failed(new Diagnostic(
+                NotYetCodes.Workspace,
+                $"this workspace holds {workspace.Apps.Count} applications "
+                + $"({string.Join(", ", workspace.Apps.Select(a => a.Key))}), and the {Id} generator "
+                + "emits one at a time so far. Build them into separate workspaces for now — a "
+                + "release will emit them as one deployment, with nothing in the source to change.",
+                "$"));
+
+        var app = workspace.Apps[0];
+        var customSources = request.CustomFor(app.Key);
 
         // The capability gate, and it does NOT stop the build.
         //
@@ -203,7 +219,8 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         // the same codes and a path pointing at the page it actually rendered. Two entries for one
         // card, one of them saying "not yet" about something that will never come, is worse than
         // either alone.
-        var unsupported = TargetValidator.Validate(request.App.Definition, Capabilities)
+        var unsupported = TargetValidator.Validate(
+                request.Workspace.Apps[0].Definition, Capabilities, workspace.AppKeys)
             .Where(d => d.Code is not (DiagnosticCodes.HistoryBlock
                 or DiagnosticCodes.RelatedAppsBlock
                 or DiagnosticCodes.UnsupportedBlock))
@@ -212,7 +229,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         // BEFORE anything is written. If the sources and the definition disagree, the application
         // this would produce is not the one the definition describes — and its recorded hash would
         // say otherwise. Nothing about a partial answer is useful here.
-        if (Emit.CustomEmitter.Mismatch(app, request.CustomSources) is { } mismatch)
+        if (Emit.CustomEmitter.Mismatch(app, customSources) is { } mismatch)
             return GenerateResult.Failed(mismatch);
 
         var files = new Dictionary<string, GeneratedFile>(StringComparer.Ordinal);
@@ -220,8 +237,8 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
 
         void Add(GeneratedFile file) => files[file.RelativePath] = file;
 
-        var scaffold = new ScaffoldOptions(app.Name, app.Key, app.Namespace,
-            RuntimeAsPackage: runtimeAsPackage, HasCustomCode: request.CustomSources is not null);
+        var scaffold = new ScaffoldOptions(workspace.Name, workspace.Key, workspace.Namespace,
+            RuntimeAsPackage: runtimeAsPackage, HasCustomCode: customSources is not null);
         foreach (var file in Scaffold.Files(scaffold)) Add(file);
 
         Add(BackendEmitter.DbContext(app));
@@ -233,7 +250,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         Add(SchemaEmitter.Emit(app));
         Add(WorkflowEmitter.Workflows(app));
 
-        foreach (var file in Emit.CustomEmitter.Emit(request.CustomSources)) Add(file);
+        foreach (var file in Emit.CustomEmitter.Emit(customSources)) Add(file);
         foreach (var file in Emit.CustomEmitter.Adapters(app)) Add(file);
 
         foreach (var entity in app.Entities)

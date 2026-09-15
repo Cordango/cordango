@@ -224,8 +224,27 @@ export function rememberTheme(choice) {
   }
 }
 
+/**
+ * Tonal steps of each semantic colour.
+ *
+ * <p>Vuetify emits a `bg-<name>` / `text-<name>` utility class for every colour above, but only at
+ * full strength — and a row of six saturated tiles is not a dashboard. The soft wash a KPI card
+ * actually wants (`bg-primary-lighten-5`) does not exist unless the theme asks for it, and a class
+ * naming a colour that was never generated is not an error: it is simply nothing, which is the
+ * hardest kind of styling bug to see.</p>
+ *
+ * <p>Lighten only. A step DARKER than the brand colour reads as a disabled control, which is the one
+ * thing a figure someone is meant to read must not look like.</p>
+ */
+export const variations = {
+  colors: ['primary', 'secondary', 'success', 'warning', 'error', 'info'],
+  lighten: 5,
+  darken: 0,
+}
+
 /** The whole theme block for `createVuetify`. */
 export const theme = {
   defaultTheme: storedTheme(),
   themes: { light, dark },
+  variations,
 }

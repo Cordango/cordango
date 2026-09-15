@@ -80,10 +80,27 @@ public sealed record BuildConfig(
 
     public bool IsPlatform => string.Equals(Target, Platform, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>One app's generated repository, relative to the workspace root. Static because it
-    /// depends on nothing anybody configured — a build with no configuration at all writes to the
-    /// same place a configured one does.</summary>
-    public static string OutFor(string appKey) => System.IO.Path.Combine(GeneratedDirectory, appKey);
+    /// <summary>
+    /// The generated repository, relative to the workspace root — which is
+    /// <see cref="GeneratedDirectory"/> itself, with nothing under it.
+    /// </summary>
+    /// <remarks>
+    /// <para>It was one directory per APP. That was right while a build produced one application per
+    /// deployment, and wrong the moment it stopped: the apps in a workspace share a database, a
+    /// sign-in, a directory and a shell, so they are ONE repository. The per-app layer existed only
+    /// to keep several repositories apart, and with nothing to keep apart it is a directory whose
+    /// name has to be derived from something — which is how it becomes a decision, and then a
+    /// setting.</para>
+    /// <para>So there is no name to derive. A workspace builds into <c>generated/</c> and
+    /// <c>cd generated &amp;&amp; docker compose up --build</c> runs it, which is the line the README
+    /// has always printed. The compose PROJECT name is set inside the file from the workspace key,
+    /// so two workspaces on one machine still get their own containers and their own volume.</para>
+    /// </remarks>
+    public static string OutFor(WorkspaceFile workspace)
+    {
+        System.ArgumentNullException.ThrowIfNull(workspace);
+        return GeneratedDirectory;
+    }
 
     /// <summary>
     /// Read the block, or null when there is none.

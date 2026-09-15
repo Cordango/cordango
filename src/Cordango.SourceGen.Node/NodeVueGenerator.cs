@@ -146,8 +146,23 @@ public sealed class NodeVueGenerator : IAppSourceGenerator
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var app = AppModel.From(request.App);
+        var workspace = WorkspaceModel.From(request.Workspace);
         var allowIncomplete = request.Options?["allowIncomplete"]?.GetValue<bool>() ?? false;
+
+        // One application at a time, refused outright rather than by emitting the first — a build
+        // that silently dropped the rest would look like it had worked. This is CORD23xx and not
+        // CORD21xx on purpose: a workspace of several applications is something a generated
+        // deployment CAN be, and this target has not caught up with the one that does it.
+        if (workspace.Apps.Count > 1)
+            return GenerateResult.Failed(new Diagnostic(
+                NotYetCodes.Workspace,
+                $"this workspace holds {workspace.Apps.Count} applications "
+                + $"({string.Join(", ", workspace.Apps.Select(a => a.Key))}), and the {Id} generator "
+                + "emits one at a time. Build with --target dotnet-vue to get them as one "
+                + "deployment, or build them into separate workspaces.",
+                "$"));
+
+        var app = workspace.Apps[0];
 
         // The capability gate, and it does NOT stop the build.
         //
@@ -158,7 +173,8 @@ public sealed class NodeVueGenerator : IAppSourceGenerator
         //
         // Block kinds are dropped from this list because the web emitter reports them itself, with
         // the same codes and a path pointing at the page it actually rendered.
-        var unsupported = TargetValidator.Validate(request.App.Definition, Capabilities)
+        var unsupported = TargetValidator.Validate(
+                request.Workspace.Apps[0].Definition, Capabilities, workspace.AppKeys)
             .Where(d => d.Code is not (DiagnosticCodes.HistoryBlock
                 or DiagnosticCodes.RelatedAppsBlock
                 or DiagnosticCodes.UnsupportedBlock))
