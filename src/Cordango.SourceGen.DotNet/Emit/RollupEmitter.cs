@@ -3,6 +3,7 @@
 // Part of Cordango, the open application language and compiler: https://github.com/cordango/cordango
 // Licensed under the Apache License, Version 2.0. See LICENSE in the repository root.
 
+using System.Globalization;
 using System.Text.Json.Nodes;
 using Cordango.SourceGen.Common;
 
@@ -36,10 +37,25 @@ public static class RollupEmitter
     public static readonly IReadOnlySet<string> Ops =
         new HashSet<string>(StringComparer.Ordinal) { "sum", "count", "avg", "min", "max" };
 
-    /// <summary>Comparisons a rollup's own filters may use. Deliberately small: these go to the
-    /// DATABASE, and a filter this cannot write must stop the rollup rather than widen it.</summary>
-    private static readonly IReadOnlySet<string> Operators =
-        new HashSet<string>(StringComparer.Ordinal) { "eq", "neq" };
+    /// <summary>
+    /// Comparisons a rollup's own filters may use.
+    ///
+    /// <para>Every operator the language's <c>filter</c> has except <c>overlaps</c>, which compares
+    /// a row's own RANGE against a window and is a different shape from a comparison on one column.
+    /// It was <c>eq</c> and <c>neq</c> alone for a while, which is how a perfectly ordinary
+    /// "committed cost of everything approved, planned or active" — one <c>in</c> — landed as
+    /// CORD2305 with the column left empty.</para>
+    ///
+    /// <para>What a filter cannot write must still stop the rollup rather than widen it: a predicate
+    /// dropped is a bigger answer, not a smaller one. That rule is unchanged; the set it applies to
+    /// is what grew.</para>
+    /// </summary>
+    public static readonly IReadOnlySet<string> Operators =
+        new HashSet<string>(StringComparer.Ordinal)
+        {
+            "eq", "neq", "gt", "gte", "lt", "lte",
+            "contains", "in", "notIn", "between", "isEmpty", "isNotEmpty",
+        };
 
     /// <summary>Every rollup on this entity the generator can write, in definition order.</summary>
     public static IReadOnlyList<(FieldModel Field, string Query)> Rollups(AppModel app, EntityModel entity)
@@ -202,15 +218,197 @@ public static class RollupEmitter
         return spans.Count == 0 ? null : $".Where(x => {string.Join(" && ", spans)})";
     }
 
+    /// <summary>
+    /// One leaf of a rollup's own filter, as the predicate that answers it.
+    ///
+    /// <para><b>Null takes the whole rollup with it</b>, which is the rule the caller relies on: a
+    /// leaf quietly dropped is not a smaller answer, it is a bigger one. A committed cost that
+    /// forgot "only approved" is the budget.</para>
+    ///
+    /// <para><b>The literal is typed from the COLUMN, not from the JSON.</b> This used to read the
+    /// value with <c>AppModel.Str</c> and write it as a C# string whatever the field was, which had
+    /// two failures nobody would have found from the outside. A filter on a number — a JSON number,
+    /// which <c>Str</c> answers null for — emitted <c>x.Amount == null</c>: it compiled, it ran, and
+    /// it counted the rows nobody had filled in. A filter on a multiselect emitted
+    /// <c>x.Tags == "urgent"</c>, comparing a <c>List&lt;string&gt;</c> against a string, which did
+    /// not compile at all. The first is the dangerous one, so the literal now comes from
+    /// <see cref="FieldModel.ClrType"/> and a shape that cannot be written is refused.</para>
+    /// </summary>
     private static string? Filter(JsonObject filter, EntityModel child)
     {
+        // `path` is a hop through a reference — a join, not a comparison on this row. It is reported
+        // on its own by the generator's filter walk, so it is refused here rather than guessed at.
+        if (filter["path"] is not null) return null;
+
         if (child.Field(AppModel.Str(filter["field"])) is not { } field) return null;
 
         var op = AppModel.Str(filter["operator"]);
         if (op is null || !Operators.Contains(op)) return null;
 
-        var comparison = op == "eq" ? "==" : "!=";
-        return $".Where(x => x.{field.PropertyName} {comparison} {Naming.Literal(AppModel.Str(filter["value"]))})";
+        // A multiselect is a list and a json field is a document. Neither has a comparison that
+        // survives the trip to SQL, and both used to emit code that did not compile.
+        if (field.IsCollection || field.ClrType == "JsonDocument") return null;
+
+        var column = $"x.{field.PropertyName}";
+
+        // The two that take no value come first: demanding one before testing for them would make
+        // them unusable.
+        if (op is "isEmpty" or "isNotEmpty")
+        {
+            var empty = Empty(field, column);
+            return Where(op == "isEmpty" ? empty : $"!({empty})");
+        }
+
+        if (op is "in" or "notIn")
+        {
+            var values = Literals(field, AppModel.Arr(filter["value"]));
+            if (values is null) return null;
+
+            // "in nothing" matches nothing and "not in nothing" matches everything. An OR over an
+            // empty list would do the opposite of both, silently.
+            if (values.Count == 0) return Where(op == "in" ? "false" : "true");
+
+            var any = string.Join(" || ", values.Select(v => $"{column} == {v}"));
+            return Where(op == "in" ? any : $"!({any})");
+        }
+
+        if (op == "between")
+        {
+            if (!Ordered(field)) return null;
+
+            var bounds = Literals(field, AppModel.Arr(filter["value"]));
+            if (bounds is not { Count: 2 }) return null;
+
+            // Both ends included, written as one leaf because that is how the language spells it.
+            return Where($"{column} >= {bounds[0]} && {column} <= {bounds[1]}");
+        }
+
+        if (op == "contains")
+        {
+            if (field.ClrType != "string") return null;
+            if (Literal(field, filter["value"]) is not { } text) return null;
+
+            // A null column is not a match, and Contains on one throws when the query runs rather
+            // than when it is built.
+            return Where($"{column} != null && {column}.Contains({text})");
+        }
+
+        if (op is not ("eq" or "neq") && !Ordered(field)) return null;
+        if (Literal(field, filter["value"]) is not { } literal) return null;
+
+        var comparison = op switch
+        {
+            "eq" => "==",
+            "neq" => "!=",
+            "gt" => ">",
+            "gte" => ">=",
+            "lt" => "<",
+            _ => "<=",
+        };
+
+        return Where($"{column} {comparison} {literal}");
+
+        static string Where(string body) => $".Where(x => {body})";
+    }
+
+    /// <summary>Fields <c>gt</c>, <c>lt</c> and <c>between</c> can be written for. Text has no
+    /// <c>&gt;</c> operator in C# and a boolean has no order worth having, so both are refused
+    /// rather than emitted as something that does not compile.</summary>
+    private static bool Ordered(FieldModel field) =>
+        field.ClrType is "long" or "decimal" or "DateOnly" or "DateTimeOffset";
+
+    /// <summary>
+    /// Empty means null, and for text it also means the empty string — a field somebody cleared in a
+    /// form and a field nobody ever filled are the same thing to the person asking.
+    ///
+    /// <para>A REQUIRED value column is never null, and testing one against null is a comparison the
+    /// compiler warns is always false. The constant says the same thing without the warning, and
+    /// says it honestly: nothing is missing here, so nothing matches.</para>
+    /// </summary>
+    private static string Empty(FieldModel field, string column) => field switch
+    {
+        { ClrType: "string" } => $"{column} == null || {column} == \"\"",
+        { Required: true } => "false",
+        _ => $"{column} == null",
+    };
+
+    /// <summary>Every value of a list operator, or null when any one of them cannot be written.
+    /// Partial is not an option: three states in and one out is a filter that counts the wrong
+    /// rows.</summary>
+    private static List<string>? Literals(FieldModel field, JsonArray values)
+    {
+        var written = new List<string>();
+        foreach (var value in values)
+        {
+            if (Literal(field, value) is not { } one) return null;
+            written.Add(one);
+        }
+
+        return written;
+    }
+
+    /// <summary>
+    /// A JSON value as a C# literal of the column's own type.
+    ///
+    /// <para>Null for anything that cannot be written, including a scope token: <c>{{today}}</c> and
+    /// <c>{{actor.id}}</c> are resolved when a SCREEN renders, and a rollup is recomputed by a write
+    /// hook where there is no screen, no actor and no request. Emitting the token as text would
+    /// compare a status against the literal characters <c>{{actor.id}}</c> and match nothing, on
+    /// every row, for ever.</para>
+    /// </summary>
+    private static string? Literal(FieldModel field, JsonNode? value)
+    {
+        if (value is not JsonValue leaf) return null;
+
+        if (leaf.TryGetValue<string>(out var text))
+        {
+            if (text.Contains("{{", StringComparison.Ordinal)) return null;
+
+            return field.ClrType switch
+            {
+                "string" => Naming.Literal(text),
+                "long" => long.TryParse(text, CultureInfo.InvariantCulture, out var l)
+                    ? l.ToString(CultureInfo.InvariantCulture) + "L"
+                    : null,
+                "decimal" => decimal.TryParse(text, CultureInfo.InvariantCulture, out var d)
+                    ? d.ToString(CultureInfo.InvariantCulture) + "m"
+                    : null,
+                "bool" => bool.TryParse(text, out var b) ? (b ? "true" : "false") : null,
+                "DateOnly" => DateOnly.TryParse(text, CultureInfo.InvariantCulture, out var date)
+                    ? $"new DateOnly({date.Year}, {date.Month}, {date.Day})"
+                    : null,
+                "DateTimeOffset" => DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, out var at)
+                    // Fully qualified: this lands in a generated file whose usings are decided by
+                    // what the ENTITY needs, and a rollup filter on a datetime must not depend on
+                    // one of them happening to be there.
+                    ? $"DateTimeOffset.Parse({Naming.Literal(at.ToString("O", CultureInfo.InvariantCulture))}, "
+                        + "System.Globalization.CultureInfo.InvariantCulture)"
+                    : null,
+                _ => null,
+            };
+        }
+
+        if (leaf.TryGetValue<bool>(out var flag))
+            return field.ClrType == "bool" ? (flag ? "true" : "false") : null;
+
+        // Read back through the JSON text rather than through TryGetValue<decimal>. A JsonValue
+        // remembers the CLR type it was made from, so one built from an `int` answers false to
+        // TryGetValue<decimal> while one PARSED from the same bytes answers true — and a definition
+        // reaches this having been parsed while a test builds one by hand. Going through the text is
+        // the same answer either way.
+        if (!decimal.TryParse(leaf.ToJsonString(), CultureInfo.InvariantCulture, out var number))
+            return null;
+
+        return field.ClrType switch
+        {
+            "long" => decimal.Truncate(number) == number
+                ? ((long)number).ToString(CultureInfo.InvariantCulture) + "L"
+                : null,
+            "decimal" => number.ToString(CultureInfo.InvariantCulture) + "m",
+            // A number against text is the definition disagreeing with itself, not a conversion to
+            // make quietly.
+            _ => null,
+        };
     }
 
     /// <summary>

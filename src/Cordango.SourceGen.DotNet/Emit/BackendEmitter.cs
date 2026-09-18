@@ -154,6 +154,7 @@ public static class BackendEmitter
         source.Line($"using {app.Namespace}.Entities;");
         if (hooked) source.Line($"using {app.Namespace}.Hooks;");
         if (FormsEmitter.HasForms(app)) source.Line("using Cordango.Standalone.Forms;");
+        if (app.Calendars.Count > 0) source.Line("using Cordango.Standalone.Calendar;");
         source.Line($"using {app.Namespace}.Data;");
         source.Line($"using {app.Namespace}.Security;");
         source.Line($"using {app.Namespace}.Workflows;");
@@ -179,6 +180,12 @@ public static class BackendEmitter
         // The forms archetype, when the application has one. Registered here rather than behind a
         // flag: the endpoints exist exactly when the four roles do.
         if (FormsEmitter.HasForms(app)) source.Line("services.AddForms(Forms.AppForms.Catalogue);");
+
+        // The personal calendar, when anything in this application declares one. Registered
+        // rather than flagged: the endpoint is gated on the descriptor existing, so an
+        // application with no calendar entity has no calendar address at all.
+        if (app.Calendars.Count > 0)
+            source.Line("services.AddAppCalendar(Calendar.AppCalendar.Descriptor);");
         source.Line();
 
         // The classes the author wrote, one registration each however many hooks they carry. Scoped,

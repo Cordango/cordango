@@ -8,6 +8,7 @@ import ProfileView from './views/ProfileView.vue'
 import AccessKeysView from './views/AccessKeysView.vue'
 import LoginView from './views/LoginView.vue'
 import SetupView from './views/SetupView.vue'
+import CalendarView from './views/CalendarView.vue'
 
 // The definition's screens, then the record pages behind them. Routes you add
 // yourself belong in a file of your own — regenerating replaces this one.
@@ -19,6 +20,7 @@ const routes = [
   { path: '/access-keys', name: 'access-keys', component: AccessKeysView },
   { path: '/login', name: 'login', component: LoginView, meta: { anonymous: true } },
   { path: '/setup', name: 'setup', component: SetupView, meta: { anonymous: true } },
+  { path: '/calendar', name: 'calendar', component: CalendarView },
 ]
 
 export const router = createRouter({

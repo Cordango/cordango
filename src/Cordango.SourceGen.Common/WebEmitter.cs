@@ -92,6 +92,11 @@ public static class WebEmitter
             })]),
             ["processes"] = new JsonArray([.. app.Processes.Select(p => (JsonNode)p.Json.DeepClone())]),
             ["commands"] = new JsonArray([.. app.Commands.Select(c => (JsonNode)c.Json.DeepClone())]),
+            // Whether this application has a personal calendar at all. The shell's navigation is a
+            // template rather than a generated file — it is the same for every application — so it
+            // has to ASK, and a link to a screen that is not routed does not render as a dead link:
+            // router.resolve throws from inside the render and takes the page with it.
+            ["calendar"] = app.Calendars.Count > 0,
         };
 
         var source = new Source(2);
@@ -879,12 +884,15 @@ public static class WebEmitter
         foreach (var gap in Gaps(block, query, context.Record, tabular: true))
             unsupported.Add(NotYet(gap, context));
 
-        // Only the table presentation is built. The others are real differences in how the rows are
-        // read — a feed is chronological with a composer, a checklist is one tick per row — so a
-        // table in their place is a list of the right records in the wrong shape, and that is worth
-        // saying rather than leaving somebody to notice.
         var childType = AppModel.Str(block["childType"]);
-        if (childType is not null and not "table")
+
+        if (childType == "checklist" && Checklist(source, block, query, entity, context, unsupported)) return;
+
+        // The presentations still to be built. They are real differences in how the rows are READ —
+        // a feed is chronological with a composer, line items are money with a total — so a table in
+        // their place is a list of the right records in the wrong shape, and that is worth saying
+        // rather than leaving somebody to notice.
+        if (childType is not null and not "table" and not "checklist")
             unsupported.Add(NotYet($"a child list's '{childType}' presentation (the rows render as a table)", context));
 
         context.Imports.Add("ViewBlock");
@@ -906,6 +914,99 @@ public static class WebEmitter
             source.Line(":create=\"false\"");
         source.Outdent();
         source.Line("/>");
+    }
+
+    /// <summary>
+    /// A child list drawn as ticks: <c>childType: "checklist"</c>.
+    ///
+    /// <para><b>The two fields are worked out HERE, at build time, and passed as props.</b> The
+    /// platform's renderer meets a definition it has never seen and derives them per render; this
+    /// has the entity in hand, so deriving them a second time in the browser would be the same fact
+    /// in two places with nothing keeping them equal. It is also what turns "the ticks do nothing"
+    /// into a build diagnostic: an entity with no boolean has nothing to mark done, and that is
+    /// something to be told before the screen ships, not after somebody clicks one.</para>
+    ///
+    /// <para><b>The tick is the entity's ONE boolean, and several is worth saying out loud.</b> The
+    /// language has no role for "this is the done flag" — a checklist is inferred FROM a boolean in
+    /// the first place, which is why one is the ordinary case. Where an entity has more than one,
+    /// picking the first declared is a guess, and a guess that writes a column is the kind that
+    /// looks right: somebody ticks "done" and sets <c>is_billable</c>. So the first is still used —
+    /// refusing would be a table where a checklist was asked for — and the diagnostic names both the
+    /// one taken and the ones passed over. Sniffing the field's NAME for "done" was rejected: a key
+    /// is an implementation detail, not a statement of intent.</para>
+    ///
+    /// <para>Returns false when it cannot be drawn, leaving the caller to fall through to the table
+    /// and report the gap — a checklist with no tick and no title is a worse list than the table it
+    /// would have been.</para>
+    /// </summary>
+    private static bool Checklist(
+        Source source, JsonObject block, JsonObject query, string? entity,
+        BlockContext context, List<Diagnostic> unsupported)
+    {
+        if (context.App.Entity(entity) is not { } child)
+        {
+            unsupported.Add(NotYet("a checklist over an entity this application does not declare", context));
+            return false;
+        }
+
+        var booleans = child.AuthoredFields.Where(f => f.Type == "boolean").ToList();
+
+        if (booleans.Count == 0)
+        {
+            unsupported.Add(NotYet(
+                $"a checklist over '{child.Key}', which has no boolean field for a tick to write "
+                + "(the rows render as a table)", context));
+            return false;
+        }
+
+        var done = booleans[0];
+
+        // The title is what each line READS and the one field the add-line WRITES, so it has to be
+        // text: a display field that is a reference reads as somebody's name and cannot be typed
+        // into. Where the display field is not text, the first text field is — and where there is
+        // none at all, a checklist would be a column of blank ticks nobody could add to.
+        var title = child.Field(child.DisplayField) is { Type: "text" or "longtext" } display
+            ? display
+            : child.AuthoredFields.FirstOrDefault(f => f.Type is "text");
+
+        if (title is null)
+        {
+            unsupported.Add(NotYet(
+                $"a checklist over '{child.Key}', which has no text field for a line to read "
+                + "(the rows render as a table)", context));
+            return false;
+        }
+
+        if (booleans.Count > 1)
+            unsupported.Add(NotYet(
+                $"a checklist over '{child.Key}', which has {booleans.Count} boolean fields and no "
+                + $"way to say which one the tick means — it writes '{done.Key}' and leaves "
+                + string.Join(", ", booleans.Skip(1).Select(f => $"'{f.Key}'")) + " alone",
+                context));
+
+        context.Imports.Add("ChecklistBlock");
+        source.Line("<ChecklistBlock");
+        source.Indent();
+        source.Line($":definition=\"{Js(Query(block, query, entity, "table", context.Record))}\"");
+        source.Line($":state=\"{context.StateBinding}\"");
+        source.Line(":record=\"record\"");
+        source.Line($"done-field=\"{done.Key}\"");
+        source.Line($"title-field=\"{title.Key}\"");
+        if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
+        if (AppModel.Bool(block["openDetail"])) source.Line(":open-detail=\"true\"");
+        if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
+        if (block["inlineCreate"] is not null && !AppModel.Bool(block["inlineCreate"]))
+            source.Line(":create=\"false\"");
+        source.Outdent();
+        source.Line("/>");
+
+        // Options a checklist has nowhere to put. Said rather than dropped: somebody who authored
+        // grouped, inline-editable rows and got a flat list of ticks is owed the reason.
+        foreach (var ignored in new[] { "groupBy", "filterBar", "inlineEdit", "orderField" })
+            if (block[ignored] is not null)
+                unsupported.Add(NotYet($"'{ignored}' on a checklist, which has one line per record", context));
+
+        return true;
     }
 
     /// <summary>The front door: the forms somebody can fill in, and the form itself once they pick
@@ -1708,6 +1809,7 @@ public static class WebEmitter
         source.Line("import AccessKeysView from './views/AccessKeysView.vue'");
         source.Line("import LoginView from './views/LoginView.vue'");
         source.Line("import SetupView from './views/SetupView.vue'");
+        if (app.Calendars.Count > 0) source.Line("import CalendarView from './views/CalendarView.vue'");
         if (app.Forms is not null) source.Line("import PublicFormView from './views/PublicFormView.vue'");
 
         foreach (var page in app.Pages)
@@ -1728,6 +1830,11 @@ public static class WebEmitter
         source.Line("{ path: '/access-keys', name: 'access-keys', component: AccessKeysView },");
         source.Line("{ path: '/login', name: 'login', component: LoginView, meta: { anonymous: true } },");
         source.Line("{ path: '/setup', name: 'setup', component: SetupView, meta: { anonymous: true } },");
+        // Routed only where something in this application actually has dates. A screen that is
+        // always there and always empty is worse than no screen: it says the application has a
+        // calendar and that yours is empty, which are two different pieces of news.
+        if (app.Calendars.Count > 0)
+            source.Line("{ path: '/calendar', name: 'calendar', component: CalendarView },");
         // A published form, for somebody with no account. `anonymous` is what the guard reads; the
         // address is a generated TOKEN rather than a name anybody chose, because a memorable public
         // address is a guessable one.

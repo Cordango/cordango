@@ -199,6 +199,35 @@ table th {
   color: rgb(var(--v-theme-primary));
 }
 
+/* THE ICON RAIL, collapsed to 56px and expanding over the page on hover.
+ *
+ * Vuetify clips each row's label for us and shrinks its avatars. Two things it does not do:
+ *
+ * 1. Nothing here FITS 56px. A `nav` list's own 8px gutters plus `pa-2` plus the item's 8px leave
+ *    24px for a prepend whose min-width is 40, and the brand row's `px-4` leaves 24px for a 32px
+ *    avatar. The three rules below leave each of them exactly enough. They are unlayered while
+ *    Vuetify's are inside `@layer`, so they win on their own — no `!important` needed or wanted.
+ * 2. A row that is PURE TEXT has nothing to clip to and collapses into a blank strip. It hides,
+ *    and anything else can opt in with `.cd-rail-hide`.
+ *
+ * All of it keyed on `:not(--is-hovering)`, the same condition Vuetify's own rail rules use, so
+ * hovering restores the real sidebar rather than revealing a slightly different one. */
+.cd-rail.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .v-list {
+  padding-inline: 4px;
+}
+
+.cd-rail.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .v-list-item {
+  padding-inline: 4px;
+}
+
+.cd-rail.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .cd-brandbar {
+  padding-inline: 12px;
+}
+
+.cd-rail.v-navigation-drawer--rail:not(.v-navigation-drawer--is-hovering) .cd-rail-hide {
+  display: none;
+}
+
 .cd-brand {
   font-weight: 650;
   letter-spacing: -0.01em;

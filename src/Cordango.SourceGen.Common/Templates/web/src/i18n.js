@@ -7,6 +7,7 @@ export const messages = {
     app: { name: '{{AppName}}' },
     nav: {
       home: 'Home',
+      calendar: 'Calendar',
       directory: 'Directory',
       keys: 'Access keys',
       profile: 'Your account',
@@ -194,12 +195,25 @@ export const messages = {
       empty: 'Nothing here yet.',
       more: 'More actions',
     },
+    checklist: {
+      empty: 'Nothing to do yet.',
+      add: 'Add an item…',
+    },
+    calendar: {
+      title: 'Your calendar',
+      today: 'Today',
+      previous: 'Previous month',
+      next: 'Next month',
+      empty: 'Nothing in this month.',
+      scope: 'Everything in this application that is yours. It does not span other applications.',
+    },
   },
 
   de: {
     app: { name: '{{AppName}}' },
     nav: {
       home: 'Start',
+      calendar: 'Kalender',
       directory: 'Verzeichnis',
       keys: 'Zugriffsschlüssel',
       profile: 'Ihr Konto',
@@ -386,6 +400,18 @@ export const messages = {
       noMatches: 'Nichts passt dazu.',
       empty: 'Hier ist noch nichts.',
       more: 'Weitere Aktionen',
+    },
+    checklist: {
+      empty: 'Noch nichts zu tun.',
+      add: 'Eintrag hinzufügen…',
+    },
+    calendar: {
+      title: 'Ihr Kalender',
+      today: 'Heute',
+      previous: 'Vorheriger Monat',
+      next: 'Nächster Monat',
+      empty: 'In diesem Monat ist nichts.',
+      scope: 'Alles in dieser Anwendung, was Ihnen gehört. Andere Anwendungen sind nicht enthalten.',
     },
   },
 }

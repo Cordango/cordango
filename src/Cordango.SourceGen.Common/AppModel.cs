@@ -134,6 +134,25 @@ public sealed class AppModel
     public FormsInfo? Forms => _forms ??= FormsInfo.Resolve(Entities);
     private FormsInfo? _forms;
 
+    /// <summary>
+    /// Entities whose records land in somebody's calendar, in definition order.
+    ///
+    /// <para>Only the RESOLVED form counts. The compiler turns an entity's <c>calendar</c> flag into
+    /// a binding — start, end, who, title — and refuses the build where it cannot; a bare
+    /// <c>true</c> reaching an emitter means something bypassed that, and guessing the six fields it
+    /// stands for is the derivation the whole design avoids.</para>
+    ///
+    /// <para>Here rather than in either emitter because BOTH need it and they must agree: the
+    /// backend registers the endpoint on this answer and the web emitter routes a screen to it, and
+    /// a screen routed to an address that is not there is a dead link somebody finds by clicking
+    /// it.</para>
+    /// </summary>
+    public IReadOnlyList<EntityModel> Calendars => _calendars ??=
+        [.. Entities.Where(e => e.Json["calendar"] is JsonObject cal
+            && Str(cal["start"]) is { Length: > 0 }
+            && Str(cal["who"]) is { Length: > 0 })];
+    private IReadOnlyList<EntityModel>? _calendars;
+
     public IReadOnlyList<ViewModel> Views { get; }
     public IReadOnlyList<PageModel> Pages { get; }
     public IReadOnlyList<JsonObject> Roles { get; }

@@ -16,17 +16,34 @@ const { mobile } = useDisplay()
 // Two different gestures behind one button. On a phone the drawer is an overlay that is either
 // there or not; on a desktop it is permanent and the button narrows it to a rail. Treating them as
 // the same control is what produces the drawer that vanishes on desktop and never comes back.
-const drawer = ref(!mobile.value)
-const rail = ref(false)
+//
+// The rail is remembered per DEVICE rather than per account, and deliberately: how much width you
+// can spare for navigation is a property of the SCREEN, not the person, so a choice made on a
+// laptop has no business narrowing the sidebar on a desktop monitor.
+const RAIL_KEY = 'cd-rail'
 
+function savedRail() {
+  try { return localStorage.getItem(RAIL_KEY) === '1' } catch { return false }
+}
+
+const drawer = ref(!mobile.value)
+const rail = ref(savedRail())
+
+// Narrow enough and the drawer overlays instead, where a rail would be a second way to hide
+// something already hidden. The `:rail` binding below handles that on its own, so the preference is
+// left ALONE here — clearing it would mean a window that got small once came back expanded.
 watch(mobile, (isMobile) => {
   drawer.value = !isMobile
-  if (isMobile) rail.value = false
 })
 
 function toggleNavigation() {
-  if (mobile.value) drawer.value = !drawer.value
-  else rail.value = !rail.value
+  if (mobile.value) {
+    drawer.value = !drawer.value
+    return
+  }
+  rail.value = !rail.value
+  // A blocked or full localStorage costs this session's preference, not the click.
+  try { localStorage.setItem(RAIL_KEY, rail.value ? '1' : '0') } catch { /* this session only */ }
 }
 
 // Closing on navigation matters only where the drawer covers the page. On a desktop it would shut
@@ -64,6 +81,7 @@ const heading = computed(() => {
   if (page) return page.label
   return {
     home: t('nav.home'),
+    calendar: t('calendar.title'),
     directory: t('nav.directory'),
     'access-keys': t('nav.keys'),
     profile: t('nav.profile'),
@@ -75,19 +93,28 @@ const heading = computed(() => {
 <template>
   <v-app>
     <template v-if="session.authenticated">
+      <!-- `:rail` is bound ONE WAY on purpose. With `expand-on-hover` Vuetify emits `update:rail`
+           every time the pointer enters and leaves, so a two-way binding would rewrite the stored
+           preference on every pass. It does not need one: the component's own width already
+           expands for `rail && expandOnHover && isHovering`, and its LAYOUT size stays at the rail
+           width, which is what makes the expansion float over the page instead of shoving it. -->
       <v-navigation-drawer
         v-model="drawer"
         :rail="rail && !mobile"
+        :expand-on-hover="rail && !mobile"
         :permanent="!mobile"
         :temporary="mobile"
         width="248"
         class="cd-rail"
       >
-        <div class="d-flex align-center ga-3 px-4 py-4">
+        <div class="d-flex align-center ga-3 px-4 py-4 cd-brandbar">
           <v-avatar color="primary" size="32" rounded="md">
             <v-icon icon="mdi-hexagon-slice-6" size="20" />
           </v-avatar>
-          <span v-if="!rail || mobile" class="cd-brand text-body-1 text-truncate">
+          <!-- Hidden by CSS rather than `v-if`, because `rail` stays true while the drawer is
+               hovered open — a `v-if` on it would leave the name missing from the expanded
+               sidebar. The rule keys on Vuetify's own hover class instead. -->
+          <span class="cd-brand text-body-1 text-truncate cd-rail-hide">
             {{ t('app.name') }}
           </span>
         </div>
@@ -120,6 +147,17 @@ const heading = computed(() => {
         <template #append>
           <v-divider />
           <v-list nav class="pa-2">
+            <!-- Only where something in this application has dates. `app.calendar` is what the
+                 generator answered at build time; without the guard this would link to a route
+                 that is not registered, and router.resolve THROWS from inside a render rather than
+                 rendering a dead link. -->
+            <v-list-item
+              v-if="app.calendar"
+              :to="{ name: 'calendar' }"
+              prepend-icon="mdi-calendar-month-outline"
+              :title="t('nav.calendar')"
+              rounded="md"
+            />
             <v-list-item
               :to="{ name: 'directory' }"
               prepend-icon="mdi-account-group-outline"

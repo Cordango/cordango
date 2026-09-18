@@ -237,7 +237,18 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
 
         void Add(GeneratedFile file) => files[file.RelativePath] = file;
 
-        var scaffold = new ScaffoldOptions(workspace.Name, workspace.Key, workspace.Namespace,
+        // The WORKSPACE names the deployment — the database, the container, the title on the sign-in
+        // page — and the APP names the code. They have to be told apart, and for a moment they were
+        // not: the scaffold took `workspace.Namespace` for all three while every emitter below wrote
+        // `app.Namespace`, so a workspace called "Operations" holding `project_intake` produced a
+        // Program.cs with `using Operations.Data;` and an AppDbContext in `ProjectIntake.Data`. The
+        // build failed on the first file, and nothing in the message said the two halves had been
+        // named by different things.
+        //
+        // One app per build is what makes `app.Namespace` the right answer here (CORD2310 refuses
+        // more). When several apps in one deployment lands, the host project gets a namespace of its
+        // own again and each app keeps its own — and this line is where that choice is made.
+        var scaffold = new ScaffoldOptions(workspace.Name, workspace.Key, app.Namespace,
             RuntimeAsPackage: runtimeAsPackage, HasCustomCode: customSources is not null);
         foreach (var file in Scaffold.Files(scaffold)) Add(file);
 
@@ -247,6 +258,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         Add(BackendEmitter.Permissions(app));
         Add(BackendEmitter.Commands(app));
         if (FormsEmitter.Emit(app) is { } forms) Add(forms);
+        if (Emit.CalendarEmitter.Emit(app) is { } calendar) Add(calendar);
         Add(SchemaEmitter.Emit(app));
         Add(WorkflowEmitter.Workflows(app));
 
@@ -339,18 +351,37 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
                 + "other than a figure that counts it.",
                 "$.entities");
 
-        // The calendar flag asks for something this target does not have and cannot fake: a surface
-        // that spans EVERY app a person can reach, in one workspace, with one feed. A generated
-        // application is one app. Said out loud rather than dropped, because a flag that compiles to
-        // silence is how seven earlier gaps went unnoticed — the records still reach the app's own
-        // calendar block, which is a different and smaller promise than the one the flag makes.
+        // The calendar flag used to be refused outright here, and that was one claim too wide. It
+        // says two things at once: "these records belong in the responsible person's calendar", which
+        // one application can honour completely for its OWN records and now does — the personal
+        // calendar at /api/me/calendar and the screen over it — and "alongside every other app's
+        // dates", which is a workspace surface a single generated application genuinely has nothing
+        // to span. Only the second is still missing, so only the second is reported.
+        //
+        // The flag reaching the emitter UNRESOLVED is a different failure and a louder one. The
+        // compiler resolves `calendar: true` into a binding and refuses the build when it cannot, so
+        // a bare flag here means something bypassed that — and emitting nothing would put the records
+        // in nobody's calendar without saying so.
         foreach (var entity in app.Entities.Where(e => e.Json["calendar"] is not null))
+        {
+            if (app.Calendars.Any(e => e.Key == entity.Key)) continue;
+
             yield return new Diagnostic(NotYetCodes.Calendar,
-                $"the entity '{entity.Key}' is marked to appear in people's calendars, which is a "
-                + "cross-application surface the Cordango Platform provides and a standalone "
-                + "application has nothing to span. Its records still appear in this application's "
-                + "own calendar views.",
+                $"the entity '{entity.Key}' is marked to appear in people's calendars, but its flag "
+                + "reached this generator unresolved — no start date and no person. Build through "
+                + "`cordango build`, which resolves it, rather than handing the generator a raw "
+                + "definition. Its records will not appear in anybody's calendar.",
                 $"$.entities[?(@.key=='{entity.Key}')].calendar");
+        }
+
+        // The cross-application feed — one person, one calendar, every app in a workspace — is NOT
+        // reported here, and that is a deliberate change. A CORD23xx stops a build until somebody
+        // passes --allow-incomplete, which is the right treatment for "the emitters have not got to
+        // this" and the wrong one for "a single application has no other applications to span". The
+        // second is a property of the target, it will not change with a release, and a build that
+        // failed on it for ever would be telling somebody to wait for something that is not coming.
+        // The scope is stated where whoever inherits the application will read it: the header of the
+        // generated AppCalendar.cs.
 
         for (var i = 0; i < app.Workflows.Count; i++)
         {
@@ -490,6 +521,12 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
             case JsonObject o:
                 foreach (var (name, child) in o)
                 {
+                    // A `computed` subtree is a ROLLUP's filters, which never reach the query layer:
+                    // they are emitted as a predicate inside a recompute hook. RollupEmitter reports
+                    // what it cannot write as CORD2305, and walking in here would say the same gap a
+                    // second time in the language of a screen that does not exist.
+                    if (name == "computed") continue;
+
                     if (name == "filters" && child is JsonArray leaves)
                     {
                         for (var i = 0; i < leaves.Count; i++)

@@ -5,6 +5,7 @@ import {
   viewOf, entityOf, loadView, displayOf, onRecordsChanged, recordsChanged, optionColor, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
+import { iso, gridStart, gridDays, weekdayNames, monthLabel, shiftMonth, bucketByDay } from '../monthGrid.js'
 import RecordDialog from './RecordDialog.vue'
 import { useSurface } from './surface.js'
 
@@ -48,38 +49,12 @@ const loading = ref(true)
 const error = ref(null)
 const editing = ref(null)
 
-const iso = (at) => `${at.getFullYear()}-${String(at.getMonth() + 1).padStart(2, '0')}-${String(at.getDate()).padStart(2, '0')}`
-
-// Monday-first, and always six rows. A grid that changes height as you page through the year makes
-// everything below it jump, which reads as the page reloading.
-const gridStart = computed(() => {
-  const first = new Date(cursor.value.getFullYear(), cursor.value.getMonth(), 1)
-  const weekday = (first.getDay() + 6) % 7
-  return new Date(first.getFullYear(), first.getMonth(), 1 - weekday)
-})
-
-const days = computed(() => Array.from({ length: 42 }, (_, i) => {
-  const at = new Date(gridStart.value)
-  at.setDate(at.getDate() + i)
-  return {
-    key: iso(at),
-    day: at.getDate(),
-    outside: at.getMonth() !== cursor.value.getMonth(),
-    today: iso(at) === iso(new Date()),
-  }
-}))
-
-const monthLabel = computed(() =>
-  cursor.value.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }))
-
-const weekdays = computed(() => {
-  const monday = new Date(2024, 0, 1)
-  return Array.from({ length: 7 }, (_, i) => {
-    const at = new Date(monday)
-    at.setDate(at.getDate() + i)
-    return at.toLocaleDateString(undefined, { weekday: 'short' })
-  })
-})
+// The grid itself is monthGrid.js — shared with the personal calendar, so the two cannot disagree
+// about which week a date falls in.
+const from = computed(() => gridStart(cursor.value))
+const days = computed(() => gridDays(cursor.value))
+const label = computed(() => monthLabel(cursor.value))
+const weekdays = weekdayNames()
 
 async function load() {
   if (!definition.value || !dateField.value) {
@@ -92,7 +67,7 @@ async function load() {
   loading.value = true
   error.value = null
 
-  const last = new Date(gridStart.value)
+  const last = new Date(from.value)
   last.setDate(last.getDate() + 41)
 
   try {
@@ -107,7 +82,7 @@ async function load() {
       {
         take: 500,
         extraFilters: [
-          { field: dateField.value, operator: 'gte', value: iso(gridStart.value) },
+          { field: dateField.value, operator: 'gte', value: iso(from.value) },
           { field: dateField.value, operator: 'lte', value: iso(last) },
         ],
       })
@@ -120,33 +95,16 @@ async function load() {
   }
 }
 
-// One pass over the rows rather than a filter per cell: forty-two cells scanning a month of records
-// each is the kind of thing that only shows up once somebody has a real amount of data.
-const byDay = computed(() => {
-  const buckets = {}
-  for (const row of rows.value) {
-    const start = String(row[dateField.value] ?? '').slice(0, 10)
-    if (!start) continue
-
-    const end = endField.value ? String(row[endField.value] ?? '').slice(0, 10) : start
-    const at = new Date(start)
-    const stop = new Date(end >= start ? end : start)
-
-    while (iso(at) <= iso(stop)) {
-      (buckets[iso(at)] ||= []).push(row)
-      at.setDate(at.getDate() + 1)
-    }
-  }
-  return buckets
-})
+const byDay = computed(() => bucketByDay(
+  rows.value,
+  (row) => row[dateField.value],
+  endField.value ? (row) => row[endField.value] : null))
 
 const colorOf = (row) => (colorField.value
   ? optionColor(entity.value?.fields.find((f) => f.key === colorField.value), row[colorField.value])
   : undefined)
 
-const move = (by) => {
-  cursor.value = new Date(cursor.value.getFullYear(), cursor.value.getMonth() + by, 1)
-}
+const move = (by) => { cursor.value = shiftMonth(cursor.value, by) }
 
 const open = (row) => router.push(recordRoute(entityKey.value, row.id))
 
@@ -170,7 +128,7 @@ watch(() => props.state, load, { deep: true })
       <span class="text-subtitle-1">{{ definition?.label }}</span>
       <v-spacer />
       <v-btn icon="mdi-chevron-left" size="small" variant="text" @click="move(-1)" />
-      <span class="text-body-2 mx-2" style="min-width: 9rem; text-align: center">{{ monthLabel }}</span>
+      <span class="text-body-2 mx-2" style="min-width: 9rem; text-align: center">{{ label }}</span>
       <v-btn icon="mdi-chevron-right" size="small" variant="text" @click="move(1)" />
       <v-btn size="small" variant="text" class="ml-2" @click="cursor = new Date()">Today</v-btn>
     </div>
