@@ -45,6 +45,110 @@ public class WorkflowRunnerTests
         Assert.Null((await world.Store.FindAsync(widget.Id, default))!.Note);
     }
 
+    /// <summary>
+    /// A record ENTERING a state, whichever write took it there.
+    ///
+    /// <para>Deliberately the state and not the transition: "when a request becomes approved" is what
+    /// anybody means, and naming a transition makes the rule miss the day somebody adds a second way
+    /// to reach the same state.</para>
+    /// </summary>
+    [Fact]
+    public async Task A_state_subscription_fires_when_the_record_enters_that_state()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "on_won", "On won", "widget", WorkflowEvent.StateEntered,
+            Field: "name",
+            Effects: [new UpdateRecordEffect([new EffectSet("note", "entered")])])
+        {
+            State = "won",
+        });
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "lead", Amount = 1 }, default);
+        Assert.Null((await world.Store.FindAsync(widget.Id, default))!.Note);
+
+        await world.Store.UpdateAsync(widget.Id, new Widget { Name = "won" }, ["name"], default);
+        Assert.Equal("entered", (await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    /// <summary>Entering a DIFFERENT state is not entering this one. Without the value test a state
+    /// subscription would be an expensive `field.changed`.</summary>
+    [Fact]
+    public async Task A_state_subscription_ignores_a_move_to_another_state()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "on_won", "On won", "widget", WorkflowEvent.StateEntered,
+            Field: "name",
+            Effects: [new UpdateRecordEffect([new EffectSet("note", "entered")])])
+        {
+            State = "won",
+        });
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "lead", Amount = 1 }, default);
+        await world.Store.UpdateAsync(widget.Id, new Widget { Name = "lost" }, ["name"], default);
+
+        Assert.Null((await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    /// <summary>A record created ALREADY in the state has entered it. A rule that only watched
+    /// updates would miss every import and every seed that created one that way.</summary>
+    [Fact]
+    public async Task A_record_created_already_in_the_state_has_entered_it()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "on_won", "On won", "widget", WorkflowEvent.StateEntered,
+            Field: "name",
+            Effects: [new UpdateRecordEffect([new EffectSet("note", "entered")])])
+        {
+            State = "won",
+        });
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "won", Amount = 1 }, default);
+
+        Assert.Equal("entered", (await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    /// <summary>The announcement half: a command says a name, and whoever subscribed to that name
+    /// runs. Neither side knows the other.</summary>
+    [Fact]
+    public async Task An_announcement_runs_whoever_subscribed_to_that_name()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "on_planned", "On planned", "widget", WorkflowEvent.CommandEmitted,
+            Effects: [new UpdateRecordEffect([new EffectSet("note", "heard")])])
+        {
+            Announcement = "widget.planned",
+        });
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "a", Amount = 1 }, default);
+        var record = Node(widget);
+
+        await world.Runner.AnnounceAsync(["widget.planned"], "widget", record, default);
+        Assert.Equal("heard", (await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    [Fact]
+    public async Task An_announcement_nobody_subscribed_to_does_nothing()
+    {
+        await using var world = new World(new WorkflowDefinition(
+            "on_planned", "On planned", "widget", WorkflowEvent.CommandEmitted,
+            Effects: [new UpdateRecordEffect([new EffectSet("note", "heard")])])
+        {
+            Announcement = "widget.planned",
+        });
+
+        var widget = await world.Store.CreateAsync(new Widget { Name = "a", Amount = 1 }, default);
+
+        await world.Runner.AnnounceAsync(["widget.cancelled"], "widget", Node(widget), default);
+        Assert.Null((await world.Store.FindAsync(widget.Id, default))!.Note);
+    }
+
+    private static System.Text.Json.Nodes.JsonObject Node(Widget widget) => new()
+    {
+        ["id"] = widget.Id,
+        ["name"] = widget.Name,
+        ["amount"] = widget.Amount,
+    };
+
     [Fact]
     public async Task A_condition_that_does_not_hold_stops_the_workflow()
     {
@@ -214,6 +318,7 @@ public class WorkflowRunnerTests
                 new NotificationService(Db, clock, ids),
                 user, clock, new WorkflowDepth(), NullLogger<WorkflowRunner>.Instance));
 
+            _runner = runner;
             var hook = new LazyHook(runner, descriptor);
 
             Store = new RecordStore<Widget>(Db, descriptor,
@@ -222,6 +327,12 @@ public class WorkflowRunnerTests
 
         public TestDb Db { get; }
         public IRecordStore<Widget> Store { get; }
+
+        /// <summary>The runner itself, for the announcement path — which is entered by a COMMAND
+        /// rather than by a write, so there is no store call that reaches it.</summary>
+        public WorkflowRunner Runner => _runner.Value;
+
+        private readonly Lazy<WorkflowRunner> _runner;
 
         public ValueTask DisposeAsync() => Db.DisposeAsync();
     }

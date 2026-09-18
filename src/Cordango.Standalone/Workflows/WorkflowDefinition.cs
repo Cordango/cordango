@@ -23,6 +23,25 @@ public static class WorkflowEvent
 
     /// <summary>On a clock rather than on a write.</summary>
     public const string Schedule = "schedule";
+
+    /// <summary>
+    /// A record entered a state of its lifecycle, whichever transition took it there.
+    ///
+    /// <para>Deliberately the STATE and not the transition. "When a request becomes approved" is the
+    /// thing anybody means; naming a transition makes the rule miss the day somebody adds a second
+    /// way to reach the same state — an escalation path, a bulk approve — and nothing reports it.</para>
+    /// </summary>
+    public const string StateEntered = "process.state_entered";
+
+    /// <summary>
+    /// A command announced something, and this workflow subscribes to the announcement.
+    ///
+    /// <para>The announcer knows nothing about the subscriber: a command declares what it ANNOUNCES
+    /// and that is the whole of its side of the contract. That is what lets one app react to another
+    /// without either one importing the other — and in a merged workspace the two are simply in the
+    /// same process.</para>
+    /// </summary>
+    public const string CommandEmitted = "command.emitted";
 }
 
 /// <summary>
@@ -174,6 +193,20 @@ public sealed record WorkflowDefinition(
     string? Cron = null)
 {
     public IReadOnlyList<WorkflowEffect> Effects { get; init; } = Effects ?? [];
+
+    /// <summary>
+    /// For <see cref="WorkflowEvent.StateEntered"/>: the state the record has to have entered.
+    ///
+    /// <para>Paired with <see cref="Field"/>, which carries the lifecycle's own status field —
+    /// the same pair <c>field.changed</c> uses, because "entered a state" IS that field becoming this
+    /// value. Reusing them rather than adding a second mechanism means the answer to "did it really
+    /// change, or was the form just saved again" is the one already written down.</para>
+    /// </summary>
+    public string? State { get; init; }
+
+    /// <summary>For <see cref="WorkflowEvent.CommandEmitted"/>: the announced name subscribed to,
+    /// as a command's <c>emits</c> spells it.</summary>
+    public string? Announcement { get; init; }
 }
 
 /// <summary>Every workflow the application declares. Generated.</summary>

@@ -39,6 +39,17 @@ public sealed record BuildMetadata(
 
     public const int ProtocolVersion = 1;
 
+    /// <summary>
+    /// Every name the build had to decide, as <c>kind:app:oldKey</c> → the name it was given.
+    ///
+    /// <para>Empty for the ordinary case. It fills when a workspace holds apps that chose the same
+    /// key for something the merged deployment can only have one of — and it is read back on the next
+    /// build so the answer does not change under a database that already has the table. This is the
+    /// one entry here that is an INPUT as well as a record.</para>
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Names { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
     public bool Partial => Unsupported.Count > 0;
 
     public JsonObject ToJson() => new()
@@ -54,12 +65,42 @@ public sealed record BuildMetadata(
             ["feature"] = d.Message,
             ["path"] = d.JsonPath,
         })]),
+        ["names"] = new JsonObject(Names
+            .OrderBy(n => n.Key, StringComparer.Ordinal)
+            .Select(n => KeyValuePair.Create(n.Key, (JsonNode?)JsonValue.Create(n.Value)))),
         ["files"] = new JsonArray([.. Files.Select(f => (JsonNode)new JsonObject
         {
             ["path"] = f.Path,
             ["sha256"] = f.Sha256,
         })]),
     };
+
+    /// <summary>
+    /// Reads the names a previous build assigned, so this one can keep them.
+    ///
+    /// <para>Unreadable answers empty, which means "decide afresh". That is right for a first build
+    /// and harmless for any other: the same workspace produces the same answers. It is deliberately
+    /// NOT a failure — a missing map must not stop somebody building.</para>
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> PreviousNames(string path)
+    {
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        try
+        {
+            if (JsonNode.Parse(File.ReadAllText(path)) is not JsonObject doc) return names;
+            if (doc["names"] is not JsonObject map) return names;
+
+            foreach (var (key, value) in map)
+                if (value is JsonValue v && v.TryGetValue<string>(out var assigned)) names[key] = assigned;
+        }
+        catch (Exception ex) when (ex is IOException or System.Text.Json.JsonException
+                                      or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        }
+
+        return names;
+    }
 
     /// <summary>Reads the file list out of a previous build, so a regeneration knows what it owns.
     /// Anything unreadable answers empty: the caller then refuses to touch the directory, which is

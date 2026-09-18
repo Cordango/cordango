@@ -33,7 +33,10 @@ public static class WorkflowEmitter
     /// awake, which is a different piece of machinery.</summary>
     public static readonly IReadOnlySet<string> Triggers =
         new HashSet<string>(StringComparer.Ordinal)
-        { "record.created", "record.updated", "field.changed", "schedule" };
+        {
+            "record.created", "record.updated", "field.changed", "schedule",
+            "process.state_entered", "command.emitted",
+        };
 
     public static GeneratedFile Workflows(AppModel app)
     {
@@ -62,9 +65,21 @@ public static class WorkflowEmitter
         {
             var trigger = workflow["trigger"] as JsonObject;
             var @event = AppModel.Str(trigger?["event"]);
-            var entity = AppModel.Str(trigger?["entity"]);
+            if (@event is null || !Triggers.Contains(@event)) continue;
 
-            if (@event is null || entity is null || !Triggers.Contains(@event)) continue;
+            // A SUBSCRIPTION names an announcement rather than an entity — "when a project is
+            // planned", not "when this entity is written". Which entity that turns out to be is
+            // resolved here, from the announcement, because the subscriber does not know and must
+            // not have to: that is the whole of why one app can react to another.
+            var subscription = Subscribed(app, @event, trigger);
+            var entity = subscription?.Entity ?? AppModel.Str(trigger?["entity"]);
+
+            if (entity is null) continue;
+
+            // A subscription to an announcement nothing in this build makes. Skipped rather than
+            // emitted, and reported as a gap by the generator — a workflow wired to a name no
+            // command announces is one that never runs, and looking finished is the worst of it.
+            if (IsSubscription(@event) && subscription is null) continue;
 
             // A schedule nobody can read is a schedule that never fires. Reported rather than
             // emitted, so the build says so instead of the application quietly doing nothing.
@@ -81,7 +96,10 @@ public static class WorkflowEmitter
             source.Line($"new WorkflowDefinition({Naming.Literal(key)}, {Naming.Literal(name)}, "
                 + $"{Naming.Literal(entity)}, WorkflowEvent.{EventName(@event)},");
             source.Indent();
-            source.Line($"Field: {(field is null ? "null" : Naming.Literal(field))},");
+            // For a state subscription the field is the lifecycle's, worked out from the
+            // announcement rather than written on the trigger.
+            var watched = field ?? subscription?.Field;
+            source.Line($"Field: {(watched is null ? "null" : Naming.Literal(watched))},");
 
             ConditionEmitter.TryEmit(workflow["when"], out var when);
             source.Line($"When: {when},");
@@ -93,7 +111,15 @@ public static class WorkflowEmitter
             source.Indent();
             foreach (var effect in effects) source.Line(effect + ",");
             source.Outdent();
-            source.Line("]),");
+
+            // The two subscription facts are init properties, so they land in an object initialiser.
+            var extra = new List<string>();
+            if (subscription?.State is { } state) extra.Add($"State = {Naming.Literal(state)}");
+            if (subscription?.Announcement is { } announced)
+                extra.Add($"Announcement = {Naming.Literal(announced)}");
+
+            var initialiser = extra.Count > 0 ? " { " + string.Join(", ", extra) + " }" : "";
+            source.Line("])" + initialiser + ",");
             source.Outdent();
         }
 
@@ -103,6 +129,82 @@ public static class WorkflowEmitter
         source.Close();
 
         return new GeneratedFile("api/Workflows/AppWorkflows.cs", source.ToString());
+    }
+
+    /// <summary>What a subscription resolved to: the entity it really watches, and how.</summary>
+    /// <param name="Entity">The ANNOUNCING entity — the one whose record is in scope when it fires.</param>
+    /// <param name="Field">The lifecycle's status field, for a state subscription.</param>
+    /// <param name="State">The state entered.</param>
+    /// <param name="Announcement">The announced name, for a command subscription.</param>
+    private sealed record Subscription(
+        string Entity, string? Field = null, string? State = null, string? Announcement = null);
+
+    /// <summary>The announcement a subscription names when nothing in this build announces it, or
+    /// null when the trigger is fine. For the generator's diagnostic, so that the reason a workflow
+    /// will never fire is reported rather than left to be noticed.</summary>
+    public static string? Unresolved(AppModel app, JsonObject? trigger)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+
+        var @event = AppModel.Str(trigger?["event"]);
+        if (@event is null || !IsSubscription(@event)) return null;
+
+        // An `app` that SURVIVED the link names an application outside this build — the link strips
+        // the qualifier for a sibling precisely because both ends end up in one process. That case is
+        // already reported, as the capability it is (CORD2108), and saying it again here in different
+        // words would be two entries for one problem.
+        if (trigger?["app"] is not null) return null;
+
+        return Subscribed(app, @event, trigger) is null
+            ? AppModel.Str(trigger?["name"]) ?? "an unnamed announcement"
+            : null;
+    }
+
+    private static bool IsSubscription(string @event) =>
+        @event is "process.state_entered" or "command.emitted";
+
+    /// <summary>
+    /// Turn "when X is announced" into "when THIS entity does THIS".
+    ///
+    /// <para><b>Both forms name something rather than somewhere, and that asymmetry is the design.</b>
+    /// The announcer declares a name and stops; the subscriber names it back. Neither mentions the
+    /// other, so an app can be reacted to without knowing it is — which is what makes two apps in a
+    /// workspace composable rather than coupled. The cost is that the entity has to be worked out
+    /// here, and it is worked out from the merged application, where both apps already are.</para>
+    ///
+    /// <para><c>process.state_entered</c> announces <c>&lt;entity&gt;.&lt;state&gt;</c>, so the entity
+    /// is in the name and the status field comes from that entity's lifecycle. <c>command.emitted</c>
+    /// announces whatever the author chose, so the entity is whichever command declares it in
+    /// <c>emits</c> — and null when nothing does, which is a subscription to silence.</para>
+    /// </summary>
+    private static Subscription? Subscribed(AppModel app, string @event, JsonObject? trigger)
+    {
+        if (AppModel.Str(trigger?["name"]) is not { Length: > 0 } announced) return null;
+
+        if (@event == "command.emitted")
+        {
+            var announcer = app.Commands.FirstOrDefault(c =>
+                AppModel.Arr(c.Json["emits"]).OfType<JsonValue>()
+                    .Select(AppModel.Str)
+                    .Contains(announced, StringComparer.Ordinal));
+
+            return announcer is null ? null : new Subscription(announcer.Entity, Announcement: announced);
+        }
+
+        // '<entity>.<state>'. Split on the FIRST dot: an entity key cannot contain one and a state
+        // key cannot either, so anything after the first is not ours to interpret.
+        var dot = announced.IndexOf('.', StringComparison.Ordinal);
+        if (dot <= 0 || dot == announced.Length - 1) return null;
+
+        var entity = announced[..dot];
+        var state = announced[(dot + 1)..];
+
+        // The lifecycle governing that entity is what says which field holds the state. Without one
+        // there is no field to watch, and a workflow watching nothing is one that never fires.
+        var process = app.Processes.FirstOrDefault(p => p.Entity == entity);
+        if (process?.StateField is not { Length: > 0 } field) return null;
+
+        return app.Entity(entity) is null ? null : new Subscription(entity, field, state);
     }
 
     /// <summary>
@@ -125,12 +227,28 @@ public static class WorkflowEmitter
 
     /// <summary>The constant name rather than the string, so a typo in a trigger is a compile error
     /// in the generated application rather than a workflow that never fires.</summary>
+    /// <summary>
+    /// The constant name rather than the string, so a typo in a trigger is a compile error in the
+    /// generated application rather than a workflow that never fires.
+    ///
+    /// <para>THROWS on an event it does not know, and the throw is the point. This was a switch whose
+    /// default was <c>Schedule</c>, so the day two new trigger kinds were added to
+    /// <see cref="Triggers"/> they both silently came out as scheduled workflows with no cron — which
+    /// is a workflow that never runs, generated without a word. A default that guesses is a default
+    /// that hides the next mistake; nothing can reach here that
+    /// <see cref="Triggers"/> has not already admitted.</para>
+    /// </summary>
     private static string EventName(string @event) => @event switch
     {
         "record.created" => "RecordCreated",
         "record.updated" => "RecordUpdated",
         "field.changed" => "FieldChanged",
-        _ => "Schedule",
+        "schedule" => "Schedule",
+        "process.state_entered" => "StateEntered",
+        "command.emitted" => "CommandEmitted",
+        _ => throw new ArgumentOutOfRangeException(nameof(@event), @event,
+            "Triggers admits an event this cannot name. Add it here, or it is emitted as something "
+            + "else and the workflow never fires."),
     };
 
     private static IEnumerable<string> Effects(AppModel app, string entity, JsonObject workflow)

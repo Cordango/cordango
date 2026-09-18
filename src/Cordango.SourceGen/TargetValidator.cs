@@ -33,7 +33,7 @@ public static class TargetValidator
         Entities(definition, caps, siblings, found);
         Blocks(definition, caps, siblings, found);
         Effects(definition, caps, found);
-        Workflows(definition, caps, found);
+        Workflows(definition, caps, siblings, found);
 
         // Ordered by where they appear rather than by when the walk happened to notice them: a
         // report that reads top-to-bottom through the document is one somebody can work down.
@@ -258,7 +258,9 @@ public static class TargetValidator
         found.Add(new Diagnostic(code, $"'{type}' effect: {caps.Effects.Explain(type)}.", path));
     }
 
-    private static void Workflows(JsonObject definition, GeneratorCapabilities caps, List<Diagnostic> found)
+    private static void Workflows(
+        JsonObject definition, GeneratorCapabilities caps, IReadOnlySet<string>? siblings,
+        List<Diagnostic> found)
     {
         var workflows = definition["workflows"] as JsonArray ?? [];
         for (var w = 0; w < workflows.Count; w++)
@@ -266,6 +268,17 @@ public static class TargetValidator
             if (workflows[w] is not JsonObject workflow) continue;
             if (Str(workflow["trigger"]?["event"]) is not { } evt) continue;
             if (caps.Triggers.Allows(evt)) continue;
+
+            // Same rule as a reference field and a block source: an app in THIS build is reachable.
+            // Its announcement and this subscription end up in one process, so "install both on the
+            // platform, where the other one exists to announce" is simply untrue — the other one is
+            // right here. What is true is that no emitter wires the trigger yet, and that is reported
+            // on its own as a CORD23xx, so saying nothing here leaves no gap.
+            //
+            // Without this, the two apps of a workspace that react to each other — the whole reason
+            // to put them in one workspace — were told to go and use the platform instead.
+            if (Str(workflow["trigger"]?["app"]) is { } announcer && siblings?.Contains(announcer) == true)
+                continue;
 
             var key = Str(workflow["key"]) ?? w.ToString();
             found.Add(new Diagnostic(DiagnosticCodes.UnsupportedTrigger,

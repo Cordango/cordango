@@ -89,7 +89,10 @@ public static class GeneratedFileWriter
 
         var metadata = new BuildMetadata(
             draft.DefinitionHash, draft.Compiler, draft.GeneratorId, draft.GeneratorVersion,
-            draft.Unsupported, [.. files.Select(GeneratedFileRecord.Of)]);
+            draft.Unsupported, [.. files.Select(GeneratedFileRecord.Of)])
+        {
+            Names = draft.Names,
+        };
 
         if (dryRun)
             return new WriteReport([.. files.Select(f => f.RelativePath)], stale, []);
@@ -178,4 +181,10 @@ public sealed record BuildMetadataDraft(
     CompilerInfo Compiler,
     string GeneratorId,
     string GeneratorVersion,
-    IReadOnlyList<Diagnostic> Unsupported);
+    IReadOnlyList<Diagnostic> Unsupported)
+{
+    /// <summary>Names the build decided, to be written down. Not positional, so nothing that already
+    /// builds a draft has to change.</summary>
+    public IReadOnlyDictionary<string, string> Names { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+}

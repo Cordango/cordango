@@ -39,18 +39,68 @@ public sealed class ConfigureTests
         Assert.True(File.Exists(cord.Path_("generated", "cordango.build.json")));
     }
 
+    /// <summary>
+    /// Two apps are ONE deployment, and now they build like one.
+    ///
+    /// <para>This test used to assert the opposite — CORD2310, and no <c>generated/</c> at all. The
+    /// apps of a workspace are authoring units rather than runtime boundaries, so they are linked
+    /// into a single application: one database, one router, one namespace. The two scaffolds `new`
+    /// and `add app` produce each declare a screen called `dashboard`, which is exactly the collision
+    /// the link exists to resolve, and neither definition is edited to resolve it.</para>
+    /// </summary>
     [Fact]
-    public void A_workspace_of_several_apps_is_one_deployment_and_is_not_emitted_yet()
+    public void A_workspace_of_several_apps_builds_as_one_deployment()
     {
         using var cord = new Sandbox();
         cord.Run("new", "claims");
         cord.Run("add", "app", "orders");
 
         Assert.Equal(ExitCodes.Ok, cord.Run("configure", "--target", "standalone"));
-        Assert.NotEqual(ExitCodes.Ok, cord.Run("build"));
+        Assert.Equal(ExitCodes.Ok, cord.Run("build"));
 
-        Assert.Contains(NotYetCodes.Workspace, cord.Error, StringComparison.Ordinal);
-        Assert.False(Directory.Exists(cord.Path_("generated")));
+        Assert.True(File.Exists(cord.Path_("generated", "docker-compose.yml")));
+        Assert.DoesNotContain(NotYetCodes.Workspace, cord.Error, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A name the link assigned does not move when a third app arrives.
+    ///
+    /// <para>This is the guarantee that makes the rename safe to ship. A rename changes a TABLE and
+    /// an address somebody bookmarked, so if adding an app could re-decide an earlier answer, every
+    /// `cordango build` would be a potential migration — and it would arrive as EF dropping a column
+    /// rather than as anything anybody chose. The answers are recorded in cordango.build.json and
+    /// read back, so the only new name is the newcomer's.</para>
+    /// </summary>
+    [Fact]
+    public void A_name_the_link_assigned_survives_a_third_app_arriving()
+    {
+        using var cord = new Sandbox();
+        cord.Run("new", "claims");
+        cord.Run("add", "app", "orders");
+        cord.Run("configure", "--target", "standalone");
+
+        Assert.Equal(ExitCodes.Ok, cord.Run("build"));
+        var before = Names(cord);
+
+        cord.Run("add", "app", "billing");
+        Assert.Equal(ExitCodes.Ok, cord.Run("build"));
+        var after = Names(cord);
+
+        Assert.NotEmpty(before);
+        foreach (var (key, assigned) in before)
+            Assert.Equal(assigned, after[key]);
+
+        // And the newcomer did get one, so the test is not passing because nothing collided.
+        Assert.Contains(after, n => n.Key.Contains(":billing:", StringComparison.Ordinal));
+    }
+
+    private static Dictionary<string, string> Names(Sandbox cord)
+    {
+        var doc = System.Text.Json.Nodes.JsonNode.Parse(
+            File.ReadAllText(cord.Path_("generated", BuildMetadata.FileName)))!.AsObject();
+
+        return doc["names"]!.AsObject().ToDictionary(
+            n => n.Key, n => (string)n.Value!, StringComparer.Ordinal);
     }
 
     [Fact]

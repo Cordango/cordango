@@ -62,18 +62,34 @@ public static class DiagnosticCodes
     /// <summary>A field type this target cannot store.</summary>
     public const string UnsupportedFieldType = "CORD2112";
 
-    /// <summary>Every code in the range, for the test that stops two of them meaning the same
-    /// thing and for anything that wants to document the set.</summary>
     /// <summary>Custom code on a target that cannot execute it. The only entry in this range that
     /// is about the PLATFORM rather than about a generator: everything else here says "the platform
     /// does this and a standalone build does not", and this one says the opposite.</summary>
     public const string CustomCode = "CORD2113";
 
+    /// <summary>
+    /// Two apps of one workspace using the same key for something a merged build can only have once.
+    ///
+    /// <para><b>Nothing is wrong with either app.</b> Both are valid, and on the platform both would
+    /// ship — an app there keeps its own tables and its own address, so two apps may each have a
+    /// <c>task</c>. A standalone build is ONE application: one database, one router, one namespace,
+    /// one set of types. Two entities called <c>task</c> are then one table, one route and one class,
+    /// and there is no answer to which one a request meant.</para>
+    ///
+    /// <para>In this range rather than CORD23xx because it is not waiting on an emitter. A merged
+    /// deployment is the shape of the target, and no release changes that — the fix is to rename one
+    /// of them, which is why the message names both apps and both paths.</para>
+    /// </summary>
+    public const string WorkspaceKeyCollision = "CORD2114";
+
+    /// <summary>Every code in the range, for the test that stops two of them meaning the same
+    /// thing and for anything that wants to document the set.</summary>
     public static readonly IReadOnlyList<string> All =
     [
         CrossAppReference, RelatedAppsBlock, HistoryBlock, EnrichEffect, SeriesEntity,
         PrevExpression, WindowedRollup, UnsupportedEffect, UnsupportedTrigger,
         UnsupportedPlatformTarget, AiFeature, UnsupportedBlock, UnsupportedFieldType, CustomCode,
+        WorkspaceKeyCollision,
     ];
 }
 

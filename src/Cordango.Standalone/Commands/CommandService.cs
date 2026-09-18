@@ -71,6 +71,16 @@ public sealed record CommandDefinition(
     public IReadOnlyList<CommandNotification> Notifications { get; init; } = Notifications ?? [];
 
     /// <summary>
+    /// What this command ANNOUNCES when it succeeds.
+    ///
+    /// <para>A name, not a destination. The command says "a project was planned" and knows nothing
+    /// about who cares; a workflow elsewhere — in this app or in another app of the same workspace —
+    /// says it subscribes to that name. Neither side imports the other, which is what makes two apps
+    /// able to work together without either becoming a dependency of the other.</para>
+    /// </summary>
+    public IReadOnlyList<string> Emits { get; init; } = [];
+
+    /// <summary>
     /// What else the command does, beyond moving the record and setting its own fields.
     /// </summary>
     /// <remarks>
@@ -243,6 +253,18 @@ public sealed class CommandService<T> where T : class, IRecord, new()
             await _effects.RunEffectsAsync(
                 command.Effects,
                 $"Command '{command.Key}'",
+                _store.Descriptor.EntityKey,
+                JsonSerializer.SerializeToNode(updated, Json)!.AsObject(),
+                ct);
+        }
+
+        // Last, and after the command's own effects: a subscriber reads the record the command has
+        // already moved. Announcing BEFORE the effects would let "when a project is planned" fire
+        // while the command's own work was still half done.
+        if (command.Emits.Count > 0)
+        {
+            await _effects.AnnounceAsync(
+                command.Emits,
                 _store.Descriptor.EntityKey,
                 JsonSerializer.SerializeToNode(updated, Json)!.AsObject(),
                 ct);

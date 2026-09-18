@@ -190,6 +190,15 @@ public sealed class WorkflowRunner
                 .Concat(_catalogue.For(entity, WorkflowEvent.FieldChanged)
                     .Where(w => w.Field is { Length: > 0 } field && Changed(record, before!, field)));
 
+        // A record ENTERING a state, whichever transition took it there — including being created
+        // already in it. A request filed as `approved` has entered `approved`, and a rule that only
+        // watched updates would miss exactly the import or the seed that created it that way.
+        triggered = triggered.Concat(_catalogue.For(entity, WorkflowEvent.StateEntered)
+            .Where(w => w.Field is { Length: > 0 } field
+                && w.State is { Length: > 0 } state
+                && string.Equals(Text(record[field]), state, StringComparison.Ordinal)
+                && (created || Changed(record, before!, field))));
+
         return triggered.Where(w =>
             ConditionEvaluator.Evaluate(w.When, record, _user.PersonId, _clock.UtcNow));
     }
@@ -219,6 +228,45 @@ public sealed class WorkflowRunner
     /// on the command side would be a second set of answers to all of that, so commands run through
     /// this one.</para>
     /// </summary>
+    /// <summary>
+    /// A command announced something; run whatever subscribed to it.
+    ///
+    /// <para><b>The announcer does not know who is listening, and that is the point.</b> A command
+    /// declares what it announces and stops there; a subscription names the announcement. Neither
+    /// side imports the other, which is what lets two apps of a workspace react to each other — and
+    /// in a merged build they are simply in one process, so the announcement is a method call rather
+    /// than a message on a bus.</para>
+    ///
+    /// <para>The record in scope is the one the command ran on, AFTER it ran. A subscriber reading
+    /// <c>{{record.status}}</c> sees the state the command moved it to, which is the only reading
+    /// that makes "when a project is planned, take it on" mean what it says.</para>
+    ///
+    /// <para>Runs after the command's own effects and does not undo them: a subscriber that throws is
+    /// the thing it was going to create failing to appear, not the command coming back.</para>
+    /// </summary>
+    public async Task AnnounceAsync(
+        IReadOnlyList<string> announcements, string entity, JsonObject record, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(announcements);
+        ArgumentNullException.ThrowIfNull(record);
+
+        if (announcements.Count == 0) return;
+
+        foreach (var workflow in _catalogue.Workflows.Where(w =>
+            string.Equals(w.Event, WorkflowEvent.CommandEmitted, StringComparison.Ordinal)
+            && w.Announcement is { Length: > 0 } name
+            && announcements.Contains(name, StringComparer.Ordinal)))
+        {
+            // The subscriber's own condition still applies. It reads the ANNOUNCING record, which is
+            // the only record in scope — "take on a project the moment it is planned, if it is over
+            // a certain size" is a question about the project.
+            if (!ConditionEvaluator.Evaluate(workflow.When, record, _user.PersonId, _clock.UtcNow)) continue;
+
+            await RunEffectsAsync(
+                workflow.Effects, $"Workflow '{workflow.Key}'", entity, record, ct);
+        }
+    }
+
     /// <param name="source">What to name in the log if an effect cannot run — "Command 'approve'".</param>
     public async Task RunEffectsAsync(
         IReadOnlyList<WorkflowEffect> effects, string source, string entity, JsonObject record,

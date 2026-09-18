@@ -312,6 +312,15 @@ public static class BackendEmitter
 
             source.Line($"Notifications: [{string.Join(", ", notifications)}],");
 
+            // What this command ANNOUNCES. A name and nothing else: the command has no idea who
+            // subscribes, which is what lets a workflow in another app of this workspace react to it
+            // without either app importing the other.
+            var emits = AppModel.Arr(command.Json["emits"]).OfType<JsonValue>()
+                .Select(AppModel.Str)
+                .OfType<string>()
+                .ToList();
+
+
             // The guard, because it is the one a reader most often wants to find: everything around
             // it is what the command DOES, and this is when it may.
             ConditionEmitter.TryEmit(command.Json["when"], out var guard);
@@ -326,7 +335,12 @@ public static class BackendEmitter
                 .Select(e => WorkflowEmitter.Effect(app, command.Entity, e))
                 .Where(e => e is not null);
 
-            source.Line($"Effects: [{string.Join(", ", effects)}]),");
+            // `Emits` is an init property rather than a constructor parameter, so it lands in an
+            // object initialiser after the closing paren.
+            source.Line($"Effects: [{string.Join(", ", effects)}])"
+                + (emits.Count > 0
+                    ? $" {{ Emits = [{string.Join(", ", emits.Select(Naming.Literal))}] }},"
+                    : ","));
             source.Outdent();
         }
 

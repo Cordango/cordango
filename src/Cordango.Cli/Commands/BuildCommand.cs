@@ -269,8 +269,17 @@ public static class BuildCommand
         var identity = new WorkspaceIdentity(Naming.Sanitise(workspace.Name), workspace.Name);
         var compiled = new CompiledWorkspaceArtifact(identity, artifacts);
 
+        // Names an earlier build of this workspace assigned, handed back so a target that merges
+        // several apps keeps them. A rename changes a table and an address, so once a name has been
+        // given it must survive the next build — including a build that adds a third app and changes
+        // which keys collide. Absent on a first build, which is exactly when there is nothing to keep.
+        var options = Options(args, config);
+        if (BuildMetadata.PreviousNames(Path.Combine(root, BuildMetadata.FileName)) is { Count: > 0 } kept)
+            options["names"] = new JsonObject(kept
+                .Select(n => KeyValuePair.Create(n.Key, (JsonNode?)JsonValue.Create(n.Value))));
+
         var result = target.Generate(new GenerateRequest(
-            compiled, Options(args, config), custom.Count > 0 ? custom : null));
+            compiled, options, custom.Count > 0 ? custom : null));
 
         if (!result.Ok)
             return output.Fail($"{target.Id} cannot build {identity.Key}",
@@ -284,7 +293,10 @@ public static class BuildCommand
                 });
 
         var draft = new BuildMetadataDraft(
-            WorkspaceHash(artifacts), artifacts[0].Compiler, target.Id, target.Version, result.Warnings);
+            WorkspaceHash(artifacts), artifacts[0].Compiler, target.Id, target.Version, result.Warnings)
+        {
+            Names = result.Names,
+        };
 
         var write = GeneratedFileWriter.Write(root, result, draft, dryRun: args.Has("dry-run"));
 

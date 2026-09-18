@@ -167,6 +167,19 @@ public sealed record GenerateResult(
     IReadOnlyList<Diagnostic> Warnings,
     IReadOnlyList<Diagnostic> Errors)
 {
+    /// <summary>
+    /// Names this build had to decide, for the build metadata to record and the next build to keep.
+    ///
+    /// <para>A target that merges a workspace into one application renames the keys two apps chose
+    /// alike. A rename is a MIGRATION — it changes a table and an address somebody bookmarked — so
+    /// the answer is written down and handed back, and a name once given never moves. Empty for a
+    /// target that decides nothing, which is every target building a workspace of one.</para>
+    ///
+    /// <para>Not positional, so nothing that already builds a result has to change.</para>
+    /// </summary>
+    public IReadOnlyDictionary<string, string> Names { get; init; } =
+        new Dictionary<string, string>(StringComparer.Ordinal);
+
     public bool Ok => Errors.Count == 0;
 
     public static GenerateResult Failed(params Diagnostic[] errors) => new([], [], errors);

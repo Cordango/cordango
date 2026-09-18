@@ -186,21 +186,36 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         var allowIncomplete = request.Options?["allowIncomplete"]?.GetValue<bool>() ?? false;
         var runtimeAsPackage = request.Options?["runtimeAsPackage"]?.GetValue<bool>() ?? true;
 
-        // A workspace of more than one application is the shape this target is being taken to, and
-        // the emitters below are not there yet: they write one AppDbContext, one migration, one
-        // router and one nav. Refused OUTRIGHT rather than by emitting the first app, because a
-        // build that silently dropped four of five applications would look like it had worked.
-        if (workspace.Apps.Count > 1)
-            return GenerateResult.Failed(new Diagnostic(
-                NotYetCodes.Workspace,
-                $"this workspace holds {workspace.Apps.Count} applications "
-                + $"({string.Join(", ", workspace.Apps.Select(a => a.Key))}), and the {Id} generator "
-                + "emits one at a time so far. Build them into separate workspaces for now — a "
-                + "release will emit them as one deployment, with nothing in the source to change.",
-                "$"));
+        // THE APPS OF A WORKSPACE BECOME ONE APPLICATION HERE.
+        //
+        // They are authoring units, not runtime boundaries: one database, one router, one namespace,
+        // one sign-in. So they are LINKED — merged into a single manifest, with the handful of keys
+        // that a merged deployment can only have once renamed where two apps chose the same one, and
+        // every reference to a renamed key moved with it. From the next line down, every emitter
+        // sees one application and needs to know nothing about any of this.
+        //
+        // The rename is the build's job rather than the author's on purpose. The same two apps have
+        // to run on Cordango Platform, where each keeps its own tables behind its own handle and two
+        // `dashboard`s are perfectly fine. Asking somebody to rename one for the benefit of one
+        // target would make the definition target-specific, which is the one thing it exists not to
+        // be. See WorkspaceLink.
+        var previousNames = Names(request.Options?["names"]);
+        var linked = WorkspaceLink.Merge(
+            request.Workspace.Identity,
+            [.. workspace.Apps.Select((a, i) => (a.Key, request.Workspace.Apps[i].Manifest))],
+            previousNames);
 
-        var app = workspace.Apps[0];
-        var customSources = request.CustomFor(app.Key);
+        if (linked.Problems.Count > 0) return GenerateResult.Failed([.. linked.Problems]);
+
+        var app = AppModel.From(new CompiledAppArtifact(
+            linked.Manifest,
+            linked.Manifest,
+            request.Workspace.Apps[0].DefinitionHash,
+            request.Workspace.Apps[0].Compiler));
+
+        // Custom code is still per app — it is attributed C# in one app's folder — and the merged
+        // application carries all of it.
+        var customSources = request.CustomFor(workspace.Apps[0].Key);
 
         // The capability gate, and it does NOT stop the build.
         //
@@ -219,8 +234,15 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         // the same codes and a path pointing at the page it actually rendered. Two entries for one
         // card, one of them saying "not yet" about something that will never come, is worse than
         // either alone.
-        var unsupported = TargetValidator.Validate(
-                request.Workspace.Apps[0].Definition, Capabilities, workspace.AppKeys)
+        //
+        // Asked of EVERY app, against its own definition rather than against the linked manifest. Two
+        // reasons, and the second is the one that bites: a path like `$.entities[3].fields[1]` has to
+        // point into a document somebody can open, and after the link there is no such document — the
+        // entity may have been renamed and it sits at a different index beside another app's. Asking
+        // only the first app, which is what this did while a build was one app, would have let the
+        // second app's unsupported features through in silence.
+        var unsupported = request.Workspace.Apps
+            .SelectMany(a => TargetValidator.Validate(a.Definition, Capabilities, workspace.AppKeys))
             .Where(d => d.Code is not (DiagnosticCodes.HistoryBlock
                 or DiagnosticCodes.RelatedAppsBlock
                 or DiagnosticCodes.UnsupportedBlock))
@@ -323,7 +345,31 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         return new GenerateResult(
             [.. files.Values.OrderBy(f => f.RelativePath, StringComparer.Ordinal)],
             warnings,
-            []);
+            [])
+        {
+            // Recorded in cordango.build.json and handed back on the next build, so a name this link
+            // decided never moves under a deployment that is already running.
+            Names = linked.Names,
+        };
+    }
+
+    /// <summary>
+    /// Names an earlier build of this workspace assigned, handed back so they do not move.
+    ///
+    /// <para>A rename is a migration — it changes a table and an address somebody bookmarked — so the
+    /// link records what it decided in <c>cordango.build.json</c> and the CLI passes the previous
+    /// answer back in. Absent, or unreadable, means "decide afresh", which is right for a first
+    /// build and harmless for any other: the same collisions produce the same names.</para>
+    /// </summary>
+    private static IReadOnlyDictionary<string, string>? Names(JsonNode? node)
+    {
+        if (node is not JsonObject map) return null;
+
+        var names = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var (key, value) in map)
+            if (AppModel.Str(value) is { Length: > 0 } assigned) names[key] = assigned;
+
+        return names.Count > 0 ? names : null;
     }
 
     /// <summary>
@@ -399,6 +445,21 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
                 yield return new Diagnostic(NotYetCodes.Trigger,
                     $"the workflow '{key}' triggers on '{@event ?? "nothing"}', which is not wired yet, "
                     + "so nothing will run.",
+                    $"$.workflows[{i}].trigger");
+                continue;
+            }
+
+            // A subscription the emitter could not resolve: the announcement names something no
+            // command in this build emits, or a state of an entity with no lifecycle to hold it.
+            // Reported rather than skipped, because a workflow wired to a name nothing announces is
+            // one that never runs — and it looks entirely finished from the outside.
+            if (Emit.WorkflowEmitter.Unresolved(app, trigger) is { } unresolved)
+            {
+                yield return new Diagnostic(NotYetCodes.Trigger,
+                    $"the workflow '{key}' subscribes to '{unresolved}', and nothing in this build "
+                    + "announces it. Check the name against the command's `emits`, or the entity and "
+                    + "state against the lifecycle that governs them — a subscription to a name "
+                    + "nobody makes never runs.",
                     $"$.workflows[{i}].trigger");
                 continue;
             }
