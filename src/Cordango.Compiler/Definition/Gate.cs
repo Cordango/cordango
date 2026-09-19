@@ -2653,6 +2653,37 @@ public static class Gate
                                  + "detail — it answers what other apps hold about one record");
                     break;
                 }
+                case "documents":
+                {
+                    // Two homes, told apart by `field`. On a page it is the Documents app's own surface
+                    // and names nothing: which spaces the reader has is the server's to decide. In a
+                    // record detail it names the reference on THIS entity that points at the record's
+                    // documentation space, and that reference must really point at a Documents space —
+                    // a block that quietly showed some other reference's rows would look like it worked.
+                    var dfield = Str(b, "field");
+                    if (binding == "collection")
+                    {
+                        if (dfield is not null)
+                            errors.Add($"SEMANTIC: {where}: 'documents' on a page takes no 'field' — a page has no record "
+                                     + $"whose reference '{dfield}' could name; place the block in a record detail to show "
+                                     + "one record's documentation");
+                        break;
+                    }
+                    if (binding != "record")
+                    { errors.Add($"SEMANTIC: {where}: block kind 'documents' is valid on a page or in a record detail, not inside a repeat"); break; }
+                    // A space's OWN detail needs no field: the record being looked at IS the space,
+                    // which is what makes the Documents app's own pages navigable as records.
+                    if (dfield is null && ctx.AppKey == "core_documents" && boundEntity == "space") break;
+                    if (dfield is null)
+                    { errors.Add($"SEMANTIC: {where}: 'documents' in a record detail needs a 'field': the reference on '{boundEntity}' that points at the record's documentation space"); break; }
+                    var dfields = ctx.FieldDefs.GetValueOrDefault(boundEntity ?? "", new());
+                    if (!dfields.TryGetValue(dfield, out var ddef))
+                    { errors.Add($"SEMANTIC: {where}: documents field '{dfield}' is not a field of '{boundEntity}'"); break; }
+                    if (Str(ddef, "type") != "reference" || Str(ddef, "targetApp") != "core_documents" || Str(ddef, "targetEntity") != "space")
+                        errors.Add($"SEMANTIC: {where}: documents field '{boundEntity}.{dfield}' must be a reference with targetApp 'core_documents' "
+                                 + "and targetEntity 'space' — the block shows the pages of the space that reference names");
+                    break;
+                }
                 case "answers":
                 {
                     // The record's own submission. `via` is the reference on THIS entity pointing at the

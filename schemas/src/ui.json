@@ -699,7 +699,8 @@
             "answers",
             "intake",
             "externalEmbed",
-            "relatedApps"
+            "relatedApps",
+            "documents"
           ]
         }
       },
@@ -1317,6 +1318,21 @@
           },
           "then": {
             "$ref": "#/$defs/block_relatedApps"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "documents"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_documents"
           }
         }
       ]
@@ -4208,6 +4224,42 @@
         },
         "empty": {
           "description": "What to say when no other app references this record yet. Worth setting: the empty state is the common one in a new workspace, and 'nothing here' explains nothing.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_documents": {
+      "description": "Pages from the platform's Documents app, shown where they belong. On a page, with no 'field', it is the Documents app's own surface: the reader's notes, the shared spaces they belong to and the record spaces they can reach. In a record's detail, with 'field' naming this entity's reference to a Documents space, it is that record's own documentation: the pages of the one space the record owns, created on first use. One stored document however it is reached; who may read or change a page is decided by its space, never by where the block sits.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "documents"
+        },
+        "class": { "$ref": "#/$defs/blockClass" },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "field": {
+          "description": "In a record detail: the reference field on THIS entity that points at the record's documentation space (targetApp 'core_documents', targetEntity 'space'). Omit on a page.",
+          "$ref": "#/$defs/identifier"
+        },
+        "empty": {
+          "description": "What to say when the record has no documentation yet.",
           "type": "string",
           "maxLength": 300
         },

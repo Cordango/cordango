@@ -94,6 +94,13 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
                  + "standalone application has its own local People and Organizations and nothing "
                  + "installed beside it, so there is nothing for the block to look through. Remove "
                  + "the block to build standalone, or run this application on Cordango Platform"),
+                ("documents",
+                 "documents is a Cordango Platform feature. On the platform every workspace has one "
+                 + "Documents app, and this block shows a record's own documentation space or the "
+                 + "reader's notes and shared spaces, stored as pages, versioned on every save and "
+                 + "governed by the platform's document service. A standalone application has no "
+                 + "document store, so there is nothing for the block to show. Remove the block to "
+                 + "build standalone, or run this application on Cordango Platform"),
             ]),
 
         Effects: CapabilitySet.Of(
@@ -144,7 +151,16 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
             + "record in another. A standalone build is a single application: it carries its own "
             + "People, Organizations, Departments and Groups and can reference those, but there is "
             + "no second application for this field to resolve against. Point the field at a local "
-            + "entity to build standalone, or run this application on Cordango Platform"),
+            + "entity to build standalone, or run this application on Cordango Platform",
+            withheld:
+            [
+                ("core_documents",
+                 "documents are a Cordango Platform feature. On the platform a record may own a "
+                 + "documentation space in the workspace's Documents app, and this reference names "
+                 + "it. A standalone application has no document store for the reference to point "
+                 + "into. Remove the field to build standalone, or run this application on Cordango "
+                 + "Platform"),
+            ]),
 
         PlatformEntities: CapabilitySet.Of(
             ["person", "department", "group", "organization", "contact"],

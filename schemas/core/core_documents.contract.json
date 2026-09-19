@@ -1,0 +1,374 @@
+{
+  "contractVersion": "1.1",
+  "kind": "app-contract",
+  "identity": {
+    "key": "core_documents",
+    "name": "Documents",
+    "version": "1.1.0",
+    "schemaVersion": "2.0",
+    "definitionHash": "93a98fc0019f3e1382e333ab21b72c5401417d4c346a1d9ba8db9b4bbc5d706d",
+    "contractHash": "6ff525f66737f78627c86f9f7d6e396a3780b3b085e0417ec4f3584bd123f723"
+  },
+  "entities": [
+    {
+      "key": "space",
+      "label": "Space",
+      "labelPlural": "Spaces",
+      "description": "A place pages live. Personal: one per person, theirs alone. Shared: a team's, opened to named members. Record: owned by one record in another app, reached through that record.",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text"
+        },
+        {
+          "key": "icon",
+          "label": "Icon",
+          "type": "text"
+        },
+        {
+          "key": "color",
+          "label": "Colour",
+          "type": "text"
+        },
+        {
+          "key": "kind",
+          "label": "Kind",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "personal",
+              "label": "Personal",
+              "color": "#7c3aed"
+            },
+            {
+              "value": "shared",
+              "label": "Shared",
+              "color": "#0f766e"
+            },
+            {
+              "value": "record",
+              "label": "Record",
+              "color": "#0369a1"
+            }
+          ]
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person"
+        },
+        {
+          "key": "archived_at",
+          "label": "Archived",
+          "type": "datetime"
+        },
+        {
+          "key": "source_app_id",
+          "label": "Source app",
+          "type": "text"
+        },
+        {
+          "key": "source_entity",
+          "label": "Source entity",
+          "type": "text"
+        },
+        {
+          "key": "source_record_id",
+          "label": "Source record",
+          "type": "text"
+        },
+        {
+          "key": "rules",
+          "label": "Content rules",
+          "type": "json"
+        }
+      ]
+    },
+    {
+      "key": "document",
+      "label": "Page",
+      "labelPlural": "Pages",
+      "description": "One page in a space. A note is a page in a personal space. The body is its blocks; the title and body of a personal page are stored encrypted and the plain fields stay empty.",
+      "displayField": "title",
+      "ownedBy": "space",
+      "fields": [
+        {
+          "key": "space",
+          "label": "Space",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "space"
+        },
+        {
+          "key": "parent",
+          "label": "Parent page",
+          "type": "reference",
+          "targetEntity": "document"
+        },
+        {
+          "key": "status",
+          "label": "Status",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "draft",
+              "label": "Draft",
+              "color": "#a16207"
+            },
+            {
+              "value": "published",
+              "label": "Published",
+              "color": "#15803d"
+            }
+          ]
+        },
+        {
+          "key": "title",
+          "label": "Title",
+          "type": "text"
+        },
+        {
+          "key": "title_cipher",
+          "label": "Title (encrypted)",
+          "type": "text"
+        },
+        {
+          "key": "sort_order",
+          "label": "Order",
+          "type": "integer"
+        },
+        {
+          "key": "revision",
+          "label": "Revision",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "body_hash",
+          "label": "Body hash",
+          "type": "text"
+        },
+        {
+          "key": "archived_at",
+          "label": "Archived",
+          "type": "datetime"
+        }
+      ]
+    },
+    {
+      "key": "document_block",
+      "label": "Block",
+      "labelPlural": "Blocks",
+      "description": "One top-level node of a page's body — a paragraph, a heading, a list, a table — in editor order. The unit the platform can address: history, references and search work on blocks, not on a blob.",
+      "displayField": "block_key",
+      "ownedBy": "document",
+      "fields": [
+        {
+          "key": "document",
+          "label": "Page",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "document"
+        },
+        {
+          "key": "block_key",
+          "label": "Block key",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "position",
+          "label": "Position",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "block_type",
+          "label": "Type",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "content",
+          "label": "Content",
+          "type": "json"
+        },
+        {
+          "key": "content_cipher",
+          "label": "Content (encrypted)",
+          "type": "text"
+        },
+        {
+          "key": "content_hash",
+          "label": "Content hash",
+          "type": "text",
+          "required": true
+        }
+      ]
+    },
+    {
+      "key": "document_revision",
+      "label": "Revision",
+      "labelPlural": "Revisions",
+      "description": "A full snapshot of a page as it was after one accepted save. Never edited, never removed; restoring one creates a new revision rather than rewinding.",
+      "displayField": "revision",
+      "ownedBy": "document",
+      "fields": [
+        {
+          "key": "document",
+          "label": "Page",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "document"
+        },
+        {
+          "key": "revision",
+          "label": "Revision",
+          "type": "integer",
+          "required": true
+        },
+        {
+          "key": "snapshot",
+          "label": "Snapshot",
+          "type": "json"
+        },
+        {
+          "key": "snapshot_cipher",
+          "label": "Snapshot (encrypted)",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "key": "space_member",
+      "label": "Member",
+      "labelPlural": "Members",
+      "description": "One person a shared space is opened to, and how far: a viewer reads, an editor writes, a manager also decides who else is in. The only thing that widens a shared space beyond its owner. Personal and record spaces carry no members.",
+      "displayField": "person",
+      "ownedBy": "space",
+      "fields": [
+        {
+          "key": "space",
+          "label": "Space",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "space"
+        },
+        {
+          "key": "person",
+          "label": "Person",
+          "type": "reference",
+          "required": true,
+          "targetApp": "platform",
+          "targetEntity": "person"
+        },
+        {
+          "key": "role",
+          "label": "Role",
+          "type": "select",
+          "required": true,
+          "options": [
+            {
+              "value": "viewer",
+              "label": "Viewer",
+              "color": "#64748b"
+            },
+            {
+              "value": "editor",
+              "label": "Editor",
+              "color": "#0f766e"
+            },
+            {
+              "value": "manager",
+              "label": "Manager",
+              "color": "#7c3aed"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "template",
+      "label": "Template",
+      "labelPlural": "Templates",
+      "description": "A page worth starting from: a meeting note, a runbook, a decision record. Kept per workspace, so a team's way of writing something down is a thing they can hand to each other rather than re-explain.",
+      "displayField": "name",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "description",
+          "label": "Description",
+          "type": "text"
+        },
+        {
+          "key": "icon",
+          "label": "Icon",
+          "type": "text"
+        },
+        {
+          "key": "body",
+          "label": "Body",
+          "type": "json",
+          "required": true
+        },
+        {
+          "key": "owner",
+          "label": "Owner",
+          "type": "reference",
+          "targetApp": "platform",
+          "targetEntity": "person"
+        },
+        {
+          "key": "uses",
+          "label": "Times used",
+          "type": "integer"
+        },
+        {
+          "key": "archived_at",
+          "label": "Archived",
+          "type": "datetime"
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "app": "platform",
+      "entities": [
+        "person"
+      ],
+      "source": "reference",
+      "fields": [
+        "space.owner",
+        "space_member.person",
+        "template.owner"
+      ]
+    }
+  ],
+  "eventDefaults": {
+    "crud": true,
+    "kinds": [
+      "record.created",
+      "record.updated",
+      "record.deleted"
+    ],
+    "note": "Every entity emits <entity>.created, <entity>.updated and <entity>.deleted. The events list carries only what this rule does not already say."
+  }
+}

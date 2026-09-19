@@ -256,7 +256,7 @@
       "additionalProperties": false,
       "properties": {
         "app": {
-          "description": "The app's PERMANENT key: a core app's systemKey ('core_organizations', 'core_people', 'core_calendar') or another app's definition key. Never a handle — a handle is a disposable URL address and renaming one must not break a dependency.",
+          "description": "The app's PERMANENT key: a core app's systemKey ('core_organizations', 'core_people', 'core_calendar', 'core_documents') or another app's definition key. Never a handle — a handle is a disposable URL address and renaming one must not break a dependency.",
           "$ref": "#/$defs/identifier"
         },
         "entities": {

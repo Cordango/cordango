@@ -58,7 +58,7 @@ BLOCK_KINDS = [
     "repeat", "cell", "stat", "field", "text", "chip", "avatar", "progress",
     "chart", "action", "create", "control", "filterbar", "timeline", "table", "calendar", "form",
     "split", "orgchart", "board", "gantt", "history", "answers", "intake",
-    "externalEmbed", "relatedApps",
+    "externalEmbed", "relatedApps", "documents",
 ]
 
 MANIFEST: dict[str, dict[str, list[str]]] = {

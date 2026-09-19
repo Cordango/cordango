@@ -137,8 +137,8 @@ public static class Scaffold
         share People, Organizations and Calendar, reference each other's records, and are checked,
         built and deployed together. `cordango new` is only for creating the workspace itself.
 
-        **People, Organizations and Calendar are already there.** They are core apps the platform
-        provides — `core_people`, `core_organizations`, `core_calendar`. Point at them instead of
+        **People, Organizations, Calendar and Documents are already there.** They are core apps the platform
+        provides — `core_people`, `core_organizations`, `core_calendar`, `core_documents`. Point at them instead of
         declaring your own company or contact entity:
 
         ```

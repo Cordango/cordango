@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "task_manager",
   "name": "Projects",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "presentation": {
     "icon": "clipboard-check",
     "color": "#0ea5e9",
@@ -20,6 +20,13 @@
         "time_entry"
       ],
       "why": "hours are logged against these projects over there — the total belongs on the project"
+    },
+    {
+      "app": "core_documents",
+      "entities": [
+        "space"
+      ],
+      "why": "a project owns one documentation space; its pages live in the workspace's Documents app"
     }
   ],
   "entities": [
@@ -178,6 +185,15 @@
               "field": "cost"
             }
           }
+        },
+        {
+          "key": "documentation",
+          "label": "Documentation",
+          "type": "reference",
+          "targetApp": "core_documents",
+          "targetEntity": "space",
+          "onDelete": "setNull",
+          "help": "The Documents space this project owns. Filled by the Documentation tab on first use."
         }
       ],
       "detail": {
@@ -480,6 +496,17 @@
                       "labelField": "name"
                     },
                     "openDetail": true
+                  }
+                ]
+              },
+              {
+                "key": "documentation",
+                "label": "Documentation",
+                "blocks": [
+                  {
+                    "kind": "documents",
+                    "field": "documentation",
+                    "empty": "No documentation yet."
                   }
                 ]
               }

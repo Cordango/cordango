@@ -149,8 +149,8 @@ internal static class CordOpsSchema
         ["required"] = new JsonArray("app"),
         ["properties"] = new JsonObject
         {
-            ["app"] = Str("The other app's permanent key: a core app's systemKey "
-                + "(core_people, core_organizations, core_calendar) or another app's key. Not a handle."),
+            ["app"] = Str("The other app's permanent key: a core app's systemKey or another app's "
+                + "definition key. Not a handle."),
             ["entities"] = new JsonObject
             {
                 ["type"] = "array",

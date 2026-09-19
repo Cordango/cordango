@@ -110,13 +110,19 @@ public class PageEditorSchemaTests
     /// <c>command</c>, <c>process.states[]</c> and <c>field</c>. +152 bytes, to 104,061. Seven new
     /// styling surfaces for seven <c>$ref</c>s, because the shape they point at was already here.
     /// </item>
+    /// <item>104,200 &#8594; 105,700 (2026-09-18): <c>documents</c>, the 42nd block kind &#8212; the
+    /// platform's Documents app rendered on its own page or, with <c>field</c> naming a record's
+    /// reference to its space, as the documentation that record owns. +1,546 bytes, to 105,607: one
+    /// closed variant with one binding property and one prose property. The description carries both
+    /// homes because "a page takes no field" is otherwise the first thing an author meets, as a gate
+    /// error, after writing the wrong one.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 104_200);
+        Assert.InRange(pruned, 1, 105_700);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

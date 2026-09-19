@@ -179,7 +179,21 @@ public class GeneratedApplicationTests
             "sales-crm now builds completely, so this test needs a different application.");
 
         Assert.False(strict.Ok);
-        Assert.All(strict.Errors, e => Assert.StartsWith("CORD230", e.Code, StringComparison.Ordinal));
+
+        // Two kinds of refusal now, and both are expectations. The screens this target cannot render
+        // are CORD230x; the rest is the Documents app the CRM embeds since its note feed became a
+        // documentation space — the withheld block and the reference behind it. Partitioned rather
+        // than widened to "any CORD2", so a refusal of a THIRD kind still fails here.
+        var screens = strict.Errors
+            .Where(e => e.Code.StartsWith("CORD230", StringComparison.Ordinal)).ToList();
+        var platform = strict.Errors
+            .Where(e => !e.Code.StartsWith("CORD230", StringComparison.Ordinal)).ToList();
+
+        Assert.NotEmpty(screens);
+        Assert.Equal(
+            [DiagnosticCodes.CrossAppReference, DiagnosticCodes.UnsupportedBlock],
+            platform.Select(e => e.Code).Distinct().Order().ToList());
+
         Assert.True(permitted.Ok);
 
         var readme = permitted.Files.Single(f => f.RelativePath == "README.md").Content;

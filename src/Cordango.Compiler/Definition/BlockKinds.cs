@@ -64,10 +64,15 @@ public static class BlockKinds
     /// shows what OTHER apps hold about a record, which is a platform surface that happens to render
     /// inside one app's detail; a generated app authoring it would be claiming a view over apps it
     /// knows nothing about. It belongs on core entities other apps reference, placed by hand.</item>
+    /// <item><c>documents</c> — <b>withheld because it is the platform's Documents app rendering
+    /// inside another app</b>. It shows a record's documentation space, kept and governed by the
+    /// platform's document service; a generated app authoring it would be claiming a store it does
+    /// not have. It is placed by hand: on the Documents app's own page and, with a <c>field</c>,
+    /// in the detail of a record that owns a space.</item>
     /// </list>
     /// </summary>
     public static readonly IReadOnlySet<string> NotAuthorable =
-        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps" };
+        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps", "documents" };
 
     /// <summary>The full authoring vocabulary.</summary>
     public static readonly IReadOnlyList<AuthoringKind> All =

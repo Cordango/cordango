@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "sales_crm",
   "name": "Sales CRM",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view, deals with activities/notes/products/files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
   "archetype": {
     "kind": "pipeline",
@@ -14,6 +14,15 @@
     "category": "Sales",
     "tagline": "Deals, pipeline, activities"
   },
+  "uses": [
+    {
+      "app": "core_documents",
+      "entities": [
+        "space"
+      ],
+      "why": "a deal owns one documentation space; its pages replace the old note feed"
+    }
+  ],
   "entities": [
     {
       "key": "deal",
@@ -261,6 +270,15 @@
           "label": "Lost notes",
           "type": "longtext",
           "group": "Outcome"
+        },
+        {
+          "key": "documentation",
+          "label": "Documentation",
+          "type": "reference",
+          "targetApp": "core_documents",
+          "targetEntity": "space",
+          "onDelete": "setNull",
+          "help": "The Documents space this deal owns. Filled by the Documentation tab on first use."
         }
       ],
       "detail": {
@@ -458,16 +476,12 @@
                       ]
                     },
                     {
-                      "label": "Notes",
+                      "label": "Documentation",
                       "blocks": [
                         {
-                          "kind": "child",
-                          "entity": "deal_note",
-                          "via": "deal",
-                          "childType": "feed",
-                          "subordinate": true,
-                          "inlineCreate": true,
-                          "label": "Notes"
+                          "kind": "documents",
+                          "field": "documentation",
+                          "empty": "No documentation yet."
                         }
                       ]
                     },
@@ -1075,42 +1089,6 @@
       ]
     },
     {
-      "key": "deal_note",
-      "label": "Note",
-      "labelPlural": "Notes",
-      "displayField": "body",
-      "icon": "sticky_note_2",
-      "ownedBy": {
-        "parent": "deal",
-        "via": "deal",
-        "as": "feed"
-      },
-      "fields": [
-        {
-          "key": "deal",
-          "label": "Deal",
-          "type": "reference",
-          "targetEntity": "deal",
-          "required": true,
-          "onDelete": "cascade"
-        },
-        {
-          "key": "body",
-          "label": "Note",
-          "type": "longtext",
-          "required": true
-        },
-        {
-          "key": "author",
-          "label": "Author",
-          "type": "reference",
-          "targetApp": "platform",
-          "targetEntity": "person",
-          "onDelete": "setNull"
-        }
-      ]
-    },
-    {
       "key": "deal_file",
       "label": "File",
       "labelPlural": "Files",
@@ -1159,14 +1137,6 @@
       "type": "oneToMany",
       "fromEntity": "deal",
       "toEntity": "activity",
-      "inverseField": "deal"
-    },
-    {
-      "key": "deal_notes",
-      "label": "Notes",
-      "type": "oneToMany",
-      "fromEntity": "deal",
-      "toEntity": "deal_note",
       "inverseField": "deal"
     },
     {
@@ -2953,12 +2923,6 @@
           "update": true
         },
         {
-          "entity": "deal_note",
-          "create": true,
-          "read": true,
-          "update": true
-        },
-        {
           "entity": "deal_file",
           "create": true,
           "read": true,
@@ -3007,13 +2971,6 @@
         },
         {
           "entity": "activity",
-          "create": true,
-          "read": true,
-          "update": true,
-          "delete": true
-        },
-        {
-          "entity": "deal_note",
           "create": true,
           "read": true,
           "update": true,

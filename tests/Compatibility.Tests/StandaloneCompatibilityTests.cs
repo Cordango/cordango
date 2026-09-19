@@ -27,7 +27,30 @@ public class StandaloneCompatibilityTests
     private static readonly IReadOnlySet<string> ReferenceAnotherApplication =
         new HashSet<string>(StringComparer.Ordinal)
         {
-            "timesheets.appdef.json", "task-manager.appdef.json",
+            "timesheets.appdef.json",
+        };
+
+    // These embed the platform's Documents app, which a standalone build has no equivalent of at
+    // all — there is no document service out there to serve the pages, so the block is withheld with
+    // a reason rather than generated as an empty panel. Listed separately because the shape of the
+    // refusal is different: one withheld BLOCK plus the reference behind it, and both are
+    // expectations rather than gaps.
+    //
+    // Each states the exact paths it expects, because "somewhere in this app" would keep passing if
+    // the Documentation tab moved to another entity or the reference were dropped. `SourcesAnother`
+    // is whether the app ALSO reaches another application through a block source: Projects repeats
+    // Timesheets' rows, the CRM reaches nothing but Documents.
+    private sealed record WithheldDocuments(string BlockPath, string FieldPath, bool SourcesAnother);
+
+    private static readonly IReadOnlyDictionary<string, WithheldDocuments> EmbedsTheDocumentsApp =
+        new Dictionary<string, WithheldDocuments>(StringComparer.Ordinal)
+        {
+            // The reference into Documents is the LAST field on `project`, appended so no existing
+            // field's index moved.
+            ["task-manager.appdef.json"] = new(".tabs[5].blocks[0]", ".fields[12]", true),
+            // The CRM's Documentation tab sits where its note feed used to, and its reference is the
+            // last field on `deal`.
+            ["sales-crm.appdef.json"] = new(".tabs[2].blocks[0]", ".fields[18]", false),
         };
 
     public static TheoryData<string> Applications()
@@ -51,14 +74,37 @@ public class StandaloneCompatibilityTests
             return;
         }
 
+        if (EmbedsTheDocumentsApp.TryGetValue(name, out var documents))
+        {
+            // Exactly one withheld block — the Documentation tab — and everything else a reference
+            // into another application. Counted rather than merely contained, so a target that
+            // started withholding something new has to say so here.
+            Assert.Single(found, d => d.Code == DiagnosticCodes.UnsupportedBlock);
+            Assert.Contains(found, d => d.Code == DiagnosticCodes.UnsupportedBlock
+                                     && d.JsonPath!.EndsWith(documents.BlockPath, StringComparison.Ordinal));
+            Assert.All(found.Where(d => d.Code != DiagnosticCodes.UnsupportedBlock),
+                d => Assert.Equal(DiagnosticCodes.CrossAppReference, d.Code));
+            Assert.Contains(found, d => d.Code == DiagnosticCodes.CrossAppReference
+                                     && d.JsonPath!.EndsWith(documents.FieldPath, StringComparison.Ordinal));
+
+            // A block SOURCE into another application — the tile and chart series that reduce
+            // Timesheets' rows, the case that went unreported until 2026-09-12 because neither
+            // carries a `kind`. Asserted in BOTH directions: the CRM reaches no other application,
+            // and an app that quietly started to would fail here rather than pass unnoticed.
+            if (documents.SourcesAnother)
+                Assert.Contains(found, d => d.JsonPath!.EndsWith(".source.app", StringComparison.Ordinal));
+            else
+                Assert.DoesNotContain(found, d => d.JsonPath!.EndsWith(".source.app", StringComparison.Ordinal));
+            return;
+        }
+
         if (ReferenceAnotherApplication.Contains(name))
         {
             Assert.NotEmpty(found);
             Assert.All(found, d => Assert.Equal(DiagnosticCodes.CrossAppReference, d.Code));
-            // A SOURCE is the way both of these reach the other application, and it went unreported
-            // until 2026-09-12 because the block kind itself is supported. Timesheets repeats another
-            // app's rows AND references them with a field; Projects only reduces them, in a tile and a
-            // chart series — neither of which carries a `kind`, which is the case that got missed.
+            // A SOURCE is the way this one reaches the other application, and it went unreported
+            // until 2026-09-12 because the block kind itself is supported: Timesheets repeats another
+            // app's rows AND references them with a field.
             Assert.Contains(found, d => d.JsonPath!.EndsWith(".source.app", StringComparison.Ordinal));
             return;
         }
@@ -226,6 +272,16 @@ public class StandaloneCompatibilityTests
 
         var one = Assert.Single(found);
         Assert.Equal(DiagnosticCodes.RelatedAppsBlock, one.Code);
+    }
+
+    [Fact]
+    public void The_documents_block_is_refused()
+    {
+        var found = Validate(WithPage(new JsonObject { ["kind"] = "documents" }));
+
+        var one = Assert.Single(found);
+        Assert.Equal(DiagnosticCodes.UnsupportedBlock, one.Code);
+        Assert.Contains("documents is a Cordango Platform feature", one.Message, StringComparison.Ordinal);
     }
 
     [Fact]

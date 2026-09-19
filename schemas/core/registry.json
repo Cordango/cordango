@@ -15,6 +15,10 @@
     {
       "systemKey": "core_calendar",
       "name": "Calendar"
+    },
+    {
+      "systemKey": "core_documents",
+      "name": "Documents"
     }
   ]
 }

@@ -340,7 +340,7 @@
         },
         "targetApp": {
           "type": "string",
-          "description": "Into another app: \u0027platform\u0027 for the shared department/group/person records, or a core app \u2014 core_people, core_organizations, core_calendar. Never re-declare a core app. Omit within this app."
+          "description": "Into another app: \u0027platform\u0027 for the shared department/group/person records, or a core app \u2014 core_people, core_organizations, core_calendar, core_documents. Never re-declare a core app. Omit within this app."
         },
         "onDelete": {
           "type": "string",
@@ -516,7 +516,7 @@
       "properties": {
         "app": {
           "type": "string",
-          "description": "The other app\u0027s permanent key: a core app\u0027s systemKey (core_people, core_organizations, core_calendar) or another app\u0027s key. Not a handle."
+          "description": "The other app\u0027s permanent key: a core app\u0027s systemKey or another app\u0027s definition key. Not a handle."
         },
         "entities": {
           "type": "array",
