@@ -46,6 +46,9 @@ try
         // answer legitimately grows with a login rather than requiring one.
         "discover" => await DiscoverCommand.RunAsync(parsed, output, interrupt.Token),
         "vocabulary" or "vocab" => VocabularyCommand.Run(parsed, output),
+        // Its sibling. `vocabulary` answers what a construct ACCEPTS; this answers what a correct
+        // one looks like, which is a different question and the one the schema cannot settle.
+        "example" or "examples" => ExampleCommand.Run(parsed, output),
         "apply" => ApplyCommand.Run(parsed, output),
         "fmt" => FmtCommand.Run(parsed, output),
         "doctor" => DoctorCommand.Run(parsed, output),

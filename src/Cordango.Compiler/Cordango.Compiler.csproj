@@ -48,6 +48,11 @@
          validates structurally against it, and the proposer tool schemas are sliced from it so a
          proposer can never emit definition structures and undo an approval. -->
     <EmbeddedResource Include="..\..\schemas\blueprint.schema.json" Link="blueprint.schema.json" LogicalName="blueprint.schema.json" />
+    <!-- Worked examples, one per block kind, GENERATED from a shipped application by
+         catalog/export_examples.py. Embedded for the same reason the schema is: `cordango example`
+         has to answer offline, in a checkout with no instance behind it. See Definition/Examples.cs
+         for why an example is not the same thing as a schema. -->
+    <EmbeddedResource Include="..\..\schemas\examples.json" Link="examples.json" LogicalName="examples.json" />
     <!-- Core apps: the registry plus EVERY shipped version of each definition (the compatibility
          validator replays the real upgrade path, so old versions are not dead weight). Flat file
          names — schemas/core/<systemKey>.contract.json — keep the logical resource names stable

@@ -2900,8 +2900,8 @@ public static class Gate
                         errors.Add($"SEMANTIC: {where}: calendar range 'day' needs a 'datetime' startField — '{dsf}' is a '{dt}', which carries no time of day");
                     if (b["timeAxis"] is JsonObject ax)
                     {
-                        var from = ax["startHour"]?.GetValue<int>() ?? 7;
-                        var to = ax["endHour"]?.GetValue<int>() ?? 21;
+                        var from = Num(ax, "startHour") ?? 7;
+                        var to = Num(ax, "endHour") ?? 21;
                         if (to <= from)
                             errors.Add($"SEMANTIC: {where}: calendar timeAxis endHour ({to}) must be after startHour ({from}) — an axis that ends before it begins has no height to draw into");
                     }
@@ -3926,6 +3926,28 @@ public static class Gate
 
     private static string? Str(JsonObject? n, string prop) =>
         n != null && n[prop] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+
+    /// <summary>
+    /// A whole number, however the node happens to be carrying it.
+    ///
+    /// <para><b>Why not <c>GetValue&lt;int&gt;()</c>.</b> It THROWS on a node backed by a
+    /// <c>long</c>, and whether a number is an int or a long depends on how the document was
+    /// built rather than on what it says: one parsed from a file is JsonElement-backed and
+    /// converts, while one assembled in code — which is what the CLI's import lowering produces —
+    /// keeps the CLR type it was written with. So a document that validated from disk crashed the
+    /// gate on the way through <c>cordango import</c>, with a stack trace instead of a diagnostic.
+    /// The gate must never throw on a document; refusing it is the whole job, and falling over is
+    /// not a refusal.</para>
+    /// </summary>
+    private static int? Num(JsonObject? n, string prop)
+    {
+        if (n?[prop] is not JsonValue v) return null;
+        if (v.TryGetValue<int>(out var i)) return i;
+        if (v.TryGetValue<long>(out var l) && l is >= int.MinValue and <= int.MaxValue) return (int)l;
+        if (v.TryGetValue<double>(out var d) && d is >= int.MinValue and <= int.MaxValue) return (int)d;
+        if (v.TryGetValue<decimal>(out var m) && m is >= int.MinValue and <= int.MaxValue) return (int)m;
+        return null;
+    }
 
     /// <summary>The field key a list COLUMN names. A column is a bare key, or an object that also
     /// fixes the column's width and overflow — the key is in the same place either way, so every

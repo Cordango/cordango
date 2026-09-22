@@ -47,6 +47,7 @@ public static class Help
             + "there, link to it instead of declaring it again. Works offline; a login adds the "
             + "rest of the instance's apps."),
         new("vocabulary [<name>]", "What may be written: Cord's words, or one construct's schema."),
+        new("example [<block kind>]", "What a correct one LOOKS like: a worked block from a shipped app."),
         new("apply <ops.json> --app <key> --scope <kind[:key]>",
             "Apply semantic operations and rewrite the affected source files."),
         new("fmt [--app <key>]", "Rewrite every .cordango.yaml file in canonical form."),

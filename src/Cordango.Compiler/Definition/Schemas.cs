@@ -81,6 +81,11 @@ public static class Schemas
     /// that forces the model's structured output.</summary>
     public static JsonNode AppDefinitionSchemaNode() => JsonNode.Parse(AppDefinitionSchemaJson)!;
 
+    /// <summary>Worked examples of every block kind, extracted from a shipped application by
+    /// <c>catalog/export_examples.py</c>. Read through <see cref="Examples"/>, which is where the
+    /// reason this is not the schema is written down.</summary>
+    public static readonly string ExamplesJson = LoadResource("examples.json");
+
     /// <summary>The BLUEPRINT schema — a different language from the App Definition. Proposer tool
     /// schemas are sliced from this and never from the definition schema, so a proposer is
     /// structurally incapable of emitting definition structures and undoing an approval.</summary>

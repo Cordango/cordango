@@ -111,7 +111,10 @@ public static class CheckCommand
                 incoherent.Count == 1
                     ? $"{incoherent[0].AppKey} does not hold together"
                     : $"{incoherent.Count} apps do not hold together",
-                incoherent.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}")),
+                // The gate says what is wrong; the CLI adds where to see a right one. See
+                // ExampleHint for why that split is deliberate.
+                ExampleHint.Annotate(
+                    incoherent.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}"))),
                 payload);
         }
 

@@ -359,6 +359,12 @@ public static class DesignDefaults
                       ? Str(v, "entity") : null,
             "cell" => b["editable"]?.GetValue<bool>() == true ? Str(b, "entity") : null,
             "child" => Str(b, "entity"),
+            // A SELF-ANCHORING action creates by contract: "if no record matches one is created
+            // with these keys set, and the command runs on it". That is the whole mechanism behind
+            // a punch clock or a mark-today-done toggle, and without it here an app whose only way
+            // in is such a button was told the entity "can never hold a record" — which would push
+            // an author into adding a redundant New button for a record nobody fills in by hand.
+            "action" => b["keys"] is JsonObject && Str(b, "entity") is { } ae ? ae : null,
             _ => null,
         };
 
