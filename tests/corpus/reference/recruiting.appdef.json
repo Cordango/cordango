@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "recruiting",
   "name": "Recruiting",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Candidate pipeline for Cordango GmbH: move applicants through screening, interviews and offers to a hire, with a historic interview log per candidate.",
   "presentation": {
     "icon": "account-search",
@@ -178,6 +178,7 @@
     {
       "key": "overview",
       "label": "Overview",
+      "subtitle": "Where every candidate stands, from screening to hire.",
       "icon": "view-dashboard",
       "entity": "candidate",
       "blocks": [
@@ -186,13 +187,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "In pipeline",
                   "icon": "account-multiple-outline",
+                  "color": "primary",
+                  "caption": "Active candidates",
                   "source": {
                     "entity": "candidate",
                     "aggregate": { "op": "count" },
@@ -204,9 +205,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "In interview",
                   "icon": "account-voice",
+                  "color": "info",
+                  "caption": "At the interview stage",
                   "source": {
                     "entity": "candidate",
                     "aggregate": { "op": "count" },
@@ -224,9 +226,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Offers out",
                   "icon": "email-fast-outline",
+                  "color": "warning",
+                  "caption": "Waiting for an answer",
                   "source": {
                     "entity": "candidate",
                     "aggregate": { "op": "count" },
@@ -244,9 +247,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Hired",
                   "icon": "party-popper",
+                  "color": "success",
+                  "caption": "All time",
                   "source": {
                     "entity": "candidate",
                     "aggregate": { "op": "count" },

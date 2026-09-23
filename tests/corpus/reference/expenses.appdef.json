@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "expenses",
   "name": "Expenses",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Expense claims for the team: submit an expense, get it approved, get reimbursed.",
   "presentation": {
     "icon": "credit-card-outline",
@@ -123,6 +123,7 @@
     {
       "key": "overview",
       "label": "Overview",
+      "subtitle": "Claims waiting for a decision and money still to pay back.",
       "icon": "view-dashboard",
       "entity": "expense_claim",
       "blocks": [
@@ -131,13 +132,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Awaiting approval",
                   "icon": "clock-outline",
+                  "color": "warning",
+                  "caption": "Submitted, not decided",
                   "source": {
                     "entity": "expense_claim",
                     "aggregate": { "op": "count" },
@@ -149,25 +150,27 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "To reimburse",
-                  "format": "money",
                   "icon": "cash-clock",
-                  "source": {
-                    "entity": "expense_claim",
-                    "aggregate": { "op": "sum", "field": "amount" },
-                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
-                  },
-                  "link": {
-                    "page": "claims",
-                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
-                  }
-                },
-                {
-                  "kind": "stat",
-                  "label": "Reimbursed",
+                  "color": "info",
+                  "caption": "Approved, not paid yet",
                   "format": "money",
+                  "source": {
+                    "entity": "expense_claim",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
+                  },
+                  "link": {
+                    "page": "claims",
+                    "filters": [{ "field": "status", "operator": "eq", "value": "approved" }]
+                  }
+                },
+                {
+                  "label": "Reimbursed",
                   "icon": "cash-check",
+                  "color": "success",
+                  "caption": "Paid back so far",
+                  "format": "money",
                   "source": {
                     "entity": "expense_claim",
                     "aggregate": { "op": "sum", "field": "amount" },
@@ -179,9 +182,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Declined",
                   "icon": "close-circle-outline",
+                  "color": "error",
+                  "caption": "All time",
                   "source": {
                     "entity": "expense_claim",
                     "aggregate": { "op": "count" },

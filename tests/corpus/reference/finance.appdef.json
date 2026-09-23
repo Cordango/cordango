@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "finance",
   "name": "Finance",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "A clean ledger of money in and out for the agency: every transaction booked against a category, budgets per category, and a dashboard that shows cashflow at a glance.",
   "presentation": {
     "icon": "finance",
@@ -112,6 +112,7 @@
     {
       "key": "overview",
       "label": "Overview",
+      "subtitle": "Money in and out, and what still needs reconciling.",
       "icon": "view-dashboard",
       "entity": "transaction",
       "blocks": [
@@ -120,29 +121,30 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Income",
-                  "format": "money",
                   "icon": "trending-up",
-                  "source": {
-                    "entity": "transaction",
-                    "aggregate": { "op": "sum", "field": "amount" },
-                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
-                  },
-                  "link": {
-                    "page": "transactions",
-                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
-                  }
-                },
-                {
-                  "kind": "stat",
-                  "label": "Spend",
+                  "color": "success",
+                  "caption": "All income booked",
                   "format": "money",
+                  "source": {
+                    "entity": "transaction",
+                    "aggregate": { "op": "sum", "field": "amount" },
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                  },
+                  "link": {
+                    "page": "transactions",
+                    "filters": [{ "field": "direction", "operator": "eq", "value": "income" }]
+                  }
+                },
+                {
+                  "label": "Spend",
                   "icon": "trending-down",
+                  "color": "error",
+                  "caption": "All spend booked",
+                  "format": "money",
                   "source": {
                     "entity": "transaction",
                     "aggregate": { "op": "sum", "field": "amount" },
@@ -154,9 +156,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Transactions",
                   "icon": "swap-horizontal",
+                  "color": "info",
+                  "caption": "Booked so far",
                   "source": {
                     "entity": "transaction",
                     "aggregate": { "op": "count" }
@@ -164,9 +167,10 @@
                   "link": { "page": "transactions" }
                 },
                 {
-                  "kind": "stat",
                   "label": "Unreconciled",
                   "icon": "alert-circle-outline",
+                  "color": "warning",
+                  "caption": "Not matched to the bank yet",
                   "source": {
                     "entity": "transaction",
                     "aggregate": { "op": "count" },

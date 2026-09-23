@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "sales_crm",
   "name": "Sales CRM",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view and fed by lead forms the team builds (published on the website or filed by hand), deals with activities, documentation, products and files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
   "archetype": {
     "kind": "pipeline",
@@ -322,12 +322,12 @@
                 "label": "Deal value",
                 "field": "value",
                 "format": "money",
-                "icon": "payments"
+                "icon": "cash-multiple"
               },
               {
                 "label": "Products total",
                 "format": "money",
-                "icon": "inventory_2",
+                "icon": "package-variant-closed",
                 "source": {
                   "entity": "deal_product",
                   "via": "deal",
@@ -339,7 +339,7 @@
               },
               {
                 "label": "Activities logged",
-                "icon": "event_note",
+                "icon": "calendar-text-outline",
                 "source": {
                   "entity": "activity",
                   "via": "deal",
@@ -400,7 +400,7 @@
                 {
                   "kind": "section",
                   "label": "Details",
-                  "icon": "info",
+                  "icon": "information-outline",
                   "blocks": [
                     {
                       "kind": "fields",
@@ -627,7 +627,7 @@
       "label": "Activity",
       "labelPlural": "Activities",
       "displayField": "subject",
-      "icon": "event_note",
+      "icon": "calendar-text-outline",
       "description": "A call, meeting, task or email that HAPPENED — the historic log of touches on a deal, person and organization. Planning the next move lives on the deal (next step + follow up on), not here.",
       "fields": [
         {
@@ -807,7 +807,7 @@
       "label": "Lead",
       "labelPlural": "Leads",
       "displayField": "title",
-      "icon": "person_search",
+      "icon": "account-search-outline",
       "description": "An unqualified inbound/outbound prospect. Qualify it in the Leads inbox and convert it into a deal.",
       "fields": [
         {
@@ -1025,7 +1025,7 @@
       "label": "Product",
       "labelPlural": "Products",
       "displayField": "name",
-      "icon": "inventory_2",
+      "icon": "package-variant-closed",
       "fields": [
         {
           "key": "name",
@@ -1063,7 +1063,7 @@
       "label": "Product line",
       "labelPlural": "Product lines",
       "displayField": "product",
-      "icon": "receipt_long",
+      "icon": "receipt-text-outline",
       "ownedBy": {
         "parent": "deal",
         "via": "deal",
@@ -1112,7 +1112,7 @@
       "label": "File",
       "labelPlural": "Files",
       "displayField": "name",
-      "icon": "attach_file",
+      "icon": "paperclip",
       "ownedBy": {
         "parent": "deal",
         "via": "deal",
@@ -1153,7 +1153,7 @@
       "label": "Lead form",
       "labelPlural": "Lead forms",
       "displayField": "name",
-      "icon": "dynamic_form",
+      "icon": "form-select",
       "description": "A form the team builds to capture leads: published on the website through its own link, used on a stand at an event, or filed by hand when somebody phones. Its questions are its own records, and what it FILES is declared here: a lead, starting with the owner and source the form names.",
       "role": "formTemplate",
       "fields": [
@@ -1325,7 +1325,7 @@
       "label": "Question",
       "labelPlural": "Questions",
       "displayField": "text",
-      "icon": "quiz",
+      "icon": "comment-question-outline",
       "description": "One question on one lead form, and which field of the filed lead its answer fills.",
       "role": "formField",
       "ownedBy": {
@@ -1429,7 +1429,7 @@
       "label": "Submission",
       "labelPlural": "Submissions",
       "displayField": "form",
-      "icon": "move_to_inbox",
+      "icon": "inbox-arrow-down-outline",
       "description": "One filled-in lead form. The durable artifact: the answers are kept whether or not a lead was ever filed from them.",
       "role": "formResponse",
       "fields": [
@@ -1448,7 +1448,7 @@
       "label": "Answer",
       "labelPlural": "Answers",
       "displayField": "question",
-      "icon": "question_answer",
+      "icon": "forum-outline",
       "description": "One answer to one question of one submission.",
       "role": "formAnswer",
       "fields": [
@@ -1605,7 +1605,8 @@
     {
       "key": "my_day",
       "label": "My Day",
-      "icon": "today",
+      "subtitle": "Your open deals and the follow-ups due today.",
+      "icon": "calendar-today-outline",
       "entity": "deal",
       "blocks": [
         {
@@ -1613,13 +1614,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "My open deals",
                   "icon": "handshake",
+                  "color": "primary",
+                  "caption": "Open deals you own",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -1637,14 +1638,14 @@
                         "value": "{{actor.id}}"
                       }
                     ]
-                  },
-                  "class": "bg-primary rounded-lg pa-4"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "My pipeline value",
+                  "icon": "cash-multiple",
+                  "color": "success",
+                  "caption": "Value of your open deals",
                   "format": "money",
-                  "icon": "payments",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -1663,13 +1664,13 @@
                         "value": "{{actor.id}}"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Overdue follow-ups",
-                  "icon": "warning",
+                  "icon": "alert-outline",
+                  "color": "error",
+                  "caption": "Follow-up date has passed",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -1692,8 +1693,7 @@
                         "value": "{{today}}"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 }
               ]
             },
@@ -1705,13 +1705,13 @@
                   "label": "Follow-ups",
                   "blocks": [
                     {
-                      "kind": "row",
-                      "gap": "md",
-                      "blocks": [
+                      "kind": "tiles",
+                      "tiles": [
                         {
-                          "kind": "stat",
                           "label": "Due today",
-                          "icon": "event_available",
+                          "icon": "calendar-check-outline",
+                          "color": "warning",
+                          "caption": "Follow up today",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1734,13 +1734,13 @@
                                 "value": "{{today}}"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         },
                         {
-                          "kind": "stat",
                           "label": "Overdue",
-                          "icon": "warning",
+                          "icon": "alert-outline",
+                          "color": "error",
+                          "caption": "Follow-up date has passed",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1763,8 +1763,7 @@
                                 "value": "{{today}}"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         }
                       ]
                     },
@@ -1813,13 +1812,13 @@
                   "label": "Open",
                   "blocks": [
                     {
-                      "kind": "row",
-                      "gap": "md",
-                      "blocks": [
+                      "kind": "tiles",
+                      "tiles": [
                         {
-                          "kind": "stat",
                           "label": "My open deals",
                           "icon": "handshake",
+                          "color": "primary",
+                          "caption": "Open deals you own",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1837,14 +1836,14 @@
                                 "value": "{{actor.id}}"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         },
                         {
-                          "kind": "stat",
                           "label": "Pipeline value",
+                          "icon": "cash-multiple",
+                          "color": "success",
+                          "caption": "Value of your open deals",
                           "format": "money",
-                          "icon": "payments",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1863,8 +1862,7 @@
                                 "value": "{{actor.id}}"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         }
                       ]
                     },
@@ -1908,13 +1906,13 @@
                   "label": "Wins",
                   "blocks": [
                     {
-                      "kind": "row",
-                      "gap": "md",
-                      "blocks": [
+                      "kind": "tiles",
+                      "tiles": [
                         {
-                          "kind": "stat",
                           "label": "Deals won",
-                          "icon": "emoji_events",
+                          "icon": "trophy-outline",
+                          "color": "success",
+                          "caption": "Whole team, all time",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1927,14 +1925,14 @@
                                 "value": "won"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         },
                         {
-                          "kind": "stat",
                           "label": "Won value",
+                          "icon": "cash-multiple",
+                          "color": "success",
+                          "caption": "Whole team, all time",
                           "format": "money",
-                          "icon": "payments",
                           "source": {
                             "entity": "deal",
                             "aggregate": {
@@ -1948,8 +1946,7 @@
                                 "value": "won"
                               }
                             ]
-                          },
-                          "class": "bg-surface-2 rounded-lg pa-3"
+                          }
                         }
                       ]
                     },
@@ -1991,7 +1988,7 @@
     {
       "key": "leads",
       "label": "Leads",
-      "icon": "person_search",
+      "icon": "account-search-outline",
       "entity": "lead",
       "blocks": [
         {
@@ -1999,13 +1996,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "New",
-                  "icon": "fiber_new",
+                  "icon": "new-box",
+                  "color": "info",
+                  "caption": "Not contacted yet",
                   "source": {
                     "entity": "lead",
                     "aggregate": {
@@ -2018,13 +2015,13 @@
                         "value": "new"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Contacted",
-                  "icon": "call",
+                  "icon": "phone-outline",
+                  "color": "warning",
+                  "caption": "Contacted, not converted",
                   "source": {
                     "entity": "lead",
                     "aggregate": {
@@ -2037,13 +2034,13 @@
                         "value": "contacted"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Converted",
-                  "icon": "trending_up",
+                  "icon": "trending-up",
+                  "color": "success",
+                  "caption": "Turned into deals",
                   "source": {
                     "entity": "lead",
                     "aggregate": {
@@ -2056,8 +2053,7 @@
                         "value": "converted"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 }
               ]
             },
@@ -2396,7 +2392,8 @@
     {
       "key": "activities",
       "label": "Activities",
-      "icon": "event_note",
+      "subtitle": "Everything the team has logged against its deals.",
+      "icon": "calendar-text-outline",
       "entity": "activity",
       "blocks": [
         {
@@ -2404,13 +2401,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Logged today",
-                  "icon": "today",
+                  "icon": "calendar-today-outline",
+                  "color": "primary",
+                  "caption": "Dated today",
                   "source": {
                     "entity": "activity",
                     "aggregate": {
@@ -2423,13 +2420,13 @@
                         "value": "{{today}}"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Logged by me",
-                  "icon": "person",
+                  "icon": "account-outline",
+                  "color": "info",
+                  "caption": "By you, all time",
                   "source": {
                     "entity": "activity",
                     "aggregate": {
@@ -2442,20 +2439,19 @@
                         "value": "{{actor.id}}"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "All activities",
-                  "icon": "event_note",
+                  "icon": "calendar-text-outline",
+                  "color": "#7c3aed",
+                  "caption": "Whole team, all time",
                   "source": {
                     "entity": "activity",
                     "aggregate": {
                       "op": "count"
                     }
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 }
               ]
             },
@@ -2518,7 +2514,7 @@
     {
       "key": "forms",
       "label": "Forms",
-      "icon": "dynamic_form",
+      "icon": "form-select",
       "entity": "intake_form",
       "blocks": [
         {
@@ -2560,7 +2556,7 @@
     {
       "key": "products",
       "label": "Products",
-      "icon": "inventory_2",
+      "icon": "package-variant-closed",
       "entity": "product",
       "blocks": [
         {
@@ -2573,7 +2569,8 @@
     {
       "key": "insights",
       "label": "Insights",
-      "icon": "insights",
+      "subtitle": "How the pipeline is doing and what it is likely to bring in.",
+      "icon": "chart-box-outline",
       "entity": "deal",
       "blocks": [
         {
@@ -2581,14 +2578,14 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Open pipeline",
+                  "icon": "cash-multiple",
+                  "color": "primary",
+                  "caption": "Value of open deals",
                   "format": "money",
-                  "icon": "payments",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2612,14 +2609,14 @@
                         "value": "open"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Weighted forecast",
-                  "format": "money",
                   "icon": "chart-line",
+                  "color": "info",
+                  "caption": "Open value times win chance",
+                  "format": "money",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2643,14 +2640,14 @@
                         "value": "open"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
-                  "label": "Avg won deal",
+                  "label": "Avg. won deal",
+                  "icon": "tag-outline",
+                  "color": "#7c3aed",
+                  "caption": "Per won deal",
                   "format": "money",
-                  "icon": "sell",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2674,14 +2671,14 @@
                         "value": "won"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Won value",
+                  "icon": "trophy-outline",
+                  "color": "success",
+                  "caption": "All time",
                   "format": "money",
-                  "icon": "emoji_events",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2705,13 +2702,13 @@
                         "value": "won"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Won",
-                  "icon": "thumb_up",
+                  "icon": "thumb-up-outline",
+                  "color": "success",
+                  "caption": "Deals won",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2734,13 +2731,13 @@
                         "value": "won"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 },
                 {
-                  "kind": "stat",
                   "label": "Lost",
-                  "icon": "thumb_down",
+                  "icon": "thumb-down-outline",
+                  "color": "error",
+                  "caption": "Deals lost",
                   "source": {
                     "entity": "deal",
                     "aggregate": {
@@ -2763,8 +2760,7 @@
                         "value": "lost"
                       }
                     ]
-                  },
-                  "class": "bg-surface-2 rounded-lg pa-3"
+                  }
                 }
               ]
             },
@@ -3015,7 +3011,7 @@
       "key": "mark_won",
       "label": "Won",
       "entity": "deal",
-      "icon": "emoji_events",
+      "icon": "trophy-outline",
       "style": "primary",
       "placements": [
         "recordHeader"
@@ -3056,7 +3052,7 @@
       "key": "mark_lost",
       "label": "Lost",
       "entity": "deal",
-      "icon": "block",
+      "icon": "cancel",
       "style": "danger",
       "placements": [
         "recordHeader"
@@ -3090,7 +3086,7 @@
       "key": "reopen_deal",
       "label": "Reopen",
       "entity": "deal",
-      "icon": "restart_alt",
+      "icon": "restart",
       "placements": [
         "recordHeader"
       ],
@@ -3105,7 +3101,7 @@
       "key": "mark_contacted",
       "label": "Mark contacted",
       "entity": "lead",
-      "icon": "call",
+      "icon": "phone-outline",
       "placements": [
         "recordHeader",
         "tableRow"
@@ -3117,7 +3113,7 @@
       "key": "convert_to_deal",
       "label": "Convert to deal",
       "entity": "lead",
-      "icon": "trending_up",
+      "icon": "trending-up",
       "style": "primary",
       "placements": [
         "recordHeader",

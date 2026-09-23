@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "task_manager",
   "name": "Projects",
-  "version": "1.9.1",
+  "version": "1.10.0",
   "presentation": {
     "icon": "clipboard-check",
     "color": "#0ea5e9",
@@ -1222,6 +1222,7 @@
     {
       "key": "projects",
       "label": "Projects",
+      "subtitle": "Every project and how far along it is. Open one for its tasks and milestones.",
       "icon": "folder-multiple-outline",
       "entity": "project",
       "navSource": {

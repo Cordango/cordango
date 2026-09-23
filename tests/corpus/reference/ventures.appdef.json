@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "ventures",
   "name": "Ventures",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "The agency's venture arm: every company we hold equity in, what we put in, what the stake is marked at today, what has come back, and what it returned.",
   "archetype": {
     "kind": "tracker",
@@ -1145,6 +1145,7 @@
     {
       "key": "portfolio",
       "label": "Portfolio",
+      "subtitle": "What the portfolio cost and what it is worth today.",
       "icon": "view-dashboard",
       "entity": "company",
       "blocks": [
@@ -1153,15 +1154,14 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Portfolio value",
-                  "format": "money",
-                  "size": "lg",
                   "icon": "cash-multiple",
+                  "color": "primary",
+                  "caption": "Held companies at their latest mark",
+                  "format": "money",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1188,10 +1188,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Invested",
-                  "format": "money",
                   "icon": "cash-minus",
+                  "color": "info",
+                  "caption": "Every cheque, all time",
+                  "format": "money",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1204,10 +1205,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Portfolio multiple",
-                  "format": "multiple",
                   "icon": "close-circle-multiple-outline",
+                  "color": "#7c3aed",
+                  "caption": "Total value over money in",
+                  "format": "multiple",
                   "combine": {
                     "mode": "ratio"
                   },
@@ -1232,10 +1234,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Realized",
-                  "format": "money",
                   "icon": "cash-plus",
+                  "color": "success",
+                  "caption": "Returned to us so far",
+                  "format": "money",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1248,9 +1251,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Companies held",
                   "icon": "domain",
+                  "color": "primary",
+                  "caption": "In the portfolio today",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1276,9 +1280,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Written off",
                   "icon": "trending-down",
+                  "color": "error",
+                  "caption": "All time",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1693,6 +1698,7 @@
     {
       "key": "cashflow",
       "label": "Cash flow",
+      "subtitle": "Money out as investments and back as distributions.",
       "icon": "swap-vertical",
       "entity": "company",
       "blocks": [
@@ -1701,14 +1707,14 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Total deployed",
-                  "format": "money",
                   "icon": "cash-minus",
+                  "color": "info",
+                  "caption": "Every investment",
+                  "format": "money",
                   "source": {
                     "entity": "investment",
                     "aggregate": {
@@ -1718,10 +1724,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Total returned",
-                  "format": "money",
                   "icon": "cash-plus",
+                  "color": "success",
+                  "caption": "Every distribution",
+                  "format": "money",
                   "source": {
                     "entity": "distribution",
                     "aggregate": {
@@ -1731,9 +1738,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Cheques written",
                   "icon": "file-document-multiple-outline",
+                  "color": "primary",
+                  "caption": "Investments made",
                   "source": {
                     "entity": "investment",
                     "aggregate": {
@@ -1742,10 +1750,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Average cheque",
-                  "format": "money",
                   "icon": "calculator",
+                  "color": "#7c3aed",
+                  "caption": "Per investment",
+                  "format": "money",
                   "source": {
                     "entity": "investment",
                     "aggregate": {
@@ -1853,6 +1862,7 @@
     {
       "key": "returns",
       "label": "Returns",
+      "subtitle": "Which holdings paid off, and by how much.",
       "icon": "trending-up",
       "entity": "company",
       "blocks": [
@@ -1861,13 +1871,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Best multiple",
                   "icon": "trophy-outline",
+                  "color": "success",
+                  "caption": "Highest in the portfolio",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1880,10 +1890,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Total gain",
-                  "format": "money",
                   "icon": "trending-up",
+                  "color": "success",
+                  "caption": "Across all companies",
+                  "format": "money",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1893,10 +1904,11 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Best return p.a.",
-                  "format": "percent",
                   "icon": "speedometer",
+                  "color": "#7c3aed",
+                  "caption": "Highest annual return",
+                  "format": "percent",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1909,9 +1921,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Average hold",
                   "icon": "calendar-clock",
+                  "color": "info",
+                  "caption": "Days from entry to latest mark",
                   "source": {
                     "entity": "company",
                     "aggregate": {
@@ -1928,9 +1941,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Exited",
                   "icon": "door-open",
+                  "color": "primary",
+                  "caption": "Companies we have left",
                   "source": {
                     "entity": "company",
                     "aggregate": {

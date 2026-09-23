@@ -2,14 +2,14 @@
   "schemaVersion": "2.0",
   "key": "room_booking",
   "name": "Room Booking",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Find an available meeting room, book a slot inline from a weekly grid, and let managers approve or decline requests. The hand-authored reference app for COMPOSITION_REFRAME_FINAL.md Phase 1 — the best room-booking experience expressible against today's runtime, with the gaps recorded in GAPS.md.",
   "archetype": {
     "kind": "scheduling",
     "coreJob": "See which rooms are free across the week and book a slot inline"
   },
   "presentation": {
-    "icon": "meeting_room",
+    "icon": "door",
     "color": "#0e7490",
     "category": "Operations",
     "tagline": "Book a room in one click"
@@ -20,7 +20,7 @@
       "label": "Room",
       "labelPlural": "Rooms",
       "displayField": "name",
-      "icon": "meeting_room",
+      "icon": "door",
       "fields": [
         {
           "key": "name",
@@ -88,7 +88,7 @@
       "label": "Booking",
       "labelPlural": "Bookings",
       "displayField": "purpose",
-      "icon": "event",
+      "icon": "calendar-clock",
       "fields": [
         {
           "key": "room",
@@ -220,7 +220,7 @@
       "key": "booking_attendee",
       "label": "Attendee",
       "labelPlural": "Attendees",
-      "icon": "person",
+      "icon": "account-outline",
       "displayField": "person",
       "ownedBy": {
         "parent": "booking",
@@ -258,7 +258,7 @@
       "key": "booking_policy",
       "label": "Booking Policy",
       "kind": "settings",
-      "icon": "settings",
+      "icon": "cog-outline",
       "fields": [
         {
           "key": "max_advance_days",
@@ -374,7 +374,8 @@
     {
       "key": "availability",
       "label": "Availability",
-      "icon": "grid_view",
+      "subtitle": "Find a free room and book it straight from the grid.",
+      "icon": "view-grid-outline",
       "entity": "booking",
       "state": [
         {
@@ -739,7 +740,7 @@
     {
       "key": "my_bookings",
       "label": "My bookings",
-      "icon": "event_available",
+      "icon": "calendar-check-outline",
       "entity": "booking",
       "blocks": [
         {
@@ -751,7 +752,7 @@
     {
       "key": "approvals",
       "label": "Approvals",
-      "icon": "fact_check",
+      "icon": "clipboard-check-outline",
       "entity": "booking",
       "blocks": [
         {
@@ -786,7 +787,7 @@
     {
       "key": "rooms",
       "label": "Rooms",
-      "icon": "meeting_room",
+      "icon": "door",
       "entity": "room",
       "blocks": [
         {
@@ -798,7 +799,8 @@
     {
       "key": "insights",
       "label": "Insights",
-      "icon": "chart_bar",
+      "subtitle": "How heavily each room is booked, and where the week's demand falls.",
+      "icon": "chart-bar",
       "entity": "booking",
       "blocks": [
         {
@@ -806,24 +808,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "text",
-              "value": "Room load",
-              "size": "lg",
-              "weight": "bold"
-            },
-            {
-              "kind": "text",
-              "value": "How heavily each room is booked, and where the week's demand falls.",
-              "size": "sm",
-              "color": "#94a3b8"
-            },
-            {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Total bookings",
+                  "icon": "calendar-clock",
+                  "color": "primary",
+                  "caption": "All time",
                   "source": {
                     "entity": "booking",
                     "aggregate": {
@@ -832,8 +823,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Rooms",
+                  "icon": "door",
+                  "color": "info",
+                  "caption": "Rooms you can book",
                   "source": {
                     "entity": "room",
                     "aggregate": {
@@ -842,8 +835,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Awaiting decision",
+                  "icon": "clock-outline",
+                  "color": "warning",
+                  "caption": "Requests to approve",
                   "source": {
                     "entity": "booking",
                     "filters": [

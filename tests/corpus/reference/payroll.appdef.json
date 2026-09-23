@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "payroll",
   "name": "Payroll",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Monthly payroll for Cordango GmbH: run payroll once a month from per-employee salary profiles, approve and pay the run, and see what it costs.",
   "presentation": {
     "icon": "cash-multiple",
@@ -163,6 +163,7 @@
     {
       "key": "overview",
       "label": "Overview",
+      "subtitle": "What payroll costs and which runs still need approval.",
       "icon": "view-dashboard",
       "entity": "payroll_run",
       "blocks": [
@@ -171,14 +172,14 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
-                  "label": "Total gross (all runs)",
-                  "format": "money",
+                  "label": "Total gross",
                   "icon": "cash-multiple",
+                  "color": "primary",
+                  "caption": "All runs",
+                  "format": "money",
                   "source": {
                     "entity": "payroll_run",
                     "aggregate": { "op": "sum", "field": "total_gross" }
@@ -186,9 +187,10 @@
                   "link": { "page": "runs" }
                 },
                 {
-                  "kind": "stat",
                   "label": "Runs",
                   "icon": "calendar-month",
+                  "color": "info",
+                  "caption": "Payroll runs so far",
                   "source": {
                     "entity": "payroll_run",
                     "aggregate": { "op": "count" }
@@ -196,10 +198,11 @@
                   "link": { "page": "runs" }
                 },
                 {
-                  "kind": "stat",
                   "label": "Total net paid",
-                  "format": "money",
                   "icon": "cash-check",
+                  "color": "success",
+                  "caption": "Runs marked paid",
+                  "format": "money",
                   "source": {
                     "entity": "payroll_run",
                     "aggregate": { "op": "sum", "field": "total_net" },
@@ -211,9 +214,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Awaiting approval",
                   "icon": "file-document-edit-outline",
+                  "color": "warning",
+                  "caption": "Draft runs",
                   "source": {
                     "entity": "payroll_run",
                     "aggregate": { "op": "count" },

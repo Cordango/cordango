@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "invoicing",
   "name": "Invoices",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Client invoicing: build invoices from line items, send them, track payments and what is still outstanding.",
   "presentation": {
     "icon": "receipt-text",
@@ -403,6 +403,7 @@
     {
       "key": "overview",
       "label": "Overview",
+      "subtitle": "What clients owe and what is overdue.",
       "icon": "view-dashboard",
       "entity": "invoice",
       "blocks": [
@@ -411,44 +412,45 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Outstanding",
-                  "format": "money",
                   "icon": "cash-clock",
-                  "source": {
-                    "entity": "invoice",
-                    "aggregate": {
-                      "op": "sum",
-                      "field": "balance_due"
-                    },
-                    "filters": [
-                      {
-                        "field": "status",
-                        "operator": "eq",
-                        "value": "sent"
-                      }
-                    ]
-                  },
-                  "link": {
-                    "page": "invoices",
-                    "filters": [
-                      {
-                        "field": "status",
-                        "operator": "eq",
-                        "value": "sent"
-                      }
-                    ]
-                  }
-                },
-                {
-                  "kind": "stat",
-                  "label": "Overdue",
+                  "color": "primary",
+                  "caption": "Sent, not paid yet",
                   "format": "money",
+                  "source": {
+                    "entity": "invoice",
+                    "aggregate": {
+                      "op": "sum",
+                      "field": "balance_due"
+                    },
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  },
+                  "link": {
+                    "page": "invoices",
+                    "filters": [
+                      {
+                        "field": "status",
+                        "operator": "eq",
+                        "value": "sent"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Overdue",
                   "icon": "alert-circle-outline",
+                  "color": "error",
+                  "caption": "Past the due date",
+                  "format": "money",
                   "source": {
                     "entity": "invoice",
                     "aggregate": {
@@ -485,9 +487,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Open invoices",
                   "icon": "receipt-text",
+                  "color": "info",
+                  "caption": "Sent and waiting",
                   "source": {
                     "entity": "invoice",
                     "aggregate": {
@@ -513,9 +516,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Drafts",
                   "icon": "file-document-edit-outline",
+                  "color": "warning",
+                  "caption": "Not sent yet",
                   "source": {
                     "entity": "invoice",
                     "aggregate": {
