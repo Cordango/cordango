@@ -18,7 +18,7 @@ public class SchemaCompositionTests
     public void Embedded_schema_parses_under_JsonSchemaNet()
     {
         Assert.NotNull(Schemas.AppDefinitionSchema);
-        Assert.Equal(91, Defs.Count);
+        Assert.Equal(93, Defs.Count);
     }
 
     [Fact]
@@ -29,7 +29,7 @@ public class SchemaCompositionTests
             .Select(d => d.Key["block_".Length..])
             .OrderBy(k => k)
             .ToArray();
-        Assert.Equal(42, variantKinds.Length);
+        Assert.Equal(44, variantKinds.Length);
 
         var dispatched = Defs["block"]!["allOf"]!.AsArray()
             .Select(branch => branch?["if"]?["properties"]?["kind"]?["const"]?.GetValue<string>())

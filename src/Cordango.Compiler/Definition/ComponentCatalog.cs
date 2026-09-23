@@ -30,8 +30,10 @@ public static class ComponentCatalog
     /// — so a list, a month grid, an inline create form and a two-pane queue no longer require a
     /// named view or a side sheet. 1.8: table views take a `filterBar` (always-visible search +
     /// facet dropdowns, the shared $defs/filterBar shape). 1.9: table views take `inlineEdit`
-    /// (in-place cell editing; governed statuses run their legal transitions as commands).</summary>
-    public const string Version = "1.9";
+    /// (in-place cell editing; governed statuses run their legal transitions as commands). 1.10: block.matrix
+    /// (records added up over rows × dates) and block.period (the period stepper); tiles take `color`,
+    /// `meter`, `showMax` and `caption`; aggregates take `countDistinct`.</summary>
+    public const string Version = "1.10";
 
     /// <summary>The full set of composable components (views, widgets, blocks, capabilities).</summary>
     public static readonly IReadOnlyList<ComponentDef> All = Build();
@@ -107,7 +109,7 @@ public static class ComponentCatalog
                     "app":{"type":"string"},"entity":{"type":"string"},
                     "filters":{"type":"array","items":{"type":"object"}},
                     "aggregate":{"type":"object","additionalProperties":false,"required":["op","groupBy"],"properties":{
-                      "op":{"enum":["count","sum","avg","min","max"]},"field":{"type":"string"},
+                      "op":{"enum":["count","sum","avg","min","max","countDistinct"]},"field":{"type":"string"},
                       "groupBy":{"type":"string"}}}},
                     "description":"A figure read from ANOTHER app instead of a field of these rows. One grouped call answers the whole table: 'aggregate.groupBy' names the field over there pointing back at these rows. Needs its own 'label', and a 'key' that is not a field of this entity."},
                   "width":{"oneOf":[{"type":"number","minimum":40,"maximum":1200},
@@ -200,7 +202,7 @@ public static class ComponentCatalog
               "properties":{
                 "entity":{"type":"string"},
                 "aggregate":{"type":"object","additionalProperties":false,"required":["op"],"properties":{
-                  "op":{"enum":["count","sum","avg","min","max"]},"field":{"type":"string"},"groupBy":{"type":"string"}}},
+                  "op":{"enum":["count","sum","avg","min","max","countDistinct"]},"field":{"type":"string"},"groupBy":{"type":"string"}}},
                 "filters":{"type":"array","items":{"type":"object"}}}}},
             "properties":{
               "type":{"const":"metric"},
@@ -220,7 +222,7 @@ public static class ComponentCatalog
               "properties":{
                 "entity":{"type":"string"},
                 "aggregate":{"type":"object","additionalProperties":false,"required":["op"],"properties":{
-                  "op":{"enum":["count","sum","avg","min","max"]},"field":{"type":"string"},"groupBy":{"type":"string"}}},
+                  "op":{"enum":["count","sum","avg","min","max","countDistinct"]},"field":{"type":"string"},"groupBy":{"type":"string"}}},
                 "filters":{"type":"array","items":{"type":"object"}}}}},
             "properties":{
               "type":{"const":"chart"},
@@ -316,10 +318,14 @@ public static class ComponentCatalog
             "tiles":{"type":"array","minItems":1,"items":{"type":"object","additionalProperties":false,
               "required":["label"],"properties":{
                 "label":{"type":"string"},"icon":{"type":"string"},
+                "color":{"type":"string","description":"primary, success, warning, error, info or a hex."},
                 "format":{"enum":["number","money","percent"]},
                 "field":{"type":"string","description":"Record binding: read the value from this field of the bound record."},
                 "source":{"type":"object","description":"Aggregate source { entity, via?, aggregate:{op,field?}, filters? }; via = the child's reference field pointing at the bound record."},
                 "max":{"description":"Progress denominator: a sibling field key, a number, or { source }."},
+                "meter":{"enum":["bar","ring","none"]},
+                "showMax":{"type":"boolean","description":"false: max feeds the meter and {{tile.pct}}, unprinted."},
+                "caption":{"type":"string","description":"Muted line under the value; {{tile.pct}} is value/max in %."},
                 "attention":{"type":"object","description":"{ op: eq|neq|gt|gte|lt|lte, value } — warning chip when true of the computed value."} }}} } }
           """,
           bindings: ["collection", "record"]),
@@ -443,7 +449,7 @@ public static class ComponentCatalog
 
         C("block.repeat", ComponentTier.Block, "Repeat",
           "The engine of every composed surface: loads its source items and renders its child blocks ONCE PER ITEM, binding each to the current item. Its source is ONE of four origins — an entity's rows, a DATE RANGE, a select field's OPTIONS, or the platform directory. The last three iterate things that are not records, and that is what makes a SECOND AXIS possible: a board's columns are Mon..Sun, which live in no table. `as:'<name>'` publishes the current item to every descendant, so a deeply nested cell can read BOTH axes at once ({{row.id}} AND {{col.date}}) instead of only its immediate parent. `direction:'row'` lays the items out as columns. `via` scopes to the bound record's children.",
-          "A leaderboard (sort desc, limit 10), a timeline, a funnel over a select's options, a work-queue, any feed — AND any 2-D surface: nest a repeat inside a repeat, name both axes, and have the innermost repeat filter on both to fill a cell. A roster/planner/shift board is repeats over rows × days, NOT a special component — none exists. Children are primitives that read the item: field/stat/chip/avatar/progress/action.",
+          "A leaderboard (sort desc, limit 10), a timeline, a funnel over a select's options, a work-queue, any feed — AND any 2-D surface: nest a repeat inside a repeat, name both axes, and have the innermost repeat filter on both to fill a cell. A roster/planner/shift board with ONE record per cell is repeats over rows × days with a data.cell; when a cell adds up SEVERAL records (hours per project per day) it is a data.matrix. Children are primitives that read the item: field/stat/chip/avatar/progress/action.",
           """
           { "type":"object","additionalProperties":false,"required":["source","blocks"],"properties":{
             "source":{"type":"object","description":"EXACTLY ONE origin: { entity } records | { dates:{from,to?,step?,count?} } a date axis (items: {id,date,next,label,weekday,isWeekend,isToday} — `next` is the START OF THE NEXT BUCKET, so matching a datetime to a day is `gte {{day.date}}` AND `lt {{day.next}}`; two filters against the same value match nothing) | { options:{entity,field} } a select's choices (items: {id,value,label,color}) | { platform:'person'|'department'|'group' } the tenant directory. Plus, on an entity source: filters?:[{field|path,operator,value}], sort?:[{field,direction}], limit?, via?. A filter `value` may be a scope token: {{actor.id}}, {{today}}, {{<name>.<field>}}. A filter `path` hops one relation ('shift.shift_date')."},
@@ -467,6 +473,28 @@ public static class ComponentCatalog
             "placeholder":{"type":"string","description":"What an empty cell shows. Keep it quiet."} } }
           """,
           bindings: ["collection", "record", "item"]),
+
+        C("block.matrix", ComponentTier.Block, "Matrix (records added up)",
+          "Rows by date columns over ONE entity: each cell adds up (sum or count) the records of that row on "
+          + "that date, with row and column totals and each row's share. With editable, each record is a card "
+          + "in its cell whose value edits in place, and an empty cell adds one with the row and date set.",
+          "Several records per cell, shown as their total: hours per project per day, visits per clinic per "
+          + "week. When each cell is ONE record (a rating, a shift), use nested data.repeat with data.cell "
+          + "instead. Pages only; take the columns from a control.period.",
+          """
+          { "type":"object","additionalProperties":false,"required":["source","rowBy","columnBy","columnSource"],"properties":{
+            "source":{"type":"object","description":"This app's entity, its aggregate {op,field} (no groupBy) and filters?. No date filters: the matrix reads its columns' window itself."},
+            "rowBy":{"type":"string","description":"Reference or select field: the row."},
+            "rowSource":{"type":"object","description":"The rows, empty ones too: {entity,app?,filters?,sort?} for a reference, {options:{entity,field}} for a select, {platform:\"person\"} for a person. Omitted: rows with records only."},
+            "blocks":{"type":"array","items":{"type":"object"},"description":"Row header, bound to the row record. Omitted: its name."},
+            "columnBy":{"type":"string","description":"Date field: the column."},
+            "columnSource":{"type":"object","description":"{dates:{from:\"{{state.week.from}}\",to:\"{{state.week.to}}\",step:\"day\"}}; to is the last day, inclusive."},
+            "totals":{"type":"object","additionalProperties":false,"properties":{"rows":{"type":"boolean"},"columns":{"type":"boolean"},"share":{"type":"boolean"}},"description":"share needs rows."},
+            "entries":{"type":"object","additionalProperties":false,"required":["fields"],"properties":{"fields":{"type":"array","items":{"type":"string"}}},"description":"1-3 fields on each record card, asked for on add."},
+            "editable":{"type":"boolean","description":"Add, edit and delete records in cells. Needs entries and a sum or count."},
+            "openDetail":{"type":"boolean"},"label":{"type":"string"},"emptyText":{"type":"string"} } }
+          """,
+          bindings: ["collection"]),
 
         C("block.table", ComponentTier.Block, "Table",
           "A source's records as a real data table (sort, per-column filter, column config, export) — the table VIEW's engine, but fed by a blockSource, so it filters against the scope chain and drops anywhere in a block tree without declaring a named view.",
@@ -605,6 +633,24 @@ public static class ComponentCatalog
           { "type":"object","additionalProperties":false,"required":["entity"],"properties":{
             "entity":{"type":"string"},"label":{"type":"string"},
             "style":{"enum":["primary","default"]},"icon":{"type":"string"} } }
+          """,
+          bindings: ["collection"]),
+
+        C("block.period", ComponentTier.Block, "Period stepper",
+          "Today, back, the window label (a date picker), forward and a unit switch, bound to a page state of "
+          + "type period. Blocks read {{state.week.from}} (first day), .to (last day), .next (the day after), "
+          + ".label, .days, .workdays and .prev.* (the window before).",
+          "A page about a stretch of time: hours this week, sales this month. Declare state "
+          + "[{\"key\":\"week\",\"type\":\"period\",\"default\":\"thisWeek\"}] (presets: today, yesterday, thisWeek, "
+          + "lastWeek, thisMonth, lastMonth, thisQuarter, lastQuarter, thisYear, lastYear, last7Days, last30Days, "
+          + "next30Days, last3Months, last12Months) and filter each source gte {{state.week.from}} AND lt "
+          + "{{state.week.next}}; lt the .to drops the last day. One day alone is a date state with "
+          + "control.stepper. Pages only.",
+          """
+          { "type":"object","additionalProperties":false,"required":["stateKey"],"properties":{
+            "stateKey":{"type":"string","description":"The page state of type period."},
+            "units":{"type":"array","items":{"enum":["day","week","month","quarter","year"]},"description":"Units to switch between; must include the default preset's unit. Omitted: that unit only."},
+            "label":{"type":"string"} } }
           """,
           bindings: ["collection"]),
 

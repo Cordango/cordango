@@ -314,6 +314,34 @@
         ]
       }
     },
+    "matrix": {
+      "from": "page 'Interactivity'",
+      "block": {
+        "kind": "matrix",
+        "class": "mt-3",
+        "label": "Tasks due in the window, by person",
+        "emptyText": "Nobody has a task due in this window.",
+        "source": {
+          "entity": "task",
+          "aggregate": {
+            "op": "count"
+          }
+        },
+        "rowBy": "assignee",
+        "columnBy": "due_on",
+        "columnSource": {
+          "dates": {
+            "from": "{{state.window.from}}",
+            "to": "{{state.window.to}}",
+            "step": "day"
+          }
+        },
+        "totals": {
+          "rows": true,
+          "columns": true
+        }
+      }
+    },
     "orgchart": {
       "from": "page 'Team'",
       "block": {
@@ -322,6 +350,14 @@
         "manager": "reports_to",
         "identity": "person",
         "subtitle": "title"
+      }
+    },
+    "period": {
+      "from": "page 'Calculation'",
+      "block": {
+        "kind": "period",
+        "stateKey": "year",
+        "class": "mt-2"
       }
     },
     "process": {

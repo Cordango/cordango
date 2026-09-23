@@ -56,7 +56,7 @@ public sealed class NodeVueGenerator : IAppSourceGenerator
             // Figures.
             "stat", "tiles", "chart", "progress", "widgets",
             // Behaviour.
-            "process", "action", "create", "control", "filterbar",
+            "process", "action", "create", "control", "filterbar", "period", "matrix",
             // Time and structure.
             "gantt", "timeline", "orgchart",
             // Forms.

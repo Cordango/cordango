@@ -222,6 +222,26 @@ public static class WebEmitter
         }
     }
 
+    private static readonly System.Text.RegularExpressions.Regex StateRef =
+        new(@"\{\{\s*state\.([A-Za-z_][A-Za-z0-9_]*)");
+
+    /// <summary>The period state this block reads, judged on its OWN properties only: a container
+    /// that merely holds a block reading the period is fine, and that block is judged when it is
+    /// emitted.</summary>
+    private static string? ReadsPeriod(JsonObject block, BlockContext context)
+    {
+        var periods = context.State.Where(kv => AppModel.Str(kv.Value["type"]) == "period")
+            .Select(kv => kv.Key).ToHashSet(StringComparer.Ordinal);
+        if (periods.Count == 0) return null;
+        foreach (var (name, value) in block)
+        {
+            if (name is "blocks" or "tabs" or "columns" || value is null) continue;
+            foreach (System.Text.RegularExpressions.Match m in StateRef.Matches(value.ToJsonString()))
+                if (periods.Contains(m.Groups[1].Value)) return m.Groups[1].Value;
+        }
+        return null;
+    }
+
     /// <summary>What a state var holds before anybody touches it.</summary>
     private static string StateInitial(JsonObject var)
     {
@@ -524,6 +544,34 @@ public static class WebEmitter
         }
 
         var kind = AppModel.Str(block["kind"]);
+
+        // A block that reads a period's window out of page state. This target does not compute
+        // periods yet, so the token would resolve to nothing and the block would add up ALL TIME
+        // under a heading that says "this week": a wrong number that looks right. It is left out,
+        // and says so, until the standalone runtime has periods.
+        // countDistinct is counted by the platform's aggregate endpoint; this target's record
+        // runtime has no such reduction yet, and a plain count in its place would be a wrong number.
+        if (AppModel.Str(block["source"]?["aggregate"]?["op"]) == "countDistinct")
+        {
+            context.Imports.Add("UnsupportedBlock");
+            source.Line($"<UnsupportedBlock kind=\"{kind}\" />");
+            unsupported.Add(new Diagnostic(NotYetCodes.Block,
+                $"the {TargetName} generator does not count distinct values yet, so this '{kind}' block "
+                + "is left out rather than drawn with a plain count.",
+                context.Path));
+            return;
+        }
+
+        if (ReadsPeriod(block, context) is { } period)
+        {
+            context.Imports.Add("UnsupportedBlock");
+            source.Line($"<UnsupportedBlock kind=\"{kind}\" />");
+            unsupported.Add(new Diagnostic(NotYetCodes.Block,
+                $"the {TargetName} generator does not compute the period '{period}' yet, so this "
+                + $"'{kind}' block, which reads it, is left out rather than drawn over all time.",
+                context.Path));
+            return;
+        }
 
         switch (kind)
         {

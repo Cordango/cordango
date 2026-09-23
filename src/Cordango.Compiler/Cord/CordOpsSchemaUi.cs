@@ -215,7 +215,7 @@ internal static class CordOpsSchemaUi
                 ["description"] = "For kind=metric and kind=chart: what is counted or totalled.",
                 ["properties"] = new JsonObject
                 {
-                    ["op"] = Enum(null, "count", "sum", "avg", "min", "max"),
+                    ["op"] = Enum(null, "count", "sum", "avg", "min", "max", "countDistinct"),
                     ["field"] = Str("Required for everything except count."),
                 },
             },

@@ -358,11 +358,12 @@
                 "sum",
                 "avg",
                 "min",
-                "max"
+                "max",
+                "countDistinct"
               ]
             },
             "field": {
-              "description": "Required for sum/avg/min/max; must be numeric for sum/avg.",
+              "description": "Required for sum/avg/min/max/countDistinct; must be numeric for sum/avg. countDistinct counts the different values of it: projects with hours this week, not entries.",
               "$ref": "#/$defs/identifier"
             },
             "groupBy": {
@@ -542,6 +543,11 @@
           "minLength": 1,
           "maxLength": 100
         },
+        "subtitle": {
+          "description": "One muted line under the page title: what this page is for.",
+          "type": "string",
+          "maxLength": 200
+        },
         "icon": {
           "type": "string",
           "maxLength": 50
@@ -617,11 +623,12 @@
               "text",
               "number",
               "date",
-              "enum"
+              "enum",
+              "period"
             ]
           },
           "default": {
-            "description": "Initial value: a literal, or the token '{{today}}' for a date."
+            "description": "Initial value: a literal, the token '{{today}}' for a date, or a preset name for a period ('thisWeek', 'thisMonth', 'last30Days', ...)."
           },
           "options": {
             "description": "For type 'enum': the allowed values a segmented control toggles between.",
@@ -687,6 +694,8 @@
             "create",
             "control",
             "filterbar",
+            "period",
+            "matrix",
             "timeline",
             "table",
             "calendar",
@@ -1129,6 +1138,36 @@
           "if": {
             "properties": {
               "kind": {
+                "const": "period"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_period"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "matrix"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_matrix"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
                 "const": "timeline"
               }
             },
@@ -1375,6 +1414,29 @@
         "icon": {
           "type": "string",
           "maxLength": 50
+        },
+        "caption": {
+          "description": "One muted line under the value. Interpolates {{...}} tokens like a text block, plus {{tile.value}}, {{tile.max}} and {{tile.pct}} (the value as a share of `max`, e.g. '76%').",
+          "type": "string",
+          "maxLength": 120
+        },
+        "meter": {
+          "description": "How `max` is drawn: a bar under the value (the default), a ring beside it, or nothing.",
+          "type": "string",
+          "enum": [
+            "bar",
+            "ring",
+            "none"
+          ]
+        },
+        "showMax": {
+          "description": "Print ' / max' after the value. Default true; false keeps `max` for the meter and {{tile.pct}} without printing it.",
+          "type": "boolean"
+        },
+        "color": {
+          "description": "The tile's accent, on its icon badge and its meter: a theme token (primary, success, warning, error, info) or a hex colour.",
+          "type": "string",
+          "maxLength": 40
         },
         "format": {
           "type": "string",
@@ -3475,6 +3537,158 @@
               }
             }
           }
+        }
+      }
+    },
+    "block_period": {
+      "description": "A period control: Today, previous and next, the window it shows, and a unit switch, bound to a `period` page state. It writes screen state only; blocks read the window through {{state.<key>.from}}, .next, .to, .label and .prev.*.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "stateKey"
+      ],
+      "properties": {
+        "kind": {
+          "const": "period"
+        },
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "stateKey": {
+          "description": "The page `state` var of type 'period' this control reads and writes.",
+          "$ref": "#/$defs/identifier"
+        },
+        "units": {
+          "description": "The units the reader may switch between, in the order offered. Omitted: only the unit of the state's default preset, and no switch is shown.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week",
+              "month",
+              "quarter",
+              "year"
+            ]
+          }
+        }
+      }
+    },
+    "block_matrix": {
+      "description": "Rows by one field, a column per date, and in every cell the records that land there, added up: hours per project per day, bookings per room per week. Row, column and grand totals come from the same records, in one read.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "source",
+        "rowBy",
+        "columnBy",
+        "columnSource"
+      ],
+      "properties": {
+        "kind": {
+          "const": "matrix"
+        },
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "source": {
+          "description": "The records that fill the cells: a local entity, the `aggregate` a cell shows (op and field; no groupBy), and the filters that choose them.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "rowBy": {
+          "description": "The field of the source that puts a record in its row: a reference or a select.",
+          "$ref": "#/$defs/identifier"
+        },
+        "rowSource": {
+          "description": "Which rows to draw, including rows with nothing in them: the entity `rowBy` points at (another app's too), `platform: person`, or the select's `options`. Omitted: only the rows that have records. A record whose row is not among them gets a row of its own, marked, so the totals never lose it.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "blocks": {
+          "description": "The row header, drawn once per row and bound to the row's record, as a repeat's children are. Omitted: the row's name.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/block"
+          }
+        },
+        "columnBy": {
+          "description": "The date field of the source that puts a record in its column.",
+          "$ref": "#/$defs/identifier"
+        },
+        "columnSource": {
+          "description": "The columns: a `dates` axis, usually `from: '{{state.<period>.from}}'` to `'{{state.<period>.to}}'` with `step: 'day'`.",
+          "$ref": "#/$defs/blockSource"
+        },
+        "totals": {
+          "description": "Which totals to draw: a total per row, a total per column, and each row's share of the grand total as a bar.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "type": "boolean"
+            },
+            "columns": {
+              "type": "boolean"
+            },
+            "share": {
+              "type": "boolean"
+            }
+          }
+        },
+        "emptyText": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "entries": {
+          "description": "Draw each record in a cell as its own card: its value, plus these fields of it. With `editable`, these are also what adding a record asks for.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fields"
+          ],
+          "properties": {
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/identifier"
+              }
+            }
+          }
+        },
+        "editable": {
+          "description": "A cell takes new records (its row and date filled in) and its records' values are edited in place. Needs `entries`, and a `sum` or `count`.",
+          "type": "boolean"
+        },
+        "openDetail": {
+          "description": "Clicking a record's card opens its detail.",
+          "type": "boolean"
         }
       }
     },

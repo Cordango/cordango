@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "task_manager",
   "name": "Projects",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "presentation": {
     "icon": "clipboard-check",
     "color": "#0ea5e9",
@@ -225,37 +225,47 @@
                       {
                         "label": "Progress",
                         "field": "progress",
-                        "format": "percent",
-                        "icon": "chart-donut"
+                        "format": "share",
+                        "icon": "chart-donut",
+                        "color": "primary",
+                        "max": 100
                       },
                       {
                         "label": "Open tasks",
                         "field": "open_tasks",
                         "format": "number",
-                        "icon": "checkbox-blank-circle-outline"
+                        "icon": "clipboard-list-outline",
+                        "color": "info",
+                        "caption": "Still to do"
                       },
                       {
                         "label": "Done tasks",
                         "field": "done_tasks",
                         "format": "number",
-                        "icon": "checkbox-marked-circle-outline"
+                        "icon": "check-circle-outline",
+                        "color": "success",
+                        "caption": "Finished"
                       },
                       {
                         "label": "Total effort (h)",
                         "field": "total_effort",
                         "format": "number",
-                        "icon": "clock-outline"
+                        "icon": "clock-outline",
+                        "color": "#7c3aed",
+                        "caption": "Estimated hours"
                       },
                       {
                         "label": "Total cost",
                         "field": "total_cost",
                         "format": "money",
-                        "icon": "cash-multiple"
+                        "icon": "circle-multiple-outline",
+                        "color": "warning",
+                        "caption": "Estimated budget"
                       },
                       {
                         "label": "Time tracked (h)",
                         "format": "number",
-                        "icon": "timer-outline",
+                        "icon": "chart-bar",
                         "source": {
                           "app": "timesheets",
                           "entity": "time_entry",
@@ -270,7 +280,9 @@
                             "op": "sum",
                             "field": "hours"
                           }
-                        }
+                        },
+                        "color": "info",
+                        "caption": "Logged in Timesheets"
                       }
                     ]
                   },
@@ -309,7 +321,7 @@
                       },
                       {
                         "key": "due_date",
-                        "width": 100
+                        "width": 128
                       },
                       {
                         "key": "status",

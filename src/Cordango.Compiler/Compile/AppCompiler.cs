@@ -834,6 +834,8 @@ public static class AppCompiler
                 // is the ONE transport the renderer reads status semantics from (done affordance,
                 // late-start/overdue colorization), process-governed or not.
                 if (GetStr(s, "phase") is { } phase) opt["phase"] = phase;
+                // And its icon, so a chip for a process-governed status draws it like any other option.
+                if (GetStr(s, "icon") is { } icon) opt["icon"] = icon;
                 opts.Add(opt);
             }
             field["options"] = opts;

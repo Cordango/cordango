@@ -447,6 +447,11 @@
               "color": {
                 "$ref": "#/$defs/hexColor"
               },
+              "icon": {
+                "description": "An MDI icon name without the 'mdi-' prefix, drawn beside the label on a chip.",
+                "type": "string",
+                "maxLength": 50
+              },
               "phase": {
                 "description": "Lifecycle meaning of this option, for a role:'status' select WITHOUT a governing process (a process's states carry the phase instead): 'not_started', 'active', 'done', 'cancelled'. Drives the same renderer semantics as processes[].states[].phase.",
                 "type": "string",

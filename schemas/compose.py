@@ -56,7 +56,7 @@ BLOCK_KINDS = [
     "view", "tabs", "section", "columns", "widgets", "fields", "child",
     "settings", "hub", "tiles", "process", "stack", "row", "grid", "card",
     "repeat", "cell", "stat", "field", "text", "chip", "avatar", "progress",
-    "chart", "action", "create", "control", "filterbar", "timeline", "table", "calendar", "form",
+    "chart", "action", "create", "control", "filterbar", "period", "matrix", "timeline", "table", "calendar", "form",
     "split", "orgchart", "board", "gantt", "history", "answers", "intake",
     "externalEmbed", "relatedApps", "documents",
 ]

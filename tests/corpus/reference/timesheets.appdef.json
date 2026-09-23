@@ -2,8 +2,8 @@
   "schemaVersion": "2.0",
   "key": "timesheets",
   "name": "Timesheets",
-  "version": "1.1.0",
-  "description": "Time logging for Cordango GmbH: log hours against projects from an editable week grid, and see where the team's hours go.",
+  "version": "1.2.0",
+  "description": "Time logging for Cordango GmbH: log hours against projects from an editable week grid - several entries a day, each with its activity - and see where the team's hours go.",
   "presentation": {
     "icon": "timer-outline",
     "color": "#0d9488",
@@ -14,9 +14,17 @@
     {
       "app": "task_manager",
       "entities": [
-        "project"
+        "project",
+        "task"
       ],
-      "why": "hours are logged against the projects Projects owns — one project list, not a second copy"
+      "why": "hours are logged against the projects Projects owns - one project list, not a second copy - and the week counts the tasks the person has finished there"
+    },
+    {
+      "app": "core_people",
+      "entities": [
+        "employee"
+      ],
+      "why": "a person's weekly hours are their target for the week; nobody should type it twice"
     }
   ],
   "entities": [
@@ -59,7 +67,65 @@
           "min": 0,
           "max": 24,
           "help": "Hours worked on this project that day. A day holds 24 of them.",
-          "required": true
+          "required": true,
+          "scale": 1,
+          "unit": " h"
+        },
+        {
+          "key": "activity",
+          "label": "Activity",
+          "type": "select",
+          "help": "What the time went on. Reported by project and by activity, so the week shows the split.",
+          "options": [
+            {
+              "value": "development",
+              "label": "Development",
+              "color": "#3b82f6",
+              "icon": "code-tags"
+            },
+            {
+              "value": "design",
+              "label": "Design",
+              "color": "#a855f7",
+              "icon": "palette-outline"
+            },
+            {
+              "value": "meeting",
+              "label": "Meeting",
+              "color": "#f59e0b",
+              "icon": "account-group-outline"
+            },
+            {
+              "value": "research",
+              "label": "Research",
+              "color": "#14b8a6",
+              "icon": "magnify"
+            },
+            {
+              "value": "planning",
+              "label": "Planning",
+              "color": "#6366f1",
+              "icon": "calendar-check-outline"
+            },
+            {
+              "value": "review",
+              "label": "Review",
+              "color": "#0ea5e9",
+              "icon": "eye-check-outline"
+            },
+            {
+              "value": "admin",
+              "label": "Admin",
+              "color": "#64748b",
+              "icon": "briefcase-outline"
+            },
+            {
+              "value": "other",
+              "label": "Other",
+              "color": "#94a3b8",
+              "icon": "dots-horizontal"
+            }
+          ]
         },
         {
           "key": "billable",
@@ -100,6 +166,7 @@
           "project",
           "hours",
           "billable",
+          "activity",
           "notes"
         ]
       }
@@ -122,6 +189,7 @@
           "project",
           "hours",
           "billable",
+          "activity",
           "notes"
         ]
       }
@@ -135,9 +203,9 @@
       "entity": "time_entry",
       "state": [
         {
-          "key": "cursor",
-          "type": "date",
-          "default": "{{today}}"
+          "key": "week",
+          "type": "period",
+          "default": "thisWeek"
         }
       ],
       "blocks": [
@@ -146,185 +214,320 @@
           "gap": "md",
           "blocks": [
             {
+              "kind": "period",
+              "stateKey": "week",
+              "units": [
+                "week"
+              ]
+            },
+            {
               "kind": "row",
               "align": "center",
-              "justify": "end",
               "gap": "md",
+              "wrap": true,
               "blocks": [
                 {
-                  "kind": "control",
-                  "control": "stepper",
-                  "stateKey": "cursor",
-                  "step": {
-                    "unit": "week",
-                    "amount": 1
-                  }
+                  "kind": "tiles",
+                  "tiles": [
+                    {
+                      "label": "Hours logged",
+                      "icon": "clock-outline",
+                      "color": "primary",
+                      "source": {
+                        "entity": "time_entry",
+                        "aggregate": {
+                          "op": "sum",
+                          "field": "hours"
+                        },
+                        "filters": [
+                          {
+                            "field": "logged_by",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "gte",
+                            "value": "{{state.week.from}}"
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "lt",
+                            "value": "{{state.week.next}}"
+                          }
+                        ]
+                      },
+                      "max": {
+                        "source": {
+                          "app": "core_people",
+                          "entity": "employee",
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "weekly_hours"
+                          },
+                          "filters": [
+                            {
+                              "field": "person",
+                              "operator": "eq",
+                              "value": "{{actor.id}}"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "label": "Billable hours",
+                      "icon": "cash-multiple",
+                      "color": "success",
+                      "showMax": false,
+                      "meter": "none",
+                      "caption": "{{tile.pct}} of your hours",
+                      "source": {
+                        "entity": "time_entry",
+                        "aggregate": {
+                          "op": "sum",
+                          "field": "hours"
+                        },
+                        "filters": [
+                          {
+                            "field": "logged_by",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          },
+                          {
+                            "field": "billable",
+                            "operator": "eq",
+                            "value": true
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "gte",
+                            "value": "{{state.week.from}}"
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "lt",
+                            "value": "{{state.week.next}}"
+                          }
+                        ]
+                      },
+                      "max": {
+                        "source": {
+                          "entity": "time_entry",
+                          "aggregate": {
+                            "op": "sum",
+                            "field": "hours"
+                          },
+                          "filters": [
+                            {
+                              "field": "logged_by",
+                              "operator": "eq",
+                              "value": "{{actor.id}}"
+                            },
+                            {
+                              "field": "entry_date",
+                              "operator": "gte",
+                              "value": "{{state.week.from}}"
+                            },
+                            {
+                              "field": "entry_date",
+                              "operator": "lt",
+                              "value": "{{state.week.next}}"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "label": "Projects",
+                      "icon": "folder-outline",
+                      "color": "info",
+                      "caption": "With hours in this week",
+                      "source": {
+                        "entity": "time_entry",
+                        "aggregate": {
+                          "op": "countDistinct",
+                          "field": "project"
+                        },
+                        "filters": [
+                          {
+                            "field": "logged_by",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "gte",
+                            "value": "{{state.week.from}}"
+                          },
+                          {
+                            "field": "entry_date",
+                            "operator": "lt",
+                            "value": "{{state.week.next}}"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "label": "Tasks",
+                      "icon": "checkbox-marked-circle-outline",
+                      "color": "success",
+                      "meter": "none",
+                      "caption": "Done, of those assigned to you",
+                      "source": {
+                        "app": "task_manager",
+                        "entity": "task",
+                        "aggregate": {
+                          "op": "count"
+                        },
+                        "filters": [
+                          {
+                            "field": "assignee",
+                            "operator": "eq",
+                            "value": "{{actor.id}}"
+                          },
+                          {
+                            "field": "status",
+                            "operator": "eq",
+                            "value": "done"
+                          }
+                        ]
+                      },
+                      "max": {
+                        "source": {
+                          "app": "task_manager",
+                          "entity": "task",
+                          "aggregate": {
+                            "op": "count"
+                          },
+                          "filters": [
+                            {
+                              "field": "assignee",
+                              "operator": "eq",
+                              "value": "{{actor.id}}"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ],
+                  "grow": true
+                },
+                {
+                  "kind": "create",
+                  "entity": "time_entry",
+                  "label": "Add time entry",
+                  "style": "primary",
+                  "icon": "plus"
                 }
               ]
             },
             {
-              "kind": "stack",
-              "gap": "none",
+              "kind": "matrix",
+              "source": {
+                "entity": "time_entry",
+                "aggregate": {
+                  "op": "sum",
+                  "field": "hours"
+                },
+                "filters": [
+                  {
+                    "field": "logged_by",
+                    "operator": "eq",
+                    "value": "{{actor.id}}"
+                  }
+                ]
+              },
+              "rowBy": "project",
+              "rowSource": {
+                "app": "task_manager",
+                "entity": "project",
+                "filters": [
+                  {
+                    "field": "status",
+                    "operator": "neq",
+                    "value": "completed"
+                  }
+                ],
+                "sort": [
+                  {
+                    "field": "name",
+                    "direction": "asc"
+                  }
+                ]
+              },
               "blocks": [
                 {
-                  "kind": "row",
-                  "gap": "none",
+                  "kind": "card",
+                  "padding": "sm",
+                  "bordered": true,
+                  "tint": "status",
                   "blocks": [
                     {
-                      "kind": "card",
-                      "width": "md",
-                      "padding": "sm",
-                      "tone": "muted",
+                      "kind": "field",
+                      "field": "name",
+                      "weight": "medium"
+                    },
+                    {
+                      "kind": "row",
+                      "gap": "sm",
+                      "align": "center",
                       "blocks": [
                         {
-                          "kind": "text",
-                          "value": "Project"
+                          "kind": "chip",
+                          "field": "status"
+                        },
+                        {
+                          "kind": "field",
+                          "field": "due_date",
+                          "size": "sm",
+                          "grow": true
                         }
                       ]
                     },
                     {
-                      "kind": "repeat",
-                      "as": "hcol",
-                      "direction": "row",
-                      "source": {
-                        "dates": {
-                          "from": "{{state.cursor}}",
-                          "count": 7,
-                          "step": "day"
-                        }
-                      },
-                      "blocks": [
-                        {
-                          "kind": "card",
-                          "width": "sm",
-                          "padding": "sm",
-                          "tone": "muted",
-                          "blocks": [
-                            {
-                              "kind": "text",
-                              "value": "{{hcol.label}}"
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                },
-                {
-                  "kind": "repeat",
-                  "as": "proj",
-                  "direction": "column",
-                  "source": {
-                    "app": "task_manager",
-                    "entity": "project",
-                    "filters": [
-                      {
-                        "field": "status",
-                        "operator": "neq",
-                        "value": "completed"
-                      }
-                    ],
-                    "sort": [
-                      {
-                        "field": "name",
-                        "direction": "asc"
-                      }
-                    ]
-                  },
-                  "emptyText": "No live projects in Projects yet.",
-                  "blocks": [
+                      "kind": "field",
+                      "field": "lead",
+                      "size": "sm"
+                    },
                     {
-                      "kind": "row",
-                      "gap": "none",
-                      "blocks": [
-                        {
-                          "kind": "card",
-                          "width": "md",
-                          "padding": "sm",
-                          "bordered": true,
-                          "tint": "status",
-                          "blocks": [
-                            {
-                              "kind": "field",
-                              "field": "name",
-                              "weight": "medium"
-                            },
-                            {
-                              "kind": "row",
-                              "gap": "sm",
-                              "align": "center",
-                              "blocks": [
-                                {
-                                  "kind": "chip",
-                                  "field": "status"
-                                },
-                                {
-                                  "kind": "field",
-                                  "field": "due_date",
-                                  "size": "sm",
-                                  "grow": true
-                                }
-                              ]
-                            },
-                            {
-                              "kind": "field",
-                              "field": "lead",
-                              "size": "sm"
-                            },
-                            {
-                              "kind": "progress",
-                              "label": "Tasks done",
-                              "field": "done_tasks",
-                              "max": "total_tasks"
-                            }
-                          ],
-                          "openDetail": true,
-                          "gap": "sm"
-                        },
-                        {
-                          "kind": "repeat",
-                          "as": "day",
-                          "direction": "row",
-                          "source": {
-                            "dates": {
-                              "from": "{{state.cursor}}",
-                              "count": 7,
-                              "step": "day"
-                            }
-                          },
-                          "blocks": [
-                            {
-                              "kind": "card",
-                              "width": "sm",
-                              "padding": "xs",
-                              "bordered": true,
-                              "blocks": [
-                                {
-                                  "kind": "cell",
-                                  "entity": "time_entry",
-                                  "field": "hours",
-                                  "editable": true,
-                                  "openDetail": true,
-                                  "placeholder": "",
-                                  "keys": {
-                                    "project": "{{proj.id}}",
-                                    "entry_date": "{{day.date}}",
-                                    "logged_by": "{{actor.id}}"
-                                  }
-                                }
-                              ]
-                            }
-                          ]
-                        }
-                      ]
+                      "kind": "progress",
+                      "label": "Tasks done",
+                      "field": "done_tasks",
+                      "max": "total_tasks"
                     }
-                  ]
+                  ],
+                  "openDetail": true,
+                  "gap": "none"
                 }
-              ]
+              ],
+              "columnBy": "entry_date",
+              "columnSource": {
+                "dates": {
+                  "from": "{{state.week.from}}",
+                  "to": "{{state.week.to}}",
+                  "step": "day"
+                }
+              },
+              "totals": {
+                "rows": true,
+                "columns": true,
+                "share": true
+              },
+              "entries": {
+                "fields": [
+                  "activity",
+                  "notes"
+                ]
+              },
+              "editable": true,
+              "openDetail": true,
+              "emptyText": "No live projects in Projects yet."
             }
           ]
         }
-      ]
+      ],
+      "subtitle": "Your hours, project by project and day by day. Click a day to add time; click a figure to change it."
     },
     {
       "key": "team",

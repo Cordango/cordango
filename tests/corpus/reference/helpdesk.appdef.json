@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "helpdesk",
   "name": "Helpdesk",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Internal ticket queue: requests come in, get assigned, worked, and resolved — nothing gets lost.",
   "presentation": {
     "icon": "lifebuoy",
@@ -206,7 +206,9 @@
           "computed": {
             "expr": "hours_between(created_at, first_reply_at)"
           },
-          "help": "Null until the first reply — open tickets don't count in the average."
+          "help": "Null until the first reply — open tickets don't count in the average.",
+          "unit": " h",
+          "scale": 1
         },
         {
           "key": "days_to_close",
@@ -215,7 +217,9 @@
           "group": "Metrics",
           "computed": {
             "expr": "days_between(created_at, resolved_at)"
-          }
+          },
+          "unit": " days",
+          "scale": 1
         },
         {
           "key": "intake_submission",
@@ -665,7 +669,12 @@
           "priority",
           "status",
           "due_date"
-        ]
+        ],
+        "filterBar": {
+          "search": [
+            "subject"
+          ]
+        }
       }
     },
     {
@@ -761,14 +770,13 @@
           "gap": "md",
           "blocks": [
             {
-              "kind": "row",
-              "gap": "md",
-              "wrap": true,
-              "blocks": [
+              "kind": "tiles",
+              "tiles": [
                 {
-                  "kind": "stat",
                   "label": "Open",
                   "icon": "lifebuoy",
+                  "color": "error",
+                  "caption": "Not resolved yet",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -794,9 +802,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Received",
-                  "icon": "inbox-arrow-down",
+                  "icon": "email-outline",
+                  "color": "info",
+                  "caption": "All time",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -808,9 +817,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Resolved",
                   "icon": "check-circle-outline",
+                  "color": "success",
+                  "caption": "All time",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -836,9 +846,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
-                  "label": "Avg first reply (h)",
-                  "icon": "reply-outline",
+                  "label": "Avg. first reply",
+                  "icon": "clock-outline",
+                  "color": "#7c3aed",
+                  "caption": "To first answer",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -848,9 +859,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
-                  "label": "Avg to close (days)",
-                  "icon": "timer-check-outline",
+                  "label": "Avg. to close",
+                  "icon": "timer-outline",
+                  "color": "error",
+                  "caption": "Open to resolved",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -860,9 +872,10 @@
                   }
                 },
                 {
-                  "kind": "stat",
                   "label": "Unassigned",
-                  "icon": "account-question-outline",
+                  "icon": "account-multiple-outline",
+                  "color": "error",
+                  "caption": "Nobody on it",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -955,7 +968,8 @@
             }
           ]
         }
-      ]
+      ],
+      "subtitle": "Here's what's happening with your helpdesk."
     },
     {
       "key": "triage",

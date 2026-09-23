@@ -2,8 +2,8 @@
   "schemaVersion": "2.0",
   "key": "sales_crm",
   "name": "Sales CRM",
-  "version": "1.4.0",
-  "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view, deals with activities/notes/products/files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
+  "version": "1.5.0",
+  "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view and fed by lead forms the team builds (published on the website or filed by hand), deals with activities, documentation, products and files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
   "archetype": {
     "kind": "pipeline",
     "coreJob": "Move deals through the pipeline stages on a board and never miss the next activity on any open deal"
@@ -21,6 +21,11 @@
         "space"
       ],
       "why": "a deal owns one documentation space; its pages replace the old note feed"
+    }
+  ],
+  "plugins": [
+    {
+      "id": "forms"
     }
   ],
   "entities": [
@@ -816,6 +821,7 @@
           "key": "received_on",
           "label": "Received",
           "type": "date",
+          "default": "{{today}}",
           "indexed": true,
           "help": "When this lead came in — sorts the inbox and the leads list."
         },
@@ -898,18 +904,27 @@
           "indexed": true
         },
         {
-          "key": "owner",
+          "key": "assigned_to",
           "label": "Owner",
           "type": "reference",
           "targetApp": "platform",
           "targetEntity": "person",
-          "onDelete": "setNull"
+          "onDelete": "setNull",
+          "help": "The rep working this lead. A lead a form files starts with the owner the form names, one typed in by hand starts with whoever typed it, and either can be handed on at any time."
         },
         {
           "key": "notes",
           "label": "Notes",
           "type": "longtext",
           "group": "Notes"
+        },
+        {
+          "key": "submission",
+          "label": "Filed from",
+          "type": "reference",
+          "targetEntity": "intake_submission",
+          "onDelete": "setNull",
+          "help": "The form submission this lead was filed from. Empty for a lead somebody typed in. What they answered is shown on the lead, question by question."
         }
       ],
       "detail": {
@@ -926,7 +941,7 @@
               "value",
               "received_on",
               "source_channel",
-              "owner"
+              "assigned_to"
             ],
             "actions": [
               "mark_contacted",
@@ -939,6 +954,10 @@
           {
             "kind": "process",
             "label": "Lead status"
+          },
+          {
+            "kind": "answers",
+            "label": "What they told us"
           },
           {
             "kind": "fields",
@@ -966,7 +985,7 @@
                   "contact_name",
                   "value",
                   "source_channel",
-                  "owner"
+                  "assigned_to"
                 ],
                 "columns": 2
               }
@@ -1128,6 +1147,334 @@
           "onDelete": "setNull"
         }
       ]
+    },
+    {
+      "key": "intake_form",
+      "label": "Lead form",
+      "labelPlural": "Lead forms",
+      "displayField": "name",
+      "icon": "dynamic_form",
+      "description": "A form the team builds to capture leads: published on the website through its own link, used on a stand at an event, or filed by hand when somebody phones. Its questions are its own records, and what it FILES is declared here: a lead, starting with the owner and source the form names.",
+      "role": "formTemplate",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Form name",
+          "type": "text",
+          "required": true,
+          "group": "Form"
+        },
+        {
+          "key": "intro",
+          "label": "Intro text",
+          "type": "longtext",
+          "help": "Shown above the questions, on the public page too.",
+          "group": "Form"
+        },
+        {
+          "key": "active",
+          "label": "Active",
+          "type": "boolean",
+          "help": "Retired forms stay in the list for their submissions but are not offered.",
+          "group": "Form",
+          "default": true
+        },
+        {
+          "key": "creates",
+          "label": "Creates",
+          "type": "text",
+          "help": "The entity a submission files. Picked in the form designer, not typed.",
+          "group": "What it files",
+          "role": "targetEntity"
+        },
+        {
+          "key": "route_assigned_to",
+          "label": "Owner",
+          "type": "reference",
+          "help": "Every lead from this form starts owned by this rep. Leave it empty and its leads wait in the inbox for somebody to take them.",
+          "group": "What it files",
+          "targetEntity": "person",
+          "targetApp": "platform",
+          "onDelete": "setNull",
+          "mapsTo": "assigned_to"
+        },
+        {
+          "key": "route_source",
+          "label": "Source",
+          "type": "select",
+          "help": "Where every lead from this form says it came from: Website for the form on your site, Event for the one used on a stand.",
+          "group": "What it files",
+          "options": [
+            {
+              "value": "inbound",
+              "label": "Inbound"
+            },
+            {
+              "value": "outbound",
+              "label": "Outbound"
+            },
+            {
+              "value": "referral",
+              "label": "Referral"
+            },
+            {
+              "value": "website",
+              "label": "Website"
+            },
+            {
+              "value": "event",
+              "label": "Event"
+            }
+          ],
+          "mapsTo": "source_channel"
+        },
+        {
+          "key": "confirm_mode",
+          "label": "Confirm the address",
+          "type": "select",
+          "help": "Almost every form should accept straight away. Ask for confirmation only where a wrong address would put real work in somebody's queue.",
+          "group": "Publishing",
+          "default": "none",
+          "role": "confirmMode",
+          "options": [
+            {
+              "value": "none",
+              "label": "Accept straight away"
+            },
+            {
+              "value": "email",
+              "label": "Email a confirmation link first"
+            }
+          ]
+        },
+        {
+          "key": "publish",
+          "label": "Published",
+          "type": "boolean",
+          "help": "Off, the link is dead. On, anyone holding the address can fill this form in and nothing else.",
+          "group": "Publishing",
+          "role": "publicShare"
+        },
+        {
+          "key": "public_token",
+          "label": "Public link",
+          "type": "text",
+          "unique": true,
+          "help": "Generated, never typed. This is the address itself, which is why it is long and unguessable.",
+          "group": "Publishing",
+          "prefix": "/f/",
+          "input": "slug",
+          "role": "publicToken"
+        }
+      ],
+      "form": {
+        "blocks": [
+          {
+            "kind": "section",
+            "label": "The form",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "name",
+                  "active"
+                ],
+                "columns": 2
+              },
+              {
+                "kind": "fields",
+                "fields": [
+                  "intro"
+                ]
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Every lead from it starts with",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "route_assigned_to",
+                  "route_source"
+                ],
+                "columns": 2
+              }
+            ]
+          },
+          {
+            "kind": "section",
+            "label": "Publishing",
+            "blocks": [
+              {
+                "kind": "fields",
+                "fields": [
+                  "confirm_mode",
+                  "publish"
+                ],
+                "columns": 2
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "intake_question",
+      "label": "Question",
+      "labelPlural": "Questions",
+      "displayField": "text",
+      "icon": "quiz",
+      "description": "One question on one lead form, and which field of the filed lead its answer fills.",
+      "role": "formField",
+      "ownedBy": {
+        "parent": "intake_form",
+        "via": "form",
+        "as": "table"
+      },
+      "fields": [
+        {
+          "key": "form",
+          "label": "Form",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "intake_form",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "text",
+          "label": "Question",
+          "type": "text",
+          "required": true
+        },
+        {
+          "key": "answer_type",
+          "label": "Answer type",
+          "type": "select",
+          "role": "answerType",
+          "options": [
+            {
+              "value": "short_text",
+              "label": "Short text"
+            },
+            {
+              "value": "long_text",
+              "label": "Long text"
+            },
+            {
+              "value": "single_choice",
+              "label": "One of several"
+            },
+            {
+              "value": "multi_choice",
+              "label": "Several of several"
+            },
+            {
+              "value": "yes_no",
+              "label": "Yes or no"
+            },
+            {
+              "value": "number",
+              "label": "Number"
+            },
+            {
+              "value": "date",
+              "label": "Date"
+            },
+            {
+              "value": "scale",
+              "label": "Scale of 1 to 5"
+            }
+          ]
+        },
+        {
+          "key": "choices",
+          "label": "Choices",
+          "type": "json",
+          "help": "The options a choice question offers. Empty for every other kind.",
+          "role": "answerOptions"
+        },
+        {
+          "key": "required",
+          "label": "Must be answered",
+          "type": "boolean",
+          "help": "Enforced on the server. Without this role it would be a courtesy the browser pays and a stranger can skip.",
+          "role": "answerRequired"
+        },
+        {
+          "key": "is_respondent_email",
+          "label": "This asks for the submitter's own email",
+          "type": "boolean",
+          "help": "Marks WHICH question holds the address a confirmation link goes to. A form can ask for several addresses and only the author knows which one is theirs.",
+          "role": "respondentEmail"
+        },
+        {
+          "key": "fills",
+          "label": "Fills",
+          "type": "text",
+          "help": "Which field of the filed lead this answer lands in. Empty means the answer is kept on the submission only.",
+          "role": "mapsTo"
+        },
+        {
+          "key": "position",
+          "label": "Position",
+          "type": "integer",
+          "role": "order"
+        }
+      ]
+    },
+    {
+      "key": "intake_submission",
+      "label": "Submission",
+      "labelPlural": "Submissions",
+      "displayField": "form",
+      "icon": "move_to_inbox",
+      "description": "One filled-in lead form. The durable artifact: the answers are kept whether or not a lead was ever filed from them.",
+      "role": "formResponse",
+      "fields": [
+        {
+          "key": "form",
+          "label": "Form",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "intake_form",
+          "onDelete": "cascade"
+        }
+      ]
+    },
+    {
+      "key": "intake_answer",
+      "label": "Answer",
+      "labelPlural": "Answers",
+      "displayField": "question",
+      "icon": "question_answer",
+      "description": "One answer to one question of one submission.",
+      "role": "formAnswer",
+      "fields": [
+        {
+          "key": "submission",
+          "label": "Submission",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "intake_submission",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "question",
+          "label": "Question",
+          "type": "reference",
+          "required": true,
+          "targetEntity": "intake_question",
+          "onDelete": "cascade"
+        },
+        {
+          "key": "value",
+          "label": "Answer",
+          "type": "json",
+          "role": "answerValue"
+        }
+      ]
     }
   ],
   "relations": [
@@ -1237,7 +1584,7 @@
           "value",
           "status",
           "source_channel",
-          "owner"
+          "assigned_to"
         ],
         "filterBar": {
           "search": [
@@ -1248,7 +1595,7 @@
           "facets": [
             "source_channel",
             "status",
-            "owner"
+            "assigned_to"
           ]
         }
       }
@@ -1811,7 +2158,7 @@
                               },
                               {
                                 "kind": "field",
-                                "field": "owner",
+                                "field": "assigned_to",
                                 "label": "Owner"
                               }
                             ]
@@ -2161,6 +2508,48 @@
                       "class": "bg-surface rounded-lg border pa-2"
                     }
                   ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "forms",
+      "label": "Forms",
+      "icon": "dynamic_form",
+      "entity": "intake_form",
+      "blocks": [
+        {
+          "kind": "stack",
+          "gap": "md",
+          "blocks": [
+            {
+              "kind": "table",
+              "label": "Lead forms",
+              "source": {
+                "entity": "intake_form"
+              },
+              "fields": [
+                "name",
+                "route_assigned_to",
+                "route_source",
+                "active",
+                "publish",
+                "public_token"
+              ],
+              "newButton": true
+            },
+            {
+              "kind": "intake",
+              "label": "File a lead yourself",
+              "entity": "intake_form",
+              "filters": [
+                {
+                  "field": "active",
+                  "operator": "eq",
+                  "value": true
                 }
               ]
             }
@@ -2747,7 +3136,7 @@
           "set": {
             "title": "{{record.title}}",
             "value": "{{record.value}}",
-            "owner": "{{record.owner}}",
+            "owner": "{{record.assigned_to}}",
             "source_channel": "{{record.source_channel}}"
           }
         }
@@ -2886,13 +3275,35 @@
           }
         }
       ]
+    },
+    {
+      "key": "stamp_lead_owner",
+      "name": "A lead typed in by hand starts with whoever typed it",
+      "trigger": {
+        "event": "record.created",
+        "entity": "lead"
+      },
+      "when": {
+        "field": "submission",
+        "operator": "isEmpty"
+      },
+      "effects": [
+        {
+          "type": "updateRecord",
+          "target": "self",
+          "set": {
+            "assigned_to": "{{actor.id}}"
+          },
+          "setIfEmpty": true
+        }
+      ]
     }
   ],
   "roles": [
     {
       "key": "sales_rep",
       "name": "Sales Rep",
-      "description": "Works leads, deals and activities. Cannot delete records or manage the product catalog.",
+      "description": "Works leads, deals and activities, and files a lead through a form when somebody phones. Cannot delete records, manage the product catalog or change the forms.",
       "grants": [
         {
           "entity": "deal",
@@ -2937,13 +3348,30 @@
         {
           "entity": "product",
           "read": true
+        },
+        {
+          "entity": "intake_form",
+          "read": true
+        },
+        {
+          "entity": "intake_question",
+          "read": true
+        },
+        {
+          "entity": "intake_submission",
+          "create": true,
+          "read": true
+        },
+        {
+          "entity": "intake_answer",
+          "read": true
         }
       ]
     },
     {
       "key": "sales_manager",
       "name": "Sales Manager",
-      "description": "Everything a rep can do, plus deletes and the product catalog.",
+      "description": "Everything a rep can do, plus deletes, the product catalog and the lead forms, including publishing one on the website.",
       "grants": [
         {
           "entity": "deal",
@@ -2996,6 +3424,30 @@
           "read": true,
           "update": true,
           "delete": true
+        },
+        {
+          "entity": "intake_form",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_question",
+          "create": true,
+          "read": true,
+          "update": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_submission",
+          "create": true,
+          "read": true,
+          "delete": true
+        },
+        {
+          "entity": "intake_answer",
+          "read": true
         }
       ]
     },

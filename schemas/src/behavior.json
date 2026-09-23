@@ -897,6 +897,11 @@
               "color": {
                 "$ref": "#/$defs/hexColor"
               },
+              "icon": {
+                "description": "An MDI icon name without the 'mdi-' prefix, drawn beside the state's label on a chip.",
+                "type": "string",
+                "maxLength": 50
+              },
               "terminal": {
                 "description": "A final state with no outgoing transitions.",
                 "type": "boolean"

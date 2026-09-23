@@ -817,7 +817,292 @@ public static class Gate
         }
         ValidateBlocks(page["blocks"], $"page '{pkey}'", "collection", null, ctx, errors);
         ValidatePairedDateAxes(page["blocks"], $"page '{pkey}'", errors);
+        ValidatePeriods(page, $"page '{pkey}'", ctx, errors);
     }
+
+    /// <summary>The presets a `period` state may open on, and the unit each is counted in. The web
+    /// runtime's <c>views/period.js</c> holds the same table; a preset added in one and not the other
+    /// is refused here or never computed there.</summary>
+    internal static readonly IReadOnlyDictionary<string, string> PeriodPresets =
+        new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["today"] = "day", ["yesterday"] = "day", ["thisWeek"] = "week", ["lastWeek"] = "week",
+            ["thisMonth"] = "month", ["lastMonth"] = "month", ["thisQuarter"] = "quarter",
+            ["lastQuarter"] = "quarter", ["thisYear"] = "year", ["lastYear"] = "year",
+            ["last7Days"] = "day", ["last30Days"] = "day", ["next30Days"] = "day",
+            ["last3Months"] = "month", ["last12Months"] = "month",
+        };
+
+    /// <summary>What a <c>{{state.&lt;period&gt;.…}}</c> token may name — the same list as
+    /// <c>PERIOD_MEMBERS</c> in <c>views/period.js</c>.</summary>
+    internal static readonly IReadOnlySet<string> PeriodMembers = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "from", "to", "next", "days", "workdays", "unit", "count", "label", "current", "preset",
+        "prev.from", "prev.to", "prev.next", "prev.days", "prev.workdays", "prev.label",
+    };
+
+    private static readonly System.Text.RegularExpressions.Regex StateToken =
+        new(@"\{\{\s*state\.([A-Za-z_][A-Za-z0-9_]*)((?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\}\}");
+
+    /// <summary>
+    /// The period rules for one page.
+    ///
+    /// <para>A period state holds a WINDOW, not a date: <c>from</c>, <c>to</c> (inclusive), <c>next</c>
+    /// (exclusive), a label and the window before it. Every mistake refused here reads plausibly and
+    /// renders a wrong number rather than an error: a bare <c>{{state.p}}</c> compares a filter against
+    /// an object, <c>lt {{state.p.to}}</c> drops the window's last day, <c>lte {{state.p.to}}</c> on a
+    /// timestamp drops everything after midnight on it, and a <c>dates</c> axis to <c>.next</c> draws one
+    /// column too many. So each is caught before anything renders.</para>
+    /// </summary>
+    private static void ValidatePeriods(JsonObject page, string where, BlockCtx ctx, List<string> errors)
+    {
+        var periods = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var sn in Arr(page["state"]))
+        {
+            if (sn is not JsonObject s || Str(s, "type") != "period" || Str(s, "key") is not { } key) continue;
+            var preset = Str(s, "default");
+            if (preset is null || !PeriodPresets.ContainsKey(preset))
+                errors.Add($"SEMANTIC: {where}: period state '{key}' needs a preset as its 'default' — "
+                         + $"one of {string.Join(", ", PeriodPresets.Keys)}");
+            periods[key] = preset;
+        }
+        if (periods.Count == 0 && !HasPeriodControl(page["blocks"])) return;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        void Once(string message) { if (seen.Add(message)) errors.Add(message); }
+
+        (string Key, string Member)? PeriodToken(JsonNode? value)
+        {
+            if (value is not JsonValue v || !v.TryGetValue<string>(out var text)) return null;
+            var trimmed = text.Trim();
+            var m = StateToken.Match(trimmed);
+            if (!m.Success || m.Index != 0 || m.Length != trimmed.Length) return null;
+            var key = m.Groups[1].Value;
+            return periods.ContainsKey(key) ? (key, m.Groups[2].Value.TrimStart('.')) : null;
+        }
+
+        void CheckControl(JsonObject b)
+        {
+            var sk = Str(b, "stateKey");
+            if (sk is null || !periods.TryGetValue(sk, out var preset))
+            {
+                Once($"SEMANTIC: {where}: period control's stateKey '{sk}' is not a 'period' state of this page "
+                   + "— declare it in the page's 'state' with type 'period' and a preset default");
+                return;
+            }
+            if (preset is null || !PeriodPresets.TryGetValue(preset, out var unit)) return;
+            var units = Arr(b["units"]).Select(u => u?.GetValue<string>()).ToList();
+            if (units.Count > 0 && !units.Contains(unit))
+                Once($"SEMANTIC: {where}: period control '{sk}' offers units [{string.Join(", ", units)}] but "
+                   + $"its state opens on '{preset}', which is counted in {unit}s — add '{unit}' to its units");
+        }
+
+        void CheckBounds(JsonArray filters, string? entity)
+        {
+            foreach (var fn in filters)
+            {
+                if (fn is not JsonObject f || PeriodToken(f["value"]) is not { } t) continue;
+                if (t.Member is not ("to" or "prev.to")) continue;
+                var op = Str(f, "operator");
+                var field = Str(f, "field");
+                var bound = t.Member == "to" ? "next" : "prev.next";
+                if (op == "lt")
+                    Once($"SEMANTIC: {where}: 'lt {{{{state.{t.Key}.{t.Member}}}}}' leaves out the window's last day "
+                       + $"— use 'lt {{{{state.{t.Key}.{bound}}}}}': 'to' is the last day, 'next' the day after it");
+                else if (op == "lte" && entity is not null && ctx.FieldType(entity, field) == "datetime")
+                    Once($"SEMANTIC: {where}: 'lte {{{{state.{t.Key}.{t.Member}}}}}' on the timestamp '{field}' leaves "
+                       + $"out everything after midnight on the last day — use 'lt {{{{state.{t.Key}.{bound}}}}}'");
+            }
+        }
+
+        void CheckAxis(JsonObject dates)
+        {
+            if (PeriodToken(dates["to"]) is { } t && t.Member is "next" or "prev.next")
+                Once($"SEMANTIC: {where}: a dates axis ending at '{{{{state.{t.Key}.{t.Member}}}}}' draws one column "
+                   + $"too many — 'to' is inclusive, so end it at "
+                   + $"'{{{{state.{t.Key}.{(t.Member == "next" ? "to" : "prev.to")}}}}}'");
+        }
+
+        void Walk(JsonNode? node)
+        {
+            switch (node)
+            {
+                case JsonObject o:
+                    if (Str(o, "kind") == "period") CheckControl(o);
+                    if (o["filters"] is JsonArray filters)
+                        CheckBounds(filters, Str(o, "app") is null ? Str(o, "entity") : null);
+                    if (o["dates"] is JsonObject dates) CheckAxis(dates);
+                    foreach (var (_, child) in o) Walk(child);
+                    break;
+                case JsonArray a:
+                    foreach (var child in a) Walk(child);
+                    break;
+                case JsonValue v when v.TryGetValue<string>(out var text):
+                    foreach (System.Text.RegularExpressions.Match m in StateToken.Matches(text))
+                    {
+                        var key = m.Groups[1].Value;
+                        if (!periods.ContainsKey(key)) continue;
+                        var member = m.Groups[2].Value.TrimStart('.');
+                        if (member.Length == 0)
+                            Once($"SEMANTIC: {where}: '{{{{state.{key}}}}}' is a whole period — name a member: "
+                               + $"'{{{{state.{key}.from}}}}' and '{{{{state.{key}.next}}}}' for a filter, "
+                               + $"'{{{{state.{key}.label}}}}' for text");
+                        else if (!PeriodMembers.Contains(member))
+                            Once($"SEMANTIC: {where}: period '{key}' has no member '{member}' — "
+                               + $"it has {string.Join(", ", PeriodMembers)}");
+                    }
+                    break;
+            }
+        }
+
+        Walk(page["blocks"]);
+    }
+
+    /// <summary>A boolean property that is really <c>true</c>. Never throws on a value of another
+    /// type: the gate reads documents a person or a model wrote, and a string "true" is not true.</summary>
+    private static bool True(JsonNode? n) => n is JsonValue v && v.TryGetValue<bool>(out var x) && x;
+
+    /// <summary>
+    /// The matrix block: rows by one field of a source entity, a column per date, and the records
+    /// that land in a cell added up.
+    ///
+    /// <para>Every rule here guards against a grid that renders and is wrong. A row source that is
+    /// not what <c>rowBy</c> points at matches no record, so every row reads zero; a timestamp column
+    /// would put a 23:30 entry in the wrong day for half the world; an average cannot be edited one
+    /// record at a time and stay honest. Each is refused before anything is drawn.</para>
+    /// </summary>
+    private static void ValidateMatrix(JsonObject b, string where, string binding, BlockCtx ctx, List<string> errors)
+    {
+        var w = $"{where}: matrix";
+        if (binding != "collection")
+        {
+            errors.Add($"SEMANTIC: {w} belongs directly on a page — its rows and columns are the page's, "
+                     + "not a record's or a repeated item's");
+            return;
+        }
+
+        var src = b["source"] as JsonObject;
+        var entity = Str(src, "entity");
+        if (src is null || entity is null || src["dates"] is not null || src["options"] is not null || src["platform"] is not null)
+        {
+            errors.Add($"SEMANTIC: {w}: 'source' must name the entity whose records fill the cells");
+            return;
+        }
+        if (Str(src, "app") is not null)
+            errors.Add($"SEMANTIC: {w}: 'source' must be this app's own entity — the cells are records it reads and writes");
+        if (Str(src, "via") is not null)
+            errors.Add($"SEMANTIC: {w}: 'source.via' names a bound record, and a page has none");
+        if (!ctx.Entities.Contains(entity))
+        {
+            errors.Add($"SEMANTIC: {w}: source entity '{entity}' is unknown");
+            return;
+        }
+
+        var agg = src["aggregate"] as JsonObject;
+        var op = Str(agg, "op");
+        var valueField = Str(agg, "field");
+        if (agg is null || op is null)
+            errors.Add($"SEMANTIC: {w}: 'source.aggregate' is what a cell shows — for example op 'sum' over field 'hours'");
+        else
+        {
+            if (agg["groupBy"] is not null)
+                errors.Add($"SEMANTIC: {w}: 'source.aggregate.groupBy' is the matrix's own job — rowBy and columnBy group it");
+            if (op != "count")
+            {
+                if (valueField is null)
+                    errors.Add($"SEMANTIC: {w}: aggregate '{op}' needs a 'field'");
+                else if (!ctx.FieldExists(entity, valueField))
+                    errors.Add($"SEMANTIC: {w}: aggregate field '{valueField}' is not a field of '{entity}'");
+                else if (op != "countDistinct" && ctx.FieldType(entity, valueField) is not ("integer" or "decimal" or "money"))
+                    errors.Add($"SEMANTIC: {w}: aggregate '{op}' over '{valueField}', which is not a number");
+            }
+        }
+        foreach (var fn in Arr(src["filters"]))
+            if (fn is JsonObject f && Str(f, "field") is { } ff && !ctx.FieldExists(entity, ff))
+                errors.Add($"SEMANTIC: {w}: filter field '{ff}' is not a field of '{entity}'");
+
+        var rowBy = Str(b, "rowBy");
+        var rowType = rowBy is null ? null : ctx.FieldType(entity, rowBy);
+        if (rowType is not ("reference" or "select"))
+            errors.Add($"SEMANTIC: {w}: rowBy '{rowBy}' must be a reference or a select field of '{entity}'");
+
+        string? rowEntity = null, rowApp = null;
+        if (b["rowSource"] is JsonObject rs && rowBy is not null && rowType is "reference" or "select")
+        {
+            if (rowType == "select")
+            {
+                if (rs["options"] is not JsonObject ro || Str(ro, "field") != rowBy || Str(ro, "entity") != entity)
+                    errors.Add($"SEMANTIC: {w}: rowBy '{rowBy}' is a select, so its rows are its options — "
+                             + $"rowSource {{ options: {{ entity: '{entity}', field: '{rowBy}' }} }}");
+            }
+            else
+            {
+                var rdef = ctx.FieldDefs.GetValueOrDefault(entity)?.GetValueOrDefault(rowBy);
+                var tApp = Str(rdef, "targetApp");
+                var tEnt = Str(rdef, "targetEntity");
+                if (tApp == "platform")
+                {
+                    if (Str(rs, "platform") != tEnt)
+                        errors.Add($"SEMANTIC: {w}: rowBy '{rowBy}' points at the platform's {tEnt} records, "
+                                 + $"so rowSource is {{ platform: '{tEnt}' }}");
+                }
+                else if (Str(rs, "entity") != tEnt || Str(rs, "app") != tApp)
+                    errors.Add($"SEMANTIC: {w}: rowSource must be what rowBy '{rowBy}' points at "
+                             + $"({(tApp is null ? "" : tApp + "/")}{tEnt}) — any other rows would never hold a record");
+                else
+                {
+                    // Bound exactly as a cross-app repeat binds its items: another app's rows are not
+                    // in this document, so their fields are not checked here, and a dotted path is
+                    // refused rather than guessed at (ValidateBlocks' foreignApp).
+                    rowEntity = tApp is null ? tEnt : null;
+                    rowApp = tApp;
+                }
+            }
+        }
+
+        if (b["blocks"] is JsonArray header)
+            ValidateBlocks(header, $"{w} row", "item", rowEntity, ctx, errors, rowApp);
+
+        var columnBy = Str(b, "columnBy");
+        if (columnBy is null || ctx.FieldType(entity, columnBy) != "date")
+            errors.Add($"SEMANTIC: {w}: columnBy '{columnBy}' must be a date field of '{entity}' — a timestamp "
+                     + "would need the workspace's time zone to know which day it falls on");
+
+        if ((b["columnSource"] as JsonObject)?["dates"] is not JsonObject dates)
+            errors.Add($"SEMANTIC: {w}: columnSource is a dates axis — {{ dates: {{ from, to, step }} }}");
+        else if ((Str(dates, "step") ?? "day") == "day"
+                 && dates["count"] is JsonValue cv && cv.TryGetValue<double>(out var n) && n > 31)
+            errors.Add($"SEMANTIC: {w}: {n} day columns is more than a month — step by week or month instead");
+
+        var totals = b["totals"] as JsonObject;
+        if (True(totals?["share"]) && !True(totals?["rows"]))
+            errors.Add($"SEMANTIC: {w}: totals.share is each row's share of the grand total, so it needs totals.rows");
+
+        var entries = b["entries"] as JsonObject;
+        foreach (var fn in Arr(entries?["fields"]))
+            if (fn is JsonValue ev && ev.TryGetValue<string>(out var ef) && !ctx.FieldExists(entity, ef))
+                errors.Add($"SEMANTIC: {w}: entries field '{ef}' is not a field of '{entity}'");
+
+        if (True(b["editable"]))
+        {
+            if (entries is null)
+                errors.Add($"SEMANTIC: {w}: 'editable' needs 'entries' — they are what adding a record asks for");
+            if (op is not ("sum" or "count"))
+                errors.Add($"SEMANTIC: {w}: 'editable' needs a sum or a count — one record's value edited in "
+                         + "place cannot keep an average, a minimum or a maximum honest");
+            var vdef = valueField is null ? null : ctx.FieldDefs.GetValueOrDefault(entity)?.GetValueOrDefault(valueField);
+            if (op == "sum" && vdef is not null && (vdef["computed"] is not null || True(vdef["readOnly"]) || True(vdef["system"])))
+                errors.Add($"SEMANTIC: {w}: 'editable' sums '{valueField}', which the runtime works out — "
+                         + "a cell cannot write it");
+        }
+    }
+
+    private static bool HasPeriodControl(JsonNode? node) => node switch
+    {
+        JsonObject o => Str(o, "kind") == "period" || o.Any(kv => HasPeriodControl(kv.Value)),
+        JsonArray a => a.Any(HasPeriodControl),
+        _ => false,
+    };
 
     /// <summary>
     /// Validate ONE page against a COMPILED MANIFEST's roster of entities, views and commands.
@@ -2749,6 +3034,17 @@ public static class Gate
                             ValidateFilterAddress(fo, ient ?? templates.FirstOrDefault(), $"{where}: intake filter", ctx, errors);
                     break;
                 }
+                case "matrix":
+                    ValidateMatrix(b, where, binding, ctx, errors);
+                    break;
+                case "period":
+                    // A period control writes PAGE state, and only a page has state for it to move: a
+                    // record's detail has none, and inside a repeat it would be one control per row.
+                    if (binding != "collection")
+                        errors.Add($"SEMANTIC: {where}: a 'period' control belongs directly on a page — "
+                                 + (binding == "record" ? "a record's detail" : "a repeated item")
+                                 + " has no page state for it to move");
+                    break;
                 case "tiles":
                     ValidateTiles(b["tiles"], where, binding, boundEntity, ctx, errors);
                     break;
@@ -3590,7 +3886,7 @@ public static class Gate
             else if (op is "sum" or "avg" && ctx.FieldType(se, af) is { } ft && ft is not ("integer" or "decimal" or "money"))
                 errors.Add($"SEMANTIC: {where}: aggregate op '{op}' needs a numeric field but '{se}.{af}' is '{ft}'");
         }
-        else if (op is "sum" or "avg" or "min" or "max")
+        else if (op is "sum" or "avg" or "min" or "max" or "countDistinct")
             errors.Add($"SEMANTIC: {where}: aggregate op '{op}' requires a 'field'");
         foreach (var fn in Arr(src["filters"]))
             if (fn is JsonObject f && Str(f, "field") is { } ff && !ctx.FieldExists(se, ff))
@@ -3838,7 +4134,7 @@ public static class Gate
                 else if (op is "sum" or "avg" && ctx.FieldType(se, afield) is { } ft && ft is not ("integer" or "decimal" or "money"))
                     errors.Add($"DESIGN: {where}: aggregate op '{op}' needs a numeric field but '{se}.{afield}' is '{ft}'");
             }
-            else if (op is "sum" or "avg" or "min" or "max")
+            else if (op is "sum" or "avg" or "min" or "max" or "countDistinct")
                 errors.Add($"DESIGN: {where}: aggregate op '{op}' requires an aggregate 'field'");
 
             var groupBy = Str(agg, "groupBy");

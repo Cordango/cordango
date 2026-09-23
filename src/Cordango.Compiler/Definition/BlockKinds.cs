@@ -100,6 +100,7 @@ public static class BlockKinds
         new("data.orgchart",   "data",    "orgchart"),
         new("data.board",      "data",    "board"),
         new("data.gantt",      "data",    "gantt"),
+        new("data.matrix",     "data",    "matrix"),
 
         // ---- display: leaves that print one value of the bound row/record ----
         new("display.text",     "display", "text"),
@@ -124,6 +125,7 @@ public static class BlockKinds
         // ---- control: writes page state, runs no command and touches no data ----
         new("control.segmented", "control", "control", "control", "segmented"),
         new("control.stepper",   "control", "control", "control", "stepper"),
+        new("control.period",    "control", "period"),
         new("control.filterbar", "control", "filterbar"),
     ];
 

@@ -180,7 +180,7 @@
       "maxLength": 127
     },
     "blockClass": {
-      "description": "Vuetify utility classes for this block's outer element, space separated. Backgrounds bg-<token>; text colour text-<token>; spacing pa-/ma-/px-/py-/pt-/pb-/ps-/pe-<0-16>; corners rounded-(0|sm|lg|xl|pill|circle); shadow elevation-<0-24>; hairline border, border-s/e/t/b; type text-(h1..h6|subtitle-1|subtitle-2|body-1|body-2|caption), font-weight-(light|regular|medium|bold), text-(left|center|right); layout d-flex, d-none, flex-column, align-center, justify-space-between. Tokens: primary, secondary, surface, surface-2, background, outline, success, warning, error, info. bg-<token> also sets a readable foreground, so it never needs a matching text- class. Structure with bg-surface-2 / border / rounded-lg and keep bg-primary for ONE element on a screen.",
+      "description": "Vuetify utility classes for this block's outer element, space separated. Backgrounds bg-<token>; text colour text-<token>; spacing pa-/ma-/px-/py-/pt-/pb-/ps-/pe-<0-16>; corners rounded-(0|sm|lg|xl|pill|circle); shadow elevation-<0-5>; hairline border, border-s/e/t/b; type text-(h1..h6|subtitle-1|subtitle-2|body-1|body-2|caption), font-weight-(light|regular|medium|bold), text-(left|center|right); layout d-flex, d-none, flex-column, align-center, justify-space-between. Tokens: primary, secondary, surface, surface-2, background, outline, success, warning, error, info. bg-<token> also sets a readable foreground, so it never needs a matching text- class. Structure with bg-surface-2 / border / rounded-lg and keep bg-primary for ONE element on a screen.",
       "type": "string",
       "maxLength": 120,
       "pattern": "^[A-Za-z0-9 _-]*$"

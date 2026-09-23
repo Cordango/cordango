@@ -115,6 +115,16 @@
       "reason": "The starting state is CONDITIONAL here -- {rules:[{when,state}],fallback} -- so a standard-tier room is auto-approved while everything else starts pending. CordProcess types InitialState as a state key, so this is carried whole. One occurrence, and widening the type to 'string or rules object' would put a union in the ops schema for a single app."
     },
     {
+      "app": "sales_crm",
+      "pointer": "/entities/6/fields/4/mapsTo",
+      "reason": "intake_form.route_assigned_to -- the same form-routing construct as helpdesk's intake_form.route_to_person: every lead a form files starts owned by the rep the form names. Half of the two-sided declaration whose other half is role:targetEntity on the form."
+    },
+    {
+      "app": "sales_crm",
+      "pointer": "/entities/6/fields/5/mapsTo",
+      "reason": "intake_form.route_source -- same construct as route_assigned_to."
+    },
+    {
       "app": "task_manager",
       "pointer": "/entities/1/fields/11/treeAggregate",
       "reason": "task.effort -- a display-only subtree rollup on a self-nesting entity, rendered as `own (subtree total)`. It is an aggregate, so it wants to be a CordCalc variant rather than a boolean-ish flag, but it aggregates over the entity's own parent chain rather than through a reference and does not fit CordAggregate as it stands. Modelling it as a third calc kind is small and deliberate work, not a passthrough."

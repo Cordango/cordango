@@ -116,13 +116,31 @@ public class PageEditorSchemaTests
     /// closed variant with one binding property and one prose property. The description carries both
     /// homes because "a page takes no field" is otherwise the first thing an author meets, as a gate
     /// error, after writing the wrong one.</item>
+    /// <item>105,700 &#8594; 106,900 (2026-09-23): <c>period</c>, the 43rd block kind, and the
+    /// <c>period</c> type of page state it steps &#8212; the timesheet week, the dashboard window, the
+    /// trend tile's previous period, all one value. +1,219 bytes, to 106,826: one closed variant with
+    /// a state key and a closed list of units, one dispatch entry, one enum value on
+    /// <c>screenState.type</c>, and a <c>default</c> description that now names the presets. It is
+    /// hand-placed until the generator is taught it, which is why it is here and not yet in the tool
+    /// schema.</item>
+    /// <item>106,900 &#8594; 109,900 (2026-09-23, same day): <c>matrix</c>, the 44th block kind
+    /// &#8212; rows by one field, a column per date, the records in each cell added up, and the
+    /// totals, in one read. +3,035 bytes, to 109,861: one closed variant of twelve properties, four
+    /// of them <c>$ref</c>s to the shared <c>blockSource</c> and <c>block</c> defs rather than new
+    /// shapes. Most of the size is the descriptions of <c>rowSource</c> and <c>editable</c>, which say
+    /// what goes wrong without them; hand-placed like <c>period</c>.</item>
+    /// <item>109,900 &#8594; 110,900 (2026-09-23, same day): the tile gains <c>caption</c>,
+    /// <c>meter</c>, <c>showMax</c> and <c>color</c>, a page gains <c>subtitle</c>, an option and a
+    /// process state gain <c>icon</c>, and an aggregate gains <c>countDistinct</c>. +1,033 bytes, to
+    /// 110,894, and no new <c>$def</c>: each is a scalar on a shape that was already here. Unlike the
+    /// two kinds above these are taught at once, because each shipped with its renderer.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 105_700);
+        Assert.InRange(pruned, 1, 110_900);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 
