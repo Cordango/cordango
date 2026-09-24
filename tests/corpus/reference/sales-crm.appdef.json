@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "sales_crm",
   "name": "Sales CRM",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "A Pipedrive-style sales CRM: a drag-and-drop pipeline board with a per-stage value funnel, a leads inbox worked as a split view and fed by lead forms the team builds (published on the website or filed by hand), deals with activities, documentation, products and files, contacts and organizations, and an insights dashboard. Hand-authored reference app — the best Pipedrive clone expressible against today's runtime, with everything it cannot do recorded in CRM-GAPS.md.",
   "archetype": {
     "kind": "pipeline",
@@ -2854,33 +2854,24 @@
                 ],
                 [
                   {
-                    "kind": "widgets",
-                    "widgets": [
-                      {
-                        "type": "chart",
-                        "source": {
-                          "entity": "deal",
-                          "aggregate": {
-                            "op": "sum",
-                            "field": "value",
-                            "groupBy": "month_of:won_date"
-                          },
-                          "filters": [
-                            {
-                              "field": "status",
-                              "operator": "eq",
-                              "value": "won"
-                            }
-                          ]
-                        },
-                        "viz": {
-                          "chartType": "line",
-                          "title": "Won value by month"
-                        },
-                        "background": "success",
-                        "bordered": false
-                      }
-                    ]
+                    "kind": "chart",
+                    "label": "Won value by month",
+                    "chartType": "line",
+                    "source": {
+                      "entity": "deal",
+                      "aggregate": {
+                        "op": "sum",
+                        "field": "value",
+                        "groupBy": "month_of:won_date"
+                      },
+                      "filters": [
+                        {
+                          "field": "status",
+                          "operator": "eq",
+                          "value": "won"
+                        }
+                      ]
+                    }
                   }
                 ]
               ]

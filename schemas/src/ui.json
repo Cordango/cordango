@@ -1481,6 +1481,33 @@
         },
         "link": {
           "$ref": "#/$defs/deepLink"
+        },
+        "trend": {
+          "description": "Change against the previous period, beside the value ('↑ +27%'). The tile is computed a second time over the same stretch of the previous period, so a running month compares with the same days of the last one. Needs a period token ({{state.<key>.from}} …) in its source; not on a record-bound tile.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "good"
+          ],
+          "properties": {
+            "good": {
+              "description": "Which way is good: 'above' colours a rise green, 'below' colours a fall green, 'none' colours neither.",
+              "type": "string",
+              "enum": [
+                "above",
+                "below",
+                "none"
+              ]
+            },
+            "show": {
+              "description": "'percent' (the default) prints the change as a share of the previous value; 'delta' prints the difference itself.",
+              "type": "string",
+              "enum": [
+                "percent",
+                "delta"
+              ]
+            }
+          }
         }
       }
     },
@@ -1720,6 +1747,11 @@
           "description": "Optional Material Symbols icon name shown beside the section label — lets a flat section keep the affordance a titled card had (info, link, flag, …).",
           "type": "string",
           "maxLength": 40
+        },
+        "subtitle": {
+          "description": "One muted line under the section's label.",
+          "type": "string",
+          "maxLength": 200
         },
         "visibleWhen": {
           "$ref": "#/$defs/visibleWhen"
@@ -3428,6 +3460,13 @@
           "description": "The page `state` var key this control reads and writes.",
           "$ref": "#/$defs/identifier"
         },
+        "placement": {
+          "description": "Draw this control in the page's title row instead of the page body. Only on a block directly in the page's blocks.",
+          "type": "string",
+          "enum": [
+            "header"
+          ]
+        },
         "step": {
           "description": "For a 'stepper' control: how far each prev/next click moves the bound date state.",
           "type": "object",
@@ -3568,6 +3607,21 @@
         "stateKey": {
           "description": "The page `state` var of type 'period' this control reads and writes.",
           "$ref": "#/$defs/identifier"
+        },
+        "placement": {
+          "description": "Draw this control in the page's title row instead of the page body. Only on a block directly in the page's blocks.",
+          "type": "string",
+          "enum": [
+            "header"
+          ]
+        },
+        "presentation": {
+          "description": "How the control looks: 'stepper' (the default) is Today, previous and next beside the window; 'menu' is one dropdown button naming the window, listing the current period and the ones before it.",
+          "type": "string",
+          "enum": [
+            "stepper",
+            "menu"
+          ]
         },
         "units": {
           "description": "The units the reader may switch between, in the order offered. Omitted: only the unit of the state's default preset, and no switch is shown.",

@@ -68,7 +68,7 @@ public class CordScreenVocabularyTests(ITestOutputHelper output)
         Assert.Equal(Containers, containers.Values.Sum());
     }
 
-    private const int ContentCovered = 202;
-    private const int ContentTotal = 288;
-    private const int Containers = 167;
+    private const int ContentCovered = 135;
+    private const int ContentTotal = 239;
+    private const int Containers = 149;
 }

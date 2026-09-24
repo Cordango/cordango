@@ -1221,8 +1221,8 @@ public static class AppCompiler
         n?[prop] is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
 
     /// <summary>
-    /// Ensure every entity, every page and the app itself carry a valid icon from the curated
-    /// vocabulary: AI-chosen icons are kept when real, junk is replaced via keyword fallback
+    /// Ensure every entity, every page and the app itself carry a real icon: one the font has is
+    /// kept whoever chose it, junk is replaced via keyword fallback
     /// (<see cref="IconCatalog.Resolve"/>). Also defaults the `presentation` block (launcher tile).
     /// </summary>
     private static void ResolveIcons(JsonObject manifest)
@@ -1239,8 +1239,14 @@ public static class AppCompiler
         foreach (var p in Arr(manifest["pages"]).OfType<JsonObject>())
         {
             var entityIcon = p["entity"]?.GetValue<string>() is { } ek ? iconByEntity.GetValueOrDefault(ek) : null;
-            p["icon"] = IconCatalog.Resolve(p["icon"]?.GetValue<string>(), entityIcon ?? "view-grid",
-                p["key"]?.GetValue<string>(), p["label"]?.GetValue<string>());
+            var authored = p["icon"]?.GetValue<string>();
+            // A page about an entity with no icon of its own wears the entity's, before any keyword
+            // guess: the guess matched "location" inside "allocations" and gave Resource Planning's
+            // allocations page a map pin, and "request" gave a vendor-requests page a lifebuoy.
+            p["icon"] = string.IsNullOrWhiteSpace(authored) && entityIcon is not null
+                ? entityIcon
+                : IconCatalog.Resolve(authored, entityIcon ?? "view-grid",
+                    p["key"]?.GetValue<string>(), p["label"]?.GetValue<string>());
         }
 
         // Launcher tile: presentation {icon, color} always present after a build.

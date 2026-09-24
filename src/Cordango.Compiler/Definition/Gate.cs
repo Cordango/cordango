@@ -771,6 +771,7 @@ public static class Gate
             if (ent["detail"] is JsonObject det)
             {
                 ValidateBlocks(det["blocks"], $"entity '{ekey}' detail", "record", ekey, blockCtx, errors);
+                ValidatePlacement(det["blocks"], $"entity '{ekey}' detail", pageLevel: false, errors);
                 ValidatePairedDateAxes(det["blocks"], $"entity '{ekey}' detail", errors);
             }
             if (ent["form"] is JsonObject form)
@@ -816,8 +817,130 @@ public static class Gate
                         errors.Add($"SEMANTIC: page '{pkey}' navSource needs a '{prop}'");
         }
         ValidateBlocks(page["blocks"], $"page '{pkey}'", "collection", null, ctx, errors);
+        ValidatePlacement(page["blocks"], $"page '{pkey}'", pageLevel: true, errors);
         ValidatePairedDateAxes(page["blocks"], $"page '{pkey}'", errors);
         ValidatePeriods(page, $"page '{pkey}'", ctx, errors);
+    }
+
+    /// <summary>The block kinds that may sit in a page's title row.</summary>
+    internal static readonly IReadOnlySet<string> HeaderKinds = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "period", "control",
+    };
+
+    /// <summary>
+    /// <c>placement: "header"</c> draws a block in the page's title row instead of its body, which is
+    /// where a month picker belongs on a dashboard. It stays in <c>page.blocks</c> rather than moving
+    /// to a separate list, so every walker that reads a page's blocks (dependencies, sample-data
+    /// planning, Cord, the standalone emitter) keeps seeing it.
+    ///
+    /// <para>Two limits, both about what a title row can honestly hold. Only a block DIRECTLY in the
+    /// page's blocks: one inside a section or a column belongs to that section, and lifting it out
+    /// would detach it from what it controls. Only a period or a control: they write page state and
+    /// read no records, so moving them changes where they are drawn and nothing else.</para>
+    /// </summary>
+    private static void ValidatePlacement(JsonNode? blocks, string where, bool pageLevel, List<string> errors)
+    {
+        void Check(JsonObject b, bool top)
+        {
+            if (b["placement"] is not null)
+            {
+                var kind = Str(b, "kind") ?? "?";
+                if (!pageLevel)
+                    errors.Add($"SEMANTIC: {where}: '{kind}' has placement 'header', which only a page has — "
+                             + "a record's detail has no title row to put it in");
+                else if (!top)
+                    errors.Add($"SEMANTIC: {where}: '{kind}' has placement 'header' but sits inside another block — "
+                             + "only a block directly in the page's blocks can move to the title row");
+                else if (!HeaderKinds.Contains(kind))
+                    errors.Add($"SEMANTIC: {where}: '{kind}' cannot have placement 'header' — the title row holds "
+                             + $"{string.Join(" and ", HeaderKinds)} blocks, which write page state and read no records");
+            }
+            foreach (var (_, child) in b) Descend(child);
+        }
+        void Descend(JsonNode? n)
+        {
+            switch (n)
+            {
+                case JsonObject o when o["kind"] is not null: Check(o, top: false); break;
+                case JsonObject o: foreach (var (_, child) in o) Descend(child); break;
+                case JsonArray a: foreach (var child in a) Descend(child); break;
+            }
+        }
+        foreach (var bn in Arr(blocks))
+            if (bn is JsonObject b) Check(b, top: true);
+    }
+
+    /// <summary>
+    /// A tile's <c>trend</c> compares its value with the same stretch of the previous period, which
+    /// only means something when the tile reads ONE period of its page and lets the runtime move it.
+    ///
+    /// <para>Each refusal is a trend that would render and be wrong: a tile reading no period has no
+    /// previous one, a tile reading two cannot say which moved, a <c>prev.*</c> token is already the
+    /// comparison and would be moved again, and <c>{{today}}</c> does not move with the period at all.
+    /// A window that runs into the future has no like-for-like past, and a share is a ratio of two
+    /// things that each moved. These run before the period rules' early return, so a page with a
+    /// trend and no period at all is still told.</para>
+    /// </summary>
+    private static void ValidateTrends(JsonNode? blocks, IReadOnlyDictionary<string, string?> periods,
+        string where, List<string> errors)
+    {
+        static IEnumerable<string> Strings(JsonNode? n)
+        {
+            switch (n)
+            {
+                case JsonObject o: foreach (var (_, c) in o) foreach (var x in Strings(c)) yield return x; break;
+                case JsonArray a: foreach (var c in a) foreach (var x in Strings(c)) yield return x; break;
+                case JsonValue v when v.TryGetValue<string>(out var text): yield return text; break;
+            }
+        }
+
+        void Tile(JsonObject t)
+        {
+            if (t["trend"] is not JsonObject) return;
+            var tw = $"{where}: tile '{Str(t, "label") ?? "?"}' trend";
+            if (Str(t, "format") == "share")
+                errors.Add($"SEMANTIC: {tw}: a share is a ratio of two things that each moved — a trend on it is not offered yet");
+
+            var texts = Strings(t["source"]).Concat(Strings(t["sources"])).ToList();
+            var keys = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var text in texts)
+                foreach (System.Text.RegularExpressions.Match m in StateToken.Matches(text))
+                {
+                    var key = m.Groups[1].Value;
+                    if (!periods.ContainsKey(key)) continue;
+                    keys.Add(key);
+                    if (m.Groups[2].Value.TrimStart('.').StartsWith("prev.", StringComparison.Ordinal))
+                        errors.Add($"SEMANTIC: {tw}: its source reads '{{{{state.{key}{m.Groups[2].Value}}}}}' — a trend "
+                                 + $"makes the comparison itself, so read '{{{{state.{key}.from}}}}' and '{{{{state.{key}.next}}}}'");
+                }
+            if (texts.Any(x => System.Text.RegularExpressions.Regex.IsMatch(x, @"\{\{\s*(today|now)\b")))
+                errors.Add($"SEMANTIC: {tw}: its source reads {{{{today}}}} or {{{{now}}}}, which stays put when the "
+                         + "comparison moves the period — read the period's own window instead");
+            if (keys.Count == 0)
+                errors.Add($"SEMANTIC: {tw}: a trend compares this tile with the previous period, so its source must "
+                         + "read a 'period' state of the page, e.g. 'gte {{state.period.from}}' and 'lt {{state.period.next}}'");
+            else if (keys.Count > 1)
+                errors.Add($"SEMANTIC: {tw}: its source reads {keys.Count} periods ({string.Join(", ", keys)}) — "
+                         + "a trend moves one of them, so read exactly one");
+            else if (periods[keys.First()] == "next30Days")
+                errors.Add($"SEMANTIC: {tw}: period '{keys.First()}' runs into the future, which has no like-for-like "
+                         + "past to compare with");
+        }
+
+        void Walk(JsonNode? n)
+        {
+            switch (n)
+            {
+                case JsonObject o:
+                    if (Str(o, "kind") == "tiles")
+                        foreach (var tn in Arr(o["tiles"])) if (tn is JsonObject t) Tile(t);
+                    foreach (var (_, c) in o) Walk(c);
+                    break;
+                case JsonArray a: foreach (var c in a) Walk(c); break;
+            }
+        }
+        Walk(blocks);
     }
 
     /// <summary>The presets a `period` state may open on, and the unit each is counted in. The web
@@ -866,6 +989,7 @@ public static class Gate
                          + $"one of {string.Join(", ", PeriodPresets.Keys)}");
             periods[key] = preset;
         }
+        ValidateTrends(page["blocks"], periods, where, errors);
         if (periods.Count == 0 && !HasPeriodControl(page["blocks"])) return;
 
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -956,6 +1080,9 @@ public static class Gate
         }
 
         Walk(page["blocks"]);
+        // The page subtitle interpolates too ("… in {{state.period.label}}"), so its tokens are held to
+        // the same members.
+        Walk(page["subtitle"]);
     }
 
     /// <summary>A boolean property that is really <c>true</c>. Never throws on a value of another
@@ -3824,6 +3951,12 @@ public static class Gate
                 errors.Add($"SEMANTIC: {tw}: format 'share' needs a 'max' to be a share OF");
             if (t["attention"] is JsonObject att && Str(att, "op") is { } aop && !AttentionOps.Contains(aop))
                 errors.Add($"SEMANTIC: {tw}: attention op '{aop}' is invalid (allowed: {string.Join(", ", AttentionOps)})");
+            // A trend compares periods of a PAGE: a record's own field has no previous period, and a
+            // tile under a record or inside a repeat has no page period to move.
+            if (t["trend"] is not null && field != null)
+                errors.Add($"SEMANTIC: {tw}: a trend compares an aggregate across periods — a record's field has no previous period");
+            else if (t["trend"] is not null && binding != "collection")
+                errors.Add($"SEMANTIC: {tw}: a trend belongs on a page's tile, where a period state can be moved — not under a record or in a repeat");
         }
     }
 

@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "helpdesk",
   "name": "Helpdesk",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Internal ticket queue: requests come in, get assigned, worked, and resolved — nothing gets lost.",
   "presentation": {
     "icon": "lifebuoy",
@@ -764,7 +764,24 @@
       "label": "Overview",
       "icon": "view-dashboard",
       "entity": "ticket",
+      "subtitle": "Here's what's happening with your helpdesk in {{state.period.label}}.",
+      "state": [
+        {
+          "key": "period",
+          "type": "period",
+          "default": "thisMonth"
+        }
+      ],
       "blocks": [
+        {
+          "kind": "period",
+          "stateKey": "period",
+          "presentation": "menu",
+          "units": [
+            "month"
+          ],
+          "placement": "header"
+        },
         {
           "kind": "stack",
           "gap": "md",
@@ -776,19 +793,39 @@
                   "label": "Open",
                   "icon": "lifebuoy",
                   "color": "error",
-                  "caption": "Not resolved yet",
-                  "source": {
-                    "entity": "ticket",
-                    "aggregate": {
-                      "op": "count"
+                  "sources": [
+                    {
+                      "entity": "ticket",
+                      "aggregate": {
+                        "op": "count"
+                      },
+                      "filters": [
+                        {
+                          "field": "opened_on",
+                          "operator": "lt",
+                          "value": "{{state.period.next}}"
+                        }
+                      ]
                     },
-                    "filters": [
-                      {
-                        "field": "status",
-                        "operator": "neq",
-                        "value": "resolved"
-                      }
-                    ]
+                    {
+                      "entity": "ticket",
+                      "aggregate": {
+                        "op": "count"
+                      },
+                      "filters": [
+                        {
+                          "field": "resolved_at",
+                          "operator": "lt",
+                          "value": "{{state.period.next}}"
+                        }
+                      ]
+                    }
+                  ],
+                  "combine": {
+                    "mode": "difference"
+                  },
+                  "trend": {
+                    "good": "below"
                   },
                   "link": {
                     "page": "tickets",
@@ -805,22 +842,6 @@
                   "label": "Received",
                   "icon": "email-outline",
                   "color": "info",
-                  "caption": "All time",
-                  "source": {
-                    "entity": "ticket",
-                    "aggregate": {
-                      "op": "count"
-                    }
-                  },
-                  "link": {
-                    "page": "tickets"
-                  }
-                },
-                {
-                  "label": "Resolved",
-                  "icon": "check-circle-outline",
-                  "color": "success",
-                  "caption": "All time",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -828,19 +849,73 @@
                     },
                     "filters": [
                       {
-                        "field": "status",
-                        "operator": "eq",
-                        "value": "resolved"
+                        "field": "opened_on",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "opened_on",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
                       }
                     ]
+                  },
+                  "trend": {
+                    "good": "below"
                   },
                   "link": {
                     "page": "tickets",
                     "filters": [
                       {
-                        "field": "status",
-                        "operator": "eq",
-                        "value": "resolved"
+                        "field": "opened_on",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "opened_on",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Resolved",
+                  "icon": "check-circle-outline",
+                  "color": "success",
+                  "source": {
+                    "entity": "ticket",
+                    "aggregate": {
+                      "op": "count"
+                    },
+                    "filters": [
+                      {
+                        "field": "resolved_at",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "resolved_at",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
+                      }
+                    ]
+                  },
+                  "trend": {
+                    "good": "above"
+                  },
+                  "link": {
+                    "page": "tickets",
+                    "filters": [
+                      {
+                        "field": "resolved_at",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "resolved_at",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
                       }
                     ]
                   }
@@ -849,33 +924,61 @@
                   "label": "Avg. first reply",
                   "icon": "clock-outline",
                   "color": "#7c3aed",
-                  "caption": "To first answer",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
                       "op": "avg",
                       "field": "hours_to_first_reply"
-                    }
+                    },
+                    "filters": [
+                      {
+                        "field": "opened_on",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "opened_on",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
+                      }
+                    ]
+                  },
+                  "trend": {
+                    "good": "below"
                   }
                 },
                 {
                   "label": "Avg. to close",
                   "icon": "timer-outline",
                   "color": "error",
-                  "caption": "Open to resolved",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
                       "op": "avg",
                       "field": "days_to_close"
-                    }
+                    },
+                    "filters": [
+                      {
+                        "field": "resolved_at",
+                        "operator": "gte",
+                        "value": "{{state.period.from}}"
+                      },
+                      {
+                        "field": "resolved_at",
+                        "operator": "lt",
+                        "value": "{{state.period.next}}"
+                      }
+                    ]
+                  },
+                  "trend": {
+                    "good": "below"
                   }
                 },
                 {
                   "label": "Unassigned",
                   "icon": "account-multiple-outline",
                   "color": "error",
-                  "caption": "Nobody on it",
+                  "caption": "Right now",
                   "source": {
                     "entity": "ticket",
                     "aggregate": {
@@ -917,7 +1020,7 @@
                   {
                     "kind": "chart",
                     "chartType": "donut",
-                    "label": "Open by category",
+                    "label": "Open now, by category",
                     "source": {
                       "entity": "ticket",
                       "aggregate": {
@@ -964,12 +1067,12 @@
                   "kind": "view",
                   "view": "queue_table"
                 }
-              ]
+              ],
+              "subtitle": "All open tickets, soonest due first."
             }
           ]
         }
-      ],
-      "subtitle": "Here's what's happening with your helpdesk."
+      ]
     },
     {
       "key": "triage",

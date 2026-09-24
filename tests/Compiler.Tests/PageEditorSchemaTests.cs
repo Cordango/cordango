@@ -134,13 +134,18 @@ public class PageEditorSchemaTests
     /// process state gain <c>icon</c>, and an aggregate gains <c>countDistinct</c>. +1,033 bytes, to
     /// 110,894, and no new <c>$def</c>: each is a scalar on a shape that was already here. Unlike the
     /// two kinds above these are taught at once, because each shipped with its renderer.</item>
+    /// <item>110,900 &#8594; 112,600 (2026-09-24): the Helpdesk overview's round two. A tile gains
+    /// <c>trend</c> (which way is good, percent or delta), a section gains <c>subtitle</c>, and a
+    /// period or a control gains <c>placement: header</c>, with the period's <c>presentation</c>
+    /// (stepper or menu). +1,623 bytes, to 112,517, and no new <c>$def</c>. Visible to the model and not
+    /// yet taught: a whole-definition rewrite would silently drop keys the model could not see.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 110_900);
+        Assert.InRange(pruned, 1, 112_600);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 
