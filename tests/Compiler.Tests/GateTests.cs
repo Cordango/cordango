@@ -1347,7 +1347,25 @@ public class GateTests
                   [{ "kind": "view", "view": "things_table" }],
                   [{ "kind": "view", "view": "ghost" }] ] } ] }] }]
           """);
-        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("page 'p' references unknown view 'ghost'"));
+        Assert.Contains(Gate.SemanticErrors(doc),
+            e => e.Contains("page 'p' > section 1 > columns 1 > column 2 references unknown view 'ghost'"));
+    }
+
+    [Fact]
+    public void Two_identical_mistakes_in_two_rows_name_different_places()
+    {
+        var doc = WithTableView();
+        doc["pages"] = JsonNode.Parse("""
+          [{ "key": "p", "label": "P", "blocks": [
+             { "kind": "row", "blocks": [{ "kind": "stat", "label": "A", "field": "name" }] },
+             { "kind": "row", "blocks": [{ "kind": "stat", "label": "B", "field": "name" }] } ] }]
+          """);
+        var stat = Gate.SemanticErrors(doc).Where(e => e.Contains("stat 'field'")).ToList();
+
+        Assert.Equal(2, stat.Count);
+        Assert.Equal(2, stat.Distinct().Count());
+        Assert.Contains(stat, e => e.Contains("page 'p' > row 1: stat 'field'") && e.Contains("'source' aggregate"));
+        Assert.Contains(stat, e => e.Contains("page 'p' > row 2: stat 'field'"));
     }
 
     private static JsonObject FormsApp() => (JsonObject)JsonNode.Parse("""

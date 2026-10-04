@@ -2940,9 +2940,15 @@ public static class Gate
     private static void ValidateBlocks(JsonNode? blocks, string where, string binding, string? boundEntity,
         BlockCtx ctx, List<string> errors, string? foreignApp = null)
     {
+        var position = 0;
         foreach (var bn in Arr(blocks))
         {
+            position++;
             if (bn is not JsonObject b) continue;
+            // Where a nested block sits: "page 'p' > row 2". Containers used to hand their children the
+            // page's own label, so two stats in two rows printed the same sentence twice and neither a
+            // person nor a model could tell which one to fix.
+            var inside = $"{where} > {Str(b, "kind")} {position}";
             switch (Str(b, "kind"))
             {
                 case "view":
@@ -3176,16 +3182,26 @@ public static class Gate
                     ValidateTiles(b["tiles"], where, binding, boundEntity, ctx, errors);
                     break;
                 case "tabs":
+                {
+                    var tab = 0;
                     foreach (var tn in Arr(b["tabs"]))
-                        if (tn is JsonObject t) ValidateBlocks(t["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
+                    {
+                        tab++;
+                        if (tn is JsonObject t)
+                            ValidateBlocks(t["blocks"], $"{inside} > tab {tab}", binding, boundEntity, ctx, errors, foreignApp);
+                    }
                     break;
+                }
                 case "section":
-                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
+                    ValidateBlocks(b["blocks"], inside, binding, boundEntity, ctx, errors, foreignApp);
                     break;
                 case "columns":
+                {
+                    var column = 0;
                     foreach (var cn in Arr(b["columns"]))
-                        ValidateBlocks(cn, where, binding, boundEntity, ctx, errors, foreignApp);
+                        ValidateBlocks(cn, $"{inside} > column {++column}", binding, boundEntity, ctx, errors, foreignApp);
                     break;
+                }
 
                 // ---- composable primitives (M2): generic controls the AI arranges into distinctive
                 // surfaces. Layout primitives recurse; leaves read the current row/record. `repeat`
@@ -3195,7 +3211,7 @@ public static class Gate
                     // color — validated best-effort (a bucket-axis item has no entity to resolve against).
                     if (Str(b, "tint") is { } tintPath)
                         ValidateForeignOrFieldPath(tintPath, boundEntity, foreignApp, $"{where}: '{Str(b, "kind")}' tint", ctx, errors);
-                    ValidateBlocks(b["blocks"], where, binding, boundEntity, ctx, errors, foreignApp);
+                    ValidateBlocks(b["blocks"], inside, binding, boundEntity, ctx, errors, foreignApp);
                     break;
                 case "repeat":
                 {
@@ -3209,7 +3225,7 @@ public static class Gate
                     // Only an entity origin binds its children to a record of a known entity; a bucket
                     // axis binds them to an item whose shape the manifest cannot name, so leaves under it
                     // are unresolvable against any entity (validated best-effort, like 'text').
-                    ValidateBlocks(b["blocks"], $"{where} repeat", "item", re, ctx, errors, Str(rsrc, "app"));
+                    ValidateBlocks(b["blocks"], inside, "item", re, ctx, errors, Str(rsrc, "app"));
                     break;
                 }
                 // A CELL is the one record identified by `keys` — normally the grid axes the cell sits at.
@@ -3404,7 +3420,7 @@ public static class Gate
                         foreach (var f in Arr(b["fields"]))
                             if (ColumnKey(f) is { } fk && !ctx.FieldExists(spe, fk))
                                 errors.Add($"SEMANTIC: {where}: split column '{fk}' is not a field of '{spe}'");
-                    ValidateBlocks(b["blocks"], $"{where} split", "item", spe, ctx, errors);
+                    ValidateBlocks(b["blocks"], inside, "item", spe, ctx, errors);
                     break;
                 }
                 case "stat":
@@ -3418,7 +3434,8 @@ public static class Gate
                     if (sf != null)
                     {
                         if (binding is not ("record" or "item"))
-                            errors.Add($"SEMANTIC: {where}: stat 'field' requires a record or repeat-item context");
+                            errors.Add($"SEMANTIC: {where}: stat 'field' requires a record or repeat-item context"
+                                     + " — on a page, give the stat a 'source' aggregate instead, or place it inside a repeat");
                         else if (boundEntity != null && !ctx.FieldExists(boundEntity, sf))
                             errors.Add($"SEMANTIC: {where}: stat field '{sf}' is not a field of '{boundEntity}'");
                     }
@@ -3455,7 +3472,8 @@ public static class Gate
                         break; // a chip may use a literal 'value'
                     }
                     if (binding is not ("record" or "item"))
-                        errors.Add($"SEMANTIC: {where}: '{kind}' requires a record or repeat-item context");
+                        errors.Add($"SEMANTIC: {where}: '{kind}' requires a record or repeat-item context"
+                                 + " — on a page, place it inside a repeat, or show a number with a stat and a 'source'");
                     else
                         // A leaf may hop a relation too ('shift.start_time'): a cell that selects the right
                         // records but can only print their raw ids shows nothing useful.

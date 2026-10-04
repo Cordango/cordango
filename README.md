@@ -18,7 +18,7 @@ anywhere.
 
 ## What this is
 
-Cordango is a platform companies run their internal applications on, currently in invite-only beta
+Cordango is a platform companies run their internal applications on, hosted
 at [cordango.com](https://cordango.com). This repository is what sits underneath it: the app format,
 the compiler, the validator and the standalone generator, all Apache-2.0.
 
