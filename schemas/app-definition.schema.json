@@ -3146,8 +3146,9 @@
           "$ref": "#/$defs/identifier"
         },
         "inlineEdit": {
-          "description": "Edit cells in place on a 'table' child: selects/dates/numbers/people change on click (a process-governed status offers its LEGAL transitions and runs the real command); the first column still opens the record. Use where the list IS the working surface (a project's task list).",
-          "type": "boolean"
+          "description": "Edit cells in place on a 'table' child: selects/dates/numbers/people change on click (a process-governed status offers its LEGAL transitions and runs the real command); the first column still opens the record.",
+          "type": "boolean",
+          "default": true
         }
       }
     },
@@ -5070,7 +5071,8 @@
         },
         "inlineEdit": {
           "description": "Edit cells in place: selects/dates/numbers/people change on click (a process-governed status offers its LEGAL transitions and runs the real command); the first column still opens the record.",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         },
         "inlineCreate": {
           "type": "boolean",

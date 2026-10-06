@@ -153,7 +153,12 @@ internal static class CordOpsSchemaUi
                 [.. CordSectionKinds.All]),
             ["of"] = Str("The entity this section draws on. Sections on one screen may differ."),
             ["label"] = Str("The heading. For a list, also its name in navigation."),
-            ["view"] = Enum("For kind=list: how the records are shown.", [.. CordVocabulary.Views.Words]),
+            ["view"] = Enum("For kind=list: how the records are shown.", [.. CordVocabulary.ListViews]),
+            ["editable"] = new JsonObject
+            {
+                ["type"] = "boolean",
+                ["description"] = "For a table: false = read-only cells.",
+            },
             ["dateField"] = Str(
                 "For view=calendar: the date field that places a record on the calendar. Required — an "
                 + "entity often has several dates and the wrong one gives a calendar that looks right "

@@ -70,7 +70,8 @@ internal static class CordLowerScreens
                     default:
                     {
                         if (section.Of is not { } entity) return null;
-                        var type = CordVocabulary.Views.LowerOr(section.View, "table");
+                        var type = section.View == CordVocabulary.CardsView
+                            ? "table" : CordVocabulary.Views.LowerOr(section.View, "table");
                         // View identity is aggregate-local and authored. A label or position can
                         // change without renumbering a deep link, a personal view or a saved table
                         // preference. The check requires a key for view-emitting sections; the
@@ -244,6 +245,12 @@ internal static class CordLowerScreens
         // A board has to be grouped by something, and the state field is what a board IS. The author
         // says "show these as a board"; which column headings that produces is mechanical.
         if (section.GroupBy is { } groupBy) config["groupByField"] = groupBy;
+        // Cards are a table drawn as cards: the same rows and the same columns, which become each
+        // card's lines. See CordVocabulary.CardsView.
+        if (section.View == CordVocabulary.CardsView) config["display"] = "cards";
+        // Only said when the author said it. Absent is the renderer's default (editable), and
+        // emitting `true` for every table would put a decision nobody made into every document.
+        if (type == "table" && section.Editable is { } editable) config["inlineEdit"] = editable;
         if (config.Count > 0) view["config"] = config;
 
         return view;

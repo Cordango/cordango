@@ -321,7 +321,8 @@ public static class CordInspect
         section.Kind
         + (section.Of is { } of ? $" of {of}" : "")
         + (section.Label is { } l ? $" — {l}" : "")
-        + (section.View is { } v ? $", shown as a {v}" : "")
+        + (section.View is { } v ? v == CordVocabulary.CardsView ? ", shown as cards" : $", shown as a {v}" : "")
+        + (section.Editable == false ? ", read-only" : "")
         + (section.Value is { } m ? $", {m.Op}{(m.Field is { } f ? $" of {f}" : "")}" : "")
         + (section.GroupBy is { } g ? $", split by {g}" : "")
         + (section.Filter is { Count: > 0 } fs ? $", filtered on {fs.Count}" : "");

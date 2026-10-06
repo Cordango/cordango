@@ -486,7 +486,9 @@ public static class CordDocument
         Set(o, "kind", s.Kind);
         Set(o, "of", s.Of);
         Set(o, "label", s.Label);
-        Word(o, "view", s.View, CordVocabulary.Views, $"{at}/view", unwritable);
+        if (s.View == CordVocabulary.CardsView) o["view"] = CordVocabulary.CardsView;
+        else Word(o, "view", s.View, CordVocabulary.Views, $"{at}/view", unwritable);
+        if (s.Editable is { } editable) o["editable"] = editable;
         if (s.Filter is { Count: > 0 } filter)
         {
             var arr = new JsonArray();

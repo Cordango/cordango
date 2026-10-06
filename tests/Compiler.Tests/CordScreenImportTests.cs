@@ -67,6 +67,59 @@ public class CordScreenImportTests
         Assert.Equal("Updated independently.", changed.Draft.Screens![0].Tabs![1].Sections![0].Text);
     }
 
+    private static CordApp Fleet()
+    {
+        var replay = CordJournal.Replay(new CordApp(Key: "fleet", Name: "Fleet", Version: "1.0.0"),
+        [JsonNode.Parse("""
+        [
+          {"op":"upsert_entity","entity":{"key":"car","label":"Car","fields":[
+            {"key":"registration","label":"Registration","type":"text"},
+            {"key":"make","label":"Make","type":"text"}]}},
+          {"op":"upsert_screen","screen":{"key":"fleet","label":"Fleet","subject":"car","sections":[
+            {"key":"cars","kind":"list","of":"car","label":"Cars","view":"cards",
+             "columns":["registration","make"]},
+            {"key":"log","kind":"list","of":"car","label":"Register","editable":false},
+            {"key":"all","kind":"list","of":"car","label":"All cars"}]}}
+        ]
+        """)]);
+        Assert.True(replay.Complete, string.Join("\n", replay.Errors));
+        return replay.Draft;
+    }
+
+    [Fact]
+    public void Cards_lower_to_a_table_drawn_as_cards_and_raise_back_to_cards()
+    {
+        var definition = CordLower.Lower(Fleet());
+        var views = definition["views"]!.AsArray().OfType<JsonObject>().ToDictionary(v => (string)v["key"]!);
+
+        Assert.Equal("table", (string?)views["fleet__cars"]["type"]);
+        Assert.Equal("cards", (string?)views["fleet__cars"]["config"]!["display"]);
+
+        var imported = CordImport.Import(definition);
+        Assert.NotNull(imported.Screens);
+        Assert.Equal("cards", imported.Screens![0].Sections![0].View);
+        Assert.Equal(DefinitionHash.Of(definition), DefinitionHash.Of(CordLower.Lower(imported)));
+
+        var written = CordDocument.Write(imported);
+        Assert.True(written.Complete, string.Join("\n", written.Unwritable));
+    }
+
+    [Fact]
+    public void A_table_is_editable_unless_the_section_says_otherwise_and_that_round_trips()
+    {
+        var definition = CordLower.Lower(Fleet());
+        var views = definition["views"]!.AsArray().OfType<JsonObject>().ToDictionary(v => (string)v["key"]!);
+
+        Assert.False((bool)views["fleet__log"]["config"]!["inlineEdit"]!);
+        Assert.Null(views["fleet__all"]["config"]?["inlineEdit"]);
+
+        var imported = CordImport.Import(definition);
+        Assert.Equal(false, imported.Screens![0].Sections![1].Editable);
+        Assert.Null(imported.Screens[0].Sections![2].Editable);
+        Assert.Equal(DefinitionHash.Of(definition), DefinitionHash.Of(CordLower.Lower(imported)));
+        Assert.True(CordDocument.Write(imported).Complete);
+    }
+
     [Fact]
     public void An_unknown_page_shape_stays_raw_and_round_trips()
     {

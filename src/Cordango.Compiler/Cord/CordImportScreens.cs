@@ -210,10 +210,13 @@ internal static class CordImportScreens
         IReadOnlyList<string>? columns = null;
         string? dateField = null;
         string? groupBy = null;
+        bool? editable = null;
         if (view["config"] is JsonObject config)
         {
             dateField = Str(config, "dateField");
             groupBy = Str(config, "groupByField");
+            if (loweredType == "table" && Str(config, "display") == "cards") type = CordVocabulary.CardsView;
+            if (config["inlineEdit"] is JsonValue inline && inline.TryGetValue<bool>(out var on)) editable = on;
             var columnName = loweredType == "kanban" ? "cardFields" : "columns";
             if (config[columnName] is JsonArray a)
             {
@@ -224,7 +227,7 @@ internal static class CordImportScreens
         }
 
         return new CordSection(sectionKey, CordSectionKinds.List, entity, label, type,
-            filters, sort, columns, dateField, groupBy);
+            filters, sort, columns, dateField, groupBy, Editable: editable);
     }
 
     private static CordSection? Split(JsonObject block, string pageKey,

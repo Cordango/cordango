@@ -121,6 +121,20 @@ public static class CordVocabulary
     };
 
     /// <summary>
+    /// A list drawn as a grid of record cards.
+    ///
+    /// <para><b>Not a word of <see cref="Views"/>, because it is not a view TYPE.</b> It lowers to a
+    /// table view with <c>config.display: "cards"</c>: the same rows, filters, search and New button,
+    /// drawn the way the table already draws itself on a phone. Before it existed the co-creation flow
+    /// could OFFER cards (its sketches always had them) and then had no word to build them with, so a
+    /// person who chose cards got a table without being told (2026-10-06).</para>
+    /// </summary>
+    public const string CardsView = "cards";
+
+    /// <summary>Every word a list section's <c>view</c> may say: the view types, then cards.</summary>
+    public static IReadOnlyList<string> ListViews => [.. Views.Words, CardsView];
+
+    /// <summary>
     /// What sets an automation off.
     ///
     /// <para><c>schedule.daily</c> is the word an author reaches for and <c>schedule</c> is what the

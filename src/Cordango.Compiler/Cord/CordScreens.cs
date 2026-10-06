@@ -96,7 +96,13 @@ public sealed record CordTab(
 /// catalog, which offers 41 kinds and would put the whole union back in the prefix.</param>
 /// <param name="Of">The entity this section draws on. <b>Per section, not per screen</b> — that is the
 /// entire point of the shape.</param>
-/// <param name="View">For <c>list</c>: a key of <see cref="CordVocabulary.Views"/>.</param>
+/// <param name="View">For <c>list</c>: a key of <see cref="CordVocabulary.Views"/>, or
+/// <see cref="CordVocabulary.CardsView"/>.</param>
+/// <param name="Editable">For a <c>list</c> shown as a table: <c>false</c> makes its cells read-only.
+///
+/// <para>Absent means editable, because that is the renderer's default (Tim, 2026-10-06: a table
+/// nobody can type into was the surprise). The word exists for the opposite statement — "this list is
+/// a record of something, not a place to change it" — which nothing about the fields implies.</para></param>
 /// <param name="DateField">For <c>view: "calendar"</c>: WHICH date puts a record on the calendar.
 ///
 /// <para><b>Authored, never inferred, and a real defect is the reason.</b> The renderer falls back to
@@ -151,7 +157,8 @@ public sealed record CordSection(
     string? Text = null,
     IReadOnlyList<CordSection>? Sections = null,
     IReadOnlyList<double>? Ratio = null,
-    string? Visual = null)
+    string? Visual = null,
+    bool? Editable = null)
 {
     public IReadOnlyList<CordSection> SectionList => Sections ?? [];
 }

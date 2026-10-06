@@ -1222,6 +1222,6 @@ public class CordOpsTests(ITestOutputHelper output)
             .Select(v => (string)v!)
             .ToList();
 
-        Assert.Equal(CordVocabulary.Views.Words.ToList(), offered);
+        Assert.Equal(CordVocabulary.ListViews.ToList(), offered);
     }
 }

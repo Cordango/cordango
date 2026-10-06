@@ -128,7 +128,8 @@ public static class ComponentCatalog
               "properties":{
                 "search":{"type":"array","minItems":1,"maxItems":6,"items":{"type":"string"}},
                 "facets":{"type":"array","minItems":1,"maxItems":5,"items":{"type":"string"}}}},
-            "inlineEdit":{"type":"boolean","description":"Edit cells in place (selects/dates/numbers/people; a governed status offers its legal transitions and runs the real command); the first column still opens the record."} } }
+            "inlineEdit":{"type":"boolean","default":true,"description":"Edit cells in place (selects/dates/numbers/people; a governed status offers its legal transitions and runs the real command); the first column still opens the record."},
+            "display":{"enum":["table","cards"],"description":"cards: one card per record, in a grid."} } }
           """,
           bindings: ["collection"]),
 

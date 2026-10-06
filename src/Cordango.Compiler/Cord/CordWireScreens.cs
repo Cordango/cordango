@@ -54,7 +54,8 @@ internal static class CordWireScreens
         Ratio: o["ratio"] is JsonArray r
             ? r.OfType<JsonValue>().Select(x => x.TryGetValue<double>(out var d) ? d : 0).ToList()
             : null,
-        Visual: Str(o, "visual"));
+        Visual: Str(o, "visual"),
+        Editable: o["editable"] is JsonValue e && e.TryGetValue<bool>(out var editable) ? editable : null);
 
     private static CordWhen When(JsonObject o) =>
         new(Str(o, "field"), Str(o, "operator"), o["value"]?.DeepClone());

@@ -221,7 +221,14 @@ public static class AppCompiler
     // system-set. Anything ending in "_by" (submitted_by, created_by, entered_by …) plus these self/owner
     // names. NOTE: approval "_by" keys are handled by HideOnCreate below (an approver is NOT the creator).
     private static readonly HashSet<string> CurrentUserFieldKeys = new()
-        { "owner", "author", "requester", "submitter", "reporter", "requested_by", "raised_by", "reported_by" };
+        { "author", "requester", "submitter", "reporter", "requested_by", "raised_by", "reported_by" };
+    // Fields that START as the person creating the record and belong to whoever they name after
+    // that: filled in on create, still chosen and changed like any other field. An owner is an
+    // ASSIGNMENT, not an audit stamp — a fleet car's owner is picked when the car is registered and
+    // changes when it changes hands. Locked as "whoever created it", a car could never be registered
+    // for somebody else nor handed on (Tim, 2026-10-06). The calendar's person
+    // (UnlockCalendarOwner) has the same shape for the same reason.
+    private static readonly HashSet<string> DefaultsToCurrentUserKeys = new() { "owner" };
     // Submission timestamps the runtime stamps on create — hidden from forms.
     private static readonly HashSet<string> CurrentTimeFieldKeys = new()
         { "submitted_at", "requested_at", "reported_at", "raised_at", "logged_at", "opened_at" };
@@ -258,7 +265,11 @@ public static class AppCompiler
         if (hideOnCreate) f["hideOnCreate"] = true;
 
         var canHoldCurrentUser = GetStr(f, "type") is "reference" or "text";
-        if (!hideOnCreate && canHoldCurrentUser
+        if (!hideOnCreate && canHoldCurrentUser && DefaultsToCurrentUserKeys.Contains(key))
+        {
+            f["auto"] = "currentUser";
+        }
+        else if (!hideOnCreate && canHoldCurrentUser
             && (key.EndsWith("_by", StringComparison.Ordinal) || CurrentUserFieldKeys.Contains(key)))
         {
             f["readOnly"] = true;

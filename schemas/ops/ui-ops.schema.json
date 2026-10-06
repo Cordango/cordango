@@ -171,9 +171,14 @@
             "table",
             "board",
             "calendar",
-            "timeline"
+            "timeline",
+            "cards"
           ],
           "description": "For kind=list: how the records are shown."
+        },
+        "editable": {
+          "type": "boolean",
+          "description": "For a table: false = read-only cells."
         },
         "dateField": {
           "type": "string",
