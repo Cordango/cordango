@@ -3545,6 +3545,10 @@
             "placeholder": {
               "type": "string",
               "maxLength": 60
+            },
+            "scan": {
+              "description": "Barcode-scanner box: autofocus, select on focus, commit on Enter only (the scanner must send Enter), clear after a write.",
+              "type": "boolean"
             }
           }
         },

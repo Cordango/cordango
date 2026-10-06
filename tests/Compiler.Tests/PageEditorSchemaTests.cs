@@ -139,13 +139,16 @@ public class PageEditorSchemaTests
     /// period or a control gains <c>placement: header</c>, with the period's <c>presentation</c>
     /// (stepper or menu). +1,623 bytes, to 112,517, and no new <c>$def</c>. Visible to the model and not
     /// yet taught: a whole-definition rewrite would silently drop keys the model could not see.</item>
+    /// <item>112,600 &#8594; 112,800 (2026-10-05): <c>filterbar.search.scan</c>, the barcode-scanner
+    /// box the Warehouse example receives and picks with. +164 bytes, to 112,681: one boolean on a shape
+    /// that was already here, its description saying the one thing a scanner must be set up to do.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 112_600);
+        Assert.InRange(pruned, 1, 112_800);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 
