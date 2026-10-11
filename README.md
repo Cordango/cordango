@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**Build full-stack business apps from YAML. Let Claude help write the definition. Own the generated code.**
+**Build full-stack business apps from YAML. Ask your agent to write the definition. Generate the full app.**
 
 AI can write an impressive amount of code. It can also spend half an afternoon getting authentication, forms, migrations and permissions to agree with each other.
 
