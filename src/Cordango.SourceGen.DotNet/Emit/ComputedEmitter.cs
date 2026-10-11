@@ -194,11 +194,16 @@ public static class ComputedEmitter
         //
         // The cast on the first arm is not decoration: `true => 0m, false => 1m, _ => null` has no
         // best common type and does not compile.
+        //
+        // Nor is the cast on the TEST. A comparison may be unknown and arrives as `bool?`, but a
+        // boolean field arrives coalesced — `(refs.Order?.IsOpen ?? false)` — as a plain `bool`,
+        // and against a `bool` the `_` arm is unreachable, which C# refuses as an error rather than
+        // a warning. Read as `bool?`, one form is valid for both.
         ComputedExpr.ConditionalNode c
             => Render(scope, c.Condition) is { } test
                 && Render(scope, c.Then) is { } whenTrue
                 && Render(scope, c.Else) is { } whenFalse
-            ? $"({test} switch {{ true => ({ClrType(c.Kind)}){whenTrue}, false => {whenFalse}, _ => null }})"
+            ? $"(((bool?){test}) switch {{ true => ({ClrType(c.Kind)}){whenTrue}, false => {whenFalse}, _ => null }})"
             : null,
 
         ComputedExpr.DurationNode d => Read(scope, d.From) is { } from && Read(scope, d.To) is { } to

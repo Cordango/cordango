@@ -18,9 +18,9 @@ namespace Cordango.Standalone.Tests;
 /// panel instead, and until now that request reached the emitter and produced a diagnostic and
 /// nothing else.</para>
 ///
-/// <para><b>The tables do it; the calendar, board and timeline still navigate.</b> That split is the
-/// thing worth pinning, because the honest half is the easy one to lose: a shared "we do peek now"
-/// flag would quietly stop reporting the three that do not.</para>
+/// <para><b>The tables and the board do it; the calendar and timeline still navigate.</b> That split
+/// is the thing worth pinning, because the honest half is the easy one to lose: a shared "we do peek
+/// now" flag would quietly stop reporting the two that do not.</para>
 /// </summary>
 public class QuickLookTests
 {
@@ -37,23 +37,22 @@ public class QuickLookTests
     [Fact]
     public void And_is_no_longer_reported_as_missing()
     {
-        // sales-crm asks for the panel eight times: on seven tables, which now get it, and on one
-        // board, which does not. Counting rather than asserting silence is what keeps this test
-        // honest about the split — "no warnings" would pass just as well if the board stopped
-        // reporting too.
         var reported = Build("sales-crm").Warnings
             .Count(d => d.Message.Contains("'openDetail'", StringComparison.Ordinal));
 
-        Assert.Equal(1, reported);
+        Assert.Equal(0, reported);
     }
 
     [Fact]
-    public void A_board_that_asks_for_it_still_says_it_cannot()
+    public void A_board_that_asks_for_it_gets_it()
     {
-        // task-manager's board tab sets openDetail. The board navigates, and saying nothing would be
-        // the silent kind of gap this target refuses to leave.
-        Assert.Contains(Build("task-manager").Warnings,
-            d => d.Message.Contains("'openDetail'", StringComparison.Ordinal));
+        var built = Build("task-manager");
+
+        Assert.Contains(built.Files, f =>
+            System.Text.RegularExpressions.Regex.IsMatch(
+                f.Content, "<BoardBlock[^>]*:open-detail=\"true\""));
+        Assert.DoesNotContain(built.Warnings,
+            d => d.Message.Contains("'openDetail' panel overlay", StringComparison.Ordinal));
     }
 
     [Fact]

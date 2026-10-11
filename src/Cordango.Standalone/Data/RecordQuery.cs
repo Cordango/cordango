@@ -65,6 +65,39 @@ public static class RecordQuery
         return query;
     }
 
+    /// <summary>
+    /// Only the rows whose reference <paramref name="fieldKey"/> holds one of <paramref name="ids"/>:
+    /// a list narrowed by a field on the OTHER side of a reference, once the other side has said which
+    /// of its records match.
+    ///
+    /// <para>The ids go in as one parameter rather than as a chain of equalities, so a filter that
+    /// matched a thousand parts is still one short query and not a thousand-term OR.</para>
+    /// </summary>
+    public static IQueryable<T> Within<T>(
+        IQueryable<T> query, RecordDescriptor<T> descriptor, string fieldKey, IReadOnlyCollection<string> ids)
+        where T : class, IRecord, new()
+    {
+        ArgumentNullException.ThrowIfNull(query);
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var property = Property<T>(descriptor, fieldKey);
+        if (property.PropertyType != typeof(string))
+            throw new RecordException("query.path_invalid",
+                $"'{descriptor.EntityKey}.{fieldKey}' is not a reference a filter can follow.");
+
+        var parameter = Expression.Parameter(typeof(T), "e");
+        var member = Expression.Property(parameter, property);
+
+        // A closure, as in Constant: a parameter, never values baked into the SQL.
+        var list = Expression.Convert(
+            Expression.Field(Expression.Constant(new Box(ids.ToList())), nameof(Box.Value)), typeof(List<string>));
+        var contains = Expression.Call(
+            list, typeof(List<string>).GetMethod(nameof(List<string>.Contains), [typeof(string)])!, member);
+
+        return query.Where(Expression.Lambda<Func<T, bool>>(contains, parameter));
+    }
+
     private static IQueryable<T> Where<T>(IQueryable<T> query, RecordDescriptor<T> descriptor, RecordFilter filter)
         where T : class, IRecord, new()
     {

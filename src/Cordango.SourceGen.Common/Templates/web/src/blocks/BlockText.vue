@@ -1,6 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { fieldOf, formatValue } from '../records.js'
+import { fieldOf, formatValue, resolveValue } from '../records.js'
+import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 
 // A line of prose on a screen: the sentence above a table that says what the table is for.
 //
@@ -26,12 +28,20 @@ const props = defineProps({
   entity: { type: String, default: null },
 })
 
-// `{field_key}` -> that field of the record, formatted the way the same value is formatted
-// everywhere else. A token naming a field the record does not carry is left ALONE rather than
-// blanked: a line reading "{customre}" says which key was mistyped, and an empty line says nothing.
+const scopes = useScopes()
+
+// `{{so.total_picked}}` -> that field of a record some enclosing split or repeat named, and the
+// other double-brace tokens a filter understands. Then `{field_key}` -> that field of the record,
+// formatted the way the same value is formatted everywhere else. A token naming a field the record
+// does not carry is left ALONE rather than blanked: a line reading "{customre}" says which key was
+// mistyped, and an empty line says nothing.
 const resolved = computed(() => {
-  const text = props.text ?? ''
-  if (!props.record || !text.includes('{')) return text
+  const raw = props.text ?? ''
+  if (!raw.includes('{')) return raw
+  const text = raw.includes('{{')
+    ? resolveValue(raw, { ...session, record: props.record ?? {}, scopes: scopes.value })
+    : raw
+  if (!props.record) return text
   return text.replace(/\{([a-zA-Z0-9_]+)\}/g, (whole, key) => {
     if (!(key in props.record)) return whole
     const field = props.entity ? fieldOf(props.entity, key) : null

@@ -16,7 +16,12 @@ namespace Cordango.Standalone.Data;
 /// without the emitter having to produce a comparison for every field and operator in the
 /// language.</param>
 /// <param name="Copy">Assigns just this field, from the first instance to the second.</param>
-public sealed record RecordField<T>(string Key, string PropertyName, Action<T, T> Copy) where T : class, IRecord;
+/// <param name="Target">For a reference to another entity of this application, that entity's key —
+/// what lets a filter follow the reference: <c>item.barcode</c> on an order line is the barcode of
+/// the part the line is for. Null for every other field, and for a reference into the directory,
+/// which a filter does not follow.</param>
+public sealed record RecordField<T>(string Key, string PropertyName, Action<T, T> Copy, string? Target = null)
+    where T : class, IRecord;
 
 /// <summary>
 /// What the runtime knows about one entity: its key, and its fields in definition order.

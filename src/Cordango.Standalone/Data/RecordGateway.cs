@@ -10,6 +10,7 @@ using Cordango.Standalone.Http;
 using Cordango.Standalone.Records;
 using Cordango.Standalone.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Cordango.Standalone.Data;
 
@@ -54,6 +55,20 @@ public interface IRecordGateway
     Task<JsonObject> AggregateAsync(
         string op, string? field, string? groupBy, IReadOnlyList<RecordFilter> filters, CancellationToken ct);
 
+    /// <summary>
+    /// The ids of every row ONE filter on this entity matches, as this caller may see them.
+    ///
+    /// <para>The other half of a filter that follows a reference: an order line asking for
+    /// <c>item.barcode eq 4006381333931</c> asks the parts which of them carry that barcode, and the
+    /// parts answer under their OWN read rules — so the filter cannot become a way to probe a field,
+    /// or an entity, the caller could not have read directly. Every row, not a page: a page would
+    /// quietly drop the matches past it.</para>
+    ///
+    /// <para>Refused by default, for a gateway that has no rows of its own to search.</para>
+    /// </summary>
+    Task<IReadOnlyList<string>> MatchingIdsAsync(RecordFilter filter, CancellationToken ct) =>
+        throw new RecordException("query.path_invalid", $"A filter cannot follow a reference into {Label}.");
+
     Task<JsonObject> GetAsync(string id, CancellationToken ct);
 
     Task<JsonObject> CreateAsync(JsonElement body, CancellationToken ct);
@@ -86,15 +101,23 @@ public class RecordGateway<T> : IRecordGateway where T : class, IRecord, new()
     private readonly IRecordStore<T> _store;
     private readonly AppPermissions _permissions;
     private readonly CommandService<T> _commands;
+    private readonly IServiceProvider? _services;
 
     private EntityAccess? _access;
 
+    /// <param name="services">Where the OTHER entities' gateways are found, for a filter that
+    /// follows a reference. Optional, and resolved at the moment a filter needs one rather than
+    /// injected as a collection: the collection holds this gateway too, and asking for it while this
+    /// one is being built is a cycle. Without it a filter naming <c>item.barcode</c> is refused by
+    /// name.</param>
     public RecordGateway(
-        IRecordStore<T> store, AppPermissions permissions, ICurrentUser user, CommandService<T> commands)
+        IRecordStore<T> store, AppPermissions permissions, ICurrentUser user, CommandService<T> commands,
+        IServiceProvider? services = null)
     {
         _store = store;
         _permissions = permissions;
         _commands = commands;
+        _services = services;
         Caller = user;
     }
 
@@ -136,7 +159,8 @@ public class RecordGateway<T> : IRecordGateway where T : class, IRecord, new()
         take = Math.Clamp(take, 1, MaxPageSize);
         skip = Math.Max(skip, 0);
 
-        var query = RecordQuery.Apply(_store.Query(), _store.Descriptor, filters ?? [], sort ?? []);
+        var (followed, own) = await FollowAsync(_store.Query(), filters ?? [], ct);
+        var query = RecordQuery.Apply(followed, _store.Descriptor, own, sort ?? []);
 
         // Counted before paging, so a caller can say "31 of 214" rather than "31 of the 31 you can
         // see".
@@ -176,7 +200,8 @@ public class RecordGateway<T> : IRecordGateway where T : class, IRecord, new()
                 throw RecordException.Forbidden("record.read_denied", $"Your role may not read {grouped}.");
         }
 
-        var query = RecordQuery.Narrow(_store.Query(), _store.Descriptor, filters ?? []);
+        var (followed, own) = await FollowAsync(_store.Query(), filters ?? [], ct);
+        var query = RecordQuery.Narrow(followed, _store.Descriptor, own);
         var buckets = await RecordAggregate.RunAsync(query, _store.Descriptor, op, field, groupBy, ct);
 
         var items = new JsonArray();
@@ -184,6 +209,65 @@ public class RecordGateway<T> : IRecordGateway where T : class, IRecord, new()
             items.Add(new JsonObject { ["key"] = bucket.Key, ["value"] = bucket.Value });
 
         return new JsonObject { ["op"] = op, ["buckets"] = items };
+    }
+
+    public async Task<IReadOnlyList<string>> MatchingIdsAsync(RecordFilter filter, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+        Require(Access.Read, "read");
+
+        if (!Access.CanReadField(filter.Field))
+            throw RecordException.Forbidden("record.read_denied", $"Your role may not read {filter.Field}.");
+
+        return await RecordQuery.Narrow(_store.Query(), _store.Descriptor, [filter])
+            .Select(e => e.Id)
+            .ToListAsync(ct);
+    }
+
+    /// <summary>
+    /// Narrow by every filter that reads a field ONE REFERENCE AWAY, and hand back the rest.
+    ///
+    /// <para><c>item.barcode</c> is a question for the parts, so the parts are asked it — through
+    /// their own gateway, under their own read rules — and the lines are narrowed to the ones pointing
+    /// at whatever matched. The reference itself is read on THIS side, so it is checked here: a role
+    /// that may not see which part a line is for may not filter lines by it either.</para>
+    ///
+    /// <para>One hop. The target is asked with a plain field, and a second dot there is refused by its
+    /// own allowlist as a field it does not have.</para>
+    /// </summary>
+    private async Task<(IQueryable<T> Query, IReadOnlyList<RecordFilter> Own)> FollowAsync(
+        IQueryable<T> query, IReadOnlyList<RecordFilter> filters, CancellationToken ct)
+    {
+        var own = new List<RecordFilter>();
+
+        foreach (var filter in filters)
+        {
+            var dot = filter.Field.IndexOf('.', StringComparison.Ordinal);
+            if (dot < 0)
+            {
+                own.Add(filter);
+                continue;
+            }
+
+            var via = filter.Field[..dot];
+
+            if (!_store.Descriptor.TryGetField(via, out var reference) || reference.Target is not { } target)
+                throw new RecordException("query.path_invalid",
+                    $"'{Entity}.{via}' is not a reference a filter can follow.");
+
+            if (!Access.CanReadField(via))
+                throw RecordException.Forbidden("record.read_denied", $"Your role may not read {via}.");
+
+            var gateway = _services?.GetServices<IRecordGateway>()
+                    .FirstOrDefault(g => string.Equals(g.Entity, target, StringComparison.Ordinal))
+                ?? throw new RecordException("query.path_invalid",
+                    $"'{Entity}.{via}' points at '{target}', which this application does not serve.");
+
+            var ids = await gateway.MatchingIdsAsync(filter with { Field = filter.Field[(dot + 1)..] }, ct);
+            query = RecordQuery.Within(query, _store.Descriptor, via, ids);
+        }
+
+        return (query, own);
     }
 
     public async Task<JsonObject> GetAsync(string id, CancellationToken ct)

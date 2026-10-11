@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { loadAggregate, formatStat } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 
 // How far along something is: a value, a denominator, and a bar.
 //
@@ -22,6 +23,9 @@ const props = defineProps({
   target: { type: [Number, String], default: null },
   color: { type: String, default: null },
 })
+
+// `{{po.id}}` in the source's filters: a figure about the order a split has selected.
+const scopes = useScopes()
 
 const aggregate = ref(null)
 const loading = ref(false)
@@ -56,7 +60,7 @@ async function load() {
   if (!props.source) return
   loading.value = true
   try {
-    const result = await loadAggregate(props.source, session)
+    const result = await loadAggregate(props.source, { ...session, scopes: scopes.value })
     aggregate.value = Number(result?.buckets?.[0]?.value ?? 0)
   } catch {
     // A figure that cannot be read leaves the bar empty and the caption honest, rather than

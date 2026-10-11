@@ -172,3 +172,91 @@ describe("RecordGateway", () => {
     expect(replaced["amount"]).toBe(0);
   });
 });
+
+type Part = RecordRow & { barcode: string | null };
+type Line = RecordRow & { item: string | null; quantity: number };
+
+const partDescriptor = new RecordDescriptor<Part>("part", "part", [{ key: "barcode", type: "text" }]);
+const lineDescriptor = new RecordDescriptor<Line>("line", "line", [
+  { key: "item", type: "reference", target: "part" },
+  { key: "quantity", type: "integer" },
+]);
+
+const noBarcode = new EntityAccess(true, true, true, true, new Map([["barcode", { read: false, update: false }]]));
+const noItem = new EntityAccess(true, true, true, true, new Map([["item", { read: false, update: false }]]));
+
+async function hopWorld(partAccess: EntityAccess, lineAccess: EntityAccess = fullAccess) {
+  const caller: CurrentUser = { userId: "someone", isAdministrator: false, roleKeys: [] };
+  const clock = { utcNow: { epochMicros: 0n } as never };
+  const parts = new RecordStore(partDescriptor, RecordHooks.none as RecordHooks<Part>, caller, clock);
+  const lines = new RecordStore(lineDescriptor, RecordHooks.none as RecordHooks<Line>, caller, clock);
+  const commands = { run: async () => ({ record: null, message: null }) };
+
+  const partGateway = new (class extends RecordGateway<Part> {
+    protected override resolveAccess(): EntityAccess {
+      return partAccess;
+    }
+  })(parts, { roles: [] }, caller, commands);
+
+  const lineGateway = new (class extends RecordGateway<Line> {
+    protected override resolveAccess(): EntityAccess {
+      return lineAccess;
+    }
+  })(lines, { roles: [] }, caller, commands, (entity) =>
+    entity === "part" ? (partGateway as unknown as RecordGateway<RecordRow>) : undefined);
+
+  await parts.create({ id: "p1", barcode: "111" });
+  await parts.create({ id: "p2", barcode: "222" });
+  await lines.create({ id: "l1", item: "p1", quantity: 1 });
+  await lines.create({ id: "l2", item: "p2", quantity: 2 });
+  await lines.create({ id: "l3", item: null, quantity: 3 });
+
+  return lineGateway;
+}
+
+describe("a filter that follows a reference", () => {
+  it("narrows to the rows whose reference matched", async () => {
+    const lines = await hopWorld(fullAccess);
+
+    const page = await lines.list([{ field: "item.barcode", operator: "eq", value: "222" }], [], 0, 10);
+
+    expect(page.items.map((row) => row.id)).toEqual(["l2"]);
+  });
+
+  it("combines with the entity's own filters", async () => {
+    const lines = await hopWorld(fullAccess);
+
+    const page = await lines.list(
+      [
+        { field: "item.barcode", operator: "in", value: "111|222" },
+        { field: "quantity", operator: "gt", value: "1" },
+      ],
+      [],
+      0,
+      10,
+    );
+
+    expect(page.items.map((row) => row.id)).toEqual(["l2"]);
+  });
+
+  it("is refused when the role may not read the field on the other side", async () => {
+    const lines = await hopWorld(noBarcode);
+
+    await expect(lines.list([{ field: "item.barcode", operator: "eq", value: "111" }], [], 0, 10))
+      .rejects.toMatchObject({ code: "record.read_denied" });
+  });
+
+  it("is refused when the role may not read the reference itself", async () => {
+    const lines = await hopWorld(fullAccess, noItem);
+
+    await expect(lines.list([{ field: "item.barcode", operator: "eq", value: "111" }], [], 0, 10))
+      .rejects.toMatchObject({ code: "record.read_denied" });
+  });
+
+  it("is refused when the field is not a reference it can follow", async () => {
+    const lines = await hopWorld(fullAccess);
+
+    await expect(lines.list([{ field: "quantity.barcode", operator: "eq", value: "111" }], [], 0, 10))
+      .rejects.toMatchObject({ code: "query.path_invalid" });
+  });
+});

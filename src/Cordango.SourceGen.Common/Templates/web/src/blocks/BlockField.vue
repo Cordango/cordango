@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { entityOf } from '../records.js'
+import { ref, computed, watch } from 'vue'
+import { fieldOf, loadReferenced } from '../records.js'
 import FieldValue from './FieldValue.vue'
 
 // ONE field of the bound record, drawn the way the definition asked for it.
@@ -41,10 +41,26 @@ const props = defineProps({
   grow: { type: Boolean, default: false },
 })
 
-const definition = computed(() =>
-  entityOf(props.entity)?.fields.find((f) => f.key === props.field) ?? null)
+// `item.sku` is the `sku` of the record `item` points at — the part an order line is for. The build
+// only lets one hop through, and only to an entity of this application, so the path is a reference
+// on this record and a field of its target, and nothing longer.
+const path = computed(() => String(props.field ?? '').split('.'))
+const via = computed(() => (path.value.length === 2 ? fieldOf(props.entity, path.value[0]) : null))
 
-const value = computed(() => props.record?.[props.field])
+const definition = computed(() => via.value
+  ? fieldOf(via.value.targetEntity, path.value[1])
+  : fieldOf(props.entity, props.field))
+
+const related = ref(null)
+
+watch(() => (via.value ? props.record?.[via.value.key] : null), async (id) => {
+  related.value = null
+  if (!id) return
+  const record = await loadReferenced(via.value, id)
+  if (id === props.record?.[via.value?.key]) related.value = record
+}, { immediate: true })
+
+const value = computed(() => (via.value ? related.value?.[path.value[1]] : props.record?.[props.field]))
 
 const sizes = {
   xs: 'text-caption', sm: 'text-body-2', md: 'text-body-1', lg: 'text-h6', xl: 'text-h5',

@@ -3,7 +3,9 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadRecords, onRecordsChanged, sortTerm, recordRoute } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import EmptyState from './EmptyState.vue'
+import ScopeName from './ScopeName.vue'
 
 // A `repeat` block: the same little layout, once per record. A row of scenario cards, a list of
 // funding rounds — shapes a table cannot make, because each row is a composition rather than cells.
@@ -35,6 +37,16 @@ const props = defineProps({
   // time. A card of fields is clickable; a card holding a table is not, because then every miss
   // beside a cell would navigate away from the row somebody was reading.
   clickable: { type: Boolean, default: false },
+
+  // The name each row goes by for the blocks inside it — `as: line` makes `{{line.id}}` mean this
+  // row even two repeats further in, where `record` has come to mean something else.
+  as: { type: String, default: null },
+  // The screen's state and the record this repeat sits inside, for its OWN filters: a repeat that
+  // shows "the part just scanned" filters on `{{state.scan}}`, and one inside a split filters on
+  // the selection. Only the session reached the query before, so both tokens went to the server
+  // as literal text and the list came back empty without a word.
+  state: { type: Object, default: null },
+  record: { type: Object, default: null },
 })
 
 const rows = ref([])
@@ -42,6 +54,18 @@ const loading = ref(true)
 const error = ref(null)
 
 const entityKey = computed(() => props.source?.entity || props.entity)
+
+// The names from further OUT. This repeat's own name is what its rows are called, and means nothing
+// to the query that finds them.
+const scopes = useScopes()
+
+const context = computed(() => ({
+  ...session,
+  state: props.state ?? {},
+  record: props.record ?? {},
+  scopes: scopes.value,
+}))
+
 const gaps = { none: '0px', sm: '8px', md: '16px', lg: '24px' }
 const gapOf = (key) => gaps[key] ?? gaps.md
 
@@ -84,13 +108,13 @@ async function load() {
   loading.value = true
   error.value = null
   try {
-    // Filters go in RAW: loadRecords resolves each one through filterTerm against the session, so
+    // Filters go in RAW: loadRecords resolves each one through filterTerm against the context, so
     // {{actor.id}} means the person reading the page rather than whoever built the definition.
     const page = await loadRecords(entityKey.value, {
       filters: props.source?.filters || [],
       sort: sortTerm(props.source?.sort),
       take: props.source?.limit ?? 50,
-      context: session,
+      context: context.value,
     })
     rows.value = page?.items ?? []
   } catch (failure) {
@@ -111,6 +135,8 @@ onMounted(() => {
 })
 onUnmounted(() => stop?.())
 watch(() => props.source, load, { deep: true })
+// A scan, a facet, a different selection: anything a filter reads is a reason to ask again.
+watch(context, load, { deep: true })
 </script>
 
 <template>
@@ -118,7 +144,7 @@ watch(() => props.source, load, { deep: true })
   <v-skeleton-loader v-else-if="loading" type="list-item-two-line" />
   <EmptyState v-else-if="rows.length === 0" :title="emptyText" />
   <div v-else :style="layout">
-    <template v-for="row in rows" :key="row.id">
+    <ScopeName v-for="row in rows" :key="row.id" v-slot="{ scopes: named }" :name="as" :record="row">
       <!-- The wrapper is the grid item, so the card inside it stretches to the track rather than
            the click target being only as tall as the text. -->
       <div
@@ -129,10 +155,10 @@ watch(() => props.source, load, { deep: true })
         @click="open(row)"
         @keydown.enter="open(row)"
       >
-        <slot :record="row" />
+        <slot :record="row" :scopes="named" />
       </div>
-      <slot v-else :record="row" />
-    </template>
+      <slot v-else :record="row" :scopes="named" />
+    </ScopeName>
   </div>
 </template>
 

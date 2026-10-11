@@ -38,6 +38,9 @@ export interface ListResult {
 /** A ceiling on `take`, so one request cannot ask for the whole table. */
 export const maxPageSize = 500;
 
+/** Another entity's gateway, in the same request — what a filter following a reference asks. */
+export type GatewayLookup = (entity: string) => RecordGateway<RecordRow> | undefined;
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -152,6 +155,9 @@ export class RecordGateway<T extends RecordRow> {
      * the morning. */
     readonly caller: CurrentUser,
     private readonly commands: CommandRunner<T>,
+    /** Where the OTHER entities' gateways are found, for a filter naming `item.barcode`. Without
+     * one, such a filter is refused by name. */
+    private readonly lookup?: GatewayLookup,
   ) {}
 
   get descriptor(): RecordDescriptor<T> {
@@ -197,7 +203,8 @@ export class RecordGateway<T extends RecordRow> {
     const size = Math.min(Math.max(take, 1), maxPageSize);
     const offset = Math.max(skip, 0);
 
-    const ordered = applyQuery(await this.store.query(), this.store.descriptor, filters, sort);
+    const { rows: followed, own } = await this.follow(await this.store.query(), filters);
+    const ordered = applyQuery(followed, this.store.descriptor, own, sort);
 
     // Counted before paging, so a caller can say "31 of 214" rather than "31 of the 31 you can
     // see".
@@ -227,9 +234,64 @@ export class RecordGateway<T extends RecordRow> {
         throw RecordError.forbidden("record.read_denied", `Your role may not read ${grouped}.`);
     }
 
-    const rows = await this.store.query();
-    const narrowed = narrow(rows, this.store.descriptor, filters);
+    const { rows, own } = await this.follow(await this.store.query(), filters);
+    const narrowed = narrow(rows, this.store.descriptor, own);
     return aggregate(narrowed, this.store.descriptor, op, field, groupBy);
+  }
+
+  /**
+   * The ids of every row ONE filter on this entity matches, as this caller may see them — the other
+   * half of a filter that follows a reference. Answered under this entity's own read rules, so the
+   * filter cannot probe a field or an entity the caller could not have read directly. Every row, not
+   * a page: a page would quietly drop the matches past it.
+   */
+  async matchingIds(filter: RecordFilter): Promise<Set<string>> {
+    this.require(this.access.read, "read");
+    if (!this.access.canReadField(filter.field))
+      throw RecordError.forbidden("record.read_denied", `Your role may not read ${filter.field}.`);
+
+    const rows = narrow(await this.store.query(), this.store.descriptor, [filter]);
+    return new Set(rows.map((row) => row.id));
+  }
+
+  /**
+   * Narrow by every filter that reads a field ONE REFERENCE AWAY, and hand back the rest. The
+   * referenced entity is asked through its own gateway; the reference itself is read on this side,
+   * so it is checked here. One hop: a second dot is refused by the target's own allowlist.
+   */
+  private async follow(
+    rows: readonly T[],
+    filters: readonly RecordFilter[],
+  ): Promise<{ rows: readonly T[]; own: RecordFilter[] }> {
+    const own: RecordFilter[] = [];
+    let narrowed = rows;
+
+    for (const filter of filters) {
+      const dot = filter.field.indexOf(".");
+      if (dot < 0) {
+        own.push(filter);
+        continue;
+      }
+
+      const via = filter.field.slice(0, dot);
+      const reference = this.store.descriptor.tryGetField(via);
+      if (reference?.target === undefined)
+        throw new RecordError("query.path_invalid", `'${this.entity}.${via}' is not a reference a filter can follow.`);
+      if (!this.access.canReadField(via))
+        throw RecordError.forbidden("record.read_denied", `Your role may not read ${via}.`);
+
+      const gateway = this.lookup?.(reference.target);
+      if (gateway === undefined)
+        throw new RecordError(
+          "query.path_invalid",
+          `'${this.entity}.${via}' points at '${reference.target}', which this application does not serve.`,
+        );
+
+      const ids = await gateway.matchingIds({ ...filter, field: filter.field.slice(dot + 1) });
+      narrowed = narrowed.filter((row) => typeof row[via] === "string" && ids.has(row[via] as string));
+    }
+
+    return { rows: narrowed, own };
   }
 
   async get(id: string): Promise<RecordRow> {

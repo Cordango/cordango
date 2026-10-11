@@ -40,7 +40,7 @@ public static class WebScaffold
     /// this generator has never emitted against, in an application somebody generated months ago,
     /// on a machine where the only thing that changed was the day.</para>
     /// </summary>
-    public static string WebControlsVersion => "0.1.5-alpha";
+    public static string WebControlsVersion => "0.1.6-alpha";
 
     /// <summary>The shell before substitution: target path (<c>web/…</c>) to content, ordinal by
     /// path. Read once — the resources cannot change while the process is running.</summary>

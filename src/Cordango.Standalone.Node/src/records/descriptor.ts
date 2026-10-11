@@ -13,6 +13,11 @@ export type FieldType =
 export interface RecordField {
   readonly key: string;
   readonly type: FieldType;
+  /**
+   * For a reference to another entity of this application, that entity's key —
+   * what lets a filter follow it: `item.barcode` on an order line.
+   */
+  readonly target?: string;
 }
 
 /**

@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import { loadAggregate } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 
 Chart.register(...registerables)
 
@@ -11,6 +12,9 @@ const props = defineProps({
   chartType: { type: String, default: 'bar' },
   source: { type: Object, required: true },
 })
+
+// `{{po.id}}` in the source's filters: a figure about the order a split has selected.
+const scopes = useScopes()
 
 const canvas = ref(null)
 const empty = ref(false)
@@ -22,7 +26,7 @@ const typeOf = (kind) => (kind === 'donut' ? 'doughnut' : kind === 'area' ? 'lin
 onMounted(async () => {
   let buckets = []
   try {
-    const result = await loadAggregate(props.source, session)
+    const result = await loadAggregate(props.source, { ...session, scopes: scopes.value })
     buckets = result?.buckets ?? []
   } catch {
     empty.value = true

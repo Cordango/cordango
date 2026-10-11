@@ -6,10 +6,12 @@ import {
   onRecordsChanged, recordsChanged, matchesSearch, formatStat, optionColor, optionLabel, toast, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import CommandButton from './CommandButton.vue'
 import RecordDialog from './RecordDialog.vue'
 import EmptyState from './EmptyState.vue'
 import FieldValue from './FieldValue.vue'
+import RecordPeek from './RecordPeek.vue'
 import { useSurface } from './surface.js'
 
 // A board: the same rows a table would show, stacked into columns by one field.
@@ -35,6 +37,8 @@ const props = defineProps({
   record: { type: Object, default: null },
   create: { type: Boolean, default: false },
   hideTitle: { type: Boolean, default: false },
+  // A card click opens a quick-look panel rather than navigating — the same opt-in a table has.
+  openDetail: { type: Boolean, default: false },
 })
 
 const router = useRouter()
@@ -138,11 +142,15 @@ const totalIn = (value) => {
   return cardsIn(value).reduce((sum, row) => sum + (Number(row[sumField.value.key]) || 0), 0)
 }
 
+// The names enclosing splits and repeats gave their records — `{{po.id}}` in a filter.
+const scopes = useScopes()
+
 const context = computed(() => ({
   personId: session.personId,
   userId: session.userId,
   state: props.state ?? {},
   record: props.record ?? {},
+  scopes: scopes.value,
 }))
 
 async function load() {
@@ -239,7 +247,15 @@ async function drop(column) {
   }
 }
 
-const open = (row) => router.push(recordRoute(entityKey.value, row.id))
+const peeking = ref(null)
+
+function open(row) {
+  if (props.openDetail || config.value.openDetail === true) {
+    peeking.value = row
+    return
+  }
+  router.push(recordRoute(entityKey.value, row.id))
+}
 
 const colorOf = (column) => column.color
   ?? (groupField.value ? optionColor(groupField.value, column.value) : undefined)
@@ -364,6 +380,14 @@ watch(() => props.state, load, { deep: true })
       :command="pending.command"
       @done="pending = null; load(); recordsChanged(entityKey)"
       @cancelled="pending = null"
+    />
+
+    <RecordPeek
+      v-if="peeking"
+      :entity="entityKey"
+      :record="peeking"
+      :model-value="true"
+      @update:model-value="peeking = null"
     />
 
     <RecordDialog

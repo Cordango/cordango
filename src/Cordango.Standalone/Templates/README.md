@@ -174,9 +174,10 @@ Two things are decided outside the definition, because the definition has nothin
 ## What is not generated yet
 
 `cordango.build.json` lists it exactly, under `unsupportedCapabilities`, and the section above
-appears in this README when there is anything to report. As of this build the generator does not yet
-emit **workflows**, **computed fields and rollups**, **command guards**, or the **email and webhook**
-effects. In-app **notifications** are generated and do work.
+appears in this README when there is anything to report. Workflows, computed fields, rollups and
+command guards are generated; an expression or a guard the generator cannot write is reported by
+name rather than left out. Of the effects, the **email**, **webhook** and **delete** effects are not
+generated yet. In-app **notifications** are generated and do work.
 
 A build that needs any of those refuses unless you pass `--allow-incomplete`, so an application that
 was built completely is one you can trust to be complete.

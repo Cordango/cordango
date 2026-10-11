@@ -42,6 +42,10 @@ export function displayOf(entityKey, record) {
  * `{{state.<key>}}` reads the screen's own state, which is what makes a page filter bar drive a
  * list: the facet writes the state var, the list's filter reads it, and neither knows about the
  * other. `{{today+7}}` / `{{today-2w}}` shift the clock token by days or weeks.
+ *
+ * `{{po.id}}` reads a record some enclosing split or repeat named with `as` (see scopes.js). A name
+ * in scope with nothing selected resolves EMPTY rather than staying a literal: sent to the server as
+ * text, `{{po.id}}` is a filter that matches nothing for a reason nobody could see.
  */
 export function resolveValue(value, context) {
   // A range is a pair, and both ends can be tokens: `between` takes ['{{today}}', '{{today+7}}'].
@@ -57,6 +61,7 @@ export function resolveValue(value, context) {
     if (scope === 'actor') return String((key === 'id' ? context?.personId : context?.[key]) ?? '')
     if (scope === 'state') return String(context?.state?.[key] ?? '')
     if (scope === 'record') return String(context?.record?.[key] ?? '')
+    if (context?.scopes && scope in context.scopes) return String(context.scopes[scope]?.[key] ?? '')
     return whole
   })
 }
@@ -95,11 +100,15 @@ export function filterApplies(filter, context) {
  * A block with no condition is always visible, and a condition naming none of eq/neq/in is too —
  * the schema allows it and "shown" is the safer reading of "the author wrote a condition and did not
  * say what it tests".
+ *
+ * `scopes` are the names an enclosing split or repeat gave its record, so a section can appear only
+ * while the selected order is `picking`. The page passes them only where some block above it has
+ * an `as`.
  */
-export function visibleWhen(condition, record, state) {
+export function visibleWhen(condition, record, state, scopes) {
   if (!condition?.value) return true
 
-  const resolved = resolveScope(condition.value, record, state)
+  const resolved = resolveScope(condition.value, record, state, scopes)
 
   if ('eq' in condition) return resolved === condition.eq
   if ('neq' in condition) return resolved !== condition.neq
@@ -107,8 +116,9 @@ export function visibleWhen(condition, record, state) {
   return true
 }
 
-/** `{{record.status}}`, `{{item.status}}`, `{{state.cursor}}`, `{{actor.id}}` — or a literal. */
-function resolveScope(expression, record, state) {
+/** `{{record.status}}`, `{{item.status}}`, `{{state.cursor}}`, `{{actor.id}}`, `{{so.status}}` — or a
+ *  literal. */
+function resolveScope(expression, record, state, scopes) {
   const match = /^\{\{\s*([\w.]+)\s*\}\}$/.exec(expression)
   if (!match) return expression
 
@@ -122,6 +132,7 @@ function resolveScope(expression, record, state) {
   if (scope === 'record' || scope === 'item') return record?.[key]
   if (scope === 'state') return state?.[key]
   if (scope === 'actor') return key === 'id' ? session.personId : session[key]
+  if (scopes && scope in scopes) return scopes[scope]?.[key]
   return undefined
 }
 
@@ -131,11 +142,14 @@ function resolveScope(expression, record, state) {
  * A list value is joined with `|`, the separator the server already splits `in` on, so `between`
  * and `in` share one encoding rather than each inventing its own. Joining with a comma would work
  * until the first value that contains one.
+ *
+ * A leaf written with `path` — `item.barcode` — reads a field one reference away, and goes to the
+ * server as that path; the server asks the referenced entity. It went as `undefined:eq:…`.
  */
 export function filterTerm(filter, context) {
   const resolved = resolveValue(filter.value ?? '', context)
   const value = Array.isArray(resolved) ? resolved.join('|') : (resolved ?? '')
-  return `${filter.field}:${filter.operator}:${value}`
+  return `${filter.path ?? filter.field}:${filter.operator}:${value}`
 }
 
 /** Turn a definition sort list into the API's `sort` parameter. */
@@ -224,6 +238,35 @@ export function referenceOptions(entityKey, route) {
   }
   return referenceCache.get(path)
 }
+
+/**
+ * The one record a reference points at, asked for once per page.
+ *
+ * What `item.sku` on a card needs, and what turns a reference into a name rather than a uuid. A
+ * repeat of twenty order lines that all point at three parts asks three times, not twenty: the
+ * cache holds the promise, so the askers that arrive together share one request. A write to that
+ * entity anywhere on the page drops its entries, so a renamed part does not keep its old name.
+ */
+const recordCache = new Map()
+
+export function loadReferenced(field, id) {
+  if (!field || id === null || id === undefined || id === '') return Promise.resolve(null)
+  const path = `/api/${referenceRoute(field)}/${encodeURIComponent(id)}`
+  if (!recordCache.has(path)) recordCache.set(path, api.get(path).catch(() => null))
+  return recordCache.get(path)
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('cordango:records-changed', (event) => {
+    for (const path of [...recordCache.keys()]) {
+      if (!event.detail || path.startsWith(`/api/${event.detail}/`)) recordCache.delete(path)
+    }
+  })
+}
+
+/** What a referenced record is called — the same reading a reference picker offers. */
+export const referenceLabel = (field, record) =>
+  record ? String(record.full_name ?? record.name ?? displayOf(field?.targetEntity, record)) : ''
 
 /**
  * Where a reference field's records are READ from, as an api path without the `/api/` prefix.

@@ -117,9 +117,13 @@ public static class BackendEmitter
             source.Line("[");
             source.Indent();
 
+            // A reference to another entity of this application carries that entity's key, so a
+            // filter can follow it — `item.barcode` on an order line. Nothing else changes shape.
             foreach (var field in entity.AuthoredFields)
                 source.Line($"new({Naming.Literal(field.Key)}, nameof({entity.TypeName}.{field.PropertyName}), "
-                    + $"(from, to) => to.{field.PropertyName} = from.{field.PropertyName}),");
+                    + $"(from, to) => to.{field.PropertyName} = from.{field.PropertyName}"
+                    + (FollowedReference(app, field) is { } target ? $", {Naming.Literal(target)}" : "")
+                    + "),");
 
             source.Outdent();
             source.Line("]);");
@@ -129,6 +133,13 @@ public static class BackendEmitter
         source.Close();
         return new GeneratedFile("api/Data/AppDescriptors.cs", source.ToString());
     }
+
+    /// <summary>The entity a reference points at, when it is one of this application's own — the
+    /// only kind a filter follows. Null for anything else.</summary>
+    public static string? FollowedReference(AppModel app, FieldModel field) =>
+        field is { IsReference: true, TargetApp: null } && app.Entity(field.TargetEntity) is { } target
+            ? target.Key
+            : null;
 
     /// <summary>Registration: entities, descriptors, hooks and the permission rules.</summary>
     public static GeneratedFile Setup(AppModel app)

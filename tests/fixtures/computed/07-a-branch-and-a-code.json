@@ -177,6 +177,22 @@
       },
       "expr": "if(costs > gross, gross, costs)",
       "expect": 500
+    },
+    {
+      "why": "A boolean FIELD as the whole test, not a comparison. A blank boolean is false, so the test is never unknown — and an implementation that still kept an arm for 'unknown' wrote one the C# compiler refuses as unreachable, which is how a warehouse's `if(order.is_open, outstanding, 0)` came out as an application that did not build.",
+      "record": {
+        "flagged": true,
+        "costs": 900
+      },
+      "expr": "if(flagged, costs, 0)",
+      "expect": 900
+    },
+    {
+      "record": {
+        "costs": 900
+      },
+      "expr": "if(flagged, costs, 0)",
+      "expect": 0
     }
   ]
 }

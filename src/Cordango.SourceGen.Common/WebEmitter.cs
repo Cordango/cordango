@@ -491,6 +491,14 @@ public static class WebEmitter
         /// <summary>Set when any block on this page has a <c>visibleWhen</c>, so the evaluator is
         /// imported only where it is used.</summary>
         public bool Conditional { get; set; }
+
+        /// <summary>
+        /// Inside a split or a repeat that NAMED its record with <c>as</c>. The slot hands those names
+        /// out as <c>scopes</c>, and the one reader in the page's own template — a
+        /// <c>visibleWhen</c> on <c>{{so.status}}</c> — is given them. Every component below reads
+        /// them by injection instead, so nothing else here has to thread them.
+        /// </summary>
+        public bool Scoped { get; init; }
     }
 
     /// <summary>
@@ -510,7 +518,8 @@ public static class WebEmitter
             context.Conditional = true;
             source.Line(
                 $"<template v-if=\"visibleWhen({Js(condition)}, "
-                + $"{(context.Record ? "record" : "null")}, {context.StateBinding})\">");
+                + $"{(context.Record ? "record" : "null")}, {context.StateBinding}"
+                + (context.Scoped ? ", scopes" : "") + ")\">");
             source.Indent();
 
             var inner = (JsonObject)block.DeepClone();
@@ -590,15 +599,18 @@ public static class WebEmitter
                 break;
 
             case "card":
-                // The card still renders; only the CLICK is dropped. BlockCard is a surface, not a
-                // navigation, so `openDetail` would need the quick-look panel this target has not
-                // built — the same gap a list's `openDetail` already reports a few lines down. Saying
-                // so beats a lane that looks clickable and is not.
-                if (AppModel.Bool(block["openDetail"]))
-                    unsupported.Add(NotYet("a card's 'openDetail' quick look (the card renders, the click does nothing)", context));
+                // `openDetail` makes the card a way to look at the record it is bound to — the
+                // repeated row, the selection — in the quick-look panel. With no record in scope there
+                // is nothing to open, and the card renders without the click, which is said.
+                var peeks = AppModel.Bool(block["openDetail"]) && context.Record && context.Entity is not null;
+                if (AppModel.Bool(block["openDetail"]) && !peeks)
+                    unsupported.Add(NotYet(
+                        "a card's 'openDetail' quick look where no record is in scope (the card renders, "
+                        + "the click does nothing)", context));
                 Container(source, "BlockCard",
                     Attributes(("label", AppModel.Str(block["label"])), ("padding", AppModel.Str(block["padding"])))
-                    + (AppModel.Bool(block["bordered"]) ? " :bordered=\"true\"" : ""),
+                    + (AppModel.Bool(block["bordered"]) ? " :bordered=\"true\"" : "")
+                    + (peeks ? $" :open-detail=\"true\" entity=\"{context.Entity}\" :record=\"record\"" : ""),
                     block["blocks"], context, unsupported);
                 break;
 
@@ -757,9 +769,16 @@ public static class WebEmitter
 
             case "action":
                 context.Imports.Add("ActionButton");
+                // `entity` + `keys` is a button that names its OWN record — "the line for this part on
+                // this order" — and finds or creates it when pressed. The keys were dropped without a
+                // word, so the button ran its command on the record it happened to sit inside.
                 source.Line(
                     $"<ActionButton entity=\"{AppModel.Str(block["entity"]) ?? context.Entity}\" "
-                    + $"command=\"{AppModel.Str(block["command"])}\" :record=\"record\" />");
+                    + $"command=\"{AppModel.Str(block["command"])}\" :record=\"record\""
+                    + (block["keys"] is JsonObject keys
+                        ? $" :keys=\"{Js(keys)}\"" + (context.State.Count > 0 ? " :state=\"state\"" : "")
+                        : "")
+                    + " />");
                 break;
 
             case "tiles":
@@ -937,21 +956,40 @@ public static class WebEmitter
         if (childType == "checklist" && Checklist(source, block, query, entity, context, unsupported)) return;
 
         // The presentations still to be built. They are real differences in how the rows are READ —
-        // a feed is chronological with a composer, line items are money with a total — so a table in
-        // their place is a list of the right records in the wrong shape, and that is worth saying
-        // rather than leaving somebody to notice.
-        if (childType is not null and not "table" and not "checklist")
+        // a feed is chronological with a composer — so a table in their place is a list of the right
+        // records in the wrong shape, and that is worth saying rather than leaving somebody to notice.
+        var lineItems = childType == "lineItems";
+        if (childType is not null and not "table" and not "checklist" and not "lineItems")
             unsupported.Add(NotYet($"a child list's '{childType}' presentation (the rows render as a table)", context));
+
+        var definition = Query(block, query, entity, "table", context.Record);
+
+        // LINE ITEMS are a table read as money: the parent link is not a column (every row is this
+        // record's), and the money and decimal fields are added up underneath. Both are worked out
+        // here, where the entity is in hand, rather than per render in the browser.
+        var child = context.App.Entity(entity);
+        if (lineItems && block["fields"] is not JsonArray && child is not null)
+            ((JsonObject)definition["config"]!)["columns"] = new JsonArray([.. child.AuthoredFields
+                .Where(f => f.Key != via && !f.System)
+                .Take(6)
+                .Select(f => (JsonNode)f.Key)]);
+        var totals = lineItems && child is not null
+            ? child.AuthoredFields.Where(f => f.Type is "money" or "decimal").Select(f => (JsonNode)f.Key).ToList()
+            : [];
 
         context.Imports.Add("ViewBlock");
         source.Line("<ViewBlock");
         source.Indent();
-        source.Line($":definition=\"{Js(Query(block, query, entity, "table", context.Record))}\"");
+        source.Line($":definition=\"{Js(definition)}\"");
         source.Line($":state=\"{context.StateBinding}\"");
         source.Line(":record=\"record\"");
         if (block["groupBy"] is JsonObject group) source.Line($":group-by=\"{Js(group)}\"");
         if (block["filterBar"] is JsonObject bar) source.Line($":filter-bar=\"{Js(bar)}\"");
-        if (AppModel.Bool(block["allowDelete"])) source.Line(":allow-delete=\"true\"");
+        if (totals.Count > 0) source.Line($":totals=\"{Js(new JsonArray([.. totals]))}\"");
+        if (lineItems) source.Line(":toolbar=\"false\"");
+        // Delete is the one row action line items have, so it is on unless turned off.
+        if (AppModel.Bool(block["allowDelete"]) || (lineItems && block["allowDelete"] is null))
+            source.Line(":allow-delete=\"true\"");
         if (AppModel.Bool(block["inlineEdit"])) source.Line(":inline-edit=\"true\"");
         if (AppModel.Bool(block["openDetail"])) source.Line(":open-detail=\"true\"");
         if (AppModel.Str(block["orderField"]) is { } order) source.Line($"order-field=\"{order}\"");
@@ -1151,22 +1189,21 @@ public static class WebEmitter
             && AppModel.Str(block["label"]) is { } label)
             source.Line($"label=\"{label}\"");
         if (AppModel.Str(block["emptyText"]) is { } empty) source.Line($"empty-text=\"{empty}\"");
+
+        // `as` names the selection for everything in the pane, so a repeat in there — whose own
+        // `record` is its row — can still say `order eq {{po.id}}`.
+        var alias = AppModel.Str(block["as"]);
+        if (alias is not null) source.Line($"as=\"{alias}\"");
         source.Outdent();
         source.Line(">");
         source.Indent();
 
-        // `as` names the current item for descendants. The slot prop is always `record`, so a name
-        // is accepted and ignored rather than refused: the blocks inside address the selection the
-        // way they address any record, and nothing in a generated application reads `{{lead_sel.x}}`.
-        if (AppModel.Str(block["as"]) is { } alias)
-            unsupported.Add(NotYet($"a split's `as: '{alias}'` name (its blocks read the selection as the record)", context));
-
-        source.Line("<template #detail=\"{ record }\">");
+        source.Line(alias is null ? "<template #detail=\"{ record }\">" : "<template #detail=\"{ record, scopes }\">");
         source.Indent();
 
         // Imports are the SAME set as the outer context — `with` copies the reference — so a
         // component only the detail blocks use is still imported at the top of the page.
-        var inner = context with { Record = true, Entity = entity };
+        var inner = context with { Record = true, Entity = entity, Scoped = context.Scoped || alias is not null };
         foreach (var child in AppModel.Arr(block["blocks"]).OfType<JsonObject>())
             Block(source, child, inner, unsupported);
 
@@ -1224,7 +1261,7 @@ public static class WebEmitter
         var query = block["source"] as JsonObject;
         var entity = AppModel.Str(query?["entity"]) ?? AppModel.Str(block["entity"]) ?? context.Entity;
 
-        foreach (var gap in Gaps(block, query, context.Record)) unsupported.Add(NotYet(gap, context));
+        foreach (var gap in Gaps(block, query, context.Record, peeks: true)) unsupported.Add(NotYet(gap, context));
 
         var definition = Query(block, query, entity, "kanban", context.Record);
         var config = (JsonObject)definition["config"]!;
@@ -1241,6 +1278,7 @@ public static class WebEmitter
         if (context.Record) source.Line(":record=\"record\"");
         if (block["search"] is JsonObject search) source.Line($":search=\"{Js(search)}\"");
         if (AppModel.Bool(block["newButton"])) source.Line(":create=\"true\"");
+        if (AppModel.Bool(block["openDetail"])) source.Line(":open-detail=\"true\"");
         if (Echoes(AppModel.Str(block["label"]), context) is { Length: > 0 }) source.Line(":hide-title=\"true\"");
         source.Outdent();
         source.Line("/>");
@@ -1286,7 +1324,7 @@ public static class WebEmitter
     private static string? ColumnKey(JsonNode? column) =>
         column is JsonObject o ? AppModel.Str(o["key"]) : AppModel.Str(column);
 
-    /// <summary>Does any column carry sizing this target cannot emit yet?</summary>
+    /// <summary>Does any column carry sizing? Only a table has columns to size.</summary>
     private static bool HasColumnSizing(JsonObject block) =>
         AppModel.Arr(block["fields"]).OfType<JsonObject>()
             .Any(c => c["width"] is not null || c["overflow"] is not null);
@@ -1308,7 +1346,12 @@ public static class WebEmitter
         if (query?["filters"] is JsonArray filters) definition["filters"] = filters.DeepClone();
         if (query?["sort"] is JsonArray sort) definition["sort"] = sort.DeepClone();
         if (query?["limit"] is { } limit) definition["limit"] = limit.DeepClone();
-        if (block["fields"] is JsonArray) config["columns"] = new JsonArray([.. Columns(block).Select(k => (JsonNode)k!)]);
+        // A column authored as an object keeps its width and overflow; the table host reads both. A
+        // bare key stays a bare key, so a list that sizes nothing is emitted exactly as before.
+        if (block["fields"] is JsonArray fields)
+            config["columns"] = new JsonArray([.. fields
+                .Where(c => ColumnKey(c) is not null)
+                .Select(c => c is JsonObject column ? column.DeepClone() : (JsonNode)ColumnKey(c)!)]);
 
         // `via` is shorthand: the rows are the ones whose reference points at the record this screen
         // is about. Expanded into an ordinary filter leaf rather than given its own path through the
@@ -1336,13 +1379,15 @@ public static class WebEmitter
     /// </para>
     /// </summary>
     /// <param name="tabular">
-    /// True where the caller renders through <c>ViewBlock</c>, which does manual row order and the
-    /// quick-look panel. The calendar, board and timeline do neither — they have no rows to reorder,
-    /// and they navigate on click — so for them these stay gaps, and saying nothing would be the
-    /// silent kind.
+    /// True where the caller renders through <c>ViewBlock</c>, which does manual row order, the
+    /// quick-look panel and authored column sizing. The calendar, board and timeline do not — they
+    /// have no rows to reorder and no columns to size — so for them these stay gaps, and saying
+    /// nothing would be the silent kind.
     /// </param>
+    /// <param name="peeks">True where the renderer opens the quick-look panel without being a
+    /// table — the board does, for a card.</param>
     private static IEnumerable<string> Gaps(
-        JsonObject block, JsonObject? query, bool record, bool tabular = false)
+        JsonObject block, JsonObject? query, bool record, bool tabular = false, bool peeks = false)
     {
         if (query is not null)
         {
@@ -1356,11 +1401,11 @@ public static class WebEmitter
 
         if (!tabular && block["orderField"] is not null)
             yield return "a list's manual row order ('orderField')";
-        if (!tabular && AppModel.Bool(block["openDetail"]))
+        if (!tabular && !peeks && AppModel.Bool(block["openDetail"]))
             yield return "a list's 'openDetail' panel overlay";
-        // The columns still render — only the authored sizing is dropped, which is a difference you
-        // see rather than a breakage. Saying so beats a generated table that quietly ignores it.
-        if (HasColumnSizing(block))
+        // A table sizes its columns. A board, a calendar and a timeline lay out cards rather than
+        // columns, so there the authored sizing is still dropped — and still said.
+        if (!tabular && HasColumnSizing(block))
             yield return "a column's fixed width and overflow ('clip'/'wrap')";
     }
 
@@ -1540,9 +1585,13 @@ public static class WebEmitter
     ///
     /// <para>Two things stop it, and both are reported rather than dropped. A field named on a page
     /// with no record in scope has nothing to read from. A field naming a hop through a reference —
-    /// <c>shift.start_time</c> — needs the row on the OTHER side of that reference, which this
-    /// block has not loaded; emitting the hop as a plain key would read <c>undefined</c> and print
-    /// a dash on a screen that looks finished.</para>
+    /// <c>shift.start_time</c> — needs the row on the OTHER side of that reference.</para>
+    ///
+    /// <para>A <c>field</c> block loads that row itself, so for it one hop is fine wherever the build
+    /// can see both ends: a reference on this entity, to an entity of this application, naming a
+    /// field that entity has. Anything else — two hops, a reference into the directory, a stat that
+    /// is not even told its entity — would read <c>undefined</c> and print a dash on a screen that
+    /// looks finished, so it is still reported.</para>
     /// </summary>
     private static string? RecordField(
         JsonNode? node, string kind, BlockContext context, List<Diagnostic> unsupported)
@@ -1558,7 +1607,7 @@ public static class WebEmitter
             return null;
         }
 
-        if (field.Contains('.', StringComparison.Ordinal))
+        if (field.Contains('.', StringComparison.Ordinal) && !(kind == "field" && Hops(field, context)))
         {
             unsupported.Add(new Diagnostic(NotYetCodes.BlockOption,
                 $"a '{kind}' block reading '{field}' hops through a reference, which this target "
@@ -1568,6 +1617,15 @@ public static class WebEmitter
         }
 
         return field;
+    }
+
+    /// <summary>Is <c>via.field</c> one reference this build can follow to a field it declares?</summary>
+    private static bool Hops(string path, BlockContext context)
+    {
+        var parts = path.Split('.');
+        return parts.Length == 2
+            && context.App.Entity(context.Entity)?.Field(parts[0]) is { IsReference: true, TargetApp: null } via
+            && context.App.Entity(via.TargetEntity)?.Field(parts[1]) is not null;
     }
 
     /// <summary>
@@ -1615,15 +1673,19 @@ public static class WebEmitter
         if (block["filterBar"] is not null)
             unsupported.Add(NotYet("a repeat's own filter bar (the list renders unfiltered)", context));
 
-        if (AppModel.Str(block["as"]) is { } alias)
-            unsupported.Add(NotYet(
-                $"a repeat's '{alias}' scope name — a nested block naming '{alias}' will not resolve; "
-                + "the repeated record is in scope as the block's own record", context));
+        var alias = AppModel.Str(block["as"]);
 
         source.Line("<RepeatBlock");
         source.Indent();
         if (entity is not null) source.Line($"entity=\"{entity}\"");
         source.Line($":source=\"{Js(block["source"] ?? new JsonObject())}\"");
+
+        // What the repeat's OWN filters read: the screen's state and the record it sits inside. Only
+        // the session reached its query before, so "the part just scanned" filtered on the literal
+        // text `{{state.scan}}` and was always empty.
+        if (context.State.Count > 0) source.Line(":state=\"state\"");
+        if (context.Record) source.Line(":record=\"record\"");
+        if (alias is not null) source.Line($"as=\"{alias}\"");
         if (AppModel.Str(block["emptyText"]) is { } empty) source.Line($"empty-text={Quote(empty)}");
         if (AppModel.Str(block["gap"]) is { } gap) source.Line($"gap=\"{gap}\"");
 
@@ -1639,7 +1701,7 @@ public static class WebEmitter
         // platform's renderer answers the same question by walking the subtree on every render.
         if (entity is not null && !OwnsClickSurface(block["blocks"])) source.Line(":clickable=\"true\"");
 
-        source.Line("v-slot=\"{ record }\"");
+        source.Line(alias is null ? "v-slot=\"{ record }\"" : "v-slot=\"{ record, scopes }\"");
         source.Outdent();
         source.Line(">");
         source.Indent();
@@ -1647,7 +1709,7 @@ public static class WebEmitter
         // Inside the slot there IS a record, whatever was true outside it. Imports are shared with
         // the outer context rather than copied, so a component only the repeated children use is
         // still imported at the top of the page.
-        var inner = context with { Entity = entity, Record = true };
+        var inner = context with { Entity = entity, Record = true, Scoped = context.Scoped || alias is not null };
 
         foreach (var child in AppModel.Arr(block["blocks"]).OfType<JsonObject>())
             Block(source, child, inner, unsupported);
@@ -1678,6 +1740,9 @@ public static class WebEmitter
         foreach (var block in AppModel.Arr(blocks).OfType<JsonObject>())
         {
             if (ClickSurfaces.Contains(AppModel.Str(block["kind"]) ?? "")) return true;
+
+            // A card that opens the quick look has decided what its click does.
+            if (AppModel.Str(block["kind"]) == "card" && AppModel.Bool(block["openDetail"])) return true;
             if (OwnsClickSurface(block["blocks"])) return true;
 
             foreach (var tab in AppModel.Arr(block["tabs"]).OfType<JsonObject>())

@@ -569,14 +569,19 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
     /// each of those is reached by a different path. Only arrays actually called <c>filters</c> are
     /// read, which is what keeps a process rule's <c>when</c> — evaluated by the condition
     /// evaluator, not by the query layer — out of this.</para>
+    ///
+    /// <para>A filter on a field one reference away — <c>item.barcode</c> — IS answered, by the
+    /// gateway asking the referenced entity, wherever the build can see both ends of it. What is
+    /// still reported is a path it cannot: two hops, a reference into the directory, or a list whose
+    /// entity is not written beside its filters.</para>
     /// </summary>
     private static IEnumerable<Diagnostic> UnqueryableFilters(AppModel app)
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var (leaf, path) in Filters(app.Manifest, "$"))
+        foreach (var (leaf, path, entity) in Filters(app.Manifest, "$"))
         {
-            var reason = AppModel.Str(leaf["path"]) is { } hop
+            var reason = AppModel.Str(leaf["path"]) is { } hop && !Followable(app, entity, hop)
                 ? $"a filter on '{hop}', which reads a field one reference away"
                 : AppModel.Str(leaf["operator"]) is "overlaps"
                     ? "the 'overlaps' filter, which compares a row's own range against a window"
@@ -591,11 +596,25 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
         }
     }
 
-    private static IEnumerable<(JsonObject Leaf, string Path)> Filters(JsonNode? node, string path)
+    /// <summary>One reference on <paramref name="entity"/>, to an entity of this application, and a
+    /// field that entity has.</summary>
+    private static bool Followable(AppModel app, string? entity, string hop)
+    {
+        var parts = hop.Split('.');
+        return parts.Length == 2
+            && app.Entity(entity)?.Field(parts[0]) is { } via
+            && Emit.BackendEmitter.FollowedReference(app, via) is { } target
+            && app.Entity(target)?.Field(parts[1]) is not null;
+    }
+
+    /// <summary>Every filter leaf, with the entity it filters where the object holding the
+    /// <c>filters</c> says so — a view, a block's <c>source</c>.</summary>
+    private static IEnumerable<(JsonObject Leaf, string Path, string? Entity)> Filters(JsonNode? node, string path)
     {
         switch (node)
         {
             case JsonObject o:
+                var entity = AppModel.Str(o["entity"]);
                 foreach (var (name, child) in o)
                 {
                     // A `computed` subtree is a ROLLUP's filters, which never reach the query layer:
@@ -608,7 +627,7 @@ public sealed class DotNetVueGenerator : IAppSourceGenerator, ICustomCodeScanner
                     {
                         for (var i = 0; i < leaves.Count; i++)
                             if (leaves[i] is JsonObject leaf)
-                                yield return (leaf, $"{path}.filters[{i}]");
+                                yield return (leaf, $"{path}.filters[{i}]", entity);
                         continue;
                     }
 

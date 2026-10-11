@@ -172,27 +172,24 @@ public class GeneratedApplicationTests
     [Fact]
     public void An_application_with_unrenderable_screens_is_refused_by_default()
     {
-        var strict = Build("sales-crm", allowPartial: false);
-        var permitted = Build("sales-crm", allowPartial: true);
+        var strict = Build("helpdesk", allowPartial: false);
+        var permitted = Build("helpdesk", allowPartial: true);
 
         Assert.True(permitted.Warnings.Count > 0,
-            "sales-crm now builds completely, so this test needs a different application.");
+            "helpdesk now builds completely, so this test needs a different application.");
 
         Assert.False(strict.Ok);
 
-        // Two kinds of refusal now, and both are expectations. The screens this target cannot render
-        // are CORD230x; the rest is the Documents app the CRM embeds since its note feed became a
-        // documentation space — the withheld block and the reference behind it. Partitioned rather
-        // than widened to "any CORD2", so a refusal of a THIRD kind still fails here.
+        // Only the screens this target cannot render yet — CORD230x — and nothing that needs the
+        // platform. Partitioned rather than widened to "any CORD2", so a refusal of another kind
+        // still fails here.
         var screens = strict.Errors
             .Where(e => e.Code.StartsWith("CORD230", StringComparison.Ordinal)).ToList();
         var platform = strict.Errors
             .Where(e => !e.Code.StartsWith("CORD230", StringComparison.Ordinal)).ToList();
 
         Assert.NotEmpty(screens);
-        Assert.Equal(
-            [DiagnosticCodes.CrossAppReference, DiagnosticCodes.UnsupportedBlock],
-            platform.Select(e => e.Code).Distinct().Order().ToList());
+        Assert.Empty(platform);
 
         Assert.True(permitted.Ok);
 

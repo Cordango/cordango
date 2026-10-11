@@ -64,7 +64,7 @@ public static class EntityEmitter
             source.Line();
             EmitInterface(source, entity);
             source.Line();
-            EmitDescriptor(source, entity);
+            EmitDescriptor(source, app, entity);
         }
 
         return new GeneratedFile("api/src/entities.ts", source.ToString());
@@ -100,7 +100,7 @@ public static class EntityEmitter
         source.Close();
     }
 
-    private static void EmitDescriptor(TsSource source, EntityModel entity)
+    private static void EmitDescriptor(TsSource source, AppModel app, EntityModel entity)
     {
         var name = TypeScript.Identifier(entity.Key) + "Descriptor";
 
@@ -113,14 +113,24 @@ public static class EntityEmitter
         source.Line($"{TypeScript.Literal(entity.Label)},");
         source.OpenArray();
 
+        // A reference to another entity of this application names it, so a filter can follow it —
+        // `item.barcode` on an order line. The same rule the .NET descriptor applies.
         foreach (var field in entity.AuthoredFields)
             source.Line(
                 $"{{ key: {TypeScript.Literal(field.Key)}, "
-                + $"type: {TypeScript.Literal(TypeScript.DescriptorType(field.Type))} }},");
+                + $"type: {TypeScript.Literal(TypeScript.DescriptorType(field.Type))}"
+                + (Followed(app, field) is { } target ? $", target: {TypeScript.Literal(target)}" : "")
+                + " },");
 
         source.CloseArray(",");
         source.CloseCall();
     }
+
+    /// <summary>The entity a reference points at, when it is one of this application's own.</summary>
+    private static string? Followed(AppModel app, FieldModel field) =>
+        field is { IsReference: true, TargetApp: null } && app.Entity(field.TargetEntity) is { } target
+            ? target.Key
+            : null;
 }
 
 /// <summary>The banner every generated TypeScript file carries. Says what wrote the file and what

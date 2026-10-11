@@ -280,12 +280,22 @@ public static class TargetValidator
             if (Str(workflow["trigger"]?["app"]) is { } announcer && siblings?.Contains(announcer) == true)
                 continue;
 
+            // And no `app` at all is this application listening to ITSELF: a delivery that only
+            // partly arrived, announced by its own lifecycle. What a target withholds is the
+            // subscription to somebody else, so refusing one with nobody else in it sent the author
+            // to the platform for the one trigger every single application can wire.
+            if (workflow["trigger"]?["app"] is null && IsSubscription(evt))
+                continue;
+
             var key = Str(workflow["key"]) ?? w.ToString();
             found.Add(new Diagnostic(DiagnosticCodes.UnsupportedTrigger,
                 $"workflow '{key}' triggers on '{evt}': {caps.Triggers.Explain(evt)}.",
                 $"$.workflows[{w}].trigger"));
         }
     }
+
+    private static bool IsSubscription(string evt) =>
+        evt is "process.state_entered" or "command.emitted";
 
     private static string? Str(JsonNode? node) =>
         node is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;

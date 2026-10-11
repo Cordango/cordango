@@ -6,6 +6,7 @@ import {
   formatValue, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import EmptyState from './EmptyState.vue'
 import { useSurface } from './surface.js'
 
@@ -113,11 +114,15 @@ const windowLabel = computed(() => {
     + `${end.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`
 })
 
+// The names enclosing splits and repeats gave their records — `{{po.id}}` in a filter.
+const scopes = useScopes()
+
 const context = computed(() => ({
   personId: session.personId,
   userId: session.userId,
   state: props.state ?? {},
   record: props.record ?? {},
+  scopes: scopes.value,
 }))
 
 async function resolveLanes() {

@@ -6,6 +6,7 @@ import {
   matchesSearch, recordRoute, onRecordsChanged,
 } from '../records.js'
 import { session } from '../session.js'
+import { useScopes, provideScope } from '../scopes.js'
 import EmptyState from './EmptyState.vue'
 
 // The INBOX: a list on the left, the selected record's detail on the right.
@@ -27,6 +28,9 @@ const props = defineProps({
   // The record this split is inside, when it sits on a detail screen: `{{record.id}}` in a filter
   // resolves against it.
   record: { type: Object, default: null },
+  // The name the selection goes by inside the detail pane — `as: po` is how a repeat of the order's
+  // lines, which has its own `record`, still says "on THIS order": `order eq {{po.id}}`.
+  as: { type: String, default: null },
 })
 
 const router = useRouter()
@@ -64,6 +68,11 @@ const visible = computed(() => {
 const selected = computed(() =>
   visible.value.find((r) => r.id === selectedId.value) ?? visible.value[0] ?? null)
 
+// The list is outside its own name, so it reads only the names from further out. The detail pane is
+// inside it, and gets the selection under `as` as well.
+const outer = useScopes()
+const named = provideScope(props.as, selected)
+
 async function load() {
   if (!props.definition?.entity) return
   loading.value = true
@@ -74,6 +83,7 @@ async function load() {
       userId: session.userId,
       state: props.state ?? {},
       record: props.record ?? {},
+      scopes: outer.value,
     })
     rows.value = page?.items ?? []
   } catch {
@@ -93,7 +103,7 @@ watch(visible, (list) => {
   if (!list.some((r) => r.id === selectedId.value)) selectedId.value = list[0].id
 })
 
-watch(() => [props.definition, props.state, props.record], load, { deep: true })
+watch(() => [props.definition, props.state, props.record, outer.value], load, { deep: true })
 onMounted(load)
 
 let stop = null
@@ -155,8 +165,12 @@ function open(row) {
               @click="open(selected)">Open full record</v-btn>
           </div>
           <!-- The author's own blocks, with the selected row as `record`. Everything a record page
-               can draw, this can draw. -->
-          <slot name="detail" :record="selected" />
+               can draw, this can draw. Keyed by the selection, so a list in the pane filtered on
+               this record loads THIS record's rows: kept alive, it went on showing the first
+               order's lines under whichever order was clicked next. -->
+          <div :key="selected.id">
+            <slot name="detail" :record="selected" :scopes="named" />
+          </div>
         </template>
         <EmptyState v-else title="Nothing selected" body="Pick one from the list." />
       </div>

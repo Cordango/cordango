@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { loadAggregate, formatStat } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import { useSurface } from './surface.js'
 
 // One figure, and what it means.
@@ -38,6 +39,9 @@ const props = defineProps({
   link: { type: Object, default: null },
   grow: { type: Boolean, default: true },
 })
+
+// `{{po.id}}` in the source's filters: a figure about the order a split has selected.
+const scopes = useScopes()
 
 const router = useRouter()
 
@@ -98,7 +102,7 @@ async function load() {
   loading.value = true
   failed.value = false
   try {
-    const result = await loadAggregate(props.source, session)
+    const result = await loadAggregate(props.source, { ...session, scopes: scopes.value })
     aggregate.value = result?.buckets?.[0]?.value ?? 0
   } catch {
     failed.value = true

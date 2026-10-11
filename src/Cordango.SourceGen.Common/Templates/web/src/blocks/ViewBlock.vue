@@ -10,6 +10,7 @@ import {
 import { app } from '../app.js'
 import { groupTarget, resolveGroups } from '../tableGroups.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import RecordDialog from './RecordDialog.vue'
 import CommandButton from './CommandButton.vue'
 import EmptyState from './EmptyState.vue'
@@ -67,6 +68,12 @@ const props = defineProps({
   // A row click opens a quick-look panel rather than navigating. Opt-in: for a list whose rows ARE
   // the work, the full page is the right destination and a panel is one more thing to dismiss.
   openDetail: { type: Boolean, default: false },
+  // LINE ITEMS: the fields to add up under the rows — an order's lines are money with a total, and
+  // a total the reader has to work out is the one figure the list was for. Chosen by the emitter.
+  totals: { type: Array, default: null },
+  // The table's own configuration toolbar. Line items turn it off: a handful of rows on a record
+  // is not a list anybody reconfigures.
+  toolbar: { type: Boolean, default: true },
 })
 
 const router = useRouter()
@@ -179,6 +186,15 @@ async function resolveLabels() {
 
 const labelFor = (field, value) => labels.value[field.key]?.[value] ?? formatValue(value, field)
 
+// Over the rows on screen, so a search that narrows the lines narrows the total with them.
+const totalled = computed(() => (props.totals || [])
+  .map((key) => entity.value?.fields.find((f) => f.key === key))
+  .filter(Boolean)
+  .map((field) => ({
+    field,
+    value: visible.value.reduce((sum, row) => sum + (Number(row[field.key]) || 0), 0),
+  })))
+
 // --- sections -----------------------------------------------------------------------------------
 
 const groups = ref(null)
@@ -211,6 +227,9 @@ async function loadGroups() {
     entity.value, settings.value.groupBy, parentEntityKey.value, props.record?.id ?? null)
 }
 
+// The names enclosing splits and repeats gave their records — `{{po.id}}` in a filter.
+const scopes = useScopes()
+
 // Everything a `{{...}}` in a filter can be resolved against, in one object, so records.js does not
 // have to know where any of it came from.
 const context = computed(() => ({
@@ -218,6 +237,7 @@ const context = computed(() => ({
   userId: session.userId,
   state: props.state ?? {},
   record: props.record ?? {},
+  scopes: scopes.value,
 }))
 
 /**
@@ -434,6 +454,7 @@ const settingsKey = computed(() =>
       :row-commands="commandsOnRow"
       :can-delete="settings.allowDelete"
       :can-add="create"
+      :toolbar="toolbar"
       @row-click="open"
       @edit="editing = $event"
       @delete="confirming = $event"
@@ -446,7 +467,14 @@ const settingsKey = computed(() =>
       @command="(command, record) => (pending = { command, record })"
     />
 
-    <EmptyState v-else icon="mdi-table-off" title="Nothing here yet.">
+    <div v-if="!loading && !error && visible.length && totalled.length" class="cd-totals">
+      <div v-for="t in totalled" :key="t.field.key" class="cd-total">
+        <span class="text-caption font-weight-medium text-medium-emphasis">{{ t.field.label }}</span>
+        <span class="text-body-1 font-weight-bold">{{ formatValue(t.value, t.field) }}</span>
+      </div>
+    </div>
+
+    <EmptyState v-else-if="!loading && !error && !visible.length" icon="mdi-table-off" title="Nothing here yet.">
       <v-btn v-if="create" variant="tonal" prepend-icon="mdi-plus" @click="editing = { ...blank }">
         Add the first one
       </v-btn>
@@ -494,3 +522,15 @@ const settingsKey = computed(() =>
     </v-dialog>
   </component>
 </template>
+
+<style scoped>
+.cd-totals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 20px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+}
+.cd-total { display: flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+</style>

@@ -17,7 +17,7 @@ import { readTicket, slide, type SessionOptions } from "../identity/sessions.js"
 import { administratorRole, UserStore, type AppUser } from "../identity/users.js";
 import { NotificationService } from "../notifications/notifications.js";
 import type { RecordDescriptor, RecordRow } from "../records/descriptor.js";
-import { RecordGateway, type CommandRunner } from "../records/gateway.js";
+import { RecordGateway, type CommandRunner, type GatewayLookup } from "../records/gateway.js";
 import { RecordHooks, type Clock, type RecordContext } from "../records/hooks.js";
 import type { RecordIdGenerator, RecordStoreApi } from "../records/store.js";
 import { noPermissions, type AppPermissions, type CurrentUser } from "../security/permissions.js";
@@ -278,9 +278,13 @@ export class CordangoRuntime {
         const registration = runtime.registrations.get(entity);
         const rule = registration?.access as ((user: CurrentUser) => EntityAccess) | undefined;
 
+        // A filter on `item.barcode` asks the parts, in this same request and as this same person.
+        const lookup = (target: string): RecordGateway<RecordRow> | undefined =>
+          runtime.registrations.has(target) ? scope.gateway<RecordRow>(target) : undefined;
+
         const gateway = rule === undefined
-          ? new RecordGateway<T>(store, runtime.permissions, user, commands)
-          : new RuledGateway<T>(store, runtime.permissions, user, commands, rule);
+          ? new RecordGateway<T>(store, runtime.permissions, user, commands, lookup)
+          : new RuledGateway<T>(store, runtime.permissions, user, commands, rule, lookup);
 
         gateways.set(entity, gateway as unknown as RecordGateway<RecordRow>);
         return gateway;
@@ -509,8 +513,9 @@ class RuledGateway<T extends RecordRow> extends RecordGateway<T> {
     user: CurrentUser,
     commands: CommandRunner<T>,
     private readonly rule: (user: CurrentUser) => EntityAccess,
+    lookup?: GatewayLookup,
   ) {
-    super(store, permissions, user, commands);
+    super(store, permissions, user, commands, lookup);
   }
 
   protected override resolveAccess(): EntityAccess {

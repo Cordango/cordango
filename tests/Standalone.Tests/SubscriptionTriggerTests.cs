@@ -104,6 +104,26 @@ public class SubscriptionTriggerTests
         }
     }
 
+    [Theory]
+    [InlineData("""{"event":"process.state_entered","name":"project.active"}""")]
+    [InlineData("""{"event":"command.emitted","name":"project.planned"}""")]
+    public void A_subscription_to_this_applications_own_announcement_is_not_refused(string subscribe)
+    {
+        var result = Build(App(subscribe), allowIncomplete: false);
+
+        Assert.DoesNotContain(result.Errors.Concat(result.Warnings),
+            d => d.Code == DiagnosticCodes.UnsupportedTrigger);
+    }
+
+    [Fact]
+    public void A_subscription_to_an_application_outside_the_build_is_still_refused()
+    {
+        var result = Build(App("""{"event":"process.state_entered","name":"project.active","app":"elsewhere"}"""),
+            allowIncomplete: false);
+
+        Assert.Contains(result.Errors, d => d.Code == DiagnosticCodes.UnsupportedTrigger);
+    }
+
     private static string Workflows(JsonObject definition) =>
         WorkflowEmitter.Workflows(Model(definition)).Content;
 
@@ -117,12 +137,12 @@ public class SubscriptionTriggerTests
             new CompiledAppArtifact(manifest, manifest, "unhashed", new CompilerInfo("test", "1")));
     }
 
-    private static GenerateResult Build(JsonObject definition)
+    private static GenerateResult Build(JsonObject definition, bool allowIncomplete = true)
     {
         var manifest = AppCompiler.Compile(definition, "app1", At);
         return new DotNetVueGenerator().Generate(new GenerateRequest(
             new CompiledAppArtifact(manifest, manifest, "unhashed", new CompilerInfo("test", "1")),
-            new JsonObject { ["allowIncomplete"] = true, ["seed"] = 42 }));
+            new JsonObject { ["allowIncomplete"] = allowIncomplete, ["seed"] = 42 }));
     }
 
     private static readonly DateTimeOffset At = new(2026, 9, 18, 12, 0, 0, TimeSpan.Zero);

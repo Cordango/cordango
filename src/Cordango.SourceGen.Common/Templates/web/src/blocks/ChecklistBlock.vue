@@ -6,6 +6,7 @@ import {
   createRecord, updateRecord, deleteRecord, displayOf, toast,
 } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import EmptyState from './EmptyState.vue'
 import RecordPeek from './RecordPeek.vue'
 import { useSurface } from './surface.js'
@@ -62,11 +63,15 @@ const peeking = ref(null)
 const entityKey = computed(() => props.definition?.entity ?? null)
 const titled = computed(() => !props.hideTitle && depth === 0 && Boolean(props.definition?.label))
 
+// The names enclosing splits and repeats gave their records — `{{po.id}}` in a filter.
+const scopes = useScopes()
+
 const context = computed(() => ({
   personId: session.personId,
   userId: session.userId,
   state: props.state ?? {},
   record: props.record ?? {},
+  scopes: scopes.value,
 }))
 
 // What a new item starts as. Same rule as ViewBlock's: the list's own EQUALITY filters are what a

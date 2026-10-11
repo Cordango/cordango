@@ -5,6 +5,7 @@ import {
   viewOf, entityOf, loadView, displayOf, onRecordsChanged, recordsChanged, optionColor, recordRoute,
 } from '../records.js'
 import { session } from '../session.js'
+import { useScopes } from '../scopes.js'
 import { iso, gridStart, gridDays, weekdayNames, monthLabel, shiftMonth, bucketByDay } from '../monthGrid.js'
 import RecordDialog from './RecordDialog.vue'
 import { useSurface } from './surface.js'
@@ -26,6 +27,9 @@ const props = defineProps({
   record: { type: Object, default: null },
   create: { type: Boolean, default: true },
 })
+
+// The names enclosing splits and repeats gave their records — `{{po.id}}` in a filter.
+const scopes = useScopes()
 
 const router = useRouter()
 
@@ -78,6 +82,7 @@ async function load() {
         userId: session.userId,
         state: props.state ?? {},
         record: props.record ?? {},
+        scopes: scopes.value,
       },
       {
         take: 500,

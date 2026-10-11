@@ -74,9 +74,7 @@ public class CardViewTests
     /// <summary>
     /// What is STILL missing says so.
     ///
-    /// <para>The repeat's own filter bar and its <c>as</c> scope name are not emitted. Both used to
-    /// vanish without a word, and the second is the worse of the two: a nested block naming the alias
-    /// renders the token literally, so the screen shows <c>{{proj.name}}</c> to whoever opens it.</para>
+    /// <para>The repeat's own filter bar is not emitted, and used to vanish without a word.</para>
     /// </summary>
     [Fact]
     public void The_parts_that_are_still_missing_are_reported()
@@ -84,7 +82,15 @@ public class CardViewTests
         var warnings = Build().Warnings.Select(d => d.Message).ToList();
 
         Assert.Contains(warnings, m => m.Contains("repeat's own filter bar", StringComparison.Ordinal));
-        Assert.Contains(warnings, m => m.Contains("scope name", StringComparison.Ordinal));
+        Assert.DoesNotContain(warnings, m => m.Contains("scope name", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void A_named_repeat_hands_its_name_to_the_blocks_inside()
+    {
+        var page = System.Text.RegularExpressions.Regex.Replace(Page(), "\\s+", " ");
+
+        Assert.Matches("<RepeatBlock[^>]* as=\"proj\"[^>]* v-slot=\"\\{ record, scopes \\}\"", page);
     }
 
     private static string Page() =>
