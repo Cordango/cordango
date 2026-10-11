@@ -13,7 +13,7 @@ A lot of that work is the same in every application. So why generate it again an
 
 Cordango lets you define the application instead. Your entities, relationships, screens, calculations, permissions, commands and workflows go into an App Definition. The compiler takes it from there.
 
-You get a working backend, frontend and database setup. Not a mockup, not a hosted black box, and not a project that needs Cordango to keep running.
+You get a working backend, frontend and database setup, a full application ready to be used with no other dependencies. Currently supporting .NET+Vue and Postgres... Node being worked on and more to come
 
 [Quickstart](https://docs.cordango.com/quickstart) | [Documentation](https://docs.cordango.com) | [Examples](https://github.com/cordango/examples) | [Using an AI agent](https://docs.cordango.com/ai/overview)
 
