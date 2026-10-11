@@ -3,45 +3,27 @@
 [![CI](https://github.com/cordango/cordango/actions/workflows/ci.yml/badge.svg)](https://github.com/cordango/cordango/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Cordango.Cli?logo=nuget&label=Cordango.Cli)](https://www.nuget.org/packages/Cordango.Cli)
 [![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
-[![Docs](https://img.shields.io/badge/docs-docs.cordango.com-0f766e)](https://docs.cordango.com)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**The open foundation of the Cordango application platform.** Define a complete business application
-in a portable format, run it on Cordango, or generate conventional source code you own and deploy
-anywhere.
+**Build full-stack business apps from YAML. Let Claude help write the definition. Own the generated code.**
 
-📖 **[Documentation](https://docs.cordango.com)** ·
-[Quickstart](https://docs.cordango.com/quickstart) ·
-[CLI](https://docs.cordango.com/cli/install) ·
-[Concepts](https://docs.cordango.com/concepts) ·
-[Building with an agent](https://docs.cordango.com/ai/overview)
+AI can write an impressive amount of code. It can also spend half an afternoon getting authentication, forms, migrations and permissions to agree with each other.
 
-## What this is
+A lot of that work is the same in every application. So why generate it again and again?
 
-Cordango is a platform companies run their internal applications on, hosted
-at [cordango.com](https://cordango.com). This repository is what sits underneath it: the app format,
-the compiler, the validator and the standalone generator, all Apache-2.0.
+Cordango lets you define the application instead. Your entities, relationships, screens, calculations, permissions, commands and workflows go into an App Definition. The compiler takes it from there.
 
-An application here is described rather than coded. Entities and their fields, who may read and
-write what, the states a record moves through, the screens people work in, the figures worked out
-when a row is saved. That description is an **App Definition**, written as YAML, and it is the whole
-application. There is no second source of truth hiding in a codebase somewhere, and no scaffold that
-drifts from the model the day after it is generated.
+You get a working backend, frontend and database setup. Not a mockup, not a hosted black box, and not a project that needs Cordango to keep running.
 
-From there it goes one of two ways.
+[Quickstart](https://docs.cordango.com/quickstart) | [Documentation](https://docs.cordango.com) | [Examples](https://github.com/cordango/examples) | [Using an AI agent](https://docs.cordango.com/ai/overview)
 
-Publish it to the platform and it runs, sharing People, Organizations and a Calendar with every
-other app in the company, with audit history and governance already in place.
+## What does it actually generate?
 
-Or build it, and get a conventional repository: an API, a front end, a database schema, a Dockerfile,
-in whatever stack the target emits. Same file, same application, two destinations.
+Take an expense app. Someone submits a claim, a manager approves or rejects it, the employee gets notified, and finance marks it reimbursed.
 
-The generated half has no runtime dependency on us. No licence server, no account, no model API, no
-phone home. Delete the toolchain afterwards and it still builds. That is most of the reason this
-repository is open: what you generate has to keep working whether or not we do.
+Normally that's a database schema, API, authentication, role checks, forms, dashboards, business actions and probably a bunch of glue code.
 
-
-## From definition to application
+In Cordango, those things are described together. Here's a small taste of the YAML:
 
 ```yaml
 entities:
@@ -58,195 +40,239 @@ roles:
       - read: Expense
 ```
 
-`cordango build` turns that into a repository with an API, a front end and a Dockerfile. Entities
-and their schema, REST and MCP, sign-in, roles and per-field permissions enforced on the server,
-commands with their guards and effects, workflows, computed fields and rollups, a first-run setup
-screen, and a demo dataset.
+That's just a fragment, of course. A complete app definition can also describe the approval process, what happens when someone clicks Approve, what an employee is allowed to see, and what appears on the dashboard.
 
-## Quick start
+Then:
 
-**macOS and Linux**
+```sh
+cordango check
+cordango build
+```
+
+Cordango produces the app, including its API and UI, without an AI model generating thousands of lines of implementation code.
+
+Want to see something beyond CRUD? [Look at the examples](https://github.com/cordango/examples). The warehouse example covers stock movements, order picking, deliveries, computed availability, reorder rules and more.
+
+<!-- Add a short real demo GIF here. Show a definition, the build, and the running app. -->
+
+## Try it
+
+### Install
+
+The CLI is a standalone binary. You don't need .NET, Docker or a database to use it.
+
+**macOS with Homebrew**
 
 ```sh
 brew install cordango/tap/cordango
-# or
-curl -fsSL https://cordango.com/install.sh | sh
 ```
 
-**Windows**
+**Windows with Scoop**
 
 ```powershell
 scoop bucket add cordango https://github.com/cordango/scoop-bucket
 scoop install cordango
 ```
 
-**With the .NET SDK already installed**
+**Linux and macOS with the install script**
+
+```sh
+curl -fsSL https://cordango.com/install.sh | sh
+```
+
+**Prefer installing the binary yourself?** Grab the right build for your system from [GitHub Releases](https://github.com/cordango/cordango/releases/latest).
+
+You can also install it as a .NET global tool if you already use the SDK, but that's entirely optional:
 
 ```sh
 dotnet tool install -g Cordango.Cli
 ```
 
-Then:
+### Create and run an app
 
 ```sh
-cordango new expenses            # a workspace, with one application in it
+cordango new expenses
 cd expenses
-cordango check                   # parse, lower and validate. No model, no database.
-cordango configure               # where these apps run. Asked once, committed.
+cordango check
+cordango configure
 cordango build
 
 cd generated/expenses
 docker compose up --build
 ```
 
-That last command is the whole deployment. No `.env` to write, no migration step, no password to
-look up. Open <http://localhost:8080> and the first screen asks you to create the administrator
-account.
+Open `http://localhost:8080`. The generated app asks you to create its first administrator account.
 
-Generated applications go to `generated/<app>/` and nowhere else. There is no `--out`. The directory
-is gitignored because everything in it comes from the source beside it, and you can move it out
-whenever it is ready to have a life of its own.
+That's it. You now have an independently running application.
 
-## Targets
+Generated code lives under `generated/<app>/`. Move it out of the workspace whenever you want to maintain it separately. It doesn't need a Cordango login, licence server or model API.
 
-A target is one whole stack, a backend and a frontend that ship together.
+## Use it with Claude Code or another agent
+
+This is where it gets interesting.
+
+Instead of asking Claude to write a complete .NET and Vue project, ask it to create a Cordango app definition. Let the compiler handle the repetitive implementation.
+
+For example:
+
+> Build an expense management app with employee submissions, manager approval, reimbursement tracking and a dashboard. Use Cordango, validate the definition, and build the standalone app.
+
+`cordango new` creates `CLAUDE.md` and `AGENTS.md` to give coding agents context. The CLI also exposes the vocabulary and validation tools they need.
+
+```sh
+cordango vocabulary
+cordango check
+cordango build
+```
+
+The agent still has to get the business rules right. The difference is that it works with a defined language and a compiler instead of inventing a new application architecture each time.
+
+See [Building with an agent](https://docs.cordango.com/ai/overview) for the workflow.
+
+## It's not just CRUD
+
+The app definition can describe more than fields and tables:
+
+- **Data:** entities, references, calculated values and rollups
+- **Behavior:** commands, guards, state transitions and workflows
+- **UI:** forms, tables, dashboards, boards and other supported views
+- **Access:** roles, entity permissions and field-level rules
+- **Integration:** REST, MCP and application actions
+
+Take the warehouse example. Available stock isn't an editable number someone can accidentally overwrite. It's calculated from stock movements and reservations. Shipping records a movement, availability changes, and the replenishment rules use that result.
+
+The definition describes those relationships. The generated application implements them within the capabilities of its chosen target.
+
+Of course, YAML isn't magic. If a rule can't be expressed in the language, it needs custom code, another approach, or an addition to the compiler. We don't want to pretend otherwise.
+
+## Available targets
 
 | Target | Backend | Frontend | Status |
 | --- | --- | --- | --- |
-| `dotnet-vue` | ASP.NET Core, EF Core | Vue 3, Vuetify | Available |
-| `node-vue` | Node, TypeScript, Express | Vue 3, Vuetify | Available. Workflows and rollups not generated yet |
-| Python | Python | | Planned |
-| React | | React | Planned |
+| `dotnet-vue` | ASP.NET Core, EF Core, PostgreSQL | Vue 3, Vuetify | Available |
+| `node-vue` | Node.js, TypeScript, Express | Vue 3, Vuetify | Available, but workflows and rollups aren't generated yet |
+| Python | Planned | | Not available |
+| React | | Planned | Not available |
 
-**The front end is one tree, not two copies.** The Vue shell is a REST client: it talks to whatever
-answers the HTTP contract and never asks what the backend is written in. One emitter produces it,
-both targets call that emitter, and a test asserts the two outputs are byte-identical across every
-example application. Adding a third target means writing a backend, not a second front end.
+The Node target can use PGlite without a separate database server. The .NET target uses PostgreSQL.
 
-**PostgreSQL is the only database today.** Which one a generated application uses is the target's
-choice, never something your definition has to say. `node-vue` runs on [PGlite](https://pglite.dev)
-when no `DATABASE_URL` is set, so `npm start` is a complete application with nothing to install.
+A target either supports a feature or tells you that it doesn't. It shouldn't quietly leave half your application out.
 
-Nothing about the format is tied to .NET. A generator is a process that describes itself on stdout
-and takes a request on stdin, so one written in Go or Python is as welcome as one written in C#.
-[Targets](https://docs.cordango.com/concepts/targets) has the detail.
+```sh
+cordango targets
+cordango check --target dotnet-vue
+cordango build --target dotnet-vue
+```
 
-## Custom code
+## What about custom code?
 
-Some things a definition cannot say: rounding, a checksum, a rule that spans two fields. Put C# in
-`custom/dotnet/` and call it by name.
+Not everything belongs in an app definition.
+
+Sometimes you need an unusual calculation, an integration or some specific domain logic. The .NET generator supports custom C# functions and hooks.
 
 ```csharp
 [CordangoFunctions]
 public static class Rounding
 {
-    [CordangoFunction("round", Description = "Nearest whole number, halves away from zero.")]
+    [CordangoFunction("round", Description = "Round to a whole number.")]
     public static decimal? Round(decimal? value) =>
         value is null ? null : decimal.Round(value.Value, 0, MidpointRounding.AwayFromZero);
 }
 ```
+
+Then reference it in the definition:
 
 ```yaml
 computed:
   expr: custom.round(active_exact)
 ```
 
-Hooks work the same way. Mark a method `[BeforeCreate]` or `[AfterUpdate]` and it runs on every
-write with the record and a context in hand. A before-hook can change the record or throw to refuse
-the write; an after-hook runs once the write is already decided.
+Run `cordango custom` to set up the custom code project.
 
-`cordango custom` creates the folder and a project file your editor understands. The code is
-compiled into the generated application, so a wrong signature is a build error rather than something
-you find out about later.
+Custom C# currently works with `dotnet-vue`. It is not supported by the hosted platform runtime, and it doesn't automatically translate to Node.
 
-`dotnet-vue` only for now. An application carrying custom code cannot run on the platform, which
-interprets definitions and has no compiler.
+## What makes the compiler different from a scaffold?
 
-## Commands
+A scaffold is useful on day one. The trouble starts after day one, when the model changes and the generated files have been edited by hand.
 
-| Command | What it does |
+With Cordango, the App Definition stays the source for the parts the compiler owns. You change the definition and build again. If you need logic that the definition doesn't cover, use the supported custom-code extensions.
+
+There are two rules we're serious about.
+
+**Same input, same output.** With the same definition and generator version, the output is deterministic. We test this rather than relying on a claim.
+
+**Don't hide missing features.** If a target can't generate something, the build reports it. You can explicitly use `--allow-incomplete`, but the omissions are recorded in the generated README and build metadata. A partial application shouldn't pass as a complete one.
+
+## A few useful commands
+
+| Command | What it's for |
 | --- | --- |
-| `cordango new <app>` | Create a workspace and its first application |
-| `cordango add app <name>` | Add another application to the workspace |
-| `cordango configure` | Decide once where this workspace's apps run, and commit it |
-| `cordango import <file>` | Bring an App Definition in as editable source |
-| `cordango check [--target <id>]` | Parse, lower and validate. With `--target`, ask whether that generator can build it |
-| `cordango targets` | What this build can generate, and what each target deliberately won't |
-| `cordango build [--target <id>]` | Do what `configure` said, or override it once |
-| `cordango custom` | Set up this app's own code and the project an editor reads |
-| `cordango inspect [path]` | Describe the workspace, one application, or one aggregate |
-| `cordango fmt` | Rewrite every source file in canonical form |
-| `cordango doctor` | Check the workspace for problems that aren't source errors |
+| `cordango new <name>` | Create a workspace and first app |
+| `cordango add app <name>` | Add an application |
+| `cordango check` | Validate the definition |
+| `cordango configure` | Choose where the application runs |
+| `cordango build` | Generate the application |
+| `cordango targets` | Show supported generator targets |
+| `cordango vocabulary` | Show the language capabilities to agents |
+| `cordango inspect` | Inspect an app or part of a workspace |
+| `cordango fmt` | Format the source |
+| `cordango doctor` | Check the development environment |
+| `cordango custom` | Prepare custom C# code |
 
-`cordango --help` lists the rest, including `login`, `publish` and `whoami`.
+Use `cordango --help` for the full list.
 
-## Two guarantees
+## What Cordango isn't
 
-**Nothing is dropped silently.** A build refuses rather than shipping less than the definition asks
-for. Anything the target can't do is reported with a diagnostic code and the path that caused it.
-`--allow-incomplete` is how you say you know: the gaps are listed in the generated README and
-recorded in `cordango.build.json`, so a partial build can never pass for a complete one later.
-`CORD21xx` means this target will never do that. `CORD23xx` means not generated yet, which a later
-release removes with no change to your definition.
+It's not a promise that any prompt can turn into any application.
 
-**Output is deterministic.** The same definition and generator version produce the same files, byte
-for byte. No timestamps, no random identifiers, no machine paths. CI generates the same fixture
-twice and compares. `cordango build --seed 42` produces the same demo dataset every time, dates
-included.
+It's not a replacement for hand-written software when you need total freedom over every implementation detail.
 
-## Requirements
+And it's not necessary to sign up for the Cordango platform to get value from this repository.
 
-To run `cordango`, nothing. The binary is self-contained and carries its own runtime.
+We're trying to make the repetitive parts of business software predictable, and leave developers and AI agents to work on the parts that aren't.
 
-To run what it generates, Docker is the easy path. You can also use the toolchain directly:
-`dotnet run` and `npm run dev` for `dotnet-vue`, `npm install && npm run build && npm start` for
-`node-vue`. `dotnet-vue` needs a PostgreSQL; `node-vue` brings its own.
+If you disagree with how we're approaching that, we'd genuinely like to hear why.
 
-## Examples
+## Cordango Cloud is optional
 
-Complete applications you can clone, read and build:
-**[cordango/examples](https://github.com/cordango/examples)**.
+The compiler and CLI are the open-source developer tools. They can generate applications that run independently.
 
-Start with `expenses`, the smallest one that is still complete. Read `budget-planner` for the
-calculation plane: rollups across a window, figures read across a reference, and a cash balance that
-reads the row before it.
+[Cordango Cloud](https://cordango.com) is a separate hosted platform for running business apps on a shared company foundation, with common people, organizations and other platform capabilities.
 
-## Building from source
+Use it if that solves a problem for you. Otherwise, just generate the code and host it yourself.
 
-Requires the .NET 10 SDK. No database, no containers.
+## Examples, docs and help
+
+- [Example applications](https://github.com/cordango/examples)
+- [Documentation](https://docs.cordango.com)
+- [Quickstart](https://docs.cordango.com/quickstart)
+- [Agent workflow](https://docs.cordango.com/ai/overview)
+- [Issues](https://github.com/cordango/cordango/issues)
+- [Discussions](https://github.com/cordango/cordango/discussions)
+
+## Build from source
+
+You'll need the .NET 10 SDK.
 
 ```sh
 dotnet build Cordango.slnx
 dotnet test Cordango.slnx
 ```
 
-Some tests generate an application and run the real SDK over it, which reaches the package feed.
-`CORDANGO_SKIP_SDK_TESTS=1` skips those. The rest runs offline.
+Some SDK integration tests access package feeds. Set `CORDANGO_SKIP_SDK_TESTS=1` if you need to skip them while working offline.
 
-## Contributing
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first. For vulnerabilities, please use the private reporting guidance in [SECURITY.md](SECURITY.md), not a public issue.
 
-Pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers getting set up, the bar for a
-change here, and how to add a target. By taking part you agree to the
-[Code of Conduct](CODE_OF_CONDUCT.md).
+## Licence
 
-## Security
+The toolchain is Apache 2.0. See [LICENSE](LICENSE).
 
-Report vulnerabilities privately, see [SECURITY.md](SECURITY.md). A flaw in a generated
-application's authentication or permission enforcement is a flaw in the generator, and it is the
-most serious kind of report we can get.
+The source code generated by Cordango belongs to you. You can change it, redistribute it and run it without the Cordango toolchain.
 
-## Getting help
+The Cordango name and branding are not licensed under Apache 2.0.
 
-- [Documentation](https://docs.cordango.com), start here
-- [Issues](https://github.com/cordango/cordango/issues) for bugs and feature requests
-- [Discussions](https://github.com/cordango/cordango/discussions) for questions and ideas
-- [hello@cordango.com](mailto:hello@cordango.com)
+---
 
-## License
+Still early. Things will change. There are bugs, missing pieces, and decisions we haven't made yet.
 
-Apache-2.0. See [LICENSE](LICENSE).
-
-**Source generated by this toolchain belongs to whoever generated it** and isn't covered by this
-licence. Generate it, modify it, ship it.
-
-CORDANGO is a trademark. The licence covers the software, not the name.
+If you try it, tell us where it breaks or where it feels unnecessarily complicated. That's much more useful to us than another star.
