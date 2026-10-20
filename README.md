@@ -5,7 +5,7 @@
 [![Release](https://img.shields.io/github/v/release/cordango/cordango?logo=github&label=release)](https://github.com/cordango/cordango/releases/latest)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 
-**Build full-stack business apps from YAML. Let Claude help write the definition. Own the generated code.**
+**Build full-stack business apps from YAML. Ask your agent to write the definition. Generate the full app.**
 
 AI can write an impressive amount of code. It can also spend half an afternoon getting authentication, forms, migrations and permissions to agree with each other.
 
@@ -13,7 +13,7 @@ A lot of that work is the same in every application. So why generate it again an
 
 Cordango lets you define the application instead. Your entities, relationships, screens, calculations, permissions, commands and workflows go into an App Definition. The compiler takes it from there.
 
-You get a working backend, frontend and database setup. Not a mockup, not a hosted black box, and not a project that needs Cordango to keep running.
+You get a working backend, frontend and database setup, a full application ready to be used with no other dependencies. Currently supporting .NET+Vue and Postgres... Node being worked on and more to come
 
 [Quickstart](https://docs.cordango.com/quickstart) | [Documentation](https://docs.cordango.com) | [Examples](https://github.com/cordango/examples) | [Using an AI agent](https://docs.cordango.com/ai/overview)
 
