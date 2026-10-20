@@ -1,0 +1,459 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://appbuilder.dev/schemas/integration-provider/1.0",
+  "title": "Cordango Integration Provider",
+  "description": "How one external API implements one or more integration contracts: where it is, how to authenticate, which requests answer which question, and how its data maps onto the contract's typed fields. Declarative only: no code, and a credential never appears in it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["kind", "name", "version", "implements", "http", "auth", "entities"],
+  "properties": {
+    "kind": { "const": "IntegrationProvider" },
+    "name": {
+      "description": "The provider's permanent name ('hubspot', 'slack', 'acme.erp').",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "description": "The revision. A connection pins it; publishing a new one moves nothing.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 99999
+    },
+    "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "description": { "type": "string", "maxLength": 600 },
+    "implements": {
+      "description": "The contracts this provider implements, as 'name@major'.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/contractRef" }
+    },
+    "config": {
+      "description": "Non-secret settings a connection supplies (a region, an account subdomain). Usable as {{config.<key>}}.",
+      "type": "object",
+      "maxProperties": 20,
+      "propertyNames": { "$ref": "#/$defs/identifier" },
+      "additionalProperties": { "$ref": "#/$defs/configValue" }
+    },
+    "http": { "$ref": "#/$defs/http" },
+    "auth": { "$ref": "#/$defs/auth" },
+    "test": {
+      "description": "The cheapest request that proves a connection works.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "method": { "enum": ["GET", "POST"] },
+        "path": { "$ref": "#/$defs/requestPath" },
+        "query": { "$ref": "#/$defs/queryParams" },
+        "body": {},
+        "expect": {
+          "description": "A path that must exist in a successful response.",
+          "$ref": "#/$defs/apiPath"
+        }
+      }
+    },
+    "entities": {
+      "description": "One entry per contract entity this provider serves.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 40,
+      "propertyNames": { "$ref": "#/$defs/identifier" },
+      "additionalProperties": { "$ref": "#/$defs/entity" }
+    }
+  },
+  "$defs": {
+    "identifier": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$", "minLength": 1, "maxLength": 63 },
+    "contractRef": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]{0,2}$"
+    },
+    "apiPath": {
+      "description": "A $-rooted path into a JSON value: $.a.b[0].c or $[\"odd key\"]. No filters, no wildcards.",
+      "type": "string",
+      "pattern": "^\\$",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "requestPath": {
+      "description": "A path below the base URL, starting with '/'. May contain {{config.x}} and, for 'get', {{id}}.",
+      "type": "string",
+      "pattern": "^/",
+      "minLength": 1,
+      "maxLength": 300
+    },
+    "template": { "type": "string", "maxLength": 300 },
+    "queryParams": {
+      "type": "object",
+      "maxProperties": 30,
+      "additionalProperties": { "$ref": "#/$defs/template" }
+    },
+    "configValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "help": { "type": "string", "maxLength": 300 },
+        "type": { "enum": ["text", "select"] },
+        "options": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 80 }
+        },
+        "pattern": {
+          "description": "A regular expression a text value must match. Required when the value is used in the host part of the base URL.",
+          "type": "string",
+          "maxLength": 200
+        },
+        "required": { "type": "boolean" },
+        "default": { "type": "string", "maxLength": 200 }
+      }
+    },
+    "http": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseUrl"],
+      "properties": {
+        "baseUrl": {
+          "description": "Where the API is. https whenever a credential is sent. May contain {{config.x}}.",
+          "type": "string",
+          "pattern": "^https?://",
+          "maxLength": 300
+        },
+        "headers": {
+          "description": "Fixed request headers (an API version, an Accept). Never a credential: that is the auth block's job.",
+          "type": "object",
+          "maxProperties": 10,
+          "additionalProperties": { "$ref": "#/$defs/template" }
+        },
+        "timeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 60 },
+        "rateLimit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["requests", "perSeconds"],
+          "properties": {
+            "requests": { "type": "integer", "minimum": 1, "maximum": 100000 },
+            "perSeconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+            "concurrent": { "type": "integer", "minimum": 1, "maximum": 64 }
+          }
+        },
+        "success": {
+          "description": "For APIs that report failure inside a 200 response (Slack): the path that must equal the value.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "equals"],
+          "properties": {
+            "path": { "$ref": "#/$defs/apiPath" },
+            "equals": {}
+          }
+        },
+        "errors": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "message": { "$ref": "#/$defs/apiPath" }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "scope"],
+      "properties": {
+        "type": { "enum": ["none", "api_key", "bearer", "basic", "oauth2"] },
+        "scope": {
+          "description": "workspace: one credential for the whole connection. per_user: every person connects their own.",
+          "enum": ["workspace", "per_user"]
+        },
+        "label": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "help": { "type": "string", "maxLength": 300 },
+        "placement": {
+          "description": "api_key only: the header or query parameter that carries the key.",
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "maxProperties": 1,
+          "properties": {
+            "header": { "type": "string", "pattern": "^[A-Za-z0-9-]+$", "maxLength": 80 },
+            "query": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$", "maxLength": 80 }
+          }
+        },
+        "authorizeUrl": { "type": "string", "maxLength": 300 },
+        "tokenUrl": { "type": "string", "maxLength": 300 },
+        "scopes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 200 }
+        },
+        "pkce": { "type": "boolean" },
+        "client": {
+          "description": "oauth2: whose OAuth client is used. 'platform' is reserved for catalog providers.",
+          "enum": ["workspace", "platform"]
+        }
+      }
+    },
+    "entity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operations", "mapping"],
+      "properties": {
+        "contract": {
+          "description": "Which implemented contract this entry serves. May be omitted when the provider implements exactly one.",
+          "$ref": "#/$defs/contractRef"
+        },
+        "entity": {
+          "description": "The contract entity this entry serves, when it differs from this entry's key.",
+          "$ref": "#/$defs/identifier"
+        },
+        "operations": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "list": { "$ref": "#/$defs/operation" },
+            "get": { "$ref": "#/$defs/operation" },
+            "search": { "$ref": "#/$defs/operation" }
+          }
+        },
+        "queryOperation": {
+          "description": "Which operation answers a filtered, sorted or text-searched request. Defaults to 'search' when there is one, else 'list'.",
+          "enum": ["list", "search"]
+        },
+        "aggregate": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "count": {
+              "description": "An exact count, read from an operation's response.total.",
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["via"],
+              "properties": {
+                "via": { "enum": ["list", "search"] }
+              }
+            }
+          }
+        },
+        "mapping": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fromProvider"],
+          "properties": {
+            "fromProvider": {
+              "description": "Contract field -> where its value comes from in one provider item.",
+              "type": "object",
+              "minProperties": 1,
+              "propertyNames": { "$ref": "#/$defs/identifier" },
+              "additionalProperties": { "$ref": "#/$defs/mappedValue" }
+            }
+          }
+        }
+      }
+    },
+    "operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "method": { "enum": ["GET", "POST"] },
+        "path": { "$ref": "#/$defs/requestPath" },
+        "query": { "$ref": "#/$defs/queryParams" },
+        "body": {
+          "description": "A JSON body. A string that is exactly {{filters}}, {{sorts}}, {{page.size}}, {{page.cursor}}, {{page.offset}}, {{page.number}} or {{search.text}} is replaced by that value with its JSON type."
+        },
+        "paging": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["style"],
+          "properties": {
+            "style": { "enum": ["none", "cursor", "offset", "page"] },
+            "param": {
+              "description": "The query parameter carrying the cursor, offset or page number. Omit when the body carries it.",
+              "type": "string",
+              "maxLength": 80
+            },
+            "sizeParam": { "type": "string", "maxLength": 80 },
+            "size": { "type": "integer", "minimum": 1, "maximum": 1000 },
+            "startAt": { "enum": [0, 1] }
+          }
+        },
+        "response": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "items": { "$ref": "#/$defs/apiPath" },
+            "item": { "$ref": "#/$defs/apiPath" },
+            "nextCursor": { "$ref": "#/$defs/apiPath" },
+            "total": { "$ref": "#/$defs/apiPath" }
+          }
+        },
+        "notFound": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 400, "maximum": 499 }
+        },
+        "filters": { "$ref": "#/$defs/filterPushdown" },
+        "sort": { "$ref": "#/$defs/sortPushdown" },
+        "text": {
+          "description": "Free-text search: the query parameter that carries it. Omit when the body uses {{search.text}}.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["param"],
+          "properties": { "param": { "type": "string", "maxLength": 80 } }
+        }
+      }
+    },
+    "filterPushdown": {
+      "description": "How a contract filter becomes part of this request. Exactly one of 'query' (each filter is a query parameter) or 'each' (each filter is an object in the array that replaces {{filters}} in the body).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name"],
+            "properties": {
+              "name": { "description": "The provider's name for the field.", "type": "string", "minLength": 1, "maxLength": 120 },
+              "values": {
+                "description": "Contract value -> provider value. Required when the field's mapping translates values, because a filter sent untranslated matches nothing.",
+                "type": "object",
+                "additionalProperties": { "type": "string", "maxLength": 200 }
+              }
+            }
+          }
+        },
+        "ops": {
+          "description": "Contract operator -> the provider's token for it ({{filter.op}}). Omit for query-style filters that only use eq.",
+          "type": "object",
+          "propertyNames": { "enum": ["eq", "neq", "gt", "gte", "lt", "lte", "contains", "in", "notIn", "isEmpty", "isNotEmpty"] },
+          "additionalProperties": { "type": "string", "maxLength": 60 }
+        },
+        "query": {
+          "description": "The parameter name template, e.g. \"{{filter.name}}\" or \"{{filter.name}}[{{filter.op}}]\".",
+          "$ref": "#/$defs/template"
+        },
+        "each": {
+          "description": "The object one filter becomes, e.g. {propertyName: \"{{filter.name}}\", operator: \"{{filter.op}}\", value: \"{{filter.value}}\"}.",
+          "type": "object"
+        }
+      }
+    },
+    "sortPushdown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields"],
+      "properties": {
+        "fields": {
+          "description": "Contract field -> the provider's name for it.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/identifier" },
+          "additionalProperties": { "type": "string", "minLength": 1, "maxLength": 120 }
+        },
+        "query": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["param", "asc", "desc"],
+          "properties": {
+            "param": { "type": "string", "maxLength": 80 },
+            "asc": { "$ref": "#/$defs/template" },
+            "desc": { "$ref": "#/$defs/template" }
+          }
+        },
+        "each": {
+          "description": "The object one sort becomes in the array that replaces {{sorts}} in the body.",
+          "type": "object"
+        },
+        "directions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["asc", "desc"],
+          "properties": {
+            "asc": { "type": "string", "maxLength": 40 },
+            "desc": { "type": "string", "maxLength": 40 }
+          }
+        }
+      }
+    },
+    "mappedValue": {
+      "oneOf": [
+        { "$ref": "#/$defs/apiPath" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["from"],
+          "properties": {
+            "from": { "$ref": "#/$defs/apiPath" },
+            "transform": {
+              "oneOf": [
+                { "$ref": "#/$defs/transform" },
+                { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/transform" } }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "transform": {
+      "description": "One step from the closed set. Exactly one of the transform keys; 'otherwise' only beside enum or lookup, 'separator' only beside concat, 'index' only beside split.",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 2,
+      "additionalProperties": false,
+      "properties": {
+        "default": { "description": "The value when the input is missing or null." },
+        "coalesce": {
+          "description": "Paths tried in order while the value is missing or null.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "$ref": "#/$defs/apiPath" }
+        },
+        "enum": {
+          "description": "Provider value -> contract option value.",
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": { "type": "string" }
+        },
+        "lookup": {
+          "description": "Provider value -> any value.",
+          "type": "object",
+          "minProperties": 1
+        },
+        "otherwise": { "description": "enum/lookup: the value for anything not listed. Without it an unlisted value becomes null." },
+        "concat": {
+          "description": "Parts joined in order: a part starting with '$' is a path, anything else is literal text.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 12,
+          "items": { "type": "string", "maxLength": 200 }
+        },
+        "separator": { "type": "string", "maxLength": 20 },
+        "split": { "description": "Split text on this separator.", "type": "string", "minLength": 1, "maxLength": 20 },
+        "index": { "description": "split: keep only this part (0-based). Without it the result is a list.", "type": "integer", "minimum": 0, "maximum": 50 },
+        "date": {
+          "description": "How the provider writes a date: 'iso' (ISO-8601 text), 'date' (YYYY-MM-DD), 'epochMillis', 'epochSeconds'.",
+          "enum": ["iso", "date", "epochMillis", "epochSeconds"]
+        },
+        "multiply": { "type": "number" },
+        "divide": { "type": "number" },
+        "template": {
+          "description": "Text with {{$.path}} placeholders read from the provider item.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        }
+      }
+    }
+  }
+}

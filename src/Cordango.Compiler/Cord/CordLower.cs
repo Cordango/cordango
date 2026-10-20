@@ -106,6 +106,8 @@ public static class CordLower
             for (var i = 0; i < uses.Count; i++)
             {
                 var u = new JsonObject();
+                Put($"/uses/{i}", "integration", uses[i].Integration, u);
+                Put($"/uses/{i}", "as", uses[i].As, u);
                 Put($"/uses/{i}", "app", uses[i].App, u);
                 if (uses[i].Entities is { Count: > 0 } picked)
                 {

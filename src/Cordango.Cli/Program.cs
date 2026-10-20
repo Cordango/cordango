@@ -29,6 +29,8 @@ try
     {
         "new" => NewCommand.Run(parsed, output),
         "add app" => AddAppCommand.Run(parsed, output),
+        "add contract" => AddIntegrationCommand.Run(parsed, output, AddIntegrationCommand.Kind.Contract),
+        "add provider" => AddIntegrationCommand.Run(parsed, output, AddIntegrationCommand.Kind.Provider),
         // Offline like everything around it, with one exception it states out loud: the platform
         // target will not be written into a workspace that has never connected to an instance.
         "configure" or "config" => ConfigureCommand.Run(parsed, output),

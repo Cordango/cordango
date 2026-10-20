@@ -551,7 +551,7 @@ public static class CordOps
                 case UpsertUse uu:
                 {
                     uses ??= [];
-                    var at = uses.FindIndex(x => x.App == uu.Use.App);
+                    var at = uses.FindIndex(x => x.App is not null && x.App == uu.Use.App);
                     if (at < 0) uses.Add(uu.Use);
                     else uses[at] = uu.Use;
                     break;

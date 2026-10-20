@@ -6,6 +6,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Cordango.Definition;
+using Cordango.Integrations;
 
 namespace Cordango.Compile;
 
@@ -99,8 +100,9 @@ public static class CandidateValidator
     /// definition that could name its own app id could compile itself into someone else's app.</param>
     /// <param name="knownApps">The other apps this definition may point at, when the caller can see
     /// them. Threaded straight to <see cref="Gate"/>; omitting it leaves cross-app keys unchecked.</param>
+    /// <param name="knownIntegrations">The integration contracts it may name; omitted, only the catalog.</param>
     public static CandidateOutcome Run(string? definitionJson, string appId, DateTimeOffset builtAt,
-        KnownApps? knownApps = null)
+        KnownApps? knownApps = null, KnownIntegrations? knownIntegrations = null)
     {
         JsonNode? parsed;
         try
@@ -112,11 +114,11 @@ public static class CandidateValidator
             return CandidateOutcome.Rejected([$"PARSE: {ex.Message}"]);
         }
         if (parsed is null) return CandidateOutcome.Rejected(["PARSE: the candidate is empty"]);
-        return Run(parsed, appId, builtAt, knownApps);
+        return Run(parsed, appId, builtAt, knownApps, knownIntegrations);
     }
 
     public static CandidateOutcome Run(JsonNode definition, string appId, DateTimeOffset builtAt,
-        KnownApps? knownApps = null)
+        KnownApps? knownApps = null, KnownIntegrations? knownIntegrations = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
         // The caller's node is never touched: a rejected candidate must leave whatever it was handed
@@ -144,7 +146,7 @@ public static class CandidateValidator
             repairs.Add($"set schemaVersion to {AppSchemaVersion.Current} "
                       + $"(the candidate declared '{mislabelled}')");
 
-        var errors = Gate.Validate(doc, knownApps);
+        var errors = Gate.Validate(doc, knownApps, knownIntegrations);
         if (errors.Count > 0) return CandidateOutcome.Rejected(errors, doc, repairs);
 
         // ---- deterministic completion, inside the validated window -------------------------------
@@ -154,7 +156,7 @@ public static class CandidateValidator
         // the fill that is safe without a plan to read intent from.
         var fills = repairs.Concat(doc is JsonObject obj ? DesignDefaults.Apply(doc, plan: null, obj) : []).ToList();
 
-        errors = Gate.Validate(doc, knownApps);
+        errors = Gate.Validate(doc, knownApps, knownIntegrations);
         if (errors.Count > 0)
         {
             // A fill broke the document. That is a bug HERE, not in the candidate, and it must never

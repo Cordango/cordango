@@ -6,6 +6,7 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using Cordango.Integrations;
 using Json.Schema;
 
 namespace Cordango.Definition;
@@ -125,19 +126,23 @@ public static class Gate
     /// <c>targetApp</c> is accepted unchecked, which is what the gate has always done: it is a
     /// single-document function, and a caller that cannot supply the roster must not have its
     /// references refused. See <see cref="KnownApps"/>.</param>
-    public static List<string> Validate(JsonNode? doc, KnownApps? knownApps = null)
+    /// <param name="knownIntegrations">The integration contracts this definition may name. Omitted, only
+    /// the catalog is known and anything else is accepted unchecked. See <see cref="KnownIntegrations"/>.</param>
+    public static List<string> Validate(JsonNode? doc, KnownApps? knownApps = null, KnownIntegrations? knownIntegrations = null)
     {
         var structural = StructuralErrors(doc);
         if (structural.Count > 0) return structural;
-        var semantic = SemanticErrors(doc, knownApps);
+        var semantic = SemanticErrors(doc, knownApps, knownIntegrations);
         return semantic.Count > 0 ? semantic : DesignErrors(doc);
     }
 
-    public static List<string> SemanticErrors(JsonNode? doc, KnownApps? knownApps = null)
+    public static List<string> SemanticErrors(JsonNode? doc, KnownApps? knownApps = null, KnownIntegrations? knownIntegrations = null)
     {
         var known = knownApps ?? KnownApps.Unknown;
         var errors = new List<string>();
         if (doc is not JsonObject root) return new List<string> { "SEMANTIC: document is not an object" };
+
+        var integrationUses = IntegrationUses(root, knownIntegrations ?? KnownIntegrations.Unknown, errors);
 
         var entities = Arr(root["entities"]);
 
@@ -761,7 +766,10 @@ public static class Gate
         var entityKindOf = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var en0 in entities.OfType<JsonObject>())
             if (Str(en0, "key") is { } ek0) entityKindOf[ek0] = Str(en0, "kind") ?? "collection";
-        var blockCtx = new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs, commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(root, "key"), known);
+        var blockCtx = new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs, commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(root, "key"), known)
+        {
+            Integrations = integrationUses,
+        };
         foreach (var pn in Arr(root["pages"]))
             if (pn is JsonObject page) ValidatePage(page, blockCtx, errors);
         foreach (var en in entities)
@@ -1115,7 +1123,7 @@ public static class Gate
             errors.Add($"SEMANTIC: {w}: 'source' must name the entity whose records fill the cells");
             return;
         }
-        if (Str(src, "app") is not null)
+        if (Str(src, "app") is not null || Str(src, "integration") is not null)
             errors.Add($"SEMANTIC: {w}: 'source' must be this app's own entity — the cells are records it reads and writes");
         if (Str(src, "via") is not null)
             errors.Add($"SEMANTIC: {w}: 'source.via' names a bound record, and a page has none");
@@ -1354,7 +1362,10 @@ public static class Gate
             if (Str(e0, "key") is { } ek0) entityKindOf[ek0] = Str(e0, "kind") ?? "collection";
 
         return new BlockCtx(seenEntities, viewKeys, FieldExists, FieldTypeOf, entityFieldDefs,
-            commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(manifest, "key"), KnownApps.Unknown);
+            commandsByEntity, pageEntityOf, entityRoleOf, entityKindOf, Str(manifest, "key"), KnownApps.Unknown)
+        {
+            Integrations = IntegrationUses(manifest, KnownIntegrations.Unknown, null),
+        };
     }
 
     // Roles: formTemplate (survey) -> formField (questions, ref the template + carry an 'answerType') ->
@@ -2791,6 +2802,166 @@ public static class Gate
         /// route addresses a block BY key, so a duplicate makes the route ambiguous.</para>
         /// </summary>
         public Dictionary<string, HashSet<string>> EmbedKeys { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>This app's integration names (<c>uses[].as</c>) and the contracts they stand for.
+        /// A block names the alias, never the contract, so one app can read two connections of the same
+        /// contract.</summary>
+        public IReadOnlyDictionary<string, IntegrationUse> Integrations { get; init; } =
+            new Dictionary<string, IntegrationUse>(StringComparer.Ordinal);
+    }
+
+    /// <summary>One <c>uses</c> entry naming an integration. <see cref="Contract"/> is null when the
+    /// roster cannot see the contract, and everything that would read it is then left unjudged.</summary>
+    private sealed record IntegrationUse(string Reference, IntegrationContract? Contract);
+
+    /// <summary>
+    /// The integration entries of <c>uses</c>, by alias. With <paramref name="errors"/> it also judges
+    /// them; a personal view built from a manifest passes null, because its app was judged when it was
+    /// built.
+    /// </summary>
+    private static Dictionary<string, IntegrationUse> IntegrationUses(JsonObject root, KnownIntegrations known,
+        List<string>? errors)
+    {
+        var uses = new Dictionary<string, IntegrationUse>(StringComparer.Ordinal);
+        foreach (var use in Arr(root["uses"]).OfType<JsonObject>())
+        {
+            var reference = Str(use, "integration");
+            var alias = Str(use, "as");
+            if (reference is null)
+            {
+                if (alias is not null)
+                    errors?.Add($"SEMANTIC: `uses` gives 'as: {alias}' without 'integration' — 'as' names an integration; an app is named by its key");
+                continue;
+            }
+            if (alias is null) continue;
+            if (use["app"] is not null || use["entities"] is not null)
+                errors?.Add($"SEMANTIC: `uses` entry '{alias}' gives 'integration' and 'app'/'entities' — an entry is one app or one integration");
+            var contract = known.Find(reference);
+            if (contract is null && known.Complete)
+                errors?.Add($"SEMANTIC: `uses` names integration '{reference}', which is not a known contract "
+                          + $"(known: {string.Join(", ", known.References)})");
+            if (!uses.TryAdd(alias, new IntegrationUse(reference, contract)))
+                errors?.Add($"SEMANTIC: `uses` gives the name '{alias}' to two integrations — each needs its own name");
+        }
+        return uses;
+    }
+
+    /// <summary>
+    /// A block reading an external system's rows. Returns the contract entity when it can be seen.
+    ///
+    /// <para><b>Everything not declared by the contract is refused, not approximated.</b> A provider
+    /// answers a filter, a sort or a figure only if the contract says it can; applied anywhere else it
+    /// would run over one page of rows and read as the answer. A count of 824 on a dashboard, when the
+    /// account holds 14,000, is the failure this exists to prevent.</para>
+    /// </summary>
+    private static ContractEntity? ValidateIntegrationSource(JsonObject src, string blockKind, string where,
+        BlockCtx ctx, List<string> errors)
+    {
+        var alias = Str(src, "integration")!;
+        if (src["app"] is not null)
+        {
+            errors.Add($"SEMANTIC: {where}: source gives both 'app' and 'integration' — it is one app's rows or one integration's");
+            return null;
+        }
+        if (blockKind is not ("repeat" or "table" or "stat"))
+        {
+            errors.Add($"SEMANTIC: {where}: an integration source is on a `repeat`, a read-only `table` or a `stat`. "
+                     + $"A {blockKind} is not available over an integration yet");
+            return null;
+        }
+        if (!ctx.Integrations.TryGetValue(alias, out var use))
+        {
+            errors.Add($"SEMANTIC: {where}: source integration '{alias}' is not declared — add "
+                     + $"uses: [{{ integration: <contract>@<major>, as: {alias} }}]"
+                     + (ctx.Integrations.Count > 0 ? $" (declared: {string.Join(", ", ctx.Integrations.Keys.Order(StringComparer.Ordinal))})" : ""));
+            return null;
+        }
+        var entityKey = Str(src, "entity");
+        if (entityKey is null)
+        {
+            errors.Add($"SEMANTIC: {where}: source integration '{alias}' needs an 'entity' of {use.Reference}");
+            return null;
+        }
+        if (use.Contract is not { } contract) return null;
+        if (contract.Entity(entityKey) is not { } entity)
+        {
+            errors.Add($"SEMANTIC: {where}: {contract.Ref} has no entity '{entityKey}' "
+                     + $"({contract.Name} has: {string.Join(", ", contract.Entities.Select(e => e.Key))})");
+            return null;
+        }
+        var named = $"{contract.Name}.{entity.Key}";
+
+        if (!entity.Capabilities.Contains("list"))
+            errors.Add($"SEMANTIC: {where}: {named} cannot be listed — the contract offers {string.Join(", ", entity.Capabilities.Order(StringComparer.Ordinal))}");
+        if (src["via"] is not null)
+            errors.Add($"SEMANTIC: {where}: source 'via' scopes rows to a record of this app, and {named} lives in another system");
+
+        foreach (var f in Arr(src["filters"]).OfType<JsonObject>())
+        {
+            if (Str(f, "path") is { } path)
+            {
+                errors.Add($"SEMANTIC: {where}: filter path '{path}' hops a relation, which an integration cannot do — filter on a field of {named}");
+                continue;
+            }
+            var field = Str(f, "field");
+            var op = Str(f, "operator") ?? "eq";
+            if (field is null) continue;
+            if (entity.Field(field) is null)
+                errors.Add($"SEMANTIC: {where}: filter '{field}' is not a field of {named} (it has: {string.Join(", ", entity.Fields.Select(x => x.Key))})");
+            else if (!entity.Filters.TryGetValue(field, out var ops))
+                errors.Add($"SEMANTIC: {where}: {named} is not filterable by '{field}' — the contract declares "
+                         + (entity.Filters.Count > 0 ? string.Join(", ", entity.Filters.Keys.Order(StringComparer.Ordinal)) : "no filters"));
+            else if (!ops.Contains(op))
+                errors.Add($"SEMANTIC: {where}: {named} filters '{field}' with {string.Join(", ", ops.Order(StringComparer.Ordinal))}, not '{op}'");
+        }
+
+        foreach (var s in Arr(src["sort"]).OfType<JsonObject>())
+            if (Str(s, "field") is { } sf && !entity.Sorts.Contains(sf))
+                errors.Add($"SEMANTIC: {where}: {named} is not sortable by '{sf}' — the contract declares "
+                         + (entity.Sorts.Count > 0 ? string.Join(", ", entity.Sorts.Order(StringComparer.Ordinal)) : "no sorts"));
+
+        var aggregate = src["aggregate"] as JsonObject;
+        if (blockKind == "stat")
+        {
+            var op = Str(aggregate, "op");
+            var field = Str(aggregate, "field");
+            if (op is null)
+                errors.Add($"SEMANTIC: {where}: a figure over {named} needs an aggregate 'op'");
+            else if (Str(aggregate, "groupBy") is not null)
+                errors.Add($"SEMANTIC: {where}: {named} offers no grouped figure");
+            else if (!entity.Aggregates.Allows(op, field))
+                errors.Add($"SEMANTIC: {where}: {named} has no {op}{(field is null ? "" : $" of '{field}'")} the provider computes exactly — "
+                         + "a figure counted from one page of rows would read as the answer"
+                         + (entity.Aggregates.Any ? "" : $"; the contract declares no figures for {entity.Key}"));
+        }
+        else if (aggregate is not null)
+            errors.Add($"SEMANTIC: {where}: 'aggregate' belongs to a stat");
+
+        return entity;
+    }
+
+    /// <summary>
+    /// A table over an integration: read-only, and nothing that works on "the rows that loaded".
+    ///
+    /// <para>A table's own search, facets and grouping run over the rows the browser holds. For an app
+    /// that is the whole entity up to the page cap; for an integration it is one page of somebody
+    /// else's system, so a search that finds nothing would mean "not on this page" and read as "not
+    /// there". Those stay refused until the provider answers them.</para>
+    /// </summary>
+    private static void ValidateIntegrationTable(JsonObject b, JsonObject src, string where, BlockCtx ctx, List<string> errors)
+    {
+        var entity = ValidateIntegrationSource(src, "table", where, ctx, errors);
+        foreach (var write in new[] { "inlineEdit", "inlineCreate", "allowDelete", "newButton" })
+            if (b[write] is JsonValue v && v.TryGetValue<bool>(out var on) && on)
+                errors.Add($"SEMANTIC: {where}: '{write}' — a table over an integration is read-only");
+        foreach (var local in new[] { "orderField", "tree", "newDefaults", "filterBar", "groupBy", "search" })
+            if (b[local] is not null)
+                errors.Add($"SEMANTIC: {where}: '{local}' works on the rows that loaded, which for an integration is one page — not available over an integration yet");
+        if (entity is null) return;
+        foreach (var f in Arr(b["fields"]))
+            if (ColumnKey(f) is { } fk && entity.Field(fk) is null)
+                errors.Add($"SEMANTIC: {where}: table column '{fk}' is not a field of {src["integration"]}.{entity.Key} "
+                         + $"(it has: {string.Join(", ", entity.Fields.Select(x => x.Key))})");
     }
 
     /// <summary>One rule for every surface that takes a filterBar (repeat grids, table blocks, child
@@ -3221,11 +3392,13 @@ public static class Gate
                     // non-record origins are what make a second axis expressible — a board's columns are
                     // Mon..Sun, so an entity-only repeat can compose lists but never a grid.
                     var re = ValidateBlockSource(rsrc, "repeat", $"{where}: repeat", binding, boundEntity, ctx, errors);
+                    if (rsrc?["integration"] is not null && b["filterBar"] is not null)
+                        errors.Add($"SEMANTIC: {where}: repeat: a filterBar filters the rows that loaded, which for an integration is one page — not available over an integration yet");
                     ValidateFilterBar(b["filterBar"] as JsonObject, re, $"{where}: repeat", ctx, errors);
                     // Only an entity origin binds its children to a record of a known entity; a bucket
                     // axis binds them to an item whose shape the manifest cannot name, so leaves under it
                     // are unresolvable against any entity (validated best-effort, like 'text').
-                    ValidateBlocks(b["blocks"], inside, "item", re, ctx, errors, Str(rsrc, "app"));
+                    ValidateBlocks(b["blocks"], inside, "item", re, ctx, errors, Str(rsrc, "app") ?? Str(rsrc, "integration"));
                     break;
                 }
                 // A CELL is the one record identified by `keys` — normally the grid axes the cell sits at.
@@ -3301,6 +3474,11 @@ public static class Gate
                 case "table":
                 {
                     var tsrc = b["source"] as JsonObject;
+                    if (tsrc?["integration"] is not null)
+                    {
+                        ValidateIntegrationTable(b, tsrc, $"{where}: table", ctx, errors);
+                        break;
+                    }
                     var tse = ValidateBlockSource(tsrc, "table", $"{where}: table", binding, boundEntity, ctx, errors);
                     if (tsrc != null && tse == null)
                         errors.Add($"SEMANTIC: {where}: table needs an ENTITY source — a dates/options/platform axis has no records to tabulate");
@@ -3509,6 +3687,8 @@ public static class Gate
                         // ANOTHER app's rows, reduced by its own aggregate endpoint. Its fields are not
                         // in this document, so the entity, the groupBy and the field it groups on are
                         // all unresolvable here — the same best-effort posture a bucket axis takes.
+                        if (csrc?["integration"] is not null)
+                        { ValidateIntegrationSource(csrc, "chart", $"{where}: {label}", ctx, errors); continue; }
                         if (csrc is not null && Str(csrc, "app") is { } capp)
                         { ValidateCrossAppSource(csrc, capp, ce, $"{where}: {label}", ctx, errors); continue; }
                         if (ce == null || !ctx.Entities.Contains(ce))
@@ -3675,6 +3855,16 @@ public static class Gate
             return null;
         }
         var origin = origins[0];
+
+        // `integration` qualifies the entity origin the same way `app` does, for an external system's
+        // rows. Its rules are the contract's, so they live in one place.
+        if (src["integration"] is not null)
+        {
+            if (origin != "entity")
+                errors.Add($"SEMANTIC: {where}: source 'integration' has no meaning on a '{origin}' axis");
+            else ValidateIntegrationSource(src, blockKind, where, ctx, errors);
+            return null;
+        }
 
         // `app` QUALIFIES the entity origin — it is not a fifth one. Two kinds of block may carry it,
         // and the line between them is how many requests the other app has to serve.
@@ -4010,6 +4200,8 @@ public static class Gate
         BlockCtx ctx, List<string> errors)
     {
         var se = Str(src, "entity");
+        if (src["integration"] is not null)
+        { ValidateIntegrationSource(src, "stat", where, ctx, errors); return; }
         // A tile REDUCES the other app's rows to one figure through its aggregate endpoint — the same
         // single filtered call a `stat` makes. `ValidateCrossAppSource` owns the rules; the entity
         // check below cannot run, because the entity is not in this document.

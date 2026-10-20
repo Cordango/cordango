@@ -32,6 +32,17 @@ public sealed record WorkspaceFile(
 {
     public const string FileName = "cordango.yaml";
 
+    /// <summary>
+    /// Repo-relative integration files (contracts and providers), forward-slashed. Explicit for the
+    /// same reason <see cref="Apps"/> is.
+    ///
+    /// <para><b>Their presence decides the format version.</b> A workspace with integrations is written
+    /// as version 2, so a cordango that predates them refuses it instead of opening it and then
+    /// silently dropping this list on its next <see cref="Save"/>. A workspace without any stays at 1
+    /// and every older tool keeps working on it.</para>
+    /// </summary>
+    public IReadOnlyList<string> Integrations { get; init; } = [];
+
     /// <summary>What the root manifest was called while the command was still called <c>cord</c>.
     ///
     /// <para>Read, never written. A workspace created before the rename still opens, and the first
@@ -41,7 +52,12 @@ public sealed record WorkspaceFile(
     /// not a backup, it is a second answer to "which apps are installed".</para></summary>
     public const string LegacyFileName = "cord.yaml";
 
-    public const int FormatVersion = 1;
+    /// <summary>The newest format this cordango reads and writes. 2 adds <see cref="Integrations"/>.</summary>
+    public const int FormatVersion = 2;
+
+    /// <summary>The oldest format still read. A workspace is written back at the lowest version that
+    /// holds what it contains.</summary>
+    public const int OldestFormatVersion = 1;
 
     /// <summary>The runtime range a fresh workspace declares. Pre-1.0 and deliberately narrow —
     /// nothing about this format is promised across a minor bump yet.</summary>
@@ -102,18 +118,20 @@ public sealed record WorkspaceFile(
         // an `(int?)` cast throws on a document that is perfectly well formed.
         var format = doc["formatVersion"] is JsonValue v && v.TryGetValue<long>(out var declared)
             ? declared : 0;
-        if (format != FormatVersion)
+        if (format < OldestFormatVersion || format > FormatVersion)
         {
-            problem = $"{path}: formatVersion {format} — this cordango understands {FormatVersion}. "
+            problem = $"{path}: formatVersion {format} — this cordango understands {OldestFormatVersion} to {FormatVersion}. "
                 + "Upgrade cordango, or check out a matching revision of this workspace.";
             return null;
         }
 
-        var apps = (doc["apps"] as JsonArray ?? [])
-            .OfType<JsonValue>()
-            .Select(v => v.TryGetValue<string>(out var s) ? s : null)
-            .OfType<string>()
-            .ToList();
+        var apps = Paths(doc["apps"]);
+        var integrations = Paths(doc["integrations"]);
+        if (integrations.Count > 0 && format < 2)
+        {
+            problem = $"{path}: lists integrations under formatVersion {format} — integrations need formatVersion 2";
+            return null;
+        }
 
         return new WorkspaceFile(
             System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path))!,
@@ -121,14 +139,23 @@ public sealed record WorkspaceFile(
             (string?)doc["name"] ?? "",
             (string?)doc["runtime"] ?? DefaultRuntime,
             apps,
-            BuildConfig.Read(doc[BuildConfig.Key]));
+            BuildConfig.Read(doc[BuildConfig.Key]))
+        {
+            Integrations = integrations,
+        };
     }
+
+    private static List<string> Paths(JsonNode? node) =>
+        [.. (node as JsonArray ?? [])
+            .OfType<JsonValue>()
+            .Select(v => v.TryGetValue<string>(out var s) ? s : null)
+            .OfType<string>()];
 
     public void Save()
     {
         var doc = new JsonObject
         {
-            ["formatVersion"] = FormatVersion,
+            ["formatVersion"] = Integrations.Count > 0 ? FormatVersion : OldestFormatVersion,
             ["workspaceId"] = WorkspaceId,
             ["name"] = Name,
             ["runtime"] = Runtime,
@@ -140,6 +167,8 @@ public sealed record WorkspaceFile(
         if (Build is not null) doc[BuildConfig.Key] = Build.ToDocument();
 
         doc["apps"] = new JsonArray([.. Apps.Select(a => (JsonNode)a!)]);
+        if (Integrations.Count > 0)
+            doc["integrations"] = new JsonArray([.. Integrations.Select(i => (JsonNode)i!)]);
 
         AtomicFile.Write(Path, Yaml.Write(doc));
 

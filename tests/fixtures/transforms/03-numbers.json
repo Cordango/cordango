@@ -1,0 +1,54 @@
+{
+  "name": "Numbers scale, and text that is not a number is null",
+  "why": "An amount in cents divided by 100 is the common case. A value that is not a number stays empty rather than becoming 0, which would read as a real figure.",
+  "cases": [
+    {
+      "why": "Cents to an amount.",
+      "item": { "amount_cents": 1999 },
+      "from": "$.amount_cents",
+      "transform": { "divide": 100 },
+      "target": { "type": "money" },
+      "expect": 19.99
+    },
+    {
+      "why": "A ratio to a percentage.",
+      "item": { "ratio": 0.25 },
+      "from": "$.ratio",
+      "transform": { "multiply": 100 },
+      "target": { "type": "decimal" },
+      "expect": 25
+    },
+    {
+      "why": "Numeric text is read as a number.",
+      "item": { "amount": "12.50" },
+      "from": "$.amount",
+      "transform": { "divide": 2 },
+      "target": { "type": "decimal" },
+      "expect": 6.25
+    },
+    {
+      "why": "Text that is not a number is null, never 0.",
+      "item": { "amount": "n/a" },
+      "from": "$.amount",
+      "transform": { "divide": 100 },
+      "target": { "type": "money" },
+      "expect": null
+    }
+  ],
+  "refused": [
+    {
+      "why": "Dividing by zero is a mistake in the mapping, not a value.",
+      "from": "$.amount",
+      "transform": { "divide": 0 },
+      "target": { "type": "decimal" },
+      "error": "cannot divide by zero"
+    },
+    {
+      "why": "A number cannot land in a text field.",
+      "from": "$.amount",
+      "transform": { "multiply": 100 },
+      "target": { "type": "text" },
+      "error": "produces a number"
+    }
+  ]
+}

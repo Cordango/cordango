@@ -32,6 +32,11 @@ public sealed record Selection(WorkspaceFile Workspace, IReadOnlyList<LoadedApp>
     public KnownApps Roster => _roster ??= Pipeline.Roster(AllApps);
     private KnownApps? _roster;
 
+    /// <summary>The workspace's integration files, compiled, and the contract roster apps are checked
+    /// against. Loaded once, on first use: most commands never read it.</summary>
+    public IntegrationSources Integrations => _integrations ??= IntegrationSources.Load(Workspace);
+    private IntegrationSources? _integrations;
+
     /// <returns>Null when the command should stop; <paramref name="exit"/> then holds the code and
     /// the message has already been written.</returns>
     public static Selection? Resolve(Args args, Output output, out int exit)

@@ -149,11 +149,15 @@ public static class NotYetCodes
     /// the reader to a release rather than to the platform.</summary>
     public const string Workspace = "CORD2310";
 
+    /// <summary>An app that reads an external system through an integration contract. Generated
+    /// applications make no outbound calls yet; the platform runs it, and generating it is planned.</summary>
+    public const string Integration = "CORD2311";
+
     /// <summary>Every code in the range, for the test that stops two of them meaning the same
     /// thing. The retired number is deliberately absent.</summary>
     public static readonly IReadOnlyList<string> All =
     [
-        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption, Calendar, Workspace,
+        Block, Trigger, Effect, Computed, Guard, RollupCycle, BlockOption, Calendar, Workspace, Integration,
     ];
 
     /// <summary>Codes that once meant something, no longer do, and must not be handed to anything

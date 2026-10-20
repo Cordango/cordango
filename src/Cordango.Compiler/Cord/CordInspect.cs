@@ -88,7 +88,7 @@ public static class CordInspect
         {
             sb.AppendLine().AppendLine("Uses:");
             foreach (var use in app.UseList)
-                sb.AppendLine($"- {use.App}"
+                sb.AppendLine($"- {use.App ?? $"{use.Integration} as {use.As} (integration)"}"
                     + (use.EntityList.Count > 0 ? $" ({string.Join(", ", use.EntityList)})" : "")
                     + (use.Why is { Length: > 0 } why ? $" — {why}" : ""));
         }

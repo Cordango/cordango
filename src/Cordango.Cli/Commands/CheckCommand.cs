@@ -51,7 +51,7 @@ public static class CheckCommand
                     code: ExitCodes.Usage);
         }
 
-        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).ToList();
+        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster, selection.Integrations.Roster)).ToList();
 
         // Capability checking needs a definition, which an incoherent app does not have. It is not
         // skipped quietly: an app that fails below never reaches the "compatible" line either.
@@ -90,6 +90,22 @@ public static class CheckCommand
             ["apps"] = new JsonArray([.. reports.Select(r => (JsonNode)r.ToJson())]),
         };
 
+        // Integration files are workspace-wide, so they are checked whatever --app narrowed: an app
+        // that reads a contract is only as sound as the contract.
+        var integrations = selection.Workspace.Integrations.Count > 0 ? selection.Integrations.Reports : [];
+        if (integrations.Count > 0)
+            payload["integrations"] = new JsonArray([.. integrations.Select(r => (JsonNode)r.ToJson())]);
+        var brokenIntegrations = integrations.Where(r => !r.Ok).ToList();
+        if (brokenIntegrations.Count > 0 && incoherent.Count == 0)
+        {
+            return output.Fail(
+                brokenIntegrations.Count == 1
+                    ? $"{brokenIntegrations[0].Path} does not hold together"
+                    : $"{brokenIntegrations.Count} integration files do not hold together",
+                brokenIntegrations.SelectMany(r => r.Errors.Select(e => $"{r.Name ?? r.Path}: {e}")),
+                payload);
+        }
+
         if (platform) payload["target"] = BuildConfig.Platform;
 
         if (target is not null || platform)
@@ -114,7 +130,8 @@ public static class CheckCommand
                 // The gate says what is wrong; the CLI adds where to see a right one. See
                 // ExampleHint for why that split is deliberate.
                 ExampleHint.Annotate(
-                    incoherent.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}"))),
+                    incoherent.SelectMany(r => r.Errors.Select(e => $"{r.AppKey}: {e}")))
+                    .Concat(brokenIntegrations.SelectMany(r => r.Errors.Select(e => $"{r.Name ?? r.Path}: {e}"))),
                 payload);
         }
 
@@ -159,6 +176,12 @@ public static class CheckCommand
                     w.WriteLine($"    {note.Severity}: {note.Message}");
                     if (note.Suggestion is { Length: > 0 } fix) w.WriteLine($"        declare it: {fix}");
                 }
+            }
+
+            foreach (var integration in integrations)
+            {
+                w.WriteLine($"{integration.Name ?? integration.Path,-24} ok, {(integration.Kind == "IntegrationContract" ? "contract" : "provider")}");
+                foreach (var note in integration.Notes) w.WriteLine($"    note: {note}");
             }
 
             if (reports.Count == 0) w.WriteLine("no apps registered in " + WorkspaceFile.FileName);

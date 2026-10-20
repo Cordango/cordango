@@ -40,7 +40,7 @@ public static class PublishCommand
         var target = Connection.Resolve(args, selection.Workspace, output, out var offline);
         if (target is null) return offline;
 
-        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster)).ToList();
+        var reports = selection.Apps.Select(a => Pipeline.Check(a, selection.Roster, selection.Integrations.Roster)).ToList();
         if (reports.Where(r => !r.Coherent).ToList() is { Count: > 0 } broken)
         {
             return output.Fail("nothing was published — the source does not hold together",
@@ -62,11 +62,42 @@ public static class PublishCommand
         if (unrunnable.Count > 0)
             return output.Fail("nothing was published — this workspace cannot run on the platform", unrunnable);
 
+        var integrationReports = selection.Workspace.Integrations.Count > 0 ? selection.Integrations.Reports : [];
+        if (integrationReports.Where(r => !r.Ok).ToList() is { Count: > 0 } brokenIntegrations)
+            return output.Fail("nothing was published — an integration file does not hold together",
+                brokenIntegrations.SelectMany(r => r.Errors.Select(e => $"{r.Name ?? r.Path}: {e}")));
+
         var force = args.Has("force");
         using var instance = new Instance(target.Origin, target.Token);
 
         var results = new JsonArray();
         var failures = new List<string>();
+
+        // Integrations before apps, contracts before providers: an instance judges each by what it
+        // already holds, so the order is the dependency order. A version already published with
+        // other content is refused by the instance and stops the run here, before any app is sent.
+        var integrationResults = new JsonArray();
+        if (integrationReports.Count > 0)
+            foreach (var (report, document) in selection.Integrations.Documents)
+            {
+                var sent = await instance.PublishIntegrationAsync(document, ct);
+                integrationResults.Add(new JsonObject
+                {
+                    ["name"] = report.Name,
+                    ["path"] = report.Path,
+                    ["ok"] = sent.Ok,
+                    ["status"] = (string?)sent.Body?["status"] ?? (int)sent.Status + "",
+                });
+                if (!sent.Ok)
+                {
+                    failures.AddRange(sent.Errors.Select(e => $"{report.Name ?? report.Path}: {e}"));
+                    return output.Fail("publish failed", failures, new JsonObject
+                    {
+                        ["instance"] = target.Origin,
+                        ["integrations"] = integrationResults,
+                    });
+                }
+            }
         var published = new List<(string Key, string Handle, bool Created, string Version)>();
 
         foreach (var report in reports)
@@ -112,6 +143,7 @@ public static class PublishCommand
             ["tenantId"] = target.TenantId,
             ["apps"] = results,
         };
+        if (integrationResults.Count > 0) payload["integrations"] = integrationResults;
 
         if (failures.Count > 0) return output.Fail("publish failed", failures, payload);
 
@@ -122,6 +154,8 @@ public static class PublishCommand
         return output.Ok(payload, w =>
         {
             w.WriteLine($"Published to {target.Origin} ({target.TenantId})");
+            foreach (var i in integrationResults.OfType<JsonObject>())
+                w.WriteLine($"  {(string?)i["status"],-9} {(string?)i["name"]}");
             foreach (var (key, handle, created, version) in published)
                 w.WriteLine($"  {(created ? "created" : "updated")}  {key} {version} → {target.Origin}/a/{handle}");
             if (unfinished.Count > 0)

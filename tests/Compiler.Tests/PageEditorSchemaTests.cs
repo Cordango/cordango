@@ -142,13 +142,18 @@ public class PageEditorSchemaTests
     /// <item>112,600 &#8594; 112,800 (2026-10-05): <c>filterbar.search.scan</c>, the barcode-scanner
     /// box the Warehouse example receives and picks with. +164 bytes, to 112,681: one boolean on a shape
     /// that was already here, its description saying the one thing a scanner must be set up to do.</item>
+    /// <item>112,800 &#8594; 113,100 (2026-10-13): <c>blockSource.integration</c>, an external system's
+    /// rows through an integration contract. +344 bytes, to 113,025: one property on a shape that was
+    /// already here, its description saying which name it takes and that only the filters, sorts and
+    /// figures the contract declares are allowed. The <c>integrationRef</c> def it pairs with belongs to
+    /// <c>uses</c> and never reaches the page schema.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 112_800);
+        Assert.InRange(pruned, 1, 113_100);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

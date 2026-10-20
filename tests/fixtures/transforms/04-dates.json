@@ -1,0 +1,63 @@
+{
+  "name": "Dates arrive in four shapes and land in one",
+  "why": "Providers write dates as ISO text with any offset, as plain dates, or as epoch numbers. A field holds one canonical form, in UTC, so a sort and a comparison mean the same thing whichever provider wrote it.",
+  "cases": [
+    {
+      "why": "ISO with an offset becomes UTC.",
+      "item": { "updatedAt": "2026-10-13T10:30:00+02:00" },
+      "from": "$.updatedAt",
+      "transform": { "date": "iso" },
+      "target": { "type": "datetime" },
+      "expect": "2026-10-13T08:30:00.000Z"
+    },
+    {
+      "why": "Epoch milliseconds.",
+      "item": { "createdate": 1791880200000 },
+      "from": "$.createdate",
+      "transform": { "date": "epochMillis" },
+      "target": { "type": "datetime" },
+      "expect": "2026-10-13T08:30:00.000Z"
+    },
+    {
+      "why": "Epoch seconds, written as text.",
+      "item": { "created": "1791880200" },
+      "from": "$.created",
+      "transform": { "date": "epochSeconds" },
+      "target": { "type": "datetime" },
+      "expect": "2026-10-13T08:30:00.000Z"
+    },
+    {
+      "why": "A plain date into a date field.",
+      "item": { "due": "2026-10-13" },
+      "from": "$.due",
+      "transform": { "date": "date" },
+      "target": { "type": "date" },
+      "expect": "2026-10-13"
+    },
+    {
+      "why": "A date field takes the UTC date of an instant, which can be the day before the local one.",
+      "item": { "at": "2026-10-13T01:30:00+02:00" },
+      "from": "$.at",
+      "transform": { "date": "iso" },
+      "target": { "type": "date" },
+      "expect": "2026-10-12"
+    },
+    {
+      "why": "Unreadable is null.",
+      "item": { "at": "soon" },
+      "from": "$.at",
+      "transform": { "date": "iso" },
+      "target": { "type": "datetime" },
+      "expect": null
+    }
+  ],
+  "refused": [
+    {
+      "why": "A date cannot land in a text field.",
+      "from": "$.at",
+      "transform": { "date": "iso" },
+      "target": { "type": "text" },
+      "error": "produces a date"
+    }
+  ]
+}

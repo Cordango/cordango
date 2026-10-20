@@ -1,0 +1,55 @@
+{
+  "name": "Fallbacks fill only what is missing, and steps run in order",
+  "why": "A default must never overwrite a real value, and a chain is read left to right: the fallback before the arithmetic, or after it, means different things.",
+  "cases": [
+    {
+      "why": "A default fills a missing value.",
+      "item": {},
+      "from": "$.country",
+      "transform": { "default": "DE" },
+      "target": { "type": "text" },
+      "expect": "DE"
+    },
+    {
+      "why": "A default leaves a real value alone.",
+      "item": { "country": "AT" },
+      "from": "$.country",
+      "transform": { "default": "DE" },
+      "target": { "type": "text" },
+      "expect": "AT"
+    },
+    {
+      "why": "coalesce reads the next path when the first is null.",
+      "item": { "mobile": null, "phone": "+49 30 1234" },
+      "from": "$.mobile",
+      "transform": { "coalesce": ["$.phone"] },
+      "target": { "type": "phone" },
+      "expect": "+49 30 1234"
+    },
+    {
+      "why": "coalesce, then a default when every path was empty.",
+      "item": {},
+      "from": "$.mobile",
+      "transform": [{ "coalesce": ["$.phone"] }, { "default": "none" }],
+      "target": { "type": "text" },
+      "expect": "none"
+    },
+    {
+      "why": "A default after arithmetic fills what the arithmetic could not compute.",
+      "item": { "cents": null },
+      "from": "$.cents",
+      "transform": [{ "divide": 100 }, { "default": 0 }],
+      "target": { "type": "money" },
+      "expect": 0
+    }
+  ],
+  "refused": [
+    {
+      "why": "One step names one transform.",
+      "from": "$.cents",
+      "transform": { "divide": 100, "multiply": 2 },
+      "target": { "type": "decimal" },
+      "error": "names exactly one of"
+    }
+  ]
+}

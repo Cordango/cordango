@@ -1,0 +1,48 @@
+{
+  "name": "Reading a path never throws",
+  "why": "A provider's reply is somebody else's data. A field it leaves out is an empty cell, not a failed read of the whole list.",
+  "cases": [
+    {
+      "why": "The ordinary case: a property one level down.",
+      "item": { "id": "101", "properties": { "firstname": "Anna" } },
+      "from": "$.properties.firstname",
+      "target": { "type": "text" },
+      "expect": "Anna"
+    },
+    {
+      "why": "A property the provider did not send.",
+      "item": { "id": "101", "properties": {} },
+      "from": "$.properties.firstname",
+      "target": { "type": "text" },
+      "expect": null
+    },
+    {
+      "why": "An index into a list.",
+      "item": { "tags": ["red", "blue"] },
+      "from": "$.tags[1]",
+      "target": { "type": "text" },
+      "expect": "blue"
+    },
+    {
+      "why": "An index past the end.",
+      "item": { "tags": ["red"] },
+      "from": "$.tags[3]",
+      "target": { "type": "text" },
+      "expect": null
+    },
+    {
+      "why": "A key no dotted path can spell.",
+      "item": { "odd key": 5 },
+      "from": "$[\"odd key\"]",
+      "target": { "type": "integer" },
+      "expect": 5
+    },
+    {
+      "why": "A step through null.",
+      "item": { "properties": null },
+      "from": "$.properties.firstname",
+      "target": { "type": "text" },
+      "expect": null
+    }
+  ]
+}

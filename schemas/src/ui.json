@@ -250,6 +250,10 @@
           "description": "ORIGIN QUALIFIER: another app's rows. Its KEY (never a handle); 'entity' then names an entity of that app. `repeat` only, 'entity' origin only — there is no cross-app query, so no 'via' and no path that hops THROUGH them. Blocks inside still mean this app. Declare it in `uses`.",
           "$ref": "#/$defs/identifier"
         },
+        "integration": {
+          "description": "ORIGIN QUALIFIER: an external system's rows — the name this app gave an integration in `uses` ('as'); 'entity' names an entity of its contract. On a `repeat`, a read-only `table` or a `stat`, with only the filters, sorts and figures the contract declares.",
+          "$ref": "#/$defs/identifier"
+        },
         "dates": {
           "description": "ORIGIN: a date range — the week/month axis of a planner or roster. Yields one item per step with { id, date (ISO), label, weekday, isWeekend, isToday }; read them as '{{<name>.date}}' etc. Bound it with 'to' or 'count'. Exactly one of 'to'/'count' — unbounded renders 366 columns.",
           "type": "object",

@@ -39,6 +39,28 @@ public class PlatformRefusalTests
     }
 
     [Fact]
+    public void An_application_reading_an_integration_waits_for_the_platform_to_connect_one()
+    {
+        var document = Definition(null);
+        document["uses"] = new JsonArray(new JsonObject { ["integration"] = "hubspot.crm@1", ["as"] = "crm" });
+
+        var refusal = Assert.Single(PlatformCapabilities.Validate(document));
+
+        Assert.Equal(NotYetCodes.Integration, refusal.Code);
+        Assert.Equal("$.uses[0]", refusal.JsonPath);
+        Assert.Contains("does not connect to integrations yet", refusal.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_application_using_another_app_is_not_mistaken_for_an_integration()
+    {
+        var document = Definition(null);
+        document["uses"] = new JsonArray(new JsonObject { ["app"] = "core_organizations" });
+
+        Assert.Empty(PlatformCapabilities.Validate(document));
+    }
+
+    [Fact]
     public void A_custom_function_is_refused_and_says_why_the_platform_cannot()
     {
         var refusals = PlatformCapabilities.Validate(Definition(WithFunction()));

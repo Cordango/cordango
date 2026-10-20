@@ -75,4 +75,14 @@ public sealed record GeneratorCapabilities(
     CapabilitySet PlatformTargets,
     CapabilitySet PlatformEntities,
     bool SeriesAndPrev,
-    bool WindowedRollups);
+    bool WindowedRollups)
+{
+    /// <summary>
+    /// Integrations: an app reading an external system through a contract. Off for every generator,
+    /// because generated code makes no outbound calls yet.
+    ///
+    /// <para>An init property rather than a parameter so that adding it touched no generator: the
+    /// default is what every one of them can honestly claim today.</para>
+    /// </summary>
+    public bool Integrations { get; init; }
+}

@@ -1,0 +1,85 @@
+{
+  "name": "Text is joined, split and filled in",
+  "why": "A display name built from two fields, a list kept in one string, a label with a company in brackets. A missing part leaves no stray separator behind.",
+  "cases": [
+    {
+      "why": "Two parts with a separator.",
+      "item": { "first": "Anna", "last": "Schmidt" },
+      "from": "$.first",
+      "transform": { "concat": ["$.first", "$.last"], "separator": " " },
+      "target": { "type": "text" },
+      "expect": "Anna Schmidt"
+    },
+    {
+      "why": "A missing part is skipped with its separator.",
+      "item": { "first": "Anna" },
+      "from": "$.first",
+      "transform": { "concat": ["$.first", "$.last"], "separator": " " },
+      "target": { "type": "text" },
+      "expect": "Anna"
+    },
+    {
+      "why": "Literal text between paths.",
+      "item": { "city": "Berlin", "country": "DE" },
+      "from": "$.city",
+      "transform": { "concat": ["$.city", " (", "$.country", ")"] },
+      "target": { "type": "text" },
+      "expect": "Berlin (DE)"
+    },
+    {
+      "why": "One part of a split.",
+      "item": { "name": "Schmidt, Anna" },
+      "from": "$.name",
+      "transform": { "split": ",", "index": 1 },
+      "target": { "type": "text" },
+      "expect": "Anna"
+    },
+    {
+      "why": "A split without an index is a list, for a multiselect.",
+      "item": { "tags": "red; blue;" },
+      "from": "$.tags",
+      "transform": { "split": ";" },
+      "target": { "type": "multiselect", "options": ["red", "blue", "green"] },
+      "expect": ["red", "blue"]
+    },
+    {
+      "why": "A template reads the item.",
+      "item": { "first": "Anna", "company": "Acme" },
+      "from": "$.first",
+      "transform": { "template": "{{$.first}} ({{$.company}})" },
+      "target": { "type": "text" },
+      "expect": "Anna (Acme)"
+    },
+    {
+      "why": "A template's missing value is empty text.",
+      "item": { "first": "Anna" },
+      "from": "$.first",
+      "transform": { "template": "{{$.first}} ({{$.company}})" },
+      "target": { "type": "text" },
+      "expect": "Anna ()"
+    }
+  ],
+  "refused": [
+    {
+      "why": "Arithmetic on text that was just built.",
+      "from": "$.first",
+      "transform": [{ "concat": ["$.first", "$.last"] }, { "divide": 2 }],
+      "target": { "type": "decimal" },
+      "error": "needs a number"
+    },
+    {
+      "why": "A list cannot land in a single number.",
+      "from": "$.tags",
+      "transform": { "split": ";" },
+      "target": { "type": "integer" },
+      "error": "produces a list"
+    },
+    {
+      "why": "A template placeholder is a path into the item.",
+      "from": "$.first",
+      "transform": { "template": "{{first}}" },
+      "target": { "type": "text" },
+      "error": "placeholders read the provider item by path"
+    }
+  ]
+}

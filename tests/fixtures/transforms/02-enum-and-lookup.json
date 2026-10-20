@@ -1,0 +1,70 @@
+{
+  "name": "enum and lookup translate a vocabulary",
+  "why": "HubSpot says marketingqualifiedlead, the contract says mql. The translation is explicit in both directions: a filter on the field carries its own 'values' map, never an inferred inverse.",
+  "cases": [
+    {
+      "why": "A listed value.",
+      "item": { "properties": { "lifecyclestage": "marketingqualifiedlead" } },
+      "from": "$.properties.lifecyclestage",
+      "transform": { "enum": { "lead": "lead", "marketingqualifiedlead": "mql" }, "otherwise": "other" },
+      "target": { "type": "select", "options": ["lead", "mql", "other"] },
+      "expect": "mql"
+    },
+    {
+      "why": "A value nobody listed falls to 'otherwise'.",
+      "item": { "properties": { "lifecyclestage": "evangelist" } },
+      "from": "$.properties.lifecyclestage",
+      "transform": { "enum": { "lead": "lead" }, "otherwise": "other" },
+      "target": { "type": "select", "options": ["lead", "mql", "other"] },
+      "expect": "other"
+    },
+    {
+      "why": "Without 'otherwise', an unlisted value is null rather than a value the select does not have.",
+      "item": { "properties": { "lifecyclestage": "evangelist" } },
+      "from": "$.properties.lifecyclestage",
+      "transform": { "enum": { "lead": "lead" } },
+      "target": { "type": "select", "options": ["lead", "other"] },
+      "expect": null
+    },
+    {
+      "why": "A missing value stays missing: 'otherwise' is for values nobody listed.",
+      "item": { "properties": {} },
+      "from": "$.properties.lifecyclestage",
+      "transform": { "enum": { "lead": "lead" }, "otherwise": "other" },
+      "target": { "type": "select", "options": ["lead", "other"] },
+      "expect": null
+    },
+    {
+      "why": "A number is matched by its text.",
+      "item": { "status": 2 },
+      "from": "$.status",
+      "transform": { "enum": { "1": "pending", "2": "active", "3": "archived" } },
+      "target": { "type": "select", "options": ["pending", "active", "archived"] },
+      "expect": "active"
+    },
+    {
+      "why": "lookup can produce something other than text.",
+      "item": { "tier": "gold" },
+      "from": "$.tier",
+      "transform": { "lookup": { "gold": 3, "silver": 2 } },
+      "target": { "type": "integer" },
+      "expect": 3
+    }
+  ],
+  "refused": [
+    {
+      "why": "An enum that produces a value the target select does not have.",
+      "from": "$.status",
+      "transform": { "enum": { "1": "pending", "2": "live" } },
+      "target": { "type": "select", "options": ["pending", "active"] },
+      "error": "produces 'live', which"
+    },
+    {
+      "why": "'separator' belongs to concat.",
+      "from": "$.status",
+      "transform": { "enum": { "1": "pending" }, "separator": "," },
+      "target": { "type": "select", "options": ["pending"] },
+      "error": "does not belong beside 'enum'"
+    }
+  ]
+}

@@ -248,13 +248,34 @@
       ]
     },
     "appDependency": {
-      "description": "One app this app builds on.",
+      "description": "One app this app builds on — or, with 'integration', one integration contract it reads, under a name of its own ('as') that blocks use. An integration entry names a CONTRACT, never a provider or a connection: which connection serves it is decided per installation.",
       "type": "object",
-      "required": [
-        "app"
-      ],
       "additionalProperties": false,
+      "if": {
+        "required": [
+          "integration"
+        ]
+      },
+      "then": {
+        "required": [
+          "integration",
+          "as"
+        ]
+      },
+      "else": {
+        "required": [
+          "app"
+        ]
+      },
       "properties": {
+        "integration": {
+          "description": "An integration contract as 'name@major' ('hubspot.crm@1'). Needs 'as'; takes no 'app' or 'entities'.",
+          "$ref": "#/$defs/integrationRef"
+        },
+        "as": {
+          "description": "This app's name for the integration, used by blocks as source.integration. Two entries may name the same contract under different names — two HubSpot portals, say — and each is bound to its own connection.",
+          "$ref": "#/$defs/identifier"
+        },
         "app": {
           "description": "The app's PERMANENT key: a core app's systemKey ('core_organizations', 'core_people', 'core_calendar', 'core_documents') or another app's definition key. Never a handle — a handle is a disposable URL address and renaming one must not break a dependency.",
           "$ref": "#/$defs/identifier"
@@ -274,6 +295,12 @@
           "maxLength": 200
         }
       }
+    },
+    "integrationRef": {
+      "description": "An integration contract named with its major version: '<namespace>.<name>@<major>'.",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+@[1-9][0-9]{0,2}$",
+      "maxLength": 84
     },
     "pluginRef": {
       "type": "object",

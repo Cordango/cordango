@@ -1,0 +1,46 @@
+{
+  "kind": "IntegrationContract",
+  "name": "hubspot.crm",
+  "version": 1,
+  "label": "HubSpot CRM",
+  "description": "Contacts in a HubSpot portal, read-only. A provider-specific contract: it says exactly what HubSpot offers and nothing a second CRM would have to pretend to.",
+  "entities": {
+    "contact": {
+      "label": "Contact",
+      "labelPlural": "Contacts",
+      "displayField": "email",
+      "fields": {
+        "id": { "type": "text", "required": true, "readonly": true, "label": "HubSpot ID" },
+        "first_name": { "type": "text" },
+        "last_name": { "type": "text" },
+        "email": { "type": "email" },
+        "phone": { "type": "phone" },
+        "company_name": { "type": "text", "label": "Company" },
+        "lifecycle_stage": {
+          "type": "select",
+          "options": [
+            "subscriber",
+            "lead",
+            { "value": "mql", "label": "Marketing qualified lead" },
+            { "value": "sql", "label": "Sales qualified lead" },
+            "opportunity",
+            "customer",
+            "evangelist",
+            "other"
+          ]
+        },
+        "created_at": { "type": "datetime", "readonly": true, "label": "Created" },
+        "updated_at": { "type": "datetime", "readonly": true, "label": "Last modified" }
+      },
+      "capabilities": ["list", "get", "search"],
+      "query": {
+        "filter": {
+          "email": ["eq"],
+          "lifecycle_stage": ["eq"]
+        },
+        "sort": ["created_at", "updated_at"],
+        "aggregate": { "count": true }
+      }
+    }
+  }
+}

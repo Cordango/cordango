@@ -31,6 +31,30 @@ public static class PlatformCapabilities
     public static IReadOnlyList<Diagnostic> Validate(JsonNode? definition)
     {
         if (definition is not JsonObject document) return [];
+        return [.. Integrations(document), .. CustomCode(document)];
+    }
+
+    /// <summary>
+    /// An app that reads an external system. The language and the gate accept it now; the platform
+    /// reads it once integration connections and live reads land (M1 slices 1.2 to 1.4 of the
+    /// integrations plan). Until then a published copy would show its integration blocks empty, so
+    /// it is refused here, where <c>cordango publish</c> stops it. Delete this when the platform
+    /// serves integration sources.
+    /// </summary>
+    private static IEnumerable<Diagnostic> Integrations(JsonObject document)
+    {
+        var uses = document["uses"] as JsonArray ?? [];
+        for (var i = 0; i < uses.Count; i++)
+            if (uses[i] is JsonObject use && (string?)use["integration"] is { } reference)
+                yield return new Diagnostic(NotYetCodes.Integration,
+                    $"this application reads '{reference}' as '{(string?)use["as"]}'. Cordango Platform does not "
+                    + "connect to integrations yet, so its integration blocks would show nothing. It runs once "
+                    + "integration connections ship; until then keep it in your workspace",
+                    $"$.uses[{i}]");
+    }
+
+    private static IEnumerable<Diagnostic> CustomCode(JsonObject document)
+    {
         if (document["custom"] is not JsonObject custom) return [];
 
         var functions = (custom["functions"] as JsonArray)?.Count ?? 0;

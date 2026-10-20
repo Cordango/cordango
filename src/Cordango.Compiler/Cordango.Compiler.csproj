@@ -62,6 +62,12 @@
          names — schemas/core/<systemKey>.contract.json — keep the logical resource names stable
          across platforms; MSBuild's RecursiveDir would bake in Windows separators. -->
     <EmbeddedResource Include="..\..\schemas\core\*.json" LogicalName="core/%(Filename)%(Extension)" />
+    <!-- Integrations: the contract and provider languages, and the catalog of both that ships with
+         Cordango. Embedded so `cordango check` can judge an app that uses hubspot.crm@1 offline, with
+         nothing installed and no instance behind it. -->
+    <EmbeddedResource Include="..\..\schemas\integration-contract.schema.json" Link="integration-contract.schema.json" LogicalName="integration-contract.schema.json" />
+    <EmbeddedResource Include="..\..\schemas\integration-provider.schema.json" Link="integration-provider.schema.json" LogicalName="integration-provider.schema.json" />
+    <EmbeddedResource Include="..\..\schemas\integrations\*.json" LogicalName="integrations/%(Filename)%(Extension)" />
   </ItemGroup>
 
   <!-- These live OUTSIDE the project tree, so `dotnet watch` (which a dev container may run) never

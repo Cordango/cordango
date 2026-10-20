@@ -1,0 +1,113 @@
+{
+  "kind": "IntegrationProvider",
+  "name": "hubspot",
+  "version": 1,
+  "label": "HubSpot",
+  "description": "HubSpot contacts through the CRM v3 API, authenticated with a private app access token.",
+  "implements": ["hubspot.crm@1"],
+  "http": {
+    "baseUrl": "https://api.hubapi.com",
+    "timeoutSeconds": 15,
+    "rateLimit": { "requests": 100, "perSeconds": 10, "concurrent": 4 },
+    "errors": { "message": "$.message" }
+  },
+  "auth": {
+    "type": "bearer",
+    "scope": "workspace",
+    "label": "Private app access token",
+    "help": "In HubSpot: Settings, Integrations, Private Apps. Create an app with the crm.objects.contacts.read scope and copy its access token."
+  },
+  "test": {
+    "method": "GET",
+    "path": "/crm/v3/objects/contacts",
+    "query": { "limit": "1" },
+    "expect": "$.results"
+  },
+  "entities": {
+    "contact": {
+      "operations": {
+        "list": {
+          "method": "GET",
+          "path": "/crm/v3/objects/contacts",
+          "query": { "properties": "firstname,lastname,email,phone,company,lifecyclestage" },
+          "paging": { "style": "cursor", "param": "after", "sizeParam": "limit", "size": 100 },
+          "response": { "items": "$.results", "nextCursor": "$.paging.next.after" }
+        },
+        "get": {
+          "method": "GET",
+          "path": "/crm/v3/objects/contacts/{{id}}",
+          "query": { "properties": "firstname,lastname,email,phone,company,lifecyclestage" },
+          "notFound": [404]
+        },
+        "search": {
+          "method": "POST",
+          "path": "/crm/v3/objects/contacts/search",
+          "body": {
+            "filterGroups": [{ "filters": "{{filters}}" }],
+            "sorts": "{{sorts}}",
+            "query": "{{search.text}}",
+            "properties": ["firstname", "lastname", "email", "phone", "company", "lifecyclestage"],
+            "limit": "{{page.size}}",
+            "after": "{{page.cursor}}"
+          },
+          "paging": { "style": "cursor", "size": 100 },
+          "response": { "items": "$.results", "nextCursor": "$.paging.next.after", "total": "$.total" },
+          "filters": {
+            "fields": {
+              "email": { "name": "email" },
+              "lifecycle_stage": {
+                "name": "lifecyclestage",
+                "values": {
+                  "subscriber": "subscriber",
+                  "lead": "lead",
+                  "mql": "marketingqualifiedlead",
+                  "sql": "salesqualifiedlead",
+                  "opportunity": "opportunity",
+                  "customer": "customer",
+                  "evangelist": "evangelist",
+                  "other": "other"
+                }
+              }
+            },
+            "ops": { "eq": "EQ" },
+            "each": { "propertyName": "{{filter.name}}", "operator": "{{filter.op}}", "value": "{{filter.value}}" }
+          },
+          "sort": {
+            "fields": { "created_at": "createdate", "updated_at": "lastmodifieddate" },
+            "each": { "propertyName": "{{sort.name}}", "direction": "{{sort.direction}}" },
+            "directions": { "asc": "ASCENDING", "desc": "DESCENDING" }
+          }
+        }
+      },
+      "aggregate": { "count": { "via": "search" } },
+      "mapping": {
+        "fromProvider": {
+          "id": "$.id",
+          "first_name": "$.properties.firstname",
+          "last_name": "$.properties.lastname",
+          "email": "$.properties.email",
+          "phone": "$.properties.phone",
+          "company_name": "$.properties.company",
+          "lifecycle_stage": {
+            "from": "$.properties.lifecyclestage",
+            "transform": {
+              "enum": {
+                "subscriber": "subscriber",
+                "lead": "lead",
+                "marketingqualifiedlead": "mql",
+                "salesqualifiedlead": "sql",
+                "opportunity": "opportunity",
+                "customer": "customer",
+                "evangelist": "evangelist",
+                "other": "other"
+              },
+              "otherwise": "other"
+            }
+          },
+          "created_at": { "from": "$.createdAt", "transform": { "date": "iso" } },
+          "updated_at": { "from": "$.updatedAt", "transform": { "date": "iso" } }
+        }
+      }
+    }
+  }
+}

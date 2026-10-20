@@ -110,10 +110,14 @@ public sealed record CordPurpose(
 /// </summary>
 /// <param name="App">A core app's systemKey, or another app's key. Never a handle.</param>
 /// <param name="Entities">Which of its entities are used. Empty means all of them.</param>
+/// <param name="Integration">Instead of an app: an integration contract, <c>name@major</c>.</param>
+/// <param name="As">The name this app's blocks use for that integration.</param>
 public sealed record CordUse(
     string? App = null,
     IReadOnlyList<string>? Entities = null,
-    string? Why = null)
+    string? Why = null,
+    string? Integration = null,
+    string? As = null)
 {
     public IReadOnlyList<string> EntityList => Entities ?? [];
 }

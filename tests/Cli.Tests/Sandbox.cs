@@ -63,6 +63,8 @@ public sealed class Sandbox : IDisposable
             {
                 "new" => Commands.NewCommand.Run(args, output),
                 "add app" => Commands.AddAppCommand.Run(args, output),
+                "add contract" => Commands.AddIntegrationCommand.Run(args, output, Commands.AddIntegrationCommand.Kind.Contract),
+                "add provider" => Commands.AddIntegrationCommand.Run(args, output, Commands.AddIntegrationCommand.Kind.Provider),
                 "configure" => Commands.ConfigureCommand.Run(args, output),
                 "check" => Commands.CheckCommand.Run(args, output),
                 "validate" => Commands.CheckCommand.Run(args, output),

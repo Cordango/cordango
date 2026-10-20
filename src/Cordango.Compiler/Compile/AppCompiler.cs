@@ -172,9 +172,10 @@ public static class AppCompiler
             FlagAutoField(f);
         }
 
-        // labelPlural: default to label + "s" when omitted.
+        // labelPlural: default to the label's English plural when omitted. A bare "+ s" drew
+        // "Settingss" and "Booking Policys".
         if (entity["labelPlural"] is null && entity["label"]?.GetValue<string>() is { } label)
-            entity["labelPlural"] = label + "s";
+            entity["labelPlural"] = EnglishPlural(label);
 
         // displayField: default to the first declared text-ish field, else the first declared field.
         if (entity["displayField"] is null)
@@ -1220,6 +1221,23 @@ public static class AppCompiler
             (map.TryGetValue(e, out var l) ? l : map[e] = new()).Add(k);
         }
         return map;
+    }
+
+    /// <summary>
+    /// The English plural of a label, by its last word: Policy → Policies, Status → Statuses, a word
+    /// that already ends in "s" (Settings, News) unchanged. Only a default: an entity whose plural is
+    /// irregular says its own <c>labelPlural</c>.
+    /// </summary>
+    private static string EnglishPlural(string label)
+    {
+        static bool Ends(string s, string tail) => s.EndsWith(tail, StringComparison.OrdinalIgnoreCase);
+        if (label.Length == 0) return label;
+        if (Ends(label, "ss") || Ends(label, "us") || Ends(label, "x") || Ends(label, "z")
+            || Ends(label, "ch") || Ends(label, "sh")) return label + "es";
+        if (Ends(label, "s")) return label;
+        if (label.Length > 1 && char.ToLowerInvariant(label[^1]) == 'y'
+            && !"aeiou".Contains(char.ToLowerInvariant(label[^2]))) return label[..^1] + "ies";
+        return label + "s";
     }
 
     private static string Humanize(string key)

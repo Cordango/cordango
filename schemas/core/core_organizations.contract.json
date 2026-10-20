@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_organizations",
     "name": "Organizations",
-    "version": "1.7.0",
+    "version": "1.8.0",
     "schemaVersion": "2.0",
-    "definitionHash": "ec2f8f04198c3c91e66b732201fbb46e538045288a104cbf1dba2bdc3c639246",
-    "contractHash": "ba6428965578d54bb7d78cbe2e961aa3e25862b7cab00dcf1520efec2ceb1757"
+    "definitionHash": "f18c5b0f359afa951077bd66e1e9f746c3f2d2ebbba3f072bc5c4562afe95dc5",
+    "contractHash": "323b060f2c7c78803ea967d9fd179869c791a3ef7eee719521d087afe8497f77"
   },
   "entities": [
     {

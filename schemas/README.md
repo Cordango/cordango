@@ -16,6 +16,9 @@ never deployed.
 | `examples/crm.appdef.json` | A complete, valid CRM app definition. |
 | `examples/invalid/broken.appdef.json` | Deliberately broken — proves the schema rejects bad input. |
 | `validate.py` | Reusable validator (used by CI and the AI repair loop). |
+| `integration-contract.schema.json` | An **integration contract**: what an app may depend on when it reads an external system — entities, typed fields, capabilities, and the filters, sorts and exact figures it supports. Provider-independent. A sibling document, never composed into the app schema. |
+| `integration-provider.schema.json` | An **integration provider**: how one external API implements contracts — auth, operations, paging, rate limits, and the mapping from its data onto contract fields with a closed set of transforms. No code, and never a credential. |
+| `integrations/` | The contracts and providers that ship with Cordango (`hubspot.crm@1`, `hubspot`). Stored as JSON so the compiler can embed them; YAML in a workspace is the same document. |
 
 ## Source layout (edit `src/`, then compose)
 

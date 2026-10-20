@@ -42,7 +42,8 @@ HERE = Path(__file__).resolve().parent
 SRC = HERE / "src"
 OUT = HERE / "app-definition.schema.json"
 
-# Fixed composition order. connectivity.json joins in a later phase.
+# Fixed composition order. Integration contracts and providers are sibling documents with their own
+# schemas (integration-contract / integration-provider), never composed into the app schema.
 FILES = [
     "root.json",
     "domain.json",
@@ -66,7 +67,7 @@ MANIFEST: dict[str, dict[str, list[str]]] = {
         "properties": ["schemaVersion", "key", "name", "version", "description",
                        "purpose", "weekStart", "archetype", "uses", "plugins", "custom"],
         "defs": ["visibleWhen", "identifier", "fieldPath", "blockClass", "hexColor", "filter",
-                 "appDependency", "pluginRef", "customCode", "customFunction",
+                 "appDependency", "integrationRef", "pluginRef", "customCode", "customFunction",
                  "customHook", "customSource", "customKind"],
     },
     "domain.json": {

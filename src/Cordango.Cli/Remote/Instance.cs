@@ -96,6 +96,14 @@ public sealed class Instance : IDisposable
             }),
         }, ct);
 
+    /// <summary>Publish one integration contract or provider. The instance recompiles it; a version
+    /// already published with different content is refused, never overwritten.</summary>
+    public Task<InstanceResult> PublishIntegrationAsync(JsonNode document, CancellationToken ct) => SendAsync(
+        () => new HttpRequestMessage(HttpMethod.Post, "api/admin/integrations/definitions")
+        {
+            Content = JsonContent.Create(new JsonObject { ["document"] = document.DeepClone() }),
+        }, ct);
+
     private async Task<InstanceResult> SendAsync(Func<HttpRequestMessage> request, CancellationToken ct)
     {
         HttpResponseMessage response;

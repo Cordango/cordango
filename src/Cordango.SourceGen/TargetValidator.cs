@@ -34,11 +34,33 @@ public static class TargetValidator
         Blocks(definition, caps, siblings, found);
         Effects(definition, caps, found);
         Workflows(definition, caps, siblings, found);
+        Integrations(definition, caps, found);
 
         // Ordered by where they appear rather than by when the walk happened to notice them: a
         // report that reads top-to-bottom through the document is one somebody can work down.
         return [.. found.OrderBy(d => d.JsonPath ?? "", StringComparer.Ordinal)
                         .ThenBy(d => d.Code, StringComparer.Ordinal)];
+    }
+
+    // ---- integrations ------------------------------------------------------------------------
+
+    /// <summary>One finding per declared integration rather than per block: a block cannot read an
+    /// integration its app has not declared (the gate refuses it), so the declaration is where the
+    /// whole dependency is, and where removing it removes it.</summary>
+    private static void Integrations(JsonObject definition, GeneratorCapabilities caps, List<Diagnostic> found)
+    {
+        if (caps.Integrations) return;
+        var uses = definition["uses"] as JsonArray ?? [];
+        for (var i = 0; i < uses.Count; i++)
+        {
+            if (uses[i] is not JsonObject use || Str(use["integration"]) is not { } reference) continue;
+            found.Add(new Diagnostic(NotYetCodes.Integration,
+                $"this application reads '{reference}' as '{Str(use["as"])}', an integration with an external "
+                + "system. Generated applications make no outbound calls yet. Remove the integration and the "
+                + "blocks that read it to build standalone, or run this application on Cordango Platform, "
+                + "which reads it live",
+                $"$.uses[{i}]"));
+        }
     }
 
     // ---- entities, fields, computed values ---------------------------------------------------

@@ -7,6 +7,7 @@ using Cordango.Compile;
 using System.Text.Json.Nodes;
 using Cordango.Cord;
 using Cordango.Definition;
+using Cordango.Integrations;
 using Cordango.Cli.Generate;
 using Cordango.SourceGen;
 using Cordango.Compile;
@@ -112,7 +113,9 @@ public static class Pipeline
     /// <param name="knownApps">The other apps this one may point at — see <see cref="Roster"/>. Null
     /// leaves a cross-app <c>targetApp</c> unchecked, which is right for a caller looking at one app
     /// with no view of its siblings.</param>
-    public static CheckReport Check(LoadedApp loaded, KnownApps? knownApps)
+    /// <param name="integrations">The integration contracts it may name — see
+    /// <see cref="IntegrationSources.Roster"/>. Null means the catalog alone.</param>
+    public static CheckReport Check(LoadedApp loaded, KnownApps? knownApps, KnownIntegrations? integrations = null)
     {
         if (loaded.App is null || loaded.Problems.Count > 0)
             return new CheckReport(loaded.Key, loaded.Path, false, false, loaded.Problems, [], null, null, null);
@@ -124,7 +127,7 @@ public static class Pipeline
         if (custom.Problems.Count > 0)
             return new CheckReport(loaded.Key, loaded.Path, false, false, custom.Problems, [], null, null, null);
 
-        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty, knownApps, custom.Bundle);
+        return Check(loaded.App, loaded.Key, loaded.Path, CordPointerMap.Empty, knownApps, custom.Bundle, integrations);
     }
 
     /// <summary>
@@ -188,7 +191,7 @@ public static class Pipeline
     /// they declare is grafted onto the lowered document before it is validated, because an
     /// expression calling <c>custom.discount(...)</c> cannot be type-checked without it.</param>
     public static CheckReport Check(CordApp app, string appKey, string appPath, CordPointerMap map,
-        KnownApps? knownApps, CustomSourceBundle? custom)
+        KnownApps? knownApps, CustomSourceBundle? custom, KnownIntegrations? integrations = null)
     {
         var lowered = CordLower.Lower(app);
 
@@ -199,7 +202,7 @@ public static class Pipeline
         // appId: the app KEY, because in a workspace the key is the durable identity (CordyOSS §3.2)
         // and the manifest has to name something stable across machines. The hosted product passes a
         // row id here for the opposite reason — there, a model must not be able to name its own app.
-        var outcome = CandidateValidator.Run(lowered, appKey, DeterministicBuiltAt, knownApps);
+        var outcome = CandidateValidator.Run(lowered, appKey, DeterministicBuiltAt, knownApps, integrations);
 
         return new CheckReport(
             appKey,

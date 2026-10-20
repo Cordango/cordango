@@ -40,6 +40,10 @@ public sealed class FakeInstance : IDisposable
 
     public int ListCalls { get; private set; }
 
+    public List<(string Method, string Path, JsonNode? Body)> Received { get; } = [];
+
+    public int IntegrationStatus { get; set; } = 201;
+
     public FakeInstance With(string id, string handle, string name, JsonObject? definition,
         string status = "built", string version = "1.0.0", int entities = 3)
     {
@@ -94,6 +98,30 @@ public sealed class FakeInstance : IDisposable
     private void Answer(HttpListenerContext context)
     {
         var path = context.Request.Url?.AbsolutePath ?? "";
+        JsonNode? received = null;
+        if (context.Request.HasEntityBody)
+        {
+            using var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8);
+            received = JsonNode.Parse(reader.ReadToEnd());
+        }
+        lock (Received) Received.Add((context.Request.HttpMethod, path, received));
+
+        if (path is "/api/admin/integrations/definitions" && context.Request.HttpMethod == "POST")
+        {
+            Write(context, IntegrationStatus, IntegrationStatus < 300
+                ? new JsonObject { ["status"] = "created" }
+                : new JsonObject { ["code"] = "integration.version_unchanged", ["error"] = "already published with different content" });
+            return;
+        }
+
+        if (path is "/api/apps/publish" && context.Request.HttpMethod == "POST")
+        {
+            Write(context, 200, new JsonObject
+            {
+                ["handle"] = (string?)received?["definition"]?["key"], ["created"] = true, ["version"] = "1.0.0", ["entities"] = 1,
+            });
+            return;
+        }
 
         if (path is "/api/apps")
         {

@@ -75,7 +75,7 @@ public sealed class Args
             // a command nobody wrote — an unknown pair falls through and `check` sees `app` as a
             // positional, which the command itself then rejects by name.
             if (i < argv.Length && !argv[i].StartsWith('-')
-                && (args.Command, argv[i]) is ("add", "app") or ("app", "remove"))
+                && (args.Command, argv[i]) is ("add", "app") or ("add", "contract") or ("add", "provider") or ("app", "remove"))
                 args.Command += " " + argv[i++];
         }
 
@@ -100,7 +100,7 @@ public sealed class Args
             // none, so the lookahead has to stop at the next `--`.
             if (i + 1 < argv.Length && !argv[i + 1].StartsWith("--", StringComparison.Ordinal)
                 && name is "app" or "scope" or "ops" or "out" or "instance" or "token"
-                    or "target" or "seed" or "seed-date" or "runtime" or "limit")
+                    or "target" or "seed" or "seed-date" or "runtime" or "limit" or "implements")
                 args._flags[name] = argv[++i];
             else
                 args._flags[name] = null;

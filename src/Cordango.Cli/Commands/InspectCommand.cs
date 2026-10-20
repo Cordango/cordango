@@ -81,6 +81,12 @@ public static class InspectCommand
                 ["root"] = selection.Workspace.Root,
                 ["apps"] = new JsonArray([.. apps.Select(a => (JsonNode)a)]),
                 ["coreApps"] = CoreApps(),
+                ["integrations"] = new JsonArray([.. Contracts(selection).Select(c => (JsonNode)new JsonObject
+                {
+                    ["ref"] = c.Ref.ToString(),
+                    ["label"] = c.Label,
+                    ["entities"] = new JsonArray([.. c.Entities.Select(e => (JsonNode)e.Key!)]),
+                })]),
             },
             w =>
             {
@@ -107,9 +113,24 @@ public static class InspectCommand
                         + string.Join(", ", core.Entities.Select(e => e.Key)));
 
                 w.WriteLine();
+                w.WriteLine("Integrations — external systems an app may read. Declare one under a name of the");
+                w.WriteLine("app's own: uses: [{ integration: <name>@<major>, as: <name> }].");
+                foreach (var contract in Contracts(selection))
+                    w.WriteLine($"  {contract.Ref,-24} {contract.Label,-16} "
+                        + string.Join(", ", contract.Entities.Select(e => e.Key)));
+
+                w.WriteLine();
                 w.WriteLine("  cordango vocabulary core organizations   what one core app holds");
             });
     }
+
+    /// <summary>The contracts an app here may name: the workspace's own that compiled, then the
+    /// catalog's — the same roster <c>check</c> judges against.</summary>
+    private static IEnumerable<Cordango.Integrations.IntegrationContract> Contracts(Selection selection) =>
+        selection.Integrations.Contracts
+            .Concat(Cordango.Integrations.IntegrationCatalog.Contracts
+                .Where(c => selection.Integrations.Contracts.All(w => w.Ref != c.Ref)))
+            .OrderBy(c => c.Ref.ToString(), StringComparer.Ordinal);
 
     /// <summary>
     /// The core apps, in the ONE call an agent is told to make first.

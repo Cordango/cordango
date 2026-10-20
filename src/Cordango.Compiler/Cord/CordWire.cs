@@ -64,7 +64,9 @@ internal static class CordWire
     public static CordUse Use(JsonObject o) => new(
         App: Str(o, "app"),
         Entities: Strings(o, "entities"),
-        Why: Str(o, "why"));
+        Why: Str(o, "why"),
+        Integration: Str(o, "integration"),
+        As: Str(o, "as"));
 
     public static CordField Field(JsonObject o) => new(
         Key: Str(o, "key"),

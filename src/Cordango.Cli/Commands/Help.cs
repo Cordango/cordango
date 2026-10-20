@@ -22,6 +22,8 @@ public static class Help
     [
         new("new <first-app>", "Create a workspace and its first app. Needs an empty directory."),
         new("add app <name>", "Add another app to this workspace. One workspace holds many."),
+        new("add contract <name>", "Add an integration contract (acme.crm): what apps may read from an external system."),
+        new("add provider <name>", "Add a provider for a contract: --implements acme.crm@1. How one API serves it."),
         new("configure [--target <id>]",
             "Decide once where this workspace's apps are meant to run, and write it into "
             + "cordango.yaml. Asks, when there is somebody to ask. `--show` prints what is set."),

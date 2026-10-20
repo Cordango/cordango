@@ -94,7 +94,8 @@ public static class CordImport
         var app = CordJson.TakeString(rest, "app");
         var entities = CordJson.TakeArray(rest, "entities")?
             .Select(e => e?.GetValue<string>()).OfType<string>().ToList();
-        return new CordUse(app, entities, CordJson.TakeString(rest, "why"));
+        return new CordUse(app, entities, CordJson.TakeString(rest, "why"),
+            CordJson.TakeString(rest, "integration"), CordJson.TakeString(rest, "as"));
     }
 
     private static CordEntity Entity(JsonObject src, CordRefIndex refs)
