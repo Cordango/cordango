@@ -88,6 +88,13 @@ public sealed class NodeVueGenerator : IAppSourceGenerator
                  + "governed by the platform's document service. A standalone application has no "
                  + "document store, so there is nothing for the block to show. Remove the block to "
                  + "build standalone, or run this application on Cordango Platform"),
+                ("legalEntity",
+                 "the registry panel is a Cordango Platform feature. On the platform a company in the "
+                 + "Organizations app can be linked to its entry in the official company registry, "
+                 + "and this block shows what the registry says about it: registered name, legal form, "
+                 + "address and group. A standalone application has no registry and no link to follow, "
+                 + "so there is nothing for the block to show. Remove the block to build standalone, "
+                 + "or run this application on Cordango Platform"),
             ]),
 
         Effects: CapabilitySet.Of(

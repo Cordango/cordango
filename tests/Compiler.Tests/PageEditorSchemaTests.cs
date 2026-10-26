@@ -147,13 +147,19 @@ public class PageEditorSchemaTests
     /// already here, its description saying which name it takes and that only the filters, sorts and
     /// figures the contract declares are allowed. The <c>integrationRef</c> def it pairs with belongs to
     /// <c>uses</c> and never reaches the page schema.</item>
+    /// <item>113,100 &#8594; 114,200 (2026-10-25): <c>legalEntity</c>, the 45th block kind &#8212; the
+    /// company registry's entry for the company a record is linked to, placed by hand in the
+    /// Organizations app. To 114,145: one closed variant with no property of its own beyond the shared
+    /// <c>label</c>/<c>empty</c>/layout ones, one dispatch entry and one enum value. Most of the size is
+    /// the description, cut to what an author needs: where it is valid and that nothing is
+    /// configured.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 113_100);
+        Assert.InRange(pruned, 1, 114_200);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

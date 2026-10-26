@@ -1056,7 +1056,7 @@
           }
         },
         "role": {
-          "description": "Semantic role of the field. 'status' = the single 'select' field records move through as a process (drives kanban/timeline; at most one per entity). 'start'/'due' = the entity's semantic start/due date ('date'/'datetime' fields only, at most one of each per entity) — drives generic date affordances (late-start/due-soon/overdue colorization, scheduling surfaces). 'unconfirmed' = a 'json' field (at most one per entity) holding the list of field keys whose CURRENT value was written by the system rather than typed by a person — research, an import, an AI suggestion. The runtime removes a key the moment a human write includes it, and the detail marks those fields as unverified, so a value can be filled in automatically without ever passing itself off as checked. 'differs' = a 'json' field (at most one per entity) holding an OBJECT of field key to the value the system found, for fields a PERSON owns where the system's answer disagrees. The companion to 'unconfirmed' and the reason the system never has to choose: a field somebody filled in is never overwritten, and a machine that knows better says so beside the value instead of replacing it. Cleared on the same terms as 'unconfirmed' - a human write that touches the key means they have seen the disagreement and theirs stands.Forms archetype: 'order' = the integer that orders a formField's questions; 'answerType' = the select field on a formField holding the question type (yes_no/single_choice/multi_choice/scale/short_text/long_text/number/date); 'answerValue' = the json field on a formAnswer holding the submitted value; 'answerRequired' = the boolean field on a formField saying the question must be answered (without it 'required' is a browser-side courtesy the server never sees, which is fine until a stranger can post); 'answerOptions' = the json field on a formField holding the choices a single_choice/multi_choice question offers; 'respondentEmail' = the formField whose answer is the submitter's own email address, which is what a confirmation link can be sent to; 'confirmMode' = the text/select field on a formTemplate holding 'none' (the default, and what almost every public form should be - a submission is accepted as it arrives) or 'email', which holds the submission back until the submitter clicks a link sent to their own answer. Opt-in and rarely right: double opt-in is a mailing-list convention, not a form convention, and asking for it on a survey defeats anonymity. Worth it when a form FILES something a person then acts on and a wrong address would send that somewhere real. 'targetEntity' = the text field on a formTemplate naming the entity a submission CREATES (a helpdesk intake form creates a ticket); 'mapsTo' = the text field on a formField naming which field of that target entity the question fills (empty = the answer is kept on the response only). Public perimeter: 'publicShare' = a 'boolean' field (at most one per entity) that decides whether THIS RECORD is served to people with no account at all - the switch an author flips to publish a booking page or a form, and the only thing that makes a record public; 'publicToken' = the 'text' field (at most one per entity, and required alongside publicShare) holding that record's public ADDRESS. The token is the credential: it is generated with real entropy, never typed by a person, and read-only, because a memorable public address is a guessable one and guessing it is the whole attack. The two go together - a share flag with no token has no address to serve, and a token with no flag has no way to be turned off.",
+          "description": "Semantic role of the field. 'status' = the single 'select' field records move through as a process (drives kanban/timeline; at most one per entity). 'start'/'due' = the entity's semantic start/due date ('date'/'datetime' fields only, at most one of each per entity) — drives generic date affordances (late-start/due-soon/overdue colorization, scheduling surfaces). 'unconfirmed' = a 'json' field (at most one per entity) holding the list of field keys whose CURRENT value was written by the system rather than typed by a person — research, an import, an AI suggestion. The runtime removes a key the moment a human write includes it, and the detail marks those fields as unverified, so a value can be filled in automatically without ever passing itself off as checked. 'differs' = a 'json' field (at most one per entity) holding an OBJECT of field key to the value the system found, for fields a PERSON owns where the system's answer disagrees. The companion to 'unconfirmed' and the reason the system never has to choose: a field somebody filled in is never overwritten, and a machine that knows better says so beside the value instead of replacing it. Cleared on the same terms as 'unconfirmed' - a human write that touches the key means they have seen the disagreement and theirs stands. 'translations' = a 'json' field (at most one per entity) holding an OBJECT of field key to an object of language tag to text, e.g. {\"description\": {\"de\": \"...\"}}, for values the SYSTEM wrote in one language and also rendered in others. The stored value stays the canonical one that filters, exports and agents read; the detail shows each person the text in their own language where one is present, marked as translated. Cleared on the same terms as 'unconfirmed' - a person writing the field replaces it in every language, because a translation of text they did not write would otherwise outlive their correction. Forms archetype: 'order' = the integer that orders a formField's questions; 'answerType' = the select field on a formField holding the question type (yes_no/single_choice/multi_choice/scale/short_text/long_text/number/date); 'answerValue' = the json field on a formAnswer holding the submitted value; 'answerRequired' = the boolean field on a formField saying the question must be answered (without it 'required' is a browser-side courtesy the server never sees, which is fine until a stranger can post); 'answerOptions' = the json field on a formField holding the choices a single_choice/multi_choice question offers; 'respondentEmail' = the formField whose answer is the submitter's own email address, which is what a confirmation link can be sent to; 'confirmMode' = the text/select field on a formTemplate holding 'none' (the default, and what almost every public form should be - a submission is accepted as it arrives) or 'email', which holds the submission back until the submitter clicks a link sent to their own answer. Opt-in and rarely right: double opt-in is a mailing-list convention, not a form convention, and asking for it on a survey defeats anonymity. Worth it when a form FILES something a person then acts on and a wrong address would send that somewhere real. 'targetEntity' = the text field on a formTemplate naming the entity a submission CREATES (a helpdesk intake form creates a ticket); 'mapsTo' = the text field on a formField naming which field of that target entity the question fills (empty = the answer is kept on the response only). Public perimeter: 'publicShare' = a 'boolean' field (at most one per entity) that decides whether THIS RECORD is served to people with no account at all - the switch an author flips to publish a booking page or a form, and the only thing that makes a record public; 'publicToken' = the 'text' field (at most one per entity, and required alongside publicShare) holding that record's public ADDRESS. The token is the credential: it is generated with real entropy, never typed by a person, and read-only, because a memorable public address is a guessable one and guessing it is the whole attack. The two go together - a share flag with no token has no address to serve, and a token with no flag has no way to be turned off.",
           "type": "string",
           "enum": [
             "status",
@@ -1064,6 +1064,7 @@
             "due",
             "unconfirmed",
             "differs",
+            "translations",
             "order",
             "answerType",
             "answerValue",
@@ -1834,7 +1835,8 @@
             "intake",
             "externalEmbed",
             "relatedApps",
-            "documents"
+            "documents",
+            "legalEntity"
           ]
         }
       },
@@ -2497,6 +2499,21 @@
           },
           "then": {
             "$ref": "#/$defs/block_documents"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "legalEntity"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_legalEntity"
           }
         }
       ]
@@ -5747,6 +5764,40 @@
         },
         "empty": {
           "description": "What to say when the record has no documentation yet.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_legalEntity": {
+      "description": "What the official company registry says about the company a record is linked to: registered name, legal form, address and group, and when it was last checked; or the suggested registry entry to accept or reject. Record binding only, on an entity with the 'enr_legal_entity' link field. Nothing is configured: the server follows the record's confirmed link.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "legalEntity"
+        },
+        "class": {
+          "$ref": "#/$defs/blockClass"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "empty": {
+          "description": "What to say when the record is not linked to a registry entry. Omit to show nothing at all.",
           "type": "string",
           "maxLength": 300
         },

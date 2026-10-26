@@ -713,7 +713,8 @@
             "intake",
             "externalEmbed",
             "relatedApps",
-            "documents"
+            "documents",
+            "legalEntity"
           ]
         }
       },
@@ -1376,6 +1377,21 @@
           },
           "then": {
             "$ref": "#/$defs/block_documents"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "legalEntity"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_legalEntity"
           }
         }
       ]
@@ -4538,6 +4554,38 @@
         },
         "empty": {
           "description": "What to say when the record has no documentation yet.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_legalEntity": {
+      "description": "What the official company registry says about the company a record is linked to: registered name, legal form, address and group, and when it was last checked; or the suggested registry entry to accept or reject. Record binding only, on an entity with the 'enr_legal_entity' link field. Nothing is configured: the server follows the record's confirmed link.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "legalEntity"
+        },
+        "class": { "$ref": "#/$defs/blockClass" },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "empty": {
+          "description": "What to say when the record is not linked to a registry entry. Omit to show nothing at all.",
           "type": "string",
           "maxLength": 300
         },

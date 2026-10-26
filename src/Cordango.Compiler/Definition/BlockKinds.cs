@@ -69,10 +69,15 @@ public static class BlockKinds
     /// platform's document service; a generated app authoring it would be claiming a store it does
     /// not have. It is placed by hand: on the Documents app's own page and, with a <c>field</c>,
     /// in the detail of a record that owns a space.</item>
+    /// <item><c>legalEntity</c> — <b>withheld because it is the platform's shared company registry
+    /// rendering inside an app</b>. It shows what the registry says about the company a record is
+    /// linked to, through a link the platform keeps on its own Organizations app; a generated app
+    /// authoring it would be claiming a link it cannot make. It is placed by hand, in the
+    /// Organizations app's company detail.</item>
     /// </list>
     /// </summary>
     public static readonly IReadOnlySet<string> NotAuthorable =
-        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps", "documents" };
+        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps", "documents", "legalEntity" };
 
     /// <summary>The full authoring vocabulary.</summary>
     public static readonly IReadOnlyList<AuthoringKind> All =

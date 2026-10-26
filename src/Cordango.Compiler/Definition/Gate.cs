@@ -207,6 +207,7 @@ public static class Gate
             var dueFields = new List<string>();
             var unconfirmedFields = new List<string>();
             var differsFields = new List<string>();
+            var translationsFields = new List<string>();
             var shareFields = new List<string>();
             var tokenFields = new List<string>();
             foreach (var fn in Arr(ent["fields"]))
@@ -262,15 +263,26 @@ public static class Gate
                 // filled or compared those fields. A readOnly one compiles to a field `ValidateAndCopy`
                 // skips for every caller, so the mark would never be set and every machine-written
                 // value would silently present itself as checked.
-                if (Str(f, "role") is "unconfirmed" or "differs")
+                // 'translations' is the third, and the same kind of thing: a MAP of field key to the
+                // other languages the system rendered that field's value in, cleared by the same human
+                // write, so it carries the same two constraints.
+                if (Str(f, "role") is "unconfirmed" or "differs" or "translations")
                 {
                     var mark = Str(f, "role")!;
-                    (mark == "unconfirmed" ? unconfirmedFields : differsFields).Add(fk);
+                    (mark switch
+                    {
+                        "unconfirmed" => unconfirmedFields,
+                        "differs" => differsFields,
+                        _ => translationsFields,
+                    }).Add(fk);
                     if (Str(f, "type") != "json")
                         errors.Add($"SEMANTIC: field '{ekey}.{fk}' has role '{mark}' but type '{Str(f, "type")}' — "
-                                 + (mark == "unconfirmed"
-                                     ? "it holds the LIST of field keys awaiting confirmation"
-                                     : "it holds the MAP of field key to the value the system found")
+                                 + (mark switch
+                                 {
+                                     "unconfirmed" => "it holds the LIST of field keys awaiting confirmation",
+                                     "differs" => "it holds the MAP of field key to the value the system found",
+                                     _ => "it holds the MAP of field key to that value in other languages",
+                                 })
                                  + ", so it must be a 'json' field");
                     if (f["computed"] is not null)
                         errors.Add($"SEMANTIC: field '{ekey}.{fk}' has role '{mark}' and is computed — a computed "
@@ -327,6 +339,8 @@ public static class Gate
                 errors.Add($"SEMANTIC: entity '{ekey}' has multiple role:'unconfirmed' fields ({string.Join(", ", unconfirmedFields)}) — at most one is allowed");
             if (differsFields.Count > 1)
                 errors.Add($"SEMANTIC: entity '{ekey}' has multiple role:'differs' fields ({string.Join(", ", differsFields)}) — at most one is allowed");
+            if (translationsFields.Count > 1)
+                errors.Add($"SEMANTIC: entity '{ekey}' has multiple role:'translations' fields ({string.Join(", ", translationsFields)}) — at most one is allowed");
             if (shareFields.Count > 1)
                 errors.Add($"SEMANTIC: entity '{ekey}' has multiple role:'publicShare' fields ({string.Join(", ", shareFields)}) — at most one is allowed");
             if (tokenFields.Count > 1)
@@ -3240,6 +3254,19 @@ public static class Gate
                     if (binding != "record")
                         errors.Add($"SEMANTIC: {where}: block kind 'relatedApps' is only valid in a record "
                                  + "detail — it answers what other apps hold about one record");
+                    break;
+                }
+                case "legalEntity":
+                {
+                    // One record's registry entry, found through that record's own link field. Without
+                    // the field there is no link to follow, and the panel would render as permanently
+                    // "not linked" — which reads like a fact about the company rather than a mistake
+                    // in the definition. The server still refuses every app but Organizations.
+                    if (binding != "record")
+                    { errors.Add($"SEMANTIC: {where}: block kind 'legalEntity' is only valid in a record detail — it shows one company's registry entry"); break; }
+                    if (!ctx.FieldExists(boundEntity, "enr_legal_entity"))
+                        errors.Add($"SEMANTIC: {where}: block kind 'legalEntity' needs '{boundEntity}' to carry the "
+                                 + "'enr_legal_entity' link field — the panel follows that link to the registry entry");
                     break;
                 }
                 case "documents":

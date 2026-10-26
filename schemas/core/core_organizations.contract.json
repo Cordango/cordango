@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_organizations",
     "name": "Organizations",
-    "version": "1.8.0",
+    "version": "1.10.0",
     "schemaVersion": "2.0",
-    "definitionHash": "f18c5b0f359afa951077bd66e1e9f746c3f2d2ebbba3f072bc5c4562afe95dc5",
-    "contractHash": "323b060f2c7c78803ea967d9fd179869c791a3ef7eee719521d087afe8497f77"
+    "definitionHash": "623a6aa2c9a12fb23cbf5e86f352c2f2a8bc7eed7d918a6ce4e9bcceb579e693",
+    "contractHash": "a28723602315ba84e361722e59ea6cb984785792374627f724ec52c8ebd54d81"
   },
   "entities": [
     {
@@ -449,6 +449,11 @@
           "type": "json"
         },
         {
+          "key": "enr_translations",
+          "label": "Translations",
+          "type": "json"
+        },
+        {
           "key": "enr_state",
           "label": "Research",
           "type": "select",
@@ -829,6 +834,53 @@
         {
           "key": "dedup_key",
           "label": "Identity key",
+          "type": "text"
+        },
+        {
+          "key": "enr_legal_entity",
+          "label": "Legal entity",
+          "type": "text"
+        },
+        {
+          "key": "enr_link_state",
+          "label": "Register link",
+          "type": "select",
+          "options": [
+            {
+              "value": "none",
+              "label": "Not linked",
+              "color": "#3b82f6"
+            },
+            {
+              "value": "proposed",
+              "label": "Suggested",
+              "color": "#8b5cf6"
+            },
+            {
+              "value": "confirmed",
+              "label": "Linked",
+              "color": "#06b6d4"
+            },
+            {
+              "value": "declined",
+              "label": "Declined",
+              "color": "#ec4899"
+            }
+          ]
+        },
+        {
+          "key": "enr_link_proposal",
+          "label": "Suggested register record",
+          "type": "json"
+        },
+        {
+          "key": "enr_linked_at",
+          "label": "Linked on",
+          "type": "datetime"
+        },
+        {
+          "key": "enr_link_actor",
+          "label": "Linked by",
           "type": "text"
         }
       ]

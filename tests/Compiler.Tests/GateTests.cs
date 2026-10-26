@@ -543,6 +543,48 @@ public class GateTests
     }
 
     [Fact]
+    public void A_json_translations_marker_is_accepted()
+    {
+        var doc = Minimal();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
+            """{ "key": "translated", "label": "Translations", "type": "json", "role": "translations" }"""));
+        Assert.Empty(Gate.SemanticErrors(doc));
+        Assert.Empty(Gate.Validate(doc));
+    }
+
+    [Fact]
+    public void Translations_role_on_a_non_json_field_is_rejected()
+    {
+        var doc = Minimal();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse(
+            """{ "key": "translated", "label": "Translations", "type": "text", "role": "translations" }"""));
+        Assert.Contains(Gate.SemanticErrors(doc),
+            e => e.Contains("role 'translations'") && e.Contains("'json' field"));
+    }
+
+    [Fact]
+    public void Multiple_translations_role_fields_on_one_entity_are_rejected()
+    {
+        var doc = Minimal();
+        var fields = (JsonArray)doc["entities"]![0]!["fields"]!;
+        fields.Add(JsonNode.Parse("""{ "key": "t1", "label": "T1", "type": "json", "role": "translations" }"""));
+        fields.Add(JsonNode.Parse("""{ "key": "t2", "label": "T2", "type": "json", "role": "translations" }"""));
+        Assert.Contains(Gate.SemanticErrors(doc), e => e.Contains("multiple role:'translations' fields"));
+    }
+
+    [Fact]
+    public void A_computed_translations_marker_is_rejected()
+    {
+        var doc = Minimal();
+        ((JsonArray)doc["entities"]![0]!["fields"]!).Add(JsonNode.Parse("""
+            { "key": "translated", "label": "Translations", "type": "json", "role": "translations",
+              "computed": { "expr": "1" } }
+        """));
+        Assert.Contains(Gate.SemanticErrors(doc),
+            e => e.Contains("role 'translations'") && e.Contains("computed"));
+    }
+
+    [Fact]
     public void A_computed_differs_marker_is_rejected()
     {
         var doc = Minimal();
