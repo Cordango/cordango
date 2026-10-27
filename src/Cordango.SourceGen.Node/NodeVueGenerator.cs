@@ -95,6 +95,20 @@ public sealed class NodeVueGenerator : IAppSourceGenerator
                  + "address and group. A standalone application has no registry and no link to follow, "
                  + "so there is nothing for the block to show. Remove the block to build standalone, "
                  + "or run this application on Cordango Platform"),
+                ("publicAffairs",
+                 "the public affairs panel is a Cordango Platform feature. On the platform a company in "
+                 + "the Organizations app is matched to its entries in public lobby and political "
+                 + "registers, and this block shows what they say about it: the EU lobby register entry "
+                 + "and meetings with the European Commission. A standalone application has no registers "
+                 + "and no matches to follow, so there is nothing for the block to show. Remove the block "
+                 + "to build standalone, or run this application on Cordango Platform"),
+                ("companyResearch",
+                 "the company research page is a Cordango Platform feature. On the platform a company in "
+                 + "the Organizations app is researched from its own website and linked to its entry in "
+                 + "the official company registry, and this block lays out what both say: profile, "
+                 + "people, group structure, filed figures, listing and funding. A standalone application "
+                 + "has no research and no registry, so there is nothing for the block to show. Remove the "
+                 + "block to build standalone, or run this application on Cordango Platform"),
             ]),
 
         Effects: CapabilitySet.Of(

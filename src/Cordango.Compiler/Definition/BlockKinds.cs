@@ -74,10 +74,19 @@ public static class BlockKinds
     /// linked to, through a link the platform keeps on its own Organizations app; a generated app
     /// authoring it would be claiming a link it cannot make. It is placed by hand, in the
     /// Organizations app's company detail.</item>
+    /// <item><c>publicAffairs</c> — <b>withheld because it is the platform's public-register panel
+    /// rendering inside an app</b>. It shows what the lobby and political registers say about the
+    /// company a record is linked to, through matches the platform confirms and keeps on its own
+    /// Organizations app; a generated app authoring it would be claiming matches it cannot make. It is
+    /// placed by hand, in the Organizations app's company detail.</item>
+    /// <item><c>companyResearch</c> — <b>withheld because it is the platform's company research page
+    /// rendering inside an app</b>. It lays out what research and the registers found about the company
+    /// a record describes, read through the platform's own research fields and register link; a
+    /// generated app has neither. It is placed by hand, in the Organizations app's company detail.</item>
     /// </list>
     /// </summary>
     public static readonly IReadOnlySet<string> NotAuthorable =
-        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps", "documents", "legalEntity" };
+        new HashSet<string>(StringComparer.Ordinal) { "widgets", "externalEmbed", "relatedApps", "documents", "legalEntity", "publicAffairs", "companyResearch" };
 
     /// <summary>The full authoring vocabulary.</summary>
     public static readonly IReadOnlyList<AuthoringKind> All =

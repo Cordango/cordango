@@ -153,13 +153,22 @@ public class PageEditorSchemaTests
     /// <c>label</c>/<c>empty</c>/layout ones, one dispatch entry and one enum value. Most of the size is
     /// the description, cut to what an author needs: where it is valid and that nothing is
     /// configured.</item>
+    /// <item>114,200 &#8594; 115,400 (2026-10-26): <c>publicAffairs</c>, the 46th block kind &#8212;
+    /// what the lobby and political registers say about the company a record is linked to, placed by
+    /// hand in the Organizations app beside <c>legalEntity</c>. +1,222 bytes, to 115,367: the same
+    /// shape as <c>legalEntity</c>, one closed variant, one dispatch entry and one enum value. The
+    /// description is a little longer because it names the registers the panel reads.</item>
+    /// <item>115,400 &#8594; 116,800 (2026-10-26): <c>companyResearch</c>, the 47th block kind &#8212;
+    /// the Organizations app's research page, placed by hand beside <c>publicAffairs</c>. +1,262 bytes,
+    /// to 116,629: the same shape again plus a <c>blocks</c> array for its sources panel and chart, and
+    /// <c>publicAffairs</c>' description now names the party donations it shows.</item>
     /// </list>
     /// </summary>
     [Fact]
     public void It_is_small_enough_to_ship_to_a_browser()
     {
         var pruned = Schemas.PageEditorSchema().ToJsonString().Length;
-        Assert.InRange(pruned, 1, 114_200);
+        Assert.InRange(pruned, 1, 116_800);
         Assert.True(pruned < Schemas.PageSchema().ToJsonString().Length);
     }
 

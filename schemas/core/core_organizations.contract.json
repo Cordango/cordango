@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_organizations",
     "name": "Organizations",
-    "version": "1.10.0",
+    "version": "1.13.0",
     "schemaVersion": "2.0",
-    "definitionHash": "623a6aa2c9a12fb23cbf5e86f352c2f2a8bc7eed7d918a6ce4e9bcceb579e693",
-    "contractHash": "a28723602315ba84e361722e59ea6cb984785792374627f724ec52c8ebd54d81"
+    "definitionHash": "b3a9fb884c51029ffdcc87a5c0535f6c8e0eb5ef7d804ddb2b0e28161dc493a5",
+    "contractHash": "f81372b61109a4b469f28307796db15057123915bafb84bf87a7f7e47c9dd5e0"
   },
   "entities": [
     {
@@ -640,6 +640,28 @@
           "type": "text"
         },
         {
+          "key": "enr_register_state",
+          "label": "Register status",
+          "type": "select",
+          "options": [
+            {
+              "value": "insolvency",
+              "label": "Insolvency proceedings",
+              "color": "#dc2626"
+            },
+            {
+              "value": "liquidation",
+              "label": "In liquidation",
+              "color": "#d97706"
+            },
+            {
+              "value": "no_longer_registered",
+              "label": "No longer registered",
+              "color": "#64748b"
+            }
+          ]
+        },
+        {
           "key": "enr_vat_id",
           "label": "VAT id",
           "type": "text"
@@ -882,6 +904,11 @@
           "key": "enr_link_actor",
           "label": "Linked by",
           "type": "text"
+        },
+        {
+          "key": "enr_external_matches",
+          "label": "Public register decisions",
+          "type": "json"
         }
       ]
     },

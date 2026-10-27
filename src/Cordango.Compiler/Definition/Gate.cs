@@ -3269,6 +3269,35 @@ public static class Gate
                                  + "'enr_legal_entity' link field — the panel follows that link to the registry entry");
                     break;
                 }
+                case "publicAffairs":
+                {
+                    // One record's public register entries, found through the matches that record
+                    // keeps. Without the field there is nowhere to keep an accepted or hidden match,
+                    // and the panel would render as permanently empty — which reads like "this company
+                    // lobbies nowhere" rather than a mistake in the definition. The server still
+                    // refuses every app but Organizations.
+                    if (binding != "record")
+                    { errors.Add($"SEMANTIC: {where}: block kind 'publicAffairs' is only valid in a record detail — it shows one company's public register entries"); break; }
+                    if (!ctx.FieldExists(boundEntity, "enr_external_matches"))
+                        errors.Add($"SEMANTIC: {where}: block kind 'publicAffairs' needs '{boundEntity}' to carry the "
+                                 + "'enr_external_matches' field — the panel keeps the record's accepted and hidden register matches there");
+                    break;
+                }
+                case "companyResearch":
+                {
+                    // One company's research as a page: the record's research fields, its children
+                    // (officers, rounds, investors) and the register entry its link names. Without the
+                    // link field the register half could never appear, and the page would read as a
+                    // company the registers know nothing about. Its blocks are the sources panel, bound
+                    // to the same record, so they are checked like any record detail's.
+                    if (binding != "record")
+                    { errors.Add($"SEMANTIC: {where}: block kind 'companyResearch' is only valid in a record detail — it shows one company's research"); break; }
+                    if (!ctx.FieldExists(boundEntity, "enr_legal_entity"))
+                        errors.Add($"SEMANTIC: {where}: block kind 'companyResearch' needs '{boundEntity}' to carry the "
+                                 + "'enr_legal_entity' link field — the page follows that link to the registry entry");
+                    ValidateBlocks(b["blocks"], inside, binding, boundEntity, ctx, errors, foreignApp);
+                    break;
+                }
                 case "documents":
                 {
                     // Two homes, told apart by `field`. On a page it is the Documents app's own surface

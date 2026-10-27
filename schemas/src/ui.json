@@ -714,7 +714,9 @@
             "externalEmbed",
             "relatedApps",
             "documents",
-            "legalEntity"
+            "legalEntity",
+            "publicAffairs",
+            "companyResearch"
           ]
         }
       },
@@ -1392,6 +1394,36 @@
           },
           "then": {
             "$ref": "#/$defs/block_legalEntity"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "publicAffairs"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_publicAffairs"
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "companyResearch"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "$ref": "#/$defs/block_companyResearch"
           }
         }
       ]
@@ -4588,6 +4620,72 @@
           "description": "What to say when the record is not linked to a registry entry. Omit to show nothing at all.",
           "type": "string",
           "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_publicAffairs": {
+      "description": "What public lobby and political registers say about the company a record is linked to: its EU lobby register entry, its meetings with the European Commission and the party donations the Bundestag published from it, or a candidate entry to accept or hide. Record binding only, on an entity with the 'enr_external_matches' field. Nothing is configured: the server follows the record's confirmed register link.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "publicAffairs"
+        },
+        "class": { "$ref": "#/$defs/blockClass" },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "empty": {
+          "description": "What to say when the registers show nothing for this company. Omit to show nothing at all.",
+          "type": "string",
+          "maxLength": 300
+        },
+        "visibleWhen": {
+          "$ref": "#/$defs/visibleWhen"
+        },
+        "grow": {
+          "type": "boolean"
+        },
+        "width": {
+          "description": "Fixed width for a layout box: a named size ('xs'|'sm'|'md'|'lg'), a pixel number, or a CSS length."
+        }
+      }
+    },
+    "block_companyResearch": {
+      "description": "Everything research and the company registers found about the company a record describes, as one page: key figures, profile and register data, people, group structure, filed figures, listing and funding. Record binding only, on an entity with the 'enr_legal_entity' link field. 'blocks' are shown in a side panel behind its sources button, except an 'externalEmbed', which is drawn in the listing card.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind"
+      ],
+      "properties": {
+        "kind": {
+          "const": "companyResearch"
+        },
+        "class": { "$ref": "#/$defs/blockClass" },
+        "label": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "blocks": {
+          "description": "Where the findings came from, shown behind the sources button and bound to the same record; an 'externalEmbed' among them is the share price chart in the listing card.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/block"
+          }
         },
         "visibleWhen": {
           "$ref": "#/$defs/visibleWhen"
