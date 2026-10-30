@@ -100,6 +100,11 @@
       "reason": "intake_form.route_priority -- same construct as route_to_person."
     },
     {
+      "app": "helpdesk",
+      "pointer": "/entities/2/fields/8/mapsTo",
+      "reason": "intake_form.route_requester_kind -- same construct as route_to_person. Added with the public link (1.3.0) so a published form can file its tickets as External."
+    },
+    {
       "app": "people_hr",
       "pointer": "/roles/1/grants/0/fieldOverrides",
       "reason": "Per-field permission inside a grant -- read/write narrowed for individual fields. A genuine construct and the only field-level security in the corpus; modelling it means deciding how field rules compose with entity rules, which is a security question and not a lowering one. Two occurrences."

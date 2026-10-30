@@ -4,10 +4,10 @@
   "identity": {
     "key": "core_organizations",
     "name": "Organizations",
-    "version": "1.13.0",
+    "version": "1.14.0",
     "schemaVersion": "2.0",
-    "definitionHash": "b3a9fb884c51029ffdcc87a5c0535f6c8e0eb5ef7d804ddb2b0e28161dc493a5",
-    "contractHash": "f81372b61109a4b469f28307796db15057123915bafb84bf87a7f7e47c9dd5e0"
+    "definitionHash": "d731eb1f777f4f441e3f82f5a4ed4aba9d960746fbbd6aeafa26ba1f8e93f280",
+    "contractHash": "9d43266df0a5a059387833aecf8deb662a5be61c0dcbcdf8c45e51f33578770f"
   },
   "entities": [
     {
@@ -1924,42 +1924,14 @@
       "key": "enrich_now",
       "entity": "organization",
       "label": "Research now",
-      "description": "Look this company up on the public web and file what is found alongside - never over - what you typed.",
-      "requires": [
-        "organization.enrich_now.when"
-      ]
+      "description": "Look this company up on the public web and file what is found alongside - never over - what you typed."
     },
     {
       "id": "organization.refresh_research",
       "key": "refresh_research",
       "entity": "organization",
       "label": "Refresh",
-      "description": "Research this company again even though it was looked up recently. Ordinary research is refused inside the freshness window so nobody can run up a bill by pressing a button five times; this is the deliberate way past it.",
-      "requires": [
-        "organization.refresh_research.when"
-      ]
-    }
-  ],
-  "rules": [
-    {
-      "id": "organization.enrich_now.when",
-      "entity": "organization",
-      "on": [
-        "command:enrich_now"
-      ],
-      "kind": "guard",
-      "effect": "stop",
-      "source": "synthesized"
-    },
-    {
-      "id": "organization.refresh_research.when",
-      "entity": "organization",
-      "on": [
-        "command:refresh_research"
-      ],
-      "kind": "guard",
-      "effect": "stop",
-      "source": "synthesized"
+      "description": "Research this company again even though it was looked up recently. Ordinary research is refused inside the freshness window so nobody can run up a bill by pressing a button five times; this is the deliberate way past it."
     }
   ]
 }

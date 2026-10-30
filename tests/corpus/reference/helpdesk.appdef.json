@@ -2,7 +2,7 @@
   "schemaVersion": "2.0",
   "key": "helpdesk",
   "name": "Helpdesk",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Internal ticket queue: requests come in, get assigned, worked, and resolved — nothing gets lost.",
   "presentation": {
     "icon": "lifebuoy",
@@ -502,6 +502,61 @@
               "color": "#dc2626"
             }
           ]
+        },
+        {
+          "key": "route_requester_kind",
+          "label": "Requester type",
+          "type": "select",
+          "mapsTo": "requester_kind",
+          "help": "A published form that strangers fill in can mark every ticket it files as External. Empty leaves the ticket's own default.",
+          "options": [
+            {
+              "value": "internal",
+              "label": "Internal (staff)"
+            },
+            {
+              "value": "external",
+              "label": "External"
+            }
+          ]
+        },
+        {
+          "key": "confirm_mode",
+          "label": "Confirm the address",
+          "type": "select",
+          "help": "Almost every form should accept straight away. Ask for confirmation only where a wrong address would put real work in somebody's queue.",
+          "group": "Publishing",
+          "default": "none",
+          "role": "confirmMode",
+          "options": [
+            {
+              "value": "none",
+              "label": "Accept straight away"
+            },
+            {
+              "value": "email",
+              "label": "Email a confirmation link first"
+            }
+          ]
+        },
+        {
+          "key": "publish",
+          "label": "Published",
+          "type": "boolean",
+          "help": "Off, the link is dead. On, anyone holding the address can fill this form in and nothing else.",
+          "group": "Publishing",
+          "role": "publicShare"
+        },
+        {
+          "key": "public_token",
+          "label": "Public link",
+          "type": "text",
+          "unique": true,
+          "help": "Generated, never typed. This is the address itself, which is why it is long and unguessable.",
+          "group": "Publishing",
+          "prefix": "/f/",
+          "input": "slug",
+          "role": "publicToken"
         }
       ]
     },
@@ -568,7 +623,8 @@
           "key": "choices",
           "label": "Choices",
           "type": "json",
-          "help": "The options for a pick-one / pick-any question."
+          "help": "The options for a pick-one / pick-any question.",
+          "role": "answerOptions"
         },
         {
           "key": "position",
@@ -580,7 +636,9 @@
           "key": "required",
           "label": "Required",
           "type": "boolean",
-          "default": false
+          "default": false,
+          "role": "answerRequired",
+          "help": "Enforced on the server, which matters once a form is published: a stranger skipping it would otherwise file a ticket with no subject."
         },
         {
           "key": "fills",
@@ -588,6 +646,13 @@
           "type": "text",
           "role": "mapsTo",
           "help": "Which ticket field this answer becomes — set it in the form designer."
+        },
+        {
+          "key": "is_respondent_email",
+          "label": "This asks for the submitter's own email",
+          "type": "boolean",
+          "help": "Marks WHICH question holds the address a confirmation link goes to. A form can ask for several addresses and only the author knows which one is theirs.",
+          "role": "respondentEmail"
         }
       ]
     },
